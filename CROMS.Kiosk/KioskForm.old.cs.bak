@@ -1,0 +1,678 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Printing;
+using System.IO;
+using System.Linq;
+using System.Windows.Forms;
+using AForge.Video;
+using AForge.Video.DirectShow;
+using MySql.Data.MySqlClient;
+
+namespace CROMS.Kiosk
+{
+    /// <summary>
+    /// Client self-service kiosk — multi-service request flow with webcam capture.
+    ///
+    /// The client enters First / Middle / Last name (+ optional contact), takes their
+    /// photo with the live webcam, taps one or more service cards, reviews the running
+    /// selection (removing any before confirming), then taps "Print Queue Ticket". That
+    /// creates ONE queue_tickets row (one queue number, with the photo in id_image) plus
+    /// one queue_ticket_services row per selected service, so the staff app can process
+    /// every requested service from the same ticket. Print stays disabled until at least
+    /// one service is selected.
+    /// </summary>
+    public class KioskForm : Form
+    {
+        /// <summary>One selectable service. code + label are stored per ticket.</summary>
+        private sealed class Service
+        {
+            public string Code;
+            public string Label;
+            public string Glyph;
+            public Service(string code, string label, string glyph)
+            {
+                Code = code; Label = label; Glyph = glyph;
+            }
+        }
+
+        // The service catalogue. Add a future service here — the card grid builds itself.
+        private static readonly Service[] Catalogue =
+        {
+            new Service("NEWREG",   "New Registration",           "📝"),
+            new Service("CTC",      "Certified True Copy (CTC)",  "📄"),
+            new Service("MARRIAGE", "Marriage Certificate",       "💍"),
+            new Service("DEATH",    "Death Certificate",          "🕊"),
+            new Service("PETITION", "Petition (Correction)",      "⚖"),
+            new Service("VERIFY",   "Verification / Others",      "🔎"),
+        };
+
+        // Palette
+        private static readonly Color Bg        = Color.FromArgb(241, 245, 249);
+        private static readonly Color CardBg    = Color.White;
+        private static readonly Color CardSelBg = Color.FromArgb(232, 240, 254);
+        private static readonly Color Accent    = Color.FromArgb(13, 110, 253);
+        private static readonly Color Ink       = Color.FromArgb(33, 37, 41);
+        private static readonly Color Muted     = Color.FromArgb(108, 117, 125);
+        private static readonly Color Line      = Color.FromArgb(222, 226, 230);
+
+        // Selected service codes, in the order the client tapped them.
+        private readonly List<string> _selected = new List<string>();
+        private readonly Dictionary<string, Panel> _cards = new Dictionary<string, Panel>();
+
+        private FlowLayoutPanel _summaryList;
+        private Button _btnPrint;
+        private Label _lblEmpty;
+        private TextBox _txtFirst, _txtMiddle, _txtLast, _txtContact;
+        private CheckBox _chkSenior, _chkPwd, _chkPregnant;
+
+        // Live webcam
+        private PictureBox _picCam;
+        private Label _lblCamStatus;
+        private byte[] _idBytes;
+        private VideoCaptureDevice _camera;
+        private Bitmap _lastFrame;
+        private readonly object _frameLock = new object();
+
+        public KioskForm()
+        {
+            Text = "CROMS — Client Kiosk";
+            WindowState = FormWindowState.Maximized;
+            BackColor = Bg;
+            Font = new Font("Segoe UI", 10F);
+            BuildUi();
+            Load += (s, e) => StartCamera();
+        }
+
+        // ---------------------------------------------------------------- UI
+        private void BuildUi()
+        {
+            var header = new Panel { Dock = DockStyle.Top, Height = 96, BackColor = Bg };
+            header.Controls.Add(new Label
+            {
+                Text = "Request a Service",
+                Font = new Font("Segoe UI", 26F, FontStyle.Bold),
+                ForeColor = Ink,
+                AutoSize = true,
+                Location = new Point(40, 22)
+            });
+            header.Controls.Add(new Label
+            {
+                Text = "Enter your details, take your photo, pick your services, then print one queue ticket.",
+                Font = new Font("Segoe UI", 11F),
+                ForeColor = Muted,
+                AutoSize = true,
+                Location = new Point(42, 64)
+            });
+
+            // Right: details + selection panel (docked first so the card area fills the rest).
+            var details = BuildDetailsPanel();
+
+            // Left: service cards.
+            var cardArea = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                Padding = new Padding(30, 20, 30, 30),
+                AutoScroll = true,
+                BackColor = Bg
+            };
+            foreach (var svc in Catalogue)
+            {
+                Panel card = BuildCard(svc);
+                _cards[svc.Code] = card;
+                cardArea.Controls.Add(card);
+            }
+
+            Controls.Add(cardArea);   // fill
+            Controls.Add(details);    // right
+            Controls.Add(header);     // top
+
+            UpdateSummary();
+        }
+
+        private Panel BuildCard(Service svc)
+        {
+            var card = new Panel
+            {
+                Size = new Size(300, 140),
+                Margin = new Padding(14),
+                BackColor = CardBg,
+                BorderStyle = BorderStyle.FixedSingle,
+                Cursor = Cursors.Hand,
+                Tag = svc
+            };
+
+            var glyph = new Label
+            {
+                Text = svc.Glyph,
+                Font = new Font("Segoe UI Emoji", 34F),
+                AutoSize = false,
+                Size = new Size(300, 64),
+                Location = new Point(0, 18),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
+            };
+            var name = new Label
+            {
+                Text = svc.Label,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = Ink,
+                AutoSize = false,
+                Size = new Size(300, 44),
+                Location = new Point(0, 84),
+                TextAlign = ContentAlignment.MiddleCenter,
+                Cursor = Cursors.Hand
+            };
+
+            card.Controls.Add(glyph);
+            card.Controls.Add(name);
+
+            EventHandler toggle = (s, e) => ToggleService(svc.Code);
+            card.Click += toggle;
+            glyph.Click += toggle;
+            name.Click += toggle;
+
+            return card;
+        }
+
+        private Panel BuildDetailsPanel()
+        {
+            var panel = new Panel { Dock = DockStyle.Right, Width = 500, BackColor = CardBg };
+            panel.Controls.Add(new Panel { Dock = DockStyle.Left, Width = 1, BackColor = Line });
+
+            // Print button pinned to the bottom.
+            _btnPrint = new Button
+            {
+                Text = "Print Queue Ticket",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Accent,
+                FlatStyle = FlatStyle.Flat,
+                Dock = DockStyle.Bottom,
+                Height = 58,
+                Enabled = false
+            };
+            _btnPrint.FlatAppearance.BorderSize = 0;
+            _btnPrint.Click += (s, e) => Submit();
+
+            // Scrollable content above the button.
+            var content = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(24, 16, 24, 8) };
+
+            int x = 24, w = 430, y = 8;
+            content.Controls.Add(Title("YOUR DETAILS", x, y)); y += 38;
+
+            content.Controls.Add(Cap("First Name", x, y)); y += 22;
+            _txtFirst = Field(x, y, w); content.Controls.Add(_txtFirst); y += 40;
+            content.Controls.Add(Cap("Middle Name", x, y)); y += 22;
+            _txtMiddle = Field(x, y, w); content.Controls.Add(_txtMiddle); y += 40;
+            content.Controls.Add(Cap("Last Name", x, y)); y += 22;
+            _txtLast = Field(x, y, w); content.Controls.Add(_txtLast); y += 40;
+
+            content.Controls.Add(Cap("Contact Number (optional)", x, y)); y += 22;
+            _txtContact = Field(x, y, w); content.Controls.Add(_txtContact); y += 44;
+
+            // Priority lane — three separate options (mapped to the existing priority column).
+            content.Controls.Add(Cap("Priority lane", x, y)); y += 24;
+            _chkSenior = Check("Senior Citizen", x, y); content.Controls.Add(_chkSenior); y += 28;
+            _chkPwd = Check("Person with Disability (PWD)", x, y); content.Controls.Add(_chkPwd); y += 28;
+            _chkPregnant = Check("Pregnant", x, y); content.Controls.Add(_chkPregnant); y += 40;
+
+            // Webcam capture.
+            content.Controls.Add(Cap("Photo", x, y)); y += 24;
+            _picCam = new PictureBox
+            {
+                Location = new Point(x, y),
+                Size = new Size(240, 180),
+                BorderStyle = BorderStyle.FixedSingle,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.FromArgb(17, 24, 39)
+            };
+            content.Controls.Add(_picCam);
+            var btnCapture = new Button
+            {
+                Text = "Capture / Retake",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = Color.FromArgb(25, 135, 84),
+                FlatStyle = FlatStyle.Flat,
+                Location = new Point(x + 252, y + 4),
+                Size = new Size(178, 44)
+            };
+            btnCapture.FlatAppearance.BorderSize = 0;
+            btnCapture.Click += (s, e) => CapturePhoto();
+            content.Controls.Add(btnCapture);
+            _lblCamStatus = new Label
+            {
+                Text = "Starting camera…",
+                AutoSize = false,
+                Size = new Size(178, 80),
+                ForeColor = Muted,
+                Font = new Font("Segoe UI", 9F),
+                Location = new Point(x + 252, y + 56)
+            };
+            content.Controls.Add(_lblCamStatus);
+            y += 196;
+
+            content.Controls.Add(Cap("Selected services", x, y)); y += 24;
+            _summaryList = new FlowLayoutPanel
+            {
+                Location = new Point(x, y),
+                Size = new Size(w, 220),
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = true,
+                BackColor = Color.FromArgb(248, 249, 250),
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            _lblEmpty = new Label
+            {
+                Text = "No services selected yet.\nTap a card on the left.",
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = Muted,
+                AutoSize = false,
+                Size = new Size(w - 20, 60),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            _summaryList.Controls.Add(_lblEmpty);
+            content.Controls.Add(_summaryList);
+
+            panel.Controls.Add(content);   // fill
+            panel.Controls.Add(_btnPrint); // bottom
+            return panel;
+        }
+
+        private static Label Title(string text, int x, int y) => new Label
+        {
+            Text = text, AutoSize = true, ForeColor = Color.FromArgb(33, 37, 41),
+            Font = new Font("Segoe UI", 13F, FontStyle.Bold), Location = new Point(x, y)
+        };
+
+        private static Label Cap(string text, int x, int y) => new Label
+        {
+            Text = text, AutoSize = true, ForeColor = Color.FromArgb(108, 117, 125),
+            Font = new Font("Segoe UI", 9F), Location = new Point(x, y)
+        };
+
+        private static TextBox Field(int x, int y, int w) => new TextBox
+        {
+            Font = new Font("Segoe UI", 12F), Location = new Point(x, y), Size = new Size(w, 30)
+        };
+
+        private static CheckBox Check(string text, int x, int y) => new CheckBox
+        {
+            Text = text, AutoSize = true, ForeColor = Color.FromArgb(33, 37, 41),
+            Font = new Font("Segoe UI", 10F), Location = new Point(x, y)
+        };
+
+        // ------------------------------------------------------------ selection
+        private void ToggleService(string code)
+        {
+            if (_selected.Contains(code)) _selected.Remove(code);
+            else _selected.Add(code);
+            PaintCard(code);
+            UpdateSummary();
+        }
+
+        private void PaintCard(string code)
+        {
+            if (!_cards.TryGetValue(code, out Panel card)) return;
+            bool on = _selected.Contains(code);
+            card.BackColor = on ? CardSelBg : CardBg;
+            foreach (Control c in card.Controls)
+            {
+                c.BackColor = card.BackColor;
+                if (c is Label l && l.Font.Bold) l.ForeColor = on ? Accent : Ink;
+            }
+        }
+
+        private void UpdateSummary()
+        {
+            _summaryList.Controls.Clear();
+            if (_selected.Count == 0)
+            {
+                _summaryList.Controls.Add(_lblEmpty);
+            }
+            else
+            {
+                foreach (string code in _selected)
+                    _summaryList.Controls.Add(BuildSummaryRow(Find(code)));
+            }
+            _btnPrint.Enabled = _selected.Count > 0;
+            _btnPrint.Text = _selected.Count > 0
+                ? "Print Queue Ticket  (" + _selected.Count + ")"
+                : "Print Queue Ticket";
+        }
+
+        private Panel BuildSummaryRow(Service svc)
+        {
+            var row = new Panel { Size = new Size(400, 44), BackColor = CardBg, Margin = new Padding(0, 0, 0, 6) };
+            row.Controls.Add(new Label
+            {
+                Text = svc.Glyph + "  " + svc.Label,
+                Font = new Font("Segoe UI", 10.5F),
+                ForeColor = Ink,
+                AutoSize = false,
+                Size = new Size(346, 44),
+                Location = new Point(8, 0),
+                TextAlign = ContentAlignment.MiddleLeft
+            });
+            var remove = new Button
+            {
+                Text = "✕",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(220, 53, 69),
+                FlatStyle = FlatStyle.Flat,
+                Size = new Size(36, 36),
+                Location = new Point(358, 4),
+                Cursor = Cursors.Hand,
+                Tag = svc.Code
+            };
+            remove.FlatAppearance.BorderSize = 0;
+            remove.Click += (s, e) => ToggleService((string)((Button)s).Tag);
+            row.Controls.Add(remove);
+            return row;
+        }
+
+        private static Service Find(string code) => Catalogue.First(s => s.Code == code);
+
+        // ------------------------------------------------------------ live webcam
+        private void StartCamera()
+        {
+            try
+            {
+                var devices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
+                if (devices.Count == 0)
+                {
+                    _lblCamStatus.Text = "No camera found — connect a webcam.";
+                    return;
+                }
+                _camera = new VideoCaptureDevice(devices[0].MonikerString);
+                _camera.NewFrame += OnFrame;
+                _camera.Start();
+                _lblCamStatus.Text = "Live camera — click Capture / Retake.";
+            }
+            catch (Exception ex)
+            {
+                _lblCamStatus.Text = "Camera error: " + ex.Message;
+            }
+        }
+
+        private void OnFrame(object sender, NewFrameEventArgs e)
+        {
+            var frame = (Bitmap)e.Frame.Clone();
+            lock (_frameLock)
+            {
+                _lastFrame?.Dispose();
+                _lastFrame = frame;
+            }
+            try
+            {
+                var disp = (Bitmap)frame.Clone();
+                var old = _picCam.Image;
+                _picCam.Image = disp;
+                old?.Dispose();
+            }
+            catch { /* form closing / cross-thread paint — safe to ignore */ }
+        }
+
+        private void CapturePhoto()
+        {
+            lock (_frameLock)
+            {
+                if (_lastFrame == null) { Warn("The camera is not ready yet."); return; }
+                using (var ms = new MemoryStream())
+                {
+                    _lastFrame.Save(ms, ImageFormat.Jpeg);
+                    _idBytes = ms.ToArray();
+                }
+            }
+            _lblCamStatus.Text = "Photo captured. Click Capture / Retake to redo.";
+        }
+
+        private void StopCamera()
+        {
+            if (_camera != null && _camera.IsRunning)
+            {
+                _camera.NewFrame -= OnFrame;
+                _camera.SignalToStop();
+                _camera.WaitForStop();
+            }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            StopCamera();
+            base.OnFormClosing(e);
+        }
+
+        private MySqlParameter ImageParam()
+        {
+            var p = new MySqlParameter("@img", MySqlDbType.LongBlob);
+            p.Value = (_idBytes == null || _idBytes.Length == 0) ? (object)DBNull.Value : _idBytes;
+            return p;
+        }
+
+        // -------------------------------------------------------------- submit
+        private void Submit()
+        {
+            if (_selected.Count == 0) { Warn("Please select at least one service."); return; }
+            if (Blank(_txtFirst) || Blank(_txtLast)) { Warn("Please enter your first and last name."); return; }
+
+            string priority = PriorityValue();
+            string joined = string.Join(", ", _selected.Select(c => Find(c).Label));
+            string primary = Find(_selected[0]).Label;
+
+            int num = NextNum();
+            string code = "Q-" + num.ToString("D3");
+
+            object contact = Blank(_txtContact) ? (object)DBNull.Value : _txtContact.Text.Trim();
+
+            try
+            {
+                // One ticket = one queue number, with the client's photo in id_image.
+                long ticketId = Db.Insert(
+                    "INSERT INTO queue_tickets (ticket_code, full_name, contact_no, id_image, number_queue, " +
+                    "date, time, status, document_type, type_label, priority) " +
+                    "VALUES (@code, @name, @contact, @img, @num, @date, @time, 'Waiting', @doc, @label, @priority)",
+                    new MySqlParameter("@code", code),
+                    new MySqlParameter("@name", FullName()),
+                    new MySqlParameter("@contact", contact),
+                    ImageParam(),
+                    new MySqlParameter("@num", num),
+                    new MySqlParameter("@date", DateTime.Today),
+                    new MySqlParameter("@time", DateTime.Now.ToString("HH:mm")),
+                    new MySqlParameter("@doc", primary),
+                    new MySqlParameter("@label", joined),
+                    new MySqlParameter("@priority", priority));
+
+                // One row per requested service, all linked to that ticket.
+                foreach (string c in _selected)
+                {
+                    Service svc = Find(c);
+                    Db.Push(
+                        "INSERT INTO queue_ticket_services (ticket_id, service_code, service_label) " +
+                        "VALUES (@tid, @sc, @sl)",
+                        new MySqlParameter("@tid", ticketId),
+                        new MySqlParameter("@sc", svc.Code),
+                        new MySqlParameter("@sl", svc.Label));
+                }
+
+                var services = _selected.Select(c => Find(c).Label).ToList();
+                PrintTicket(code, services, priority != "Regular");
+                ShowTicket(code, services);
+                ResetForm();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Sorry, your request could not be submitted:\n" + ex.Message,
+                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// Maps the three priority checkboxes onto the existing single `priority` column.
+        /// Strongest wins; order matches the staff Call-Next ordering
+        /// FIELD(priority,'Priority','PWD','Senior','Regular'). Pregnant → 'Priority'.
+        /// </summary>
+        private string PriorityValue()
+        {
+            if (_chkPregnant.Checked) return "Priority";
+            if (_chkPwd.Checked) return "PWD";
+            if (_chkSenior.Checked) return "Senior";
+            return "Regular";
+        }
+
+        private string FullName()
+        {
+            var parts = new List<string>();
+            if (!Blank(_txtFirst)) parts.Add(_txtFirst.Text.Trim());
+            if (!Blank(_txtMiddle)) parts.Add(_txtMiddle.Text.Trim());
+            if (!Blank(_txtLast)) parts.Add(_txtLast.Text.Trim());
+            return string.Join(" ", parts);
+        }
+
+        /// <summary>Next daily queue number across all services (one shared sequence).</summary>
+        private static int NextNum()
+        {
+            DataTable dt = Db.Pull(
+                "SELECT COALESCE(MAX(number_queue), 0) + 1 AS n FROM queue_tickets " +
+                "WHERE ticket_code LIKE 'Q-%' AND DATE(created_at) = CURDATE()");
+            return dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
+        }
+
+        private void ResetForm()
+        {
+            _selected.Clear();
+            foreach (string code in _cards.Keys) PaintCard(code);
+            _txtFirst.Clear(); _txtMiddle.Clear(); _txtLast.Clear(); _txtContact.Clear();
+            _chkSenior.Checked = _chkPwd.Checked = _chkPregnant.Checked = false;
+            _idBytes = null;
+            _lblCamStatus.Text = "Live camera — click Capture / Retake.";
+            UpdateSummary();
+            _txtFirst.Focus();
+        }
+
+        // -------------------------------------------------------------- printing
+        /// <summary>Prints a small physical queue ticket listing every requested service.</summary>
+        private void PrintTicket(string code, List<string> services, bool priority)
+        {
+            try
+            {
+                using (var doc = new PrintDocument())
+                {
+                    doc.DocumentName = "Queue Ticket " + code;
+                    doc.PrintPage += (s, e) => DrawTicket(e, code, services, priority);
+                    doc.Print();
+                }
+            }
+            catch
+            {
+                // No printer / print cancelled — the on-screen ticket still shows the number.
+            }
+        }
+
+        private static void DrawTicket(PrintPageEventArgs e, string code, List<string> services, bool priority)
+        {
+            Graphics g = e.Graphics;
+            float x = e.MarginBounds.Left;
+            float y = e.MarginBounds.Top;
+
+            using (var fTitle  = new Font("Segoe UI", 16F, FontStyle.Bold))
+            using (var fNumber = new Font("Consolas", 48F, FontStyle.Bold))
+            using (var fBody   = new Font("Segoe UI", 12F))
+            using (var fSmall  = new Font("Segoe UI", 9F))
+            {
+                g.DrawString("CROMS — LCRO Peñablanca", fTitle, Brushes.Black, x, y); y += 40;
+                g.DrawString("Queue Ticket", fBody, Brushes.Black, x, y); y += 30;
+                g.DrawString(code, fNumber, Brushes.Black, x, y); y += 80;
+
+                if (priority)
+                {
+                    g.DrawString("★ PRIORITY LANE", fBody, Brushes.Black, x, y); y += 28;
+                }
+
+                g.DrawString("Requested services:", fBody, Brushes.Black, x, y); y += 26;
+                int i = 1;
+                foreach (string svc in services)
+                {
+                    g.DrawString("  " + i + ".  " + svc, fBody, Brushes.Black, x, y);
+                    y += 24; i++;
+                }
+                y += 16;
+                g.DrawString(DateTime.Now.ToString("ddd, dd MMM yyyy  HH:mm"), fSmall, Brushes.Black, x, y);
+                y += 22;
+                g.DrawString("Please wait for your number to be called.", fSmall, Brushes.Black, x, y);
+            }
+        }
+
+        /// <summary>Big friendly on-screen confirmation listing the number + services.</summary>
+        private static void ShowTicket(string code, List<string> services)
+        {
+            using (var dlg = new Form())
+            {
+                dlg.Text = "Your Queue Number";
+                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dlg.StartPosition = FormStartPosition.CenterScreen;
+                dlg.MinimizeBox = false;
+                dlg.MaximizeBox = false;
+                dlg.ClientSize = new Size(480, 420);
+                dlg.BackColor = Color.FromArgb(17, 24, 39);
+
+                var header = new Label
+                {
+                    Text = "YOUR QUEUE NUMBER",
+                    ForeColor = Color.FromArgb(148, 163, 184),
+                    Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                    Dock = DockStyle.Top, Height = 50,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                var big = new Label
+                {
+                    Text = code,
+                    ForeColor = Color.FromArgb(96, 165, 250),
+                    Font = new Font("Consolas", 60F, FontStyle.Bold),
+                    Dock = DockStyle.Top, Height = 110,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                var list = new Label
+                {
+                    Text = "Services:\n" + string.Join("\n", services.Select(s => "•  " + s)),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 12F),
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                var note = new Label
+                {
+                    Text = "Please take a seat and wait for your number to be called.",
+                    ForeColor = Color.FromArgb(148, 163, 184),
+                    Font = new Font("Segoe UI", 10F),
+                    Dock = DockStyle.Bottom, Height = 44,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                var ok = new Button
+                {
+                    Text = "OK",
+                    Dock = DockStyle.Bottom, Height = 48,
+                    FlatStyle = FlatStyle.Flat, ForeColor = Color.White,
+                    BackColor = Color.FromArgb(13, 110, 253),
+                    Font = new Font("Segoe UI", 12F, FontStyle.Bold)
+                };
+                ok.Click += (s, e) => dlg.Close();
+
+                dlg.Controls.Add(list);
+                dlg.Controls.Add(big);
+                dlg.Controls.Add(header);
+                dlg.Controls.Add(note);
+                dlg.Controls.Add(ok);
+                dlg.ShowDialog();
+            }
+        }
+
+        private static bool Blank(TextBox t) => string.IsNullOrWhiteSpace(t.Text);
+        private void Warn(string m) =>
+            MessageBox.Show(m, "Please check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+}

@@ -1,0 +1,436 @@
+using System;
+using System.Configuration;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+
+namespace CROMS.Data
+{
+    public enum IonicStatus { Stopped, Starting, Running, Error }
+
+    /// <summary>
+    /// Auto-starts the Ionic dev server (`ionic serve --host=0.0.0.0`) in the
+    /// background when the desktop app launches, so staff never open a separate
+    /// Command Prompt. It detects the PC's current Wi-Fi/LAN IPv4 (recomputed on
+    /// every start, so a new network just works), watches the server until its
+    /// port is actually listening, exposes the single mobile-connection URL for
+    /// the Login screen (and QR), auto-restarts on an unexpected crash, and kills
+    /// the whole process tree (no orphan node/cmd) when the app closes.
+    ///
+    /// Singleton: use <see cref="Instance"/>. All state changes raise
+    /// <see cref="Changed"/> (on a background thread — subscribers marshal to UI).
+    /// </summary>
+    public sealed class IonicServerManager
+    {
+        // Two servers can auto-start: the certificate-scanner app (Instance, :4200) and
+        // the claimapp ID-upload app (ClaimApp, :4300). Each is an independent instance
+        // with its own folder / serve command / port, so one CROMS launch brings up both.
+        public static readonly IonicServerManager Instance = new IonicServerManager(
+            "Mobile", "IonicAppPath", @"C:\Users\ivan palogan\ORCMobile_Application",
+            "MobileServeCommand", "npx ng serve --ssl --host 0.0.0.0 --port 4200 --disable-host-check", 4200);
+        public static readonly IonicServerManager ClaimApp = new IonicServerManager(
+            "ClaimApp", "ClaimAppPath", @"C:\Users\ivan palogan\claimapp",
+            "ClaimAppServeCommand", "npx ng serve --ssl --host 0.0.0.0 --port 4300 --disable-host-check", 4300);
+
+        private readonly string _label, _appPathKey, _appPathDefault, _serveCmdKey, _serveCmdDefault;
+        private IonicServerManager(string label, string appPathKey, string appPathDefault,
+            string serveCmdKey, string serveCmdDefault, int defaultPort)
+        {
+            _label = label;
+            _appPathKey = appPathKey; _appPathDefault = appPathDefault;
+            _serveCmdKey = serveCmdKey; _serveCmdDefault = serveCmdDefault;
+            Port = defaultPort;
+        }
+
+        // ---- public state ----
+        public IonicStatus Status { get; private set; } = IonicStatus.Stopped;
+        public string MobileUrl { get; private set; } = "";
+        public string LanIp { get; private set; } = "";
+        public int Port { get; private set; }
+        public string LastError { get; private set; } = "";
+        public string LogFile { get; private set; }
+        public string NetworkType { get; private set; } = "";   // Wi-Fi / Hotspot / LAN
+        public string SessionToken { get; } = Guid.NewGuid().ToString("N").Substring(0, 8);
+
+        public string ApiPort =>
+            (ConfigurationManager.AppSettings["MobileApiPort"] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings["MobileApiPort"].Trim()
+                : "3000";
+
+        // What the QR encodes: the app URL PLUS the connection details a native
+        // app needs to auto-pair (server host, api port, session id). A browser
+        // that is served the app ignores these and uses same-origin.
+        public string QrPayload =>
+            (Status == IonicStatus.Running && !string.IsNullOrEmpty(MobileUrl))
+                ? MobileUrl + "?sid=" + SessionToken + "&host=" + LanIp + "&api=" + ApiPort
+                : MobileUrl;
+
+        /// <summary>Raised whenever Status / MobileUrl changes (any thread).</summary>
+        public event Action Changed;
+
+        // ---- config (per-instance keys, so Mobile and ClaimApp differ) ----
+        public string AppPath =>
+            (ConfigurationManager.AppSettings[_appPathKey] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings[_appPathKey].Trim()
+                : _appPathDefault;
+
+        // Full command run after `cmd /c`. Defaults to an HTTPS Angular dev server
+        // so the phone (a secure context is required for the camera) can connect.
+        // --disable-host-check lets the phone reach it by LAN IP.
+        public string ServeCommand =>
+            (ConfigurationManager.AppSettings[_serveCmdKey] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings[_serveCmdKey].Trim()
+                : _serveCmdDefault;
+
+        // URL scheme the QR/URL is built with (https for the --ssl server).
+        public string Scheme =>
+            (ConfigurationManager.AppSettings["MobileScheme"] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings["MobileScheme"].Trim()
+                : "https";
+
+        private const int MaxRestarts = 3;
+
+        // ---- internals ----
+        private readonly object _lock = new object();
+        private Process _proc;
+        private Timer _portPoll;
+        private Timer _restartTimer;
+        private Timer _ipPoll;
+        private bool _shuttingDown;
+        private int _restartAttempts;
+        private DateTime _startedAt;
+        private readonly StringBuilder _recentOutput = new StringBuilder();
+
+        // -----------------------------------------------------------------
+        public void Start()
+        {
+            lock (_lock)
+            {
+                if (Status == IonicStatus.Starting || Status == IonicStatus.Running) return;
+                _shuttingDown = false;
+
+                if (!Directory.Exists(AppPath) ||
+                    !(File.Exists(Path.Combine(AppPath, "ionic.config.json")) ||
+                      File.Exists(Path.Combine(AppPath, "package.json"))))
+                {
+                    Fail("Ionic app folder not found: " + AppPath +
+                         "\r\nSet <appSettings> key 'IonicAppPath' in App.config.");
+                    return;
+                }
+
+                var lan = DetectLan();
+                LanIp = lan.ip;
+                NetworkType = lan.type;
+                MobileUrl = "";
+                LastError = "";
+                _recentOutput.Clear();
+                SetStatus(IonicStatus.Starting);
+
+                try
+                {
+                    LogFile = Path.Combine(Path.GetTempPath(), "croms-ionic-serve-" + _label + ".log");
+                    try { File.WriteAllText(LogFile, "CROMS ionic serve — " + DateTime.Now + Environment.NewLine); } catch { }
+
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        // /c so cmd exits when the server exits. The command is
+                        // configurable (App.config 'MobileServeCommand') so it can be
+                        // changed without a rebuild; default is an HTTPS ng serve.
+                        Arguments = "/c " + ServeCommand,
+                        WorkingDirectory = AppPath,
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true,
+                        StandardOutputEncoding = Encoding.UTF8,
+                        StandardErrorEncoding = Encoding.UTF8,
+                    };
+
+                    _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+                    _proc.OutputDataReceived += OnOutput;
+                    _proc.ErrorDataReceived += OnOutput;
+                    _proc.Exited += OnProcessExited;
+
+                    _proc.Start();
+                    _proc.BeginOutputReadLine();
+                    _proc.BeginErrorReadLine();
+                    _startedAt = DateTime.Now;
+
+                    StartPortPolling();
+
+                    // Watch for the laptop's IP changing (switched wifi/hotspot) and
+                    // regenerate the URL/QR live, without a restart.
+                    try { _ipPoll?.Dispose(); } catch { }
+                    _ipPoll = new Timer(_ => CheckIpChange(), null, 10000, 10000);
+                }
+                catch (Exception ex)
+                {
+                    Fail("Could not launch ionic serve: " + ex.Message);
+                }
+            }
+        }
+
+        /// <summary>User-triggered retry from the Login screen.</summary>
+        public void Retry()
+        {
+            Stop();
+            lock (_lock) { _restartAttempts = 0; _shuttingDown = false; }
+            Start();
+        }
+
+        /// <summary>Stop the server and kill the whole cmd/node process tree.</summary>
+        public void Stop()
+        {
+            lock (_lock)
+            {
+                _shuttingDown = true;
+                try { _portPoll?.Dispose(); } catch { } _portPoll = null;
+                try { _restartTimer?.Dispose(); } catch { } _restartTimer = null;
+                try { _ipPoll?.Dispose(); } catch { } _ipPoll = null;
+
+                if (_proc != null)
+                {
+                    try { if (!_proc.HasExited) KillTree(_proc.Id); } catch { }
+                    try { _proc.Dispose(); } catch { }
+                    _proc = null;
+                }
+                SetStatus(IonicStatus.Stopped);
+            }
+        }
+
+        // ---- output handling --------------------------------------------
+        private void OnOutput(object sender, DataReceivedEventArgs e)
+        {
+            if (e.Data == null) return;
+            try { File.AppendAllText(LogFile, e.Data + Environment.NewLine); } catch { }
+            lock (_lock)
+            {
+                _recentOutput.AppendLine(e.Data);
+                if (_recentOutput.Length > 4000) _recentOutput.Remove(0, _recentOutput.Length - 4000);
+            }
+
+            // Pick up a non-default port if ionic chose one (e.g. 8101 when 8100 busy).
+            Match m = Regex.Match(e.Data, @"localhost:(\d{2,5})", RegexOptions.IgnoreCase);
+            if (m.Success && int.TryParse(m.Groups[1].Value, out int p) && p != Port)
+            {
+                lock (_lock) { Port = p; }
+            }
+
+            if (Regex.IsMatch(e.Data, @"is not recognized|command not found", RegexOptions.IgnoreCase))
+            {
+                Fail("Mobile dev server did not start (command not found). Run 'npm install' in the mobile app folder, and check Node/Angular CLI are installed.");
+            }
+        }
+
+        // ---- readiness: poll the port until it accepts connections -------
+        private void StartPortPolling()
+        {
+            _portPoll = new Timer(_ =>
+            {
+                if (_shuttingDown) return;
+                if (IsPortOpen("127.0.0.1", Port))
+                {
+                    lock (_lock)
+                    {
+                        try { _portPoll?.Dispose(); } catch { } _portPoll = null;
+                        _restartAttempts = 0;
+                        MobileUrl = Scheme + "://" + LanIp + ":" + Port;
+                        SetStatus(IonicStatus.Running);
+                    }
+                }
+                else if ((DateTime.Now - _startedAt).TotalSeconds > 150)
+                {
+                    // Took too long — if the process already died, surface an error.
+                    if (_proc == null || _proc.HasExited)
+                        Fail("Ionic server did not start. See log: " + LogFile);
+                }
+            }, null, 2000, 1500);
+        }
+
+        private static bool IsPortOpen(string host, int port)
+        {
+            try
+            {
+                using (var c = new TcpClient())
+                {
+                    var ar = c.BeginConnect(host, port, null, null);
+                    bool ok = ar.AsyncWaitHandle.WaitOne(600);
+                    if (ok) { c.EndConnect(ar); return true; }
+                    return false;
+                }
+            }
+            catch { return false; }
+        }
+
+        // ---- crash handling / auto-restart ------------------------------
+        private void OnProcessExited(object sender, EventArgs e)
+        {
+            lock (_lock)
+            {
+                if (_shuttingDown) { SetStatus(IonicStatus.Stopped); return; }
+
+                // Very fast exit during startup usually means a bad command.
+                if (Status == IonicStatus.Starting && (DateTime.Now - _startedAt).TotalSeconds < 4 &&
+                    _recentOutput.ToString().IndexOf("not recognized", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    Fail("Mobile dev server did not start (command not found). Run 'npm install' in the mobile app folder, and check Node/Angular CLI are installed.");
+                    return;
+                }
+
+                if (_restartAttempts < MaxRestarts)
+                {
+                    _restartAttempts++;
+                    SetStatus(IonicStatus.Starting);
+                    _restartTimer = new Timer(__ =>
+                    {
+                        try { _restartTimer?.Dispose(); } catch { } _restartTimer = null;
+                        if (!_shuttingDown) Start();
+                    }, null, 2500, Timeout.Infinite);
+                }
+                else
+                {
+                    Fail("Ionic server stopped unexpectedly and could not be restarted. Log: " + LogFile);
+                }
+            }
+        }
+
+        // ---- helpers -----------------------------------------------------
+        private void Fail(string message)
+        {
+            LastError = message;
+            SetStatus(IonicStatus.Error);
+        }
+
+        private void SetStatus(IonicStatus s)
+        {
+            Status = s;
+            Raise();
+        }
+
+        private void Raise()
+        {
+            var h = Changed;
+            if (h != null) { try { h(); } catch { } }
+        }
+
+        /// <summary>If the laptop's IP changed (new wifi/hotspot), update the URL/QR live.</summary>
+        private void CheckIpChange()
+        {
+            if (_shuttingDown || Status != IonicStatus.Running) return;
+            var lan = DetectLan();
+            if (lan.ip != LanIp)
+            {
+                LanIp = lan.ip;
+                NetworkType = lan.type;
+                MobileUrl = Scheme + "://" + LanIp + ":" + Port;
+                Raise();   // dashboard regenerates the QR + URL
+            }
+        }
+
+        private static void KillTree(int pid)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("taskkill", "/PID " + pid + " /T /F")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                using (var p = Process.Start(psi)) { p.WaitForExit(4000); }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Best current IPv4 that a phone on the same Wi-Fi can reach. Recomputed
+        /// each start, so switching networks is handled automatically. Prefers a
+        /// real Wi-Fi/Ethernet adapter that has a gateway and a private-range
+        /// address; skips loopback, APIPA (169.254.*) and obvious virtual adapters.
+        /// </summary>
+        public static string DetectLanIp() => DetectLan().ip;
+
+        /// <summary>Best reachable IPv4 + the kind of network (Wi-Fi / Hotspot / LAN).</summary>
+        public static (string ip, string type) DetectLan()
+        {
+            string best = null, bestType = "Network"; int bestScore = int.MinValue;
+            try
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
+                        ni.NetworkInterfaceType == NetworkInterfaceType.Tunnel) continue;
+
+                    var ipProps = ni.GetIPProperties();
+                    bool hasGateway = ipProps.GatewayAddresses
+                        .Any(g => g.Address != null && g.Address.AddressFamily == AddressFamily.InterNetwork &&
+                                  !g.Address.Equals(IPAddress.Any));
+                    string desc = (ni.Description + " " + ni.Name).ToLowerInvariant();
+                    bool virtualAdapter = desc.Contains("virtual") || desc.Contains("vmware") ||
+                                          desc.Contains("virtualbox") || desc.Contains("hyper-v") ||
+                                          desc.Contains("loopback") || desc.Contains("vethernet");
+                    bool hotspotAdapter = desc.Contains("hosted network") || desc.Contains("wi-fi direct") ||
+                                          desc.Contains("mobile hotspot") || desc.Contains("microsoft wi-fi");
+
+                    foreach (var ua in ipProps.UnicastAddresses)
+                    {
+                        var ip = ua.Address;
+                        if (ip.AddressFamily != AddressFamily.InterNetwork) continue;
+                        if (IPAddress.IsLoopback(ip)) continue;
+                        string s = ip.ToString();
+                        if (s.StartsWith("169.254.")) continue; // APIPA (no DHCP)
+
+                        bool isHotspot = s.StartsWith("192.168.137.") || hotspotAdapter;
+
+                        int score = 0;
+                        if (hasGateway) score += 8;
+                        if (isHotspot) score += 7;   // a live hotspot is a valid phone target even w/o gateway
+                        if (ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211) score += 4;
+                        else if (ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet) score += 3;
+                        if (IsPrivate(s)) score += 2;
+                        if (virtualAdapter && !isHotspot) score -= 6;
+
+                        if (score > bestScore)
+                        {
+                            bestScore = score; best = s;
+                            bestType = isHotspot ? "Hotspot"
+                                     : ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ? "Wi-Fi"
+                                     : ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet ? "LAN" : "Network";
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            if (best != null) return (best, bestType);
+
+            // Fallback: any non-loopback IPv4 for this host.
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                var ip = host.AddressList.FirstOrDefault(a =>
+                    a.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(a) &&
+                    !a.ToString().StartsWith("169.254."));
+                if (ip != null) return (ip.ToString(), "Network");
+            }
+            catch { }
+
+            return ("127.0.0.1", "Local");
+        }
+
+        private static bool IsPrivate(string ip)
+        {
+            return ip.StartsWith("192.168.") || ip.StartsWith("10.") ||
+                   Regex.IsMatch(ip, @"^172\.(1[6-9]|2\d|3[01])\.");
+        }
+    }
+}
