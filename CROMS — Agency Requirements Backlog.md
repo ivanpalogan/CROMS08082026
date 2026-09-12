@@ -483,6 +483,10 @@ schedule from a phone photo is not a call to make alone.
 
 ## 9. BREQS — PSA Batch Request System
 
+> **DONE 2026-09-13** (migration 40, applied). Kiosk step + staff desk "PSA Copies (BREQS)", the
+> status design below, received PSA copies scanned through the OCR engine and name-checked against
+> the request, history + audit on every move. Detail in the CLAUDE.md entry of the same date.
+
 **CONFIRMED.** Two sides, both needed:
 
 - **Kiosk side** — client requests a PSA copy of a Birth / Marriage / Death document. Client
@@ -806,10 +810,13 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
 14. Standalone payment entry + purpose of transaction + payment log
 15. Monthly collection report into Reports & Analytics
 
-**Phase 6 — BREQS**
-14. Kiosk request flow (document type, valid ID, claim date)
-15. Staff window (manage, submit to PSA, receive, release)
-16. Turnaround, IDs, fees, statuses as **settings**, not constants
+**Phase 6 — BREQS — DONE 2026-09-13**
+14. ~~Kiosk request flow (document type, valid ID)~~ ✔ new "PSA Document" kiosk step
+15. ~~Staff window (manage, submit to PSA, receive, release)~~ ✔ "PSA Copies (BREQS)" desk
+16. ~~Turnaround and fee as **settings**~~ ✔ `BREQS_TURNAROUND_DAYS`, `BREQS_UNCLAIMED_DAYS`,
+    `BREQS_FEE_PER_COPY` in app_settings. *Not done:* a claim date is not promised to the client
+    (the turnaround is the office's estimate, not PSA's commitment), and CENOMAR is not offered
+    (the office named birth, marriage and death only).
 
 **Phase 7 — birth registration split — NOW UNBLOCKED**
 19. Timely vs delayed branch; reuse the licence posting mechanism; set `is_delayed` honestly

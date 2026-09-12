@@ -53,6 +53,7 @@ namespace CROMS.Forms
                 { "PETITION", "petitions"   },
                 { "VERIFY",   "certrequest" },
                 { "CLAIM",    "release"     },   // pickup: Release & Claim → Claim by QR
+                { "BREQS",    "breqs"       },   // PSA copy request: opens the kiosk's request
                 // NEWREG is handled specially (asks Birth / Marriage / Death).
             };
 
@@ -60,7 +61,7 @@ namespace CROMS.Forms
         // They deliberately stay at the counter instead of opening an unrelated record form.
         private static readonly HashSet<string> ManualServices = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "LEGITIMATION", "BREKS", "SUPPLEMENTAL", "COURT_ORDER",
+            "LEGITIMATION", "SUPPLEMENTAL", "COURT_ORDER",
             "SUPPLEMENTAL_REPORT", "LEGAL_INSTRUMENTS", "LEGITIMATION_RA9255"
         };
 
@@ -420,6 +421,8 @@ namespace CROMS.Forms
                 cert.PrepareForQueueTicket(ticketId, ticketCode);
             else if (key == "release" && form is ReleaseClaimForm rel)
                 rel.PrepareFromQueueTicket(ticketId);
+            else if (key == "breqs" && form is BreqsForm breqs)
+                breqs.PrepareFromQueueTicket(ticketId);
             else if (form is MarriageRegistrationForm marriage)
             {
                 if (serviceCode.Equals("MARRIAGE_APP", StringComparison.OrdinalIgnoreCase))

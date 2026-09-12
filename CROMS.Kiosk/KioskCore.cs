@@ -64,7 +64,7 @@ namespace CROMS.Kiosk
             new Service("LEGAL_INSTRUMENTS", "Legal Instruments", "", SecPetitionsLegal),
             new Service("SUPPLEMENTAL", "Supplemental", "", SecPetitionsLegal),
             new Service("CLAIM", "Release & Claim (Pick-up)", "", SecOther),
-            new Service("BREKS", "Breks", "", SecOther),
+            new Service("BREQS", "PSA Copy (BREQS)", "", SecOther),
         };
 
         // Palette — Navy Blue (light), same tokens as CROMS/Forms/LoginForm.cs + LauncherForm.cs.
@@ -352,6 +352,9 @@ namespace CROMS.Kiosk
             { error = "Please enter your first and last name."; return false; }
             if (s.HasMarriage && (string.IsNullOrWhiteSpace(s.First2) || string.IsNullOrWhiteSpace(s.Last2)))
             { error = "Please enter the spouse's first and last name."; return false; }
+            // Checked BEFORE the ticket exists, so a half-filled PSA request never leaves a
+            // ticket behind with no request for staff to find.
+            if (s.HasBreqs && (error = BreqsProblem(s)) != null) return false;
 
             // Returning-client pickup: a typed queue number that maps to a parked request is
             // a reclaim — link the new ticket to that transaction and jump the queue.
@@ -415,6 +418,8 @@ namespace CROMS.Kiosk
                     new MySqlParameter("@txn", returnTxnId),
                     new MySqlParameter("@tid", ticketId));
 
+            if (s.HasBreqs) SaveBreqsRequest(s, ticketId, code);
+
             // Every visit shows the "Upload Your ID" QR on Step 2 (DetailsPhotoForm.Load already
             // called EnsureClaimRequest by the time we get here), so finalize it for all of
             // them — not only when CLAIM was the selected service.
@@ -428,6 +433,86 @@ namespace CROMS.Kiosk
             PrintTicket(code, services, priority, FullName(s), spouseLine, ahead, claimToken, claimNo);
             ShowTicket(code, services, claimToken, claimNo);
             return true;
+        }
+
+        // ------------------------------------------------------------ PSA copy (BREQS)
+        public static readonly string[] BreqsDocTypes = { "Birth", "Marriage", "Death" };
+        // Same lists as CROMS.Data.BreqsService on the staff side (the kiosk has no reference to CROMS.exe).
+        public static readonly string[] BreqsRelationships =
+            { "Self (document owner)", "Parent", "Spouse", "Child", "Sibling", "Guardian", "Authorized representative" };
+        public static readonly string[] BreqsPurposes =
+            { "Passport / DFA", "School / Enrollment", "Employment", "SSS / GSIS / PhilHealth", "Travel / Visa",
+              "Marriage", "Legal / Court", "Personal copy", "Others" };
+
+        /// <summary>What is still missing from a PSA copy request, in the client's words; null when complete.</summary>
+        public static string BreqsProblem(KioskSession s)
+        {
+            if (string.IsNullOrWhiteSpace(s.BreqsDocType)) return "Please choose which PSA certificate you need: Birth, Marriage or Death.";
+            if (string.IsNullOrWhiteSpace(s.IdType)) return "Please choose the valid ID you will present.";
+            if (string.IsNullOrWhiteSpace(s.IdNo)) return "Please enter the number on your valid ID.";
+            if (string.IsNullOrWhiteSpace(s.OwnerFirst) || string.IsNullOrWhiteSpace(s.OwnerLast))
+                return s.BreqsDocType == "Marriage" ? "Please enter the husband's first and last name."
+                     : s.BreqsDocType == "Death" ? "Please enter the first and last name of the person who died."
+                     : "Please enter the first and last name on the birth certificate.";
+            if (s.BreqsDocType == "Marriage" && (string.IsNullOrWhiteSpace(s.SpouseFirst) || string.IsNullOrWhiteSpace(s.SpouseLast)))
+                return "Please enter the wife's first and last name.";
+            if (s.EventDate.HasValue && s.EventDate.Value.Date > DateTime.Today) return "The date cannot be in the future.";
+            return null;
+        }
+
+        /// <summary>
+        /// Log the PSA copy request, linked to the new ticket, status Requested. The staff BREQS
+        /// desk picks it up from there. Numbering and retry mirror BreqsService.Save on the staff side.
+        /// </summary>
+        public static string SaveBreqsRequest(KioskSession s, long ticketId, string ticketCode)
+        {
+            decimal fee = 50m;
+            try
+            {
+                DataTable f = Db.Pull("SELECT setting_value FROM app_settings WHERE setting_key = 'BREQS_FEE_PER_COPY'");
+                decimal d;
+                if (f.Rows.Count > 0 && decimal.TryParse(f.Rows[0][0] as string, System.Globalization.NumberStyles.Number,
+                                                          System.Globalization.CultureInfo.InvariantCulture, out d)) fee = d;
+            }
+            catch { }
+
+            bool marriage = s.BreqsDocType == "Marriage", birth = s.BreqsDocType == "Birth";
+            int copies = Math.Max(1, s.BreqsCopies);
+            for (int attempt = 0; ; attempt++)
+            {
+                DataTable n = Db.Pull("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(request_no, '-', -1) AS UNSIGNED)), 0) + 1 FROM breqs_requests WHERE request_no LIKE @p",
+                                      new MySqlParameter("@p", "BREQS-" + DateTime.Today.Year + "-%"));
+                string no = string.Format("BREQS-{0}-{1:D4}", DateTime.Today.Year, Convert.ToInt32(n.Rows[0][0]));
+                try
+                {
+                    long id = Db.Insert(
+                        "INSERT INTO breqs_requests (request_no, source, queue_ticket_id, requester_first, requester_middle, requester_last, contact_no, " +
+                        "relationship, valid_id_type, valid_id_no, doc_type, copies, purpose, owner_first, owner_middle, owner_last, spouse_first, " +
+                        "spouse_middle, spouse_last, event_date, event_city, event_province, father_name, mother_maiden_name, status, fee_amount) " +
+                        "VALUES (@no, 'Kiosk', @tid, @rf, @rm, @rl, @contact, @rel, @idt, @idn, @doc, @copies, @purpose, @of, @om, @ol, @sf, @sm, @sl, " +
+                        "@ed, @ec, @ep, @fa, @mo, 'Requested', @fee)",
+                        new MySqlParameter("@no", no), new MySqlParameter("@tid", ticketId),
+                        new MySqlParameter("@rf", s.First.Trim()), new MySqlParameter("@rm", NullIfBlank(s.Middle)), new MySqlParameter("@rl", s.Last.Trim()),
+                        new MySqlParameter("@contact", NullIfBlank(s.Contact)), new MySqlParameter("@rel", NullIfBlank(s.BreqsRelationship)),
+                        new MySqlParameter("@idt", NullIfBlank(s.IdType)), new MySqlParameter("@idn", NullIfBlank(s.IdNo)),
+                        new MySqlParameter("@doc", s.BreqsDocType), new MySqlParameter("@copies", copies),
+                        new MySqlParameter("@purpose", NullIfBlank(s.BreqsPurpose)),
+                        new MySqlParameter("@of", NullIfBlank(s.OwnerFirst)), new MySqlParameter("@om", NullIfBlank(s.OwnerMiddle)), new MySqlParameter("@ol", NullIfBlank(s.OwnerLast)),
+                        new MySqlParameter("@sf", marriage ? NullIfBlank(s.SpouseFirst) : DBNull.Value),
+                        new MySqlParameter("@sm", marriage ? NullIfBlank(s.SpouseMiddle) : DBNull.Value),
+                        new MySqlParameter("@sl", marriage ? NullIfBlank(s.SpouseLast) : DBNull.Value),
+                        new MySqlParameter("@ed", s.EventDate.HasValue ? (object)s.EventDate.Value.Date : DBNull.Value),
+                        new MySqlParameter("@ec", NullIfBlank(s.EventCity)), new MySqlParameter("@ep", NullIfBlank(s.EventProvince)),
+                        new MySqlParameter("@fa", birth ? NullIfBlank(s.FatherName) : DBNull.Value),
+                        new MySqlParameter("@mo", birth ? NullIfBlank(s.MotherMaidenName) : DBNull.Value),
+                        new MySqlParameter("@fee", fee * copies));
+                    Db.Push("INSERT INTO breqs_history (request_id, action, from_status, to_status, note) VALUES (@id, 'Request logged (kiosk)', NULL, 'Requested', @note)",
+                            new MySqlParameter("@id", id),
+                            new MySqlParameter("@note", s.BreqsDocType + ", " + copies + " cop" + (copies == 1 ? "y" : "ies") + ", ticket " + ticketCode));
+                    return no;
+                }
+                catch (MySqlException ex) when (ex.Number == 1062 && attempt < 5) { }
+            }
         }
 
         // type_label is VARCHAR(255). All services are stored in full in the child rows;

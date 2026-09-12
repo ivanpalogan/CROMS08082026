@@ -469,7 +469,7 @@ namespace CROMS.Kiosk
             this._card9.Name = "_card9";
             this._card9.Size = new System.Drawing.Size(348, 200);
             this._card9.TabIndex = 9;
-            this._card9.Tag = "BREKS";
+            this._card9.Tag = "BREQS";
             this._card9.Click += new System.EventHandler(this.Card_Click);
             // 
             // lblName9
@@ -481,7 +481,7 @@ namespace CROMS.Kiosk
             this.lblName9.Name = "lblName9";
             this.lblName9.Size = new System.Drawing.Size(348, 46);
             this.lblName9.TabIndex = 0;
-            this.lblName9.Text = "Breks";
+            this.lblName9.Text = "PSA Copy (BREQS)";
             this.lblName9.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             this.lblName9.Click += new System.EventHandler(this.Card_Click);
             // 

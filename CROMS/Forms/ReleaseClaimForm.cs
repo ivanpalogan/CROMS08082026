@@ -1232,33 +1232,7 @@ namespace CROMS.Forms
         /// </summary>
         private void PopulateIdTypes()
         {
-            txtIdType.Items.AddRange(new object[]
-            {
-                "Philippine National ID (PhilSys)",
-                "Philippine Passport (DFA)",
-                "Driver's License (LTO)",
-                "UMID (Unified Multi-Purpose ID)",
-                "SSS ID",
-                "GSIS eCard",
-                "PRC ID (Professional License)",
-                "Voter's ID / COMELEC Certification",
-                "Postal ID (PHLPost)",
-                "PhilHealth ID",
-                "TIN ID (BIR)",
-                "Pag-IBIG Loyalty Card Plus",
-                "Senior Citizen ID (OSCA)",
-                "PWD ID",
-                "Solo Parent ID",
-                "Barangay ID / Certification (with photo)",
-                "NBI Clearance",
-                "Police Clearance",
-                "OWWA ID / iDOLE",
-                "Seafarer's Record Book (SIRB)",
-                "IBP ID (Integrated Bar of the Philippines)",
-                "AFP / PVAO ID",
-                "Company / School ID",
-                "Other"
-            });
+            txtIdType.Items.AddRange(GovIds.All);
         }
 
         private void ShowPhotoFor(int txnId)

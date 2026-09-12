@@ -125,6 +125,12 @@
     <Compile Include="ServiceSelectForm.Designer.cs">
       <DependentUpon>ServiceSelectForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="BreqsDetailsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="BreqsDetailsForm.Designer.cs">
+      <DependentUpon>BreqsDetailsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="DetailsPhotoForm.cs">
       <SubType>Form</SubType>
     </Compile>

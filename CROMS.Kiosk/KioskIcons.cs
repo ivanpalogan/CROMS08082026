@@ -33,7 +33,7 @@ namespace CROMS.Kiosk
                 case "MARRIAGE_APP": return GlyphNewReg;
                 case "MARRIAGE_REG": return GlyphMarriage;
                 case "LEGITIMATION": return GlyphMarriage;
-                case "BREKS": return GlyphCtc;
+                case "BREQS": return GlyphCtc;
                 case "SUPPLEMENTAL": return GlyphNewReg;
                 case "COURT_ORDER": return GlyphPetition;
                 case "SUPPLEMENTAL_REPORT": return GlyphCtc;
@@ -65,7 +65,7 @@ namespace CROMS.Kiosk
                 case "MARRIAGE_APP": return NewRegistration;
                 case "MARRIAGE_REG": return Marriage;
                 case "LEGITIMATION": return Marriage;
-                case "BREKS": return CertifiedCopy;
+                case "BREQS": return CertifiedCopy;
                 case "SUPPLEMENTAL": return NewRegistration;
                 case "COURT_ORDER": return Petition;
                 case "SUPPLEMENTAL_REPORT": return CertifiedCopy;

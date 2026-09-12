@@ -36,6 +36,10 @@ namespace CROMS.Modules
                 () => new CertificateRequestForm()),
             new ModuleInfo("release", "Release & Claim", GroupCertification,
                 () => new ReleaseClaimForm()),
+            // PSA-issued copies requested through BREQS: logged here or at the kiosk, submitted
+            // to PSA, collected, scanned through OCR and released.
+            new ModuleInfo("breqs", "PSA Copies (BREQS)", GroupCertification,
+                () => new BreqsForm()),
             new ModuleInfo("birth", "Birth Registration", GroupCertification,
                 () => new BirthRegistrationForm()),
             new ModuleInfo("marriage", "Marriage Registration", GroupCertification,

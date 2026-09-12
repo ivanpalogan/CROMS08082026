@@ -42,7 +42,7 @@ namespace CROMS.Forms
             ("VERIFY", "Verification / Others"),
             ("CLAIM", "Release & Claim (Pick-up)"),
             ("LEGITIMATION", "Legitimation"),
-            ("BREKS", "Breks"),
+            ("BREQS", "PSA Copy (BREQS)"),
             ("SUPPLEMENTAL", "Supplemental"),
             ("COURT_ORDER", "Court Order"),
             ("SUPPLEMENTAL_REPORT", "Supplemental Report"),

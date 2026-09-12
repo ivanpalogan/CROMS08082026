@@ -29,6 +29,7 @@
             this.btnTransactions = new System.Windows.Forms.Button();
             this.btnCertRequest = new System.Windows.Forms.Button();
             this.btnRelease = new System.Windows.Forms.Button();
+            this.btnBreqs = new System.Windows.Forms.Button();
             this.lblGrpCertification = new System.Windows.Forms.Label();
             this.lblGrpRecord = new System.Windows.Forms.Label();
             this.btnBirth = new System.Windows.Forms.Button();
@@ -116,6 +117,7 @@
             this.navFlow.Controls.Add(this.lblGrpCertification);
             this.navFlow.Controls.Add(this.btnCertRequest);
             this.navFlow.Controls.Add(this.btnRelease);
+            this.navFlow.Controls.Add(this.btnBreqs);
             this.navFlow.Controls.Add(this.btnBirth);
             this.navFlow.Controls.Add(this.btnMarriage);
             this.navFlow.Controls.Add(this.btnDeath);
@@ -239,6 +241,24 @@
             this.btnRelease.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnRelease.UseVisualStyleBackColor = false;
             this.btnRelease.Click += new System.EventHandler(this.NavButton_Click);
+            //
+            // btnBreqs
+            //
+            this.btnBreqs.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
+            this.btnBreqs.FlatAppearance.BorderSize = 0;
+            this.btnBreqs.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
+            this.btnBreqs.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBreqs.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnBreqs.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
+            this.btnBreqs.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
+            this.btnBreqs.Name = "btnBreqs";
+            this.btnBreqs.Size = new System.Drawing.Size(204, 38);
+            this.btnBreqs.TabIndex = 5;
+            this.btnBreqs.Tag = "breqs";
+            this.btnBreqs.Text = "   PSA Copies (BREQS)";
+            this.btnBreqs.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnBreqs.UseVisualStyleBackColor = false;
+            this.btnBreqs.Click += new System.EventHandler(this.NavButton_Click);
             //
             // lblGrpCertification
             //
@@ -550,6 +570,7 @@
         private System.Windows.Forms.Button btnTransactions;
         private System.Windows.Forms.Button btnCertRequest;
         private System.Windows.Forms.Button btnRelease;
+        private System.Windows.Forms.Button btnBreqs;
         private System.Windows.Forms.Label lblGrpCertification;
         private System.Windows.Forms.Label lblGrpRecord;
         private System.Windows.Forms.Button btnBirth;

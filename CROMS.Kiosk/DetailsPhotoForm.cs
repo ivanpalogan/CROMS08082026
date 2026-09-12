@@ -52,7 +52,13 @@ namespace CROMS.Kiosk
             _btnPrint.BringToFront();
             _offlineOverlay.Bounds = ClientRectangle;
             _offlineOverlay.BringToFront();
-            _stepInd.SetStep(1);
+            // With a PSA copy request there is a third step (PSA Document) before this one.
+            if (_session.HasBreqs)
+            {
+                _stepInd.Steps = new[] { "Select Services", "PSA Document", "Personal Info & Photo" };
+                _stepInd.SetStep(2);
+            }
+            else _stepInd.SetStep(1);
 
             // One shared button treatment across both kiosk steps (see KioskButtons).
             KioskButtons.Style(_btnBack, KioskButtonKind.Secondary, KioskCore.IconArrowLeft,

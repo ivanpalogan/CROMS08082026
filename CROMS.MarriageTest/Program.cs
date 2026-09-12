@@ -31,6 +31,13 @@ namespace CROMS.MarriageTest
                 finally { Cleanup(); Console.WriteLine("cleanup: leftovers = " + Leftovers()); }
                 return 0;
             }
+            if (args.Length > 1 && args[0] == "--breqs")
+            {
+                try { LoginAs("Admin"); BreqsTest.Run(args[1], Session.User.Id); }
+                catch (Exception ex) { BreqsTest.Fail++; Console.WriteLine("CRASH: " + ex); }
+                Console.WriteLine("PASSED " + BreqsTest.Pass + "   FAILED " + BreqsTest.Fail);
+                return BreqsTest.Fail;
+            }
             if (args.Length > 1 && args[0] == "--mf90")
             {
                 try { Cleanup(); LoginAs("Admin"); Mf90Print(args[1]); }

@@ -220,15 +220,15 @@ namespace CROMS
             {
                 case "Registrar":
                     return new HashSet<string> { "dashboard", "queue", "transactions", "certrequest",
-                        "release", "birth", "marriage", "death", "petitions", "search", "ocr",
+                        "release", "breqs", "birth", "marriage", "death", "petitions", "search", "ocr",
                         "reports", "masterfiles", "settings" };
                 case "Staff":
                     return new HashSet<string> { "dashboard", "queue", "certrequest", "transactions",
-                        "search", "release" };
+                        "search", "release", "breqs" };
                 case "Cashier":
                     return new HashSet<string> { "dashboard", "fees", "transactions" };
                 case "Releasing":
-                    return new HashSet<string> { "dashboard", "release", "transactions" };
+                    return new HashSet<string> { "dashboard", "release", "breqs", "transactions" };
                 default:
                     return null;   // Admin → everything
             }

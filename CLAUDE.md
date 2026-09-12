@@ -3419,3 +3419,105 @@ photographs, so each needs a clean blank scan first; (2) CROMS's own licence pri
 Settings -> Certificates & Forms, which reads FormCatalog (registry certificates only); (4) office
 PCs need the Crystal runtime for the Crystal path - without it they get the identical fallback
 page, by design, but worth knowing before a demo.
+
+2026-09-13 (office answers recorded; kiosk fixed; advice 21-25; BREQS built end to end) - The user
+supplied the fee card again, the Consent and Advice blanks as Word files, the advice-band answer
+(21-25) and the BREQS specification, and chose: commit first, urgent fixes, then BREQS on BOTH the
+kiosk and the staff side, and the "+ 30" is part of the fee.
+
+GIT. The repository had ONE commit; 147 changed files and every source file added since the initial
+import (MarriageService, CertificateReport, DocIntelligence, migrations 23-38, the kiosk rework, the
+Analytics module...) had never been committed. Committed as 8e30fe8 (223 files). Build products are
+now ignored instead of committed (CROMS_Bundle/, the bundle and mockup zips, output/, tmp/).
+Caught while committing: .gitattributes is `* text=auto` with core.autocrlf=true, and a VECTOR PDF
+is mostly ASCII, so git classed the MF-90 blank as TEXT - a fresh checkout would rewrite its line
+endings and corrupt it. The stored bytes were verified identical; *.pdf/*.rpt/*.docx/*.xlsx are now
+marked binary (a0760a7).
+
+URGENT FIX 1 - THE KIOSK COULD NOT ISSUE TICKETS. Migrations 34/35 had never been applied, but the
+kiosk INSERT already wrote valid_id_type / spouse_full_name / spouse_image, so every ticket submission
+failed. Applied both (ASCII-checked, no leftover procedures) and ran the kiosk's own INSERT inside a
+transaction: it succeeds; rolled back.
+
+URGENT FIX 2 - ADVICE BAND 21-25, CONFIRMED BY THE OFFICE. Migration 39 sets MARRIAGE_ADVICE_AGE_TO
+= 25 and marks consent 18-20 confirmed (the office's consent form says "less than twenty-one"); code
+default follows; new boundary test (25 needs advice, 26 does not). Suite 75/75.
+
+FEES, recorded not yet built: "+ 30" is part of the fee (certified copy 80, certification 130), and
+the fee card itself answers the petition question - the fee follows the petition type (CCE-9048
+1,000; CCE-10172 3,000; CFN-9048 3,000; migrant 1,000), so PET-9048 must split. Burial permit and
+transfer of cadaver still have no amount on the card. Scheduled after BREQS.
+
+BREQS - PSA-issued copies of birth, marriage and death certificates. Migration 40 (APPLIED, run
+twice): breqs_requests (52 columns), breqs_history (cascade), settings BREQS_TURNAROUND_DAYS 7,
+BREQS_UNCLAIMED_DAYS 30, BREQS_FEE_PER_COPY 50 (fee card). The document details live in generic
+columns whose meaning follows doc_type (owner = registrant / husband / deceased; spouse = wife;
+event_* = date and place; father/mother = birth only) - one table, no per-type copies.
+  STATUSES (the user asked CROMS to choose): Requested -> Paid -> Submitted to PSA -> Received from
+PSA -> Released, with exits No Record at PSA and Cancelled. "Overdue at PSA" (past submitted +
+turnaround) and "Unclaimed" (received, not released after 30 days) are DERIVED, never stored, so
+they cannot go stale - the marriage licence's "Expiring" rule.
+  Data/BreqsService.cs owns every write. One Move() refuses any jump the workflow does not allow
+("a request that is requested cannot be marked released"), writes history + audit_log, and updates
+with `WHERE status = @from` so a double-click or a second PC acting on the same request cannot record
+the move twice. Details are editable while Requested/Paid and LOCKED once sent to PSA - what PSA was
+asked for must stay what the record says was asked for. Spouse is only kept on a marriage request,
+parents only on a birth request. Numbers BREQS-YYYY-#### with retry on the unique index.
+  RECEIVING A PSA COPY - the part the office specifically asked for. "Receive & scan PSA copy" loads
+the scan, runs it through the SAME DocumentAI engine as Intelligent Document Processing (background
+task, progress shown), reads the name the copy is FOR (child / husband / deceased by type) and
+compares it to the request on normalised names: Match / Partial / Mismatch / Unread, plus "Wrong
+document" when OCR reads a different certificate type. It is a flag, never a gate: the copy can be
+attached after a warning, and Release asks the staff member to confirm with their own eyes when the
+flag is not Match. The scan is stored on the request (kept copy) and the run is logged to ocr_batch
+with record_table='breqs_requests', so it sits in the same OCR audit trail as every other scan.
+  STAFF: new module "PSA Copies (BREQS)" under Certification (Registrar, Staff, Releasing, Admin):
+four tiles (to be paid / to submit / at PSA with overdue count / ready with unclaimed count), the
+list, and a detail panel with one next-step sentence, only the actions the status allows, every
+recorded fact and the history. Dialogs for new/edit (fields change with the certificate), Treasury
+O.R., submission (shows the expected date), receive-and-scan, release (claimant or representative +
+ID). New Data/GovIds.cs - the government-ID list Release & Claim had inline, now shared.
+  KIOSK: the placeholder service "BREKS"/"Breks" (a misspelling, never used by any stored row) is now
+"PSA Copy (BREQS)" in the kiosk, window routing and queue. Choosing it adds a "PSA Document" step
+(the step indicator becomes 3 steps) between Select Services and Personal Info: certificate as three
+cards (one at a time), copies, purpose, relationship, valid ID type + number, and the document
+details, which follow the certificate (wife only for marriage, parents only for birth; the gap
+closes). KioskCore.Submit validates the request BEFORE the ticket is inserted - a half-filled
+request never leaves a ticket behind - then saves the request linked to the ticket (source Kiosk).
+Serving that ticket in Queue Management opens the BREQS desk on that exact request; a ticket with no
+request opens a new one with the ticket's contact and ID prefilled and its JOINED name shown as a
+hint rather than split into boxes (the two-word-surname failure again).
+
+DEFECTS FOUND BY RENDERING, none by compiling:
+  1. The kiosk step's red * markers sat on top of caption text ("Las*", "ID num*er") - placed from
+     an estimated character width. Now placed from each caption's measured width, after scaling.
+  2. At 1366x768 the whole step collided: fit-to-screen shrinks positions (Control.Scale) but not
+     fonts under AutoScaleMode.None, so full-size text ran into shrunken boxes. Fonts now scale with
+     the box when it shrinks (explicit fonts only - inherited ones would be scaled twice). Verified
+     at 1920x1040 and 1366x728. NOTE: the existing Personal Info & Photo step has the same weakness
+     (recorded 2026-08-29) and was NOT changed in this pass.
+  3. Captions with "(optional)" ran into the next field and off the card - shortened; one hint line
+     "Only * is required" instead.
+  4. The desk printed a place as "Tuguegarao City Cagayan" (no comma), and the Copies header clipped.
+Harness lesson: a kiosk step must be SIZED BEFORE Show() - its fit-to-screen runs once on Shown, so
+resizing afterwards rendered a 62%-scaled box that no real maximized kiosk would show.
+
+VERIFIED BY RUNNING. CROMS.MarriageTest --breqs <dir>, against the live database: the workflow rules
+(allowed/refused moves, overdue/unclaimed boundaries, name matching incl. "Dela Cruz" vs "DELACRUZ",
+validation messages); a counter request through every status with a fee of 50 x 2 copies, details
+editable then locked, expected date = submitted + 7; the office's REAL birth scan (Downloads\Birth
+Certificate.jpeg) through the real OCR engine: Birth 99% class / 75% recognition, name read
+"SHELLIAN CLEAR TALOSIG" -> Match, logged to ocr_batch; the same scan on a DEATH request -> "Wrong
+document"; receive-twice refused, release requires the claimant's ID, 6 history rows, audit written;
+no-record and cancel exits; the kiosk's own validation and save path loaded from CROMS.Kiosk.exe,
+linked to a test ticket and found again by ticket; desk, dialogs and the kiosk step rendered and
+LOOKED AT. 44/44, 0 strays. Marriage suite 75/75. MSBuild clean for CROMS, CROMS.Display,
+CROMS.Kiosk; bin\Debug updated.
+
+NOT DONE, plainly: (1) the PSA copy is not attached to the request from the Intelligent Document
+Processing screen - receiving happens in the BREQS desk, which uses the same engine; (2) no printed
+claim stub with the BREQS number for the client (the queue ticket still prints); (3) CENOMAR is not
+offered - the office named birth, marriage and death; (4) the Select Services step still shows a
+2-step indicator even when BREQS is picked (the later steps show 3); (5) the kiosk certificate cards
+clip their small "TAP TO SELECT" line at 1366x768; (6) the fee schedule changes, Consent/Advice
+printouts and the Personal Info scaling fix are the next items.

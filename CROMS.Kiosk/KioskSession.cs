@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace CROMS.Kiosk
 {
@@ -38,7 +38,16 @@ namespace CROMS.Kiosk
         public string ClaimQrToken;
         public string ClaimQrNo;   // CLM-YYYY-####
 
+        // PSA Copy (BREQS) only - what PSA is being asked for (BreqsDetailsForm). The generic
+        // Owner/Spouse/Event fields follow the certificate type, exactly as breqs_requests does.
+        public string BreqsDocType, BreqsPurpose, BreqsRelationship, IdNo;
+        public int BreqsCopies = 1;
+        public string OwnerFirst, OwnerMiddle, OwnerLast, SpouseFirst, SpouseMiddle, SpouseLast;
+        public System.DateTime? EventDate;
+        public string EventCity, EventProvince, FatherName, MotherMaidenName;
+
         public bool HasClaim => Selected.Contains("CLAIM");
+        public bool HasBreqs => Selected.Contains("BREQS");
         public bool HasMarriage => Selected.Contains("MARRIAGE_APP") || Selected.Contains("MARRIAGE_REG");
 
         /// <summary>Fresh start for the next client.</summary>
@@ -54,6 +63,11 @@ namespace CROMS.Kiosk
             Photo2 = null;
             ClaimQrToken = null;
             ClaimQrNo = null;
+            BreqsDocType = BreqsPurpose = BreqsRelationship = IdNo = null;
+            BreqsCopies = 1;
+            OwnerFirst = OwnerMiddle = OwnerLast = SpouseFirst = SpouseMiddle = SpouseLast = null;
+            EventDate = null;
+            EventCity = EventProvince = FatherName = MotherMaidenName = null;
         }
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 
 namespace CROMS.Kiosk
@@ -16,7 +16,7 @@ namespace CROMS.Kiosk
     /// </summary>
     internal static class Program
     {
-        private enum Step { Welcome, ChooseServices, Details }
+        private enum Step { Welcome, ChooseServices, Breqs, Details }
 
         [STAThread]
         static void Main()
@@ -48,8 +48,18 @@ namespace CROMS.Kiosk
                         using (var f = new ServiceSelectForm(session))
                         {
                             step = f.ShowDialog() == DialogResult.OK
-                                ? Step.Details                // Next -> details
+                                ? (session.HasBreqs ? Step.Breqs : Step.Details)   // Next -> PSA document (BREQS only) or details
                                 : Step.Welcome;               // idle timeout -> back to attract
+                        }
+                        break;
+
+                    case Step.Breqs:
+                        using (var f = new BreqsDetailsForm(session))
+                        {
+                            DialogResult r = f.ShowDialog();
+                            if (r == DialogResult.OK) step = Step.Details;               // Next
+                            else if (r == DialogResult.Cancel) step = Step.ChooseServices; // Back, choices kept
+                            else { session.Reset(); step = Step.Welcome; }               // idle
                         }
                         break;
 
@@ -59,8 +69,8 @@ namespace CROMS.Kiosk
                             DialogResult r = f.ShowDialog();
                             if (r == DialogResult.Cancel)
                             {
-                                // Back — keep the session so Step 1 re-highlights their choices.
-                                step = Step.ChooseServices;
+                                // Back — keep the session so the previous step re-shows the client's entries.
+                                step = session.HasBreqs ? Step.Breqs : Step.ChooseServices;
                             }
                             else
                             {
