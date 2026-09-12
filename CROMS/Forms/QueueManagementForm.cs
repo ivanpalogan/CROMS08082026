@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -28,11 +28,15 @@ namespace CROMS.Forms
         public QueueManagementForm()
         {
             InitializeComponent();
-            WireQueueDoubleClick();
+            // Avoid database access and running timers when Visual Studio creates the form.
+            if (System.ComponentModel.LicenseManager.UsageMode ==
+                System.ComponentModel.LicenseUsageMode.Designtime) return;
             SetupServingArea();
-            SetupWorkflowToolbar();
-            AddDisplayButton();
             SetupSyncTimer();
+            SetChipFilter("ALL");
+            SetCue(_txtSearch, "Search queue number or service…");
+            _clockTimer.Start();
+            ShowClock();
             RefreshAll();
         }
 
@@ -40,6 +44,9 @@ namespace CROMS.Forms
         private static readonly System.Collections.Generic.Dictionary<string, string> ServiceModule =
             new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
+                { "BIRTHREG", "birth"       },
+                { "MARRIAGE_APP", "marriage" },
+                { "MARRIAGE_REG", "marriage" },
                 { "CTC",      "certrequest" },
                 { "MARRIAGE", "marriage"    },
                 { "DEATH",    "death"       },
@@ -49,6 +56,14 @@ namespace CROMS.Forms
                 // NEWREG is handled specially (asks Birth / Marriage / Death).
             };
 
+        // These services use the existing per-service queue progress and completion flow.
+        // They deliberately stay at the counter instead of opening an unrelated record form.
+        private static readonly HashSet<string> ManualServices = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "LEGITIMATION", "BREKS", "SUPPLEMENTAL", "COURT_ORDER",
+            "SUPPLEMENTAL_REPORT", "LEGAL_INSTRUMENTS", "LEGITIMATION_RA9255"
+        };
+
         // Now Serving is built dynamically from the active `windows` rows, so there is
         // no fixed number of windows. Window-based access control: when an operator is
         // signed in to a specific window, ONLY that window is shown and controllable
@@ -56,9 +71,8 @@ namespace CROMS.Forms
         // The card grid is rebuilt only when the shown-window set changes (signature),
         // and the live text/colours are updated in place each refresh, so the board can
         // refresh on a timer with no flicker and without dropping a click.
-        private TableLayoutPanel _servingGrid;
-        private string _servingSig = "";
-        private readonly Dictionary<int, Panel> _cardByWin = new Dictionary<int, Panel>();
+        private string _servingSig = null;
+        private readonly Dictionary<int, CardPanel> _cardByWin = new Dictionary<int, CardPanel>();
         private readonly Dictionary<int, Label> _titleByWin = new Dictionary<int, Label>();
         private readonly Dictionary<int, Label> _presByWin = new Dictionary<int, Label>();
         private readonly Dictionary<int, Label> _codeByWin = new Dictionary<int, Label>();
@@ -66,21 +80,25 @@ namespace CROMS.Forms
 
         private void SetupServingArea()
         {
-            grpServing.Controls.Clear();   // drop the 3 hardcoded designer cards
-            _servingGrid = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(12, 8, 12, 8),
-                AutoScroll = true,
-                BackColor = grpServing.BackColor
-            };
-            grpServing.Controls.Add(_servingGrid);
+            // The heading names the access scope, so the operator can see at a glance that this
+            // station controls only its own window — an admin with no window claimed sees them all.
+            lblServingTitle.Text = Session.HasWindow
+                ? "MY WINDOW — " + (Session.WindowName ?? ("Window " + Session.WindowId))
+                : "SERVICE WINDOWS";
+            lblServingHint.Text = Session.HasWindow
+                ? "Only tickets routed to your window appear here"
+                : "No window claimed — monitoring every active window";
+        }
 
-            // Header shows the access scope so the operator knows this station only
-            // controls its own window.
-            grpServing.Text = Session.HasWindow
-                ? "NOW SERVING — " + (Session.WindowName ?? ("Window " + Session.WindowId)) + " (your window)"
-                : "NOW SERVING";
+        // ---- live clock ----
+
+        private void clockTimer_Tick(object sender, EventArgs e) => ShowClock();
+
+        private void ShowClock()
+        {
+            DateTime now = DateTime.Now;
+            _lblClock.Text = now.ToString("hh:mm:ss tt");
+            _lblClockDate.Text = now.ToString("dddd, MMMM d, yyyy");
         }
 
         /// <summary>
@@ -119,107 +137,35 @@ namespace CROMS.Forms
 
         private void RebuildServingGrid(DataTable wins)
         {
-            _servingGrid.SuspendLayout();
-            _servingGrid.Controls.Clear();
-            _servingGrid.ColumnStyles.Clear();
-            _servingGrid.RowStyles.Clear();
+            int cols = ResetServingGridLayout(wins.Rows.Count);
             _cardByWin.Clear(); _titleByWin.Clear();
             _presByWin.Clear(); _codeByWin.Clear(); _subByWin.Clear();
-
             if (wins.Rows.Count == 0)
             {
-                _servingGrid.ColumnCount = 1;
-                _servingGrid.RowCount = 1;
-                _servingGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
-                _servingGrid.Controls.Add(new Label
-                {
-                    Text = Session.HasWindow
-                        ? "Your window is not active. Ask an admin to activate it in Settings."
-                        : "No active windows. Add one in Settings (Administration).",
-                    AutoSize = true,
-                    ForeColor = Color.FromArgb(108, 117, 125),
-                    Font = new Font("Segoe UI", 10F),
-                    Margin = new Padding(8)
-                }, 0, 0);
-                _servingGrid.ResumeLayout();
-                return;
+                string message = Session.HasWindow
+                    ? "Your window is not active. Ask an admin to activate it in Settings."
+                    : "No active windows. Add one in Settings (Administration).";
+                _servingGrid.Controls.Add(CreateServingPlaceholder(message), 0, 0);
             }
-
-            // Equal-width columns (up to 4 across, then wrap to more rows) so the cards
-            // always fill the whole board width — no dead space on the right.
-            int count = wins.Rows.Count;
-            int cols = Math.Min(count, 4);
-            int rows = (int)Math.Ceiling(count / (double)cols);
-            _servingGrid.ColumnCount = cols;
-            _servingGrid.RowCount = rows;
-            for (int c = 0; c < cols; c++)
-                _servingGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / cols));
-            for (int r = 0; r < rows; r++)
-                _servingGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
-
+            // A single window is laid out as gutter / card / gutter, so it sits in the middle column.
+            int offset = wins.Rows.Count == 1 ? 1 : 0;
             int i = 0;
             foreach (DataRow w in wins.Rows)
             {
                 int id = Convert.ToInt32(w["id"]);
                 string name = w["window_name"].ToString();
-                _servingGrid.Controls.Add(CreateWindowCard(id, name), i % cols, i / cols);
+                _servingGrid.Controls.Add(CreateWindowCard(id, name), (i % cols) + offset, i / cols);
                 i++;
             }
-
             _servingGrid.ResumeLayout();
         }
 
         /// <summary>Builds one window card with persistent labels (updated in place later).</summary>
-        private Panel CreateWindowCard(int windowId, string windowName)
+        private CardPanel CreateWindowCard(int windowId, string windowName)
         {
-            var card = new Panel
-            {
-                Dock = DockStyle.Fill,
-                Margin = new Padding(8),
-                MinimumSize = new Size(0, 140),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
-                Cursor = Cursors.Hand
-            };
-            var title = new Label
-            {
-                Text = windowName.ToUpper(),
-                Dock = DockStyle.Top,
-                Height = 26,
-                TextAlign = ContentAlignment.MiddleCenter,
-                ForeColor = Color.FromArgb(108, 117, 125),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold)
-            };
-            var presence = new Label
-            {
-                Text = "",
-                Dock = DockStyle.Top,
-                Height = 20,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
-            };
-            var codeLbl = new Label
-            {
-                Text = "—",
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter,
-                ForeColor = Color.FromArgb(13, 110, 253),
-                Font = new Font("Consolas", 26F, FontStyle.Bold)
-            };
-            var subLbl = new Label
-            {
-                Text = "",
-                Dock = DockStyle.Bottom,
-                Height = 40,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 8.5F)
-            };
-
-            card.Controls.Add(codeLbl);
-            card.Controls.Add(subLbl);
-            card.Controls.Add(presence);
-            card.Controls.Add(title);
-
+            Label title, presence, codeLbl, subLbl;
+            CardPanel card = CreateWindowCardLayout(windowName, out title, out presence,
+                out codeLbl, out subLbl);
             // Responsive text: the ticket code (and services subtitle) shrink to fit
             // their card so a long queue code never clips — see AutoFitText.
             AutoFitText.Attach(codeLbl, 26F, 9F);
@@ -270,20 +216,24 @@ namespace CROMS.Forms
                     : AssignedLabel(id);
                 // Accepted tickets show a "ready to call" hint (they are NOT on the public
                 // board yet); Serving tickets show the requested services.
-                if (accepted) services = "▶ Ready — click to Call Client";
+                // Every state now says what a click does — the card is the main control here,
+                // but nothing on it used to advertise that except in the Accepted state.
+                if (accepted) services = "Ready — click to call the client";
+                else if (serving) services = services + "   ·   click when a service is done";
 
                 _codeByWin[id].Text = serving ? dt.Rows[0]["ticket_code"].ToString() : "—";
                 _subByWin[id].Text = services;
-                _subByWin[id].ForeColor = accepted
-                    ? Color.FromArgb(255, 140, 0)
-                    : (serving ? Color.FromArgb(33, 37, 41) : Color.FromArgb(148, 163, 184));
+                _subByWin[id].ForeColor = accepted ? UiTheme.Warning
+                    : (serving ? UiTheme.Ink : UiTheme.Faint);
                 _presByWin[id].Text = online
                     ? "● Online" + (operatorName != null ? " · " + operatorName : "")
                     : "○ Offline";
-                _presByWin[id].ForeColor = online
-                    ? Color.FromArgb(25, 135, 84) : Color.FromArgb(173, 181, 189);
-                _cardByWin[id].BackColor = online
-                    ? Color.White : Color.FromArgb(248, 249, 250);
+                _presByWin[id].ForeColor = online ? UiTheme.Success : UiTheme.Faint;
+                // A CardPanel paints its face inside a rounded path, so the dim-when-offline
+                // state is the FACE colour — setting BackColor would repaint the page behind it.
+                _cardByWin[id].CardColor = online ? UiTheme.Surface : UiTheme.PageBg;
+                _cardByWin[id].Invalidate();
+                _codeByWin[id].ForeColor = serving ? UiTheme.Accent : UiTheme.Faint;
             }
         }
 
@@ -367,15 +317,17 @@ namespace CROMS.Forms
             DataRow serving = FindRow(svc, "Serving");
             if (serving != null)
             {
+                // Two outcomes, two buttons. This used to be Yes/No/Cancel where No and Cancel
+                // ran the SAME code — a three-way prompt with only two real answers, which just
+                // made the operator hesitate. Yes = done, No = reopen and keep working.
                 DialogResult done = MessageBox.Show(
-                    code + " — mark '" + serving["service_label"] + "' as completed?",
-                    "Service done?", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-                if (done == DialogResult.Cancel)
-                {
-                    OpenServiceForm(serving["service_code"].ToString(), ticketId, code);
-                    return;   // reopened, still in progress
-                }
-                if (done == DialogResult.No)
+                    code + " — is \"" + serving["service_label"] + "\" finished?\r\n\r\n" +
+                    "Yes  —  mark it done and open the next service\r\n" +
+                    (ManualServices.Contains(serving["service_code"].ToString())
+                        ? "No   —  keep handling this service at the counter"
+                        : "No   —  reopen the form and keep working"),
+                    "Finish this service?", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                if (done != DialogResult.Yes)
                 {
                     OpenServiceForm(serving["service_code"].ToString(), ticketId, code);
                     return;   // not done yet — reopen the same form
@@ -403,7 +355,9 @@ namespace CROMS.Forms
                 RefreshAll();
                 MessageBox.Show(
                     code + " — now serving: " + next["service_label"] +
-                    "\nComplete and save this form, then click " + WindowName(window) +
+                    (ManualServices.Contains(next["service_code"].ToString())
+                        ? "\nHandle this service manually at the counter, then click "
+                        : "\nComplete and save this form, then click ") + WindowName(window) +
                     " again for the next service.",
                     "Now serving", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -440,6 +394,7 @@ namespace CROMS.Forms
         /// <summary>Walks up to the shell and opens the module for a service code.</summary>
         private void OpenServiceForm(string serviceCode, int ticketId, string ticketCode)
         {
+            if (ManualServices.Contains(serviceCode)) return;
             MainForm shell = Shell();
             if (shell == null) return;
 
@@ -463,6 +418,21 @@ namespace CROMS.Forms
                 birth.PrepareForQueueTicket(ticketId);
             else if (key == "certrequest" && form is CertificateRequestForm cert)
                 cert.PrepareForQueueTicket(ticketId, ticketCode);
+            else if (key == "release" && form is ReleaseClaimForm rel)
+                rel.PrepareFromQueueTicket(ticketId);
+            else if (form is MarriageRegistrationForm marriage)
+            {
+                if (serviceCode.Equals("MARRIAGE_APP", StringComparison.OrdinalIgnoreCase))
+                {
+                    using (var entry = new MarriageLicenseForm(null)) entry.ShowDialog(shell);
+                    marriage.RefreshData();
+                }
+                else if (serviceCode.Equals("MARRIAGE_REG", StringComparison.OrdinalIgnoreCase))
+                {
+                    using (var entry = new MarriageEntryForm(null)) entry.ShowDialog(shell);
+                    marriage.RefreshData();
+                }
+            }
         }
 
         /// <summary>Walks up the control tree to the application shell (MainForm).</summary>
@@ -479,45 +449,19 @@ namespace CROMS.Forms
         /// </summary>
         private static string PromptRecordType()
         {
-            using (var dlg = new Form())
+            using (var dlg = CreateRecordTypeDialog())
             {
-                dlg.Text = "New Registration";
-                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
-                dlg.StartPosition = FormStartPosition.CenterParent;
-                dlg.MinimizeBox = false;
-                dlg.MaximizeBox = false;
-                dlg.ClientSize = new System.Drawing.Size(320, 120);
-
-                dlg.Controls.Add(new Label
-                {
-                    Text = "What is this client registering?",
-                    AutoSize = true,
-                    Location = new System.Drawing.Point(16, 16),
-                    Font = new System.Drawing.Font("Segoe UI", 9.75F)
-                });
-
                 string chosen = null;
-                string[] labels = { "Birth", "Marriage", "Death" };
-                string[] keys = { "birth", "marriage", "death" };
-                for (int i = 0; i < labels.Length; i++)
+                foreach (Control control in dlg.Controls)
                 {
-                    var b = new Button
-                    {
-                        Text = labels[i],
-                        Tag = keys[i],
-                        Location = new System.Drawing.Point(16 + i * 102, 56),
-                        Size = new System.Drawing.Size(86, 40),
-                        FlatStyle = FlatStyle.Flat,
-                        Font = new System.Drawing.Font("Segoe UI", 10F)
-                    };
-                    b.Click += (s, e) =>
+                    var button = control as Button;
+                    if (button == null) continue;
+                    button.Click += (s, e) =>
                     {
                         chosen = (string)((Button)s).Tag;
                         dlg.DialogResult = DialogResult.OK;
                     };
-                    dlg.Controls.Add(b);
                 }
-
                 dlg.ShowDialog();
                 return chosen;
             }
@@ -527,91 +471,82 @@ namespace CROMS.Forms
         /// Adds a header button that opens the public, view-only "Now Serving" board
         /// (a separate full-screen window for the waiting area).
         /// </summary>
-        private void AddDisplayButton()
+        private void btnClientDisplay_Click(object sender, EventArgs e)
         {
-            var btn = new Button
-            {
-                Text = "Client Display",
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                FlatStyle = FlatStyle.Flat,
-                Font = new System.Drawing.Font("Segoe UI", 10F),
-                Location = new System.Drawing.Point(965, 19),
-                Size = new System.Drawing.Size(140, 35)
-            };
-            btn.Click += (s, e) =>
-            {
-                if (_display == null || _display.IsDisposed)
-                    _display = new ClientDisplayForm();
-                _display.Show();
-                _display.BringToFront();
-            };
-            Controls.Add(btn);
-            btn.BringToFront();
+            if (_display == null || _display.IsDisposed)
+                _display = new ClientDisplayForm();
+            _display.Show();
+            _display.BringToFront();
         }
 
         // ================================================================
         //  Workflow toolbar: Call Client, Recall, Forward to Another Window
-        //  (spec sections 4 and 6). Buttons are added in code — the Now Serving
-        //  cards are already built dynamically, so the toolbar is too.
+        //  (spec sections 4 and 6). Controls and subscriptions are in the Designer.
         // ================================================================
 
-        private Button _btnCallClient, _btnRecall, _btnForward;
 
-        private void SetupWorkflowToolbar()
+        private void btnCallClient_Click(object sender, EventArgs e) => CallClient();
+
+        private void btnRecall_Click(object sender, EventArgs e) => RecallCurrent();
+
+        private void btnForward_Click(object sender, EventArgs e) => ForwardCurrent();
+
+
+        /// <summary>
+        /// Enables only the actions that make sense right now and spells out the next step in
+        /// words. The workflow (Call Next -> Call Client -> finish each service) was previously
+        /// invisible: all four buttons stayed lit whatever the state, so the operator had to
+        /// already know the sequence. Disabled buttons now genuinely look disabled (see the
+        /// UiTheme fix), which makes gating them a real signal rather than a dead click.
+        /// </summary>
+        private void UpdateWorkflowButtons()
         {
-            _btnCallClient = MakeToolButton("Call Client", 310, Color.FromArgb(25, 135, 84), true);
-            _btnCallClient.Click += (s, e) => CallClient();
-
-            _btnRecall = MakeToolButton("Recall", 452, Color.FromArgb(255, 193, 7), false);
-            _btnRecall.ForeColor = Color.FromArgb(33, 37, 41);
-            _btnRecall.Click += (s, e) => RecallCurrent();
-
-            _btnForward = MakeToolButton("Forward →", 566, Color.FromArgb(111, 66, 193), true);
-            _btnForward.Click += (s, e) => ForwardCurrent();
-        }
-
-        private Button MakeToolButton(string text, int x, Color back, bool whiteText)
-        {
-            var b = new Button
-            {
-                Text = text,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left,
-                FlatStyle = FlatStyle.Flat,
-                BackColor = back,
-                ForeColor = whiteText ? Color.White : Color.FromArgb(33, 37, 41),
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                Location = new Point(x, 19),
-                Size = new Size(text.Length > 8 ? 138 : 110, 35),
-                UseVisualStyleBackColor = false
-            };
-            Controls.Add(b);
-            b.BringToFront();
-            return b;
-        }
-
-        // Voice announcement (waiting-area callout). Uses System.Speech on the staff
-        // machine's speakers; guarded so a PC with no audio never crashes the flow.
-        private System.Speech.Synthesis.SpeechSynthesizer _voice;
-
-        private void Announce(string ticketCode, string windowName)
-        {
+            string status = null, code = null;
             try
             {
-                if (_voice == null) _voice = new System.Speech.Synthesis.SpeechSynthesizer();
-                string spoken = "Now serving " + Spell(ticketCode) + ", please proceed to " + windowName + ".";
-                _voice.SpeakAsync(spoken);
+                int win = Session.HasWindow ? Session.WindowId : 0;
+                if (win != 0)
+                {
+                    DataTable t = Db.Pull(
+                        "SELECT ticket_code, status FROM queue_tickets " +
+                        "WHERE status IN ('Accepted','Serving') AND window_no = @w " +
+                        "AND DATE(created_at) = CURDATE() ORDER BY id DESC LIMIT 1",
+                        new MySqlParameter("@w", win));
+                    if (t.Rows.Count > 0)
+                    {
+                        code = t.Rows[0]["ticket_code"].ToString();
+                        status = t.Rows[0]["status"].ToString();
+                    }
+                }
             }
-            catch { /* no audio device / speech engine — silent, callout still shows on screen */ }
+            catch { return; }   // DB blip — leave the buttons as they are
+
+            bool accepted = string.Equals(status, "Accepted", StringComparison.OrdinalIgnoreCase);
+            bool serving = string.Equals(status, "Serving", StringComparison.OrdinalIgnoreCase);
+            bool busy = accepted || serving;
+
+            _btnCallClient.Enabled = accepted;
+            _btnRecall.Enabled = serving;
+            _btnForward.Enabled = serving;
+            btnCallNext.Enabled = !busy;
+
+            if (!Session.HasWindow)
+                _lblNextStep.Text = "Monitoring all windows — sign in to a window to serve clients.";
+            else if (accepted)
+                _lblNextStep.Text = "Next: press Call Client to announce " + code + ".";
+            else if (serving)
+                _lblNextStep.Text = "Now serving " + code + " — click your window card when a service is done.";
+            else
+                _lblNextStep.Text = "Next: press Call Next to take the next client in line.";
         }
 
-        // "MARRIAGE-100" reads better spoken as "MARRIAGE 1 0 0".
-        private static string Spell(string code)
+        // Voice announcement is now spoken ONLY by the public queue Display (a separate PC
+        // by the waiting area). The staff machine stays silent so no one has to mute it.
+        // The Display board watches the ticket's Serving status + recall_count and speaks;
+        // this stub keeps the call sites intact without producing sound on the staff PC.
+        private void Announce(string ticketCode, string windowName)
         {
-            if (string.IsNullOrEmpty(code)) return "";
-            var sb = new StringBuilder();
-            foreach (char c in code.Replace('-', ' '))
-                sb.Append(char.IsDigit(c) ? " " + c : c.ToString());
-            return sb.ToString();
+            // Intentionally silent on the staff PC — see CROMS.Display/DisplayForm for the voice.
         }
 
         /// <summary>The ticket currently at the operator's window (Accepted or Serving).</summary>
@@ -817,17 +752,16 @@ namespace CROMS.Forms
         /// queue number, stored in `queue_ticket_services`). This is how staff retrieve
         /// all requested services from the same ticket.
         /// </summary>
-        private void WireQueueDoubleClick()
+        private void dgvQueue_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            dgvQueue.CellDoubleClick += (s, e) =>
-            {
-                if (e.RowIndex < 0) return;
-                if (!dgvQueue.Columns.Contains("id")) return;
-                object idVal = dgvQueue.Rows[e.RowIndex].Cells["id"].Value;
-                if (idVal == null || idVal == DBNull.Value) return;
-                ShowTicketServices(Convert.ToInt32(idVal),
-                    dgvQueue.Rows[e.RowIndex].Cells["Queue No"].Value?.ToString() ?? "");
-            };
+            // Both lists use this handler, so the grid comes from the sender rather than the field.
+            var grid = sender as DataGridView;
+            if (grid == null || e.RowIndex < 0) return;
+            if (!grid.Columns.Contains("id")) return;
+            object idVal = grid.Rows[e.RowIndex].Cells["id"].Value;
+            if (idVal == null || idVal == DBNull.Value) return;
+            ShowTicketServices(Convert.ToInt32(idVal),
+                grid.Rows[e.RowIndex].Cells["Queue No"].Value?.ToString() ?? "");
         }
 
         /// <summary>Lists the services bundled on one ticket (falls back to type_label).</summary>
@@ -870,13 +804,299 @@ namespace CROMS.Forms
         {
             ReconcileApprovals();
             LoadQueue();
+            LoadKpis();
             RefreshServing();
+            UpdateWorkflowButtons();   // keep the available actions in step with the ticket state
+        }
+
+        // ================================================================
+        //  Headline numbers. Read-only, and an unknown value stays a dash: a fabricated
+        //  average on a queue board would be read as measured.
+        // ================================================================
+
+        private void LoadKpis()
+        {
+            try
+            {
+                DataTable t = Db.Pull(
+                    "SELECT " +
+                    " SUM(status IN ('Waiting','For Receiving')) AS waiting, " +
+                    " SUM(status IN ('Waiting','For Receiving') AND priority <> 'Regular') AS priority_waiting, " +
+                    " SUM(status = 'Completed') AS served, " +
+                    " ROUND(AVG(CASE WHEN accepted_at IS NOT NULL " +
+                    "   THEN TIMESTAMPDIFF(MINUTE, created_at, accepted_at) END)) AS avg_wait, " +
+                    " MAX(CASE WHEN status IN ('Waiting','For Receiving') " +
+                    "   THEN TIMESTAMPDIFF(MINUTE, created_at, NOW()) END) AS longest " +
+                    "FROM queue_tickets WHERE DATE(created_at) = CURDATE()");
+                if (t.Rows.Count == 0) return;
+                DataRow r = t.Rows[0];
+
+                int waiting = Num(r["waiting"]);
+                int priorityWaiting = Num(r["priority_waiting"]);
+                int served = Num(r["served"]);
+
+                _kpiWaiting.Value = waiting.ToString();
+                // Says "waiting" explicitly: the lane table below lists every priority ticket
+                // today, so a bare "none in the priority lane" would contradict a table that
+                // plainly shows one.
+                _kpiWaiting.Caption = priorityWaiting > 0
+                    ? priorityWaiting + " waiting in the priority lane"
+                    : "none waiting in the priority lane";
+                _kpiWaiting.ValueColor = waiting >= 10 ? UiTheme.Warning : UiTheme.Ink;
+                _kpiWaiting.Tint = UiTheme.AccentTint;
+                _kpiWaiting.Accent = UiTheme.Accent;
+
+                // Average wait is measured from the ticket being issued to it being accepted at a
+                // window, so it only exists once someone has actually been taken today.
+                bool haveAvg = r["avg_wait"] != DBNull.Value;
+                _kpiAvgWait.Value = haveAvg ? Num(r["avg_wait"]).ToString() : "—";
+                _kpiAvgWait.Suffix = haveAvg ? " min" : "";
+                _kpiAvgWait.Caption = haveAvg
+                    ? "issued to called, today"
+                    : "no one called yet today";
+                _kpiAvgWait.Tint = UiTheme.Chrome;
+                _kpiAvgWait.Accent = UiTheme.Muted;
+
+                _kpiServed.Value = served.ToString();
+                _kpiServed.Caption = "tickets completed";
+                _kpiServed.Tint = UiTheme.SuccessTint;
+                _kpiServed.Accent = UiTheme.Success;
+
+                bool haveLongest = r["longest"] != DBNull.Value;
+                int longest = haveLongest ? Num(r["longest"]) : 0;
+                _kpiLongest.Value = haveLongest ? longest.ToString() : "—";
+                _kpiLongest.Suffix = haveLongest ? " min" : "";
+                _kpiLongest.Caption = haveLongest
+                    ? (longest > 15 ? LongestWaitingCode() + " — call them next" : "still within target")
+                    : "nobody waiting";
+                _kpiLongest.ValueColor = haveLongest && longest > 15 ? UiTheme.Danger : UiTheme.Ink;
+                _kpiLongest.Tint = haveLongest && longest > 15 ? UiTheme.DangerTint : UiTheme.Chrome;
+                _kpiLongest.Accent = haveLongest && longest > 15 ? UiTheme.Danger : UiTheme.Muted;
+
+                _kpiWaiting.Invalidate();
+                _kpiAvgWait.Invalidate();
+                _kpiServed.Invalidate();
+                _kpiLongest.Invalidate();
+            }
+            catch { /* a blip leaves the last numbers on screen; the sync indicator says so */ }
+        }
+
+        private static int Num(object v) => v == null || v == DBNull.Value ? 0 : Convert.ToInt32(v);
+
+        /// <summary>The queue number that has been waiting longest, for the KPI caption.</summary>
+        private static string LongestWaitingCode()
+        {
+            DataTable t = Db.Pull(
+                "SELECT ticket_code FROM queue_tickets " +
+                "WHERE status IN ('Waiting','For Receiving') AND DATE(created_at) = CURDATE() " +
+                "ORDER BY created_at LIMIT 1");
+            return t.Rows.Count > 0 ? t.Rows[0]["ticket_code"].ToString() : "Longest";
+        }
+
+        // ================================================================
+        //  Service filter + search. Both work on the already-loaded table, so typing or
+        //  switching a filter never hits the database.
+        // ================================================================
+
+        private string _chipFilter = "ALL";
+
+        // Chip key → what to match in the ticket's service label. The kiosk stores the
+        // human labels (queue_tickets.type_label), so the filter matches on those.
+        private static readonly Dictionary<string, string> ChipMatch =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "NEWREG",   "Birth Registration" },
+                { "CTC",      "Certified True Copy" },
+                { "MARRIAGE", "Marriage" },
+                { "DEATH",    "Death" },
+                { "PETITION", "Petition" },
+                { "CLAIM",    "Claim" },
+            };
+
+        private void chip_Click(object sender, EventArgs e)
+        {
+            var b = sender as Button;
+            if (b == null) return;
+            SetChipFilter(b.Tag as string ?? "ALL");
+            ApplyQueueFilter();
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e) => ApplyQueueFilter();
+
+        // .NET Framework's TextBox has no PlaceholderText, so the hint comes from the edit
+        // control's own cue banner.
+        [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, string lParam);
+
+        private static void SetCue(TextBox box, string hint)
+        {
+            const int EM_SETCUEBANNER = 0x1501;
+            if (box.IsHandleCreated) SendMessage(box.Handle, EM_SETCUEBANNER, (IntPtr)1, hint);
+            else box.HandleCreated += (s, e) => SendMessage(box.Handle, EM_SETCUEBANNER, (IntPtr)1, hint);
+        }
+
+        private void SetChipFilter(string key)
+        {
+            _chipFilter = key ?? "ALL";
+            foreach (Control c in pnlChips.Controls)
+            {
+                var b = c as Button;
+                if (b == null) continue;
+                bool on = string.Equals(b.Tag as string, _chipFilter, StringComparison.OrdinalIgnoreCase);
+                b.BackColor = on ? UiTheme.AccentTint : UiTheme.Chrome;
+                b.ForeColor = on ? UiTheme.Accent : UiTheme.Muted;
+                b.Invalidate();
+            }
+        }
+
+        /// <summary>
+        /// Binds the loaded table through two filtered views — the regular queue and the priority
+        /// lane. Both grids keep the hidden id column, so double-click resolves the ticket in
+        /// either. The service filter and search apply to both; the lane split is on top of them.
+        /// </summary>
+        private void ApplyQueueFilter()
+        {
+            if (_queueTable == null) return;
+            var terms = new List<string>();
+
+            if (string.Equals(_chipFilter, "NEWREG", StringComparison.OrdinalIgnoreCase))
+                terms.Add("(Type LIKE '%Birth Registration%' OR Type LIKE '%New Registration%')");
+            else if (ChipMatch.ContainsKey(_chipFilter))
+                terms.Add("Type LIKE '%" + Escape(ChipMatch[_chipFilter]) + "%'");
+
+            string q = (_txtSearch.Text ?? "").Trim();
+            if (q.Length > 0)
+            {
+                string e = Escape(q);
+                terms.Add("([Queue No] LIKE '%" + e + "%' OR Type LIKE '%" + e + "%' OR Status LIKE '%" + e + "%')");
+            }
+
+            _baseFilter = string.Join(" AND ", terms);
+            string and = _baseFilter.Length > 0 ? _baseFilter + " AND " : "";
+
+            var regular = new DataView(_queueTable) { RowFilter = and + "(Priority IS NULL OR Priority = 'Regular')" };
+            var priority = new DataView(_queueTable) { RowFilter = and + "(Priority IS NOT NULL AND Priority <> 'Regular')" };
+
+            Bind(dgvQueue, regular);
+            Bind(dgvPriority, priority);
+
+            lblLive.Text = _baseFilter.Length == 0
+                ? "TODAY'S QUEUE"
+                : "TODAY'S QUEUE (" + (regular.Count + priority.Count) + " of " + _queueTable.Rows.Count + ")";
+
+            // The heading carries the count, so an empty lane still says something — a grid with
+            // only its header row would read as broken.
+            lblPriorityHead.Text = priority.Count == 0
+                ? "PRIORITY LANE  ·  nobody today  —  Senior Citizen / PWD / Pregnant (RA 11261)"
+                : "PRIORITY LANE  ·  " + priority.Count + (priority.Count == 1 ? " ticket today" : " tickets today") +
+                  "  —  serve ahead of the regular queue (RA 11261)";
+        }
+
+        private static void Bind(DataGridView grid, DataView view)
+        {
+            grid.DataSource = view;
+            if (grid.Columns.Contains("id")) grid.Columns["id"].Visible = false;
+        }
+
+        private string _baseFilter = "";
+
+        /// <summary>Escapes the characters a DataView RowFilter treats as special.</summary>
+        private static string Escape(string s) =>
+            s.Replace("'", "''").Replace("[", "[[]").Replace("%", "[%]").Replace("*", "[*]");
+
+        /// <summary>Chip counts, so the filters say how much is behind them before you click.</summary>
+        private void UpdateChipCounts()
+        {
+            if (_queueTable == null) return;
+            SetChipCount(_chipAll, _queueTable.Rows.Count);
+            SetChipCount(_chipNewReg, CountWhere("Type LIKE '%Birth Registration%' OR Type LIKE '%New Registration%'"));
+            SetChipCount(_chipCtc, CountWhere("Type LIKE '%Certified True Copy%'"));
+            SetChipCount(_chipMarriage, CountWhere("Type LIKE '%Marriage%'"));
+            SetChipCount(_chipDeath, CountWhere("Type LIKE '%Death%'"));
+            SetChipCount(_chipPetition, CountWhere("Type LIKE '%Petition%'"));
+            SetChipCount(_chipClaim, CountWhere("Type LIKE '%Claim%'"));
+        }
+
+        private int CountWhere(string filter)
+        {
+            try { return new DataView(_queueTable) { RowFilter = filter }.Count; }
+            catch { return 0; }
+        }
+
+        private static void SetChipCount(Button chip, int n)
+        {
+            string label = (chip.Tag as string) == "ALL" ? "All"
+                : chip.Text.Split(new[] { "  " }, StringSplitOptions.None)[0];
+            chip.Text = label + "  " + n;
+            chip.Invalidate();
+        }
+
+        // ---- row rendering: wait-time severity and the priority lane ----
+
+        private static readonly Font TicketFont = new Font("Consolas", 9.5F, FontStyle.Bold);
+        private static readonly Font WaitFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+
+        /// <summary>
+        /// Colours the wait time by severity and marks a priority-lane ticket. State is shown
+        /// in form as well as number, so the row that needs attention reads at a glance.
+        /// </summary>
+        private void dgvQueue_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            var grid = sender as DataGridView;
+            if (grid == null || e.RowIndex < 0 || e.RowIndex >= grid.Rows.Count) return;
+            DataGridViewRow row = grid.Rows[e.RowIndex];
+            string column = grid.Columns[e.ColumnIndex].Name;
+
+            string priority = CellText(row, "Priority");
+            bool isPriority = priority.Length > 0 && priority != "—"
+                && !priority.Equals("Regular", StringComparison.OrdinalIgnoreCase);
+
+            if (isPriority)
+            {
+                // The whole row carries the lane so it can't be missed when scanning down.
+                e.CellStyle.BackColor = UiTheme.WarningTint;
+                e.CellStyle.SelectionBackColor = UiTheme.Mix(UiTheme.WarningTint, UiTheme.Warning, 0.18f);
+            }
+
+            if (column == "Queue No")
+            {
+                e.CellStyle.Font = TicketFont;
+                e.CellStyle.ForeColor = UiTheme.Ink;
+            }
+            else if (column == "Priority" && isPriority)
+            {
+                e.CellStyle.ForeColor = UiTheme.Warning;
+                e.CellStyle.Font = WaitFont;
+            }
+            else if (column == "Wait")
+            {
+                int mins = Minutes(e.Value as string);
+                if (mins < 0) return;                       // "—" on a finished ticket
+                e.CellStyle.Font = WaitFont;
+                e.CellStyle.ForeColor = mins > 15 ? UiTheme.Danger
+                    : mins >= 5 ? UiTheme.Warning : UiTheme.Muted;
+            }
+        }
+
+        private static string CellText(DataGridViewRow row, string column)
+        {
+            if (!row.DataGridView.Columns.Contains(column)) return "";
+            object v = row.Cells[column].Value;
+            return v == null || v == DBNull.Value ? "" : v.ToString();
+        }
+
+        /// <summary>Leading minute count of a "12 min" cell; -1 when there isn't one.</summary>
+        private static int Minutes(string wait)
+        {
+            if (string.IsNullOrEmpty(wait)) return -1;
+            int i = 0;
+            while (i < wait.Length && char.IsDigit(wait[i])) i++;
+            int n;
+            return i > 0 && int.TryParse(wait.Substring(0, i), out n) ? n : -1;
         }
 
         // ---- real-time synchronization ----
 
-        private Timer _syncTimer;
-        private Label _lblSync;
         private bool _online = true;
 
         /// <summary>
@@ -886,23 +1106,10 @@ namespace CROMS.Forms
         /// </summary>
         private void SetupSyncTimer()
         {
-            _lblSync = new Label
-            {
-                AutoSize = true,
-                Text = "● Live",
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(25, 135, 84),
-                BackColor = Color.Transparent,
-                Location = new Point(1115, 27),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            Controls.Add(_lblSync);
-            _lblSync.BringToFront();
-
-            _syncTimer = new Timer { Interval = 3000 };
-            _syncTimer.Tick += (s, e) => SyncTick();
             _syncTimer.Start();
         }
+
+        private void syncTimer_Tick(object sender, EventArgs e) => SyncTick();
 
         /// <summary>
         /// One live-refresh pass. Wrapped so a dropped or slow connection never crashes
@@ -920,7 +1127,7 @@ namespace CROMS.Forms
                     RefreshAll();
                     if (!_online) _online = true;   // reconnected → this pass caught us up
                     _lblSync.Text = "● Live";
-                    _lblSync.ForeColor = Color.FromArgb(25, 135, 84);
+                    _lblSync.ForeColor = UiTheme.Success;
                     return;
                 }
                 catch
@@ -931,13 +1138,15 @@ namespace CROMS.Forms
             }
             _online = false;
             _lblSync.Text = "● Reconnecting…";
-            _lblSync.ForeColor = Color.FromArgb(220, 53, 69);
+            _lblSync.ForeColor = UiTheme.Danger;
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             _syncTimer?.Stop();
             _syncTimer?.Dispose();
+            _clockTimer?.Stop();
+            _clockTimer?.Dispose();
             base.OnFormClosed(e);
         }
 
@@ -1022,10 +1231,8 @@ namespace CROMS.Forms
             Audit.Write("Update", "queue_tickets", id, "Accepted " + code + " at " + WindowName(window));
 
             RefreshAll();
-            MessageBox.Show(code + "  accepted at  " + WindowName(window) +
-                "\nLocate the client's documents, then press Call Client (or click the window " +
-                "card) to call the client to the counter.", "Ticket accepted",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            // The ticket is accepted; use Call Client or the window card when ready.
         }
 
         /// <summary>
@@ -1080,7 +1287,11 @@ namespace CROMS.Forms
             if (total == 0) return true;          // handles All Transactions
             if (code == null) return true;        // legacy ticket, unknown service → don't strand it
             DataTable dt = Db.Pull(
-                "SELECT id FROM window_transactions WHERE window_id = @w AND service_code = @c",
+                "SELECT id FROM window_transactions WHERE window_id = @w AND (service_code = @c " +
+                "OR (@c = 'BIRTHREG' AND service_code = 'NEWREG') " +
+                "OR (@c = 'NEWREG' AND service_code = 'BIRTHREG') " +
+                "OR (@c IN ('MARRIAGE_APP','MARRIAGE_REG') AND service_code = 'MARRIAGE') " +
+                "OR (@c = 'MARRIAGE' AND service_code IN ('MARRIAGE_APP','MARRIAGE_REG')))",
                 new MySqlParameter("@w", windowId), new MySqlParameter("@c", code));
             return dt.Rows.Count > 0;
         }
@@ -1101,7 +1312,9 @@ namespace CROMS.Forms
         private void LoadQueue()
         {
             DataTable dt = Db.Pull(
-                "SELECT q.id, q.ticket_code AS 'Queue No', q.type_label AS Type, " +
+                "SELECT q.id, q.ticket_code AS 'Queue No', " +
+                "COALESCE((SELECT GROUP_CONCAT(qs.service_label ORDER BY qs.id SEPARATOR ', ') " +
+                "FROM queue_ticket_services qs WHERE qs.ticket_id = q.id), q.type_label) AS Type, " +
                 "DATE_FORMAT(q.created_at, '%H:%i') AS Issued, " +
                 "CASE WHEN q.status = 'Completed' THEN '—' " +
                 "     ELSE CONCAT(TIMESTAMPDIFF(MINUTE, q.created_at, NOW()), ' min') END AS Wait, " +
@@ -1125,13 +1338,17 @@ namespace CROMS.Forms
             foreach (DataRow r in dt.Rows)
                 for (int c = 0; c < dt.Columns.Count; c++)
                     sig.Append(r[c]).Append('|');
-            if (sig.ToString() == _queueSig && dgvQueue.DataSource is DataTable) return;
+            if (sig.ToString() == _queueSig && _queueTable != null) return;
             _queueSig = sig.ToString();
 
-            dgvQueue.DataSource = dt;
-            // Hidden key column — used to look up the ticket's services on double-click.
-            if (dgvQueue.Columns.Contains("id")) dgvQueue.Columns["id"].Visible = false;
+            _queueTable = dt;
+            UpdateChipCounts();
+            // Binding goes through a filtered view; the hidden key column survives it and is
+            // what the double-click uses to look up the ticket's services.
+            ApplyQueueFilter();
         }
+
+        private DataTable _queueTable;
 
         private void btnPause_Click(object sender, EventArgs e)
         {
@@ -1141,7 +1358,11 @@ namespace CROMS.Forms
 
         private void btnExport_Click(object sender, EventArgs e)
         {
-            if (!(dgvQueue.DataSource is DataTable dt) || dt.Rows.Count == 0)
+            // Exports what is on screen, filter and search included — but BOTH lanes, since the
+            // priority lane is part of the same day's queue and is only shown apart for reading.
+            DataTable dt = _queueTable == null ? null
+                : new DataView(_queueTable) { RowFilter = _baseFilter }.ToTable();
+            if (dt == null || dt.Rows.Count == 0)
             {
                 MessageBox.Show("Nothing to export.", "Export CSV",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1186,7 +1407,7 @@ namespace CROMS.Forms
     /// has no controls (press Esc or double-click to close). Defined here rather than
     /// in its own file so it needs no .csproj change.
     /// </summary>
-    public class ClientDisplayForm : Form
+    public partial class ClientDisplayForm : Form
     {
         // windowId → (code label, services label). Rebuilt only when the set of active
         // windows changes; label text is refreshed every tick.
@@ -1194,43 +1415,26 @@ namespace CROMS.Forms
             new System.Collections.Generic.Dictionary<int, Label>();
         private readonly System.Collections.Generic.Dictionary<int, Label> _subLabels =
             new System.Collections.Generic.Dictionary<int, Label>();
-        private string _builtSignature = "";     // ids+names the current grid was built for
-        private TableLayoutPanel _grid;
-        private readonly Timer _timer;
+        private string _builtSignature = null;     // ids+names the current grid was built for
 
         public ClientDisplayForm()
         {
-            Text = "CROMS — Now Serving";
-            FormBorderStyle = FormBorderStyle.None;
-            WindowState = FormWindowState.Maximized;
-            BackColor = System.Drawing.Color.FromArgb(17, 24, 39);
-            KeyPreview = true;
-            KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Close(); };
-            DoubleClick += (s, e) => Close();
-
-            var header = new Label
-            {
-                Text = "NOW SERVING",
-                ForeColor = System.Drawing.Color.White,
-                Font = new System.Drawing.Font("Segoe UI", 36F, System.Drawing.FontStyle.Bold),
-                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Top,
-                Height = 130
-            };
-            _grid = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(40),
-                BackColor = System.Drawing.Color.Transparent
-            };
-            Controls.Add(_grid);      // fill first
-            Controls.Add(header);     // then the top header
-
-            _timer = new Timer { Interval = 2000 };
-            _timer.Tick += (s, e) => Reload();
-            _timer.Start();
-            Load += (s, e) => Reload();
+            InitializeComponent();
+            if (System.ComponentModel.LicenseManager.UsageMode !=
+                System.ComponentModel.LicenseUsageMode.Designtime)
+                _timer.Start();
         }
+
+        private void ClientDisplayForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Escape) Close();
+        }
+
+        private void ClientDisplayForm_DoubleClick(object sender, EventArgs e) => Close();
+
+        private void displayTimer_Tick(object sender, EventArgs e) => Reload();
+
+        private void ClientDisplayForm_Load(object sender, EventArgs e) => Reload();
 
         /// <summary>Active windows + their current ticket; rebuilds the grid on change.</summary>
         private void Reload()
@@ -1290,82 +1494,25 @@ namespace CROMS.Forms
 
         private void RebuildGrid(DataTable wins)
         {
-            _grid.SuspendLayout();
-            _grid.Controls.Clear();
-            _grid.ColumnStyles.Clear();
-            _grid.RowStyles.Clear();
+            int cols = ResetDisplayGridLayout(wins.Rows.Count);
             _codeLabels.Clear();
             _subLabels.Clear();
-
-            int count = wins.Rows.Count;
-            if (count == 0)
-            {
-                _grid.ColumnCount = 1; _grid.RowCount = 1;
-                _grid.Controls.Add(new Label
-                {
-                    Text = "No active windows",
-                    ForeColor = System.Drawing.Color.FromArgb(148, 163, 184),
-                    Font = new System.Drawing.Font("Segoe UI", 24F),
-                    Dock = DockStyle.Fill,
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-                }, 0, 0);
-                _grid.ResumeLayout();
-                return;
-            }
-
-            // Responsive grid: up to 4 cards per row, then wrap to more rows.
-            int cols = Math.Min(count, 4);
-            int rows = (int)Math.Ceiling(count / (double)cols);
-            _grid.ColumnCount = cols;
-            _grid.RowCount = rows;
-            for (int c = 0; c < cols; c++) _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / cols));
-            for (int r = 0; r < rows; r++) _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
+            if (wins.Rows.Count == 0)
+                _grid.Controls.Add(CreateDisplayPlaceholder(), 0, 0);
 
             int i = 0;
             foreach (DataRow w in wins.Rows)
             {
                 int id = Convert.ToInt32(w["id"]);
                 string name = w["window_name"].ToString();
-
-                var card = new Panel { Dock = DockStyle.Fill, Margin = new Padding(16), BackColor = System.Drawing.Color.FromArgb(31, 41, 55) };
-                var code = new Label
-                {
-                    Text = "—",
-                    ForeColor = System.Drawing.Color.FromArgb(96, 165, 250),
-                    Font = new System.Drawing.Font("Consolas", 56F, System.Drawing.FontStyle.Bold),
-                    Dock = DockStyle.Fill,
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-                };
-                var sub = new Label
-                {
-                    Text = "idle",
-                    ForeColor = System.Drawing.Color.FromArgb(148, 163, 184),
-                    Font = new System.Drawing.Font("Segoe UI", 14F),
-                    Dock = DockStyle.Bottom, Height = 54,
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-                };
-                var title = new Label
-                {
-                    Text = name.ToUpper(),
-                    ForeColor = System.Drawing.Color.FromArgb(148, 163, 184),
-                    Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold),
-                    Dock = DockStyle.Top, Height = 52,
-                    TextAlign = System.Drawing.ContentAlignment.MiddleCenter
-                };
-
-                card.Controls.Add(code);
-                card.Controls.Add(sub);
-                card.Controls.Add(title);
-
-                // Ticket code shrinks to fit the card so a long queue code stays readable.
+                Label code, sub;
+                Panel card = CreateDisplayCardLayout(name, out code, out sub);
                 AutoFitText.Attach(code, 56F, 14F);
-
                 _codeLabels[id] = code;
                 _subLabels[id] = sub;
                 _grid.Controls.Add(card, i % cols, i / cols);
                 i++;
             }
-
             _grid.ResumeLayout();
         }
 
@@ -1381,7 +1528,7 @@ namespace CROMS.Forms
     /// Shrinks a (single-line) Label's font so its text always fits the control's
     /// client area — used for the "Now Serving" ticket codes so a long queue number
     /// (e.g. MARRIAGE-100) never clips or gets cut in half. The font never grows past
-    /// <paramref name="maxPt"/> (the design size), so normal codes look consistent and
+    /// the configured maximum (the design size), so normal codes look consistent and
     /// only over-long ones scale down. Re-fits automatically on resize and whenever the
     /// text changes, so it adapts to any card size / screen resolution.
     /// </summary>

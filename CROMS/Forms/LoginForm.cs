@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using CROMS.Data;
+using CROMS.Modules;
 using MySql.Data.MySqlClient;
 
 namespace CROMS.Forms
@@ -19,6 +21,21 @@ namespace CROMS.Forms
     /// </summary>
     public partial class LoginForm : Form
     {
+        // Navy Blue palette (light) — the app-wide default; see Modules/UiTheme.cs for the
+        // rest of the app. Icons on this screen are all single-color line art (no emoji),
+        // drawn to match whichever surface they sit on.
+        private static readonly Color PageBg   = Color.FromArgb(244, 246, 249);  // #F4F6F9
+        private static readonly Color HostBg   = Color.White;
+        private static readonly Color HostLine = Color.FromArgb(225, 229, 236);  // #E1E5EC
+        private static readonly Color Ink      = Color.FromArgb(23, 26, 36);     // #171B24
+        private static readonly Color SoftInk  = Color.FromArgb(91, 100, 114);   // #5B6472
+        private static readonly Color Accent   = Color.FromArgb(29, 78, 216);    // #1D4ED8
+        private static readonly Color AccentTint = Color.FromArgb(234, 241, 254);// #EAF1FE
+        private static readonly Color Navy     = Color.FromArgb(19, 36, 65);     // #132441
+        private static readonly Color Warn     = Color.FromArgb(180, 83, 9);     // #B45309
+
+        private float _eyeHoverT = 0f;
+
         public LoginForm()
         {
             InitializeComponent();
@@ -28,6 +45,10 @@ namespace CROMS.Forms
             btnEye.FlatStyle = FlatStyle.Flat;
             btnEye.FlatAppearance.BorderSize = 0;
             btnEye.Cursor = Cursors.Hand;
+            typeof(Control).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(btnEye, true);
+            HoverFade.Attach(btnEye, 150, t => { _eyeHoverT = t; btnEye.Invalidate(); });
             btnEye.Paint += btnEye_Paint;
             btnEye.Click += (s, e) =>
             {
@@ -36,47 +57,231 @@ namespace CROMS.Forms
                 txtPass.Focus();
             };
 
+            // Brand mark (top-left) and the "Secure Access" badge (top-right) — static line icons.
+            pnlLogo.Paint += (s, e) => { e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; e.Graphics.Clear(pnlLogo.Parent.BackColor); FillRounded(e.Graphics, pnlLogo.ClientRectangle, Navy, 7); DrawBuildingIcon(e.Graphics, new RectangleF(6, 6, 16, 16), Color.White); };
+            pnlBadge.Paint += PnlBadge_Paint;
+
+            // Username / password fields — rounded host with a leading icon, border lights up
+            // to the accent color while the field inside it has focus.
+            AttachFieldHost(pnlUserHost, txtUser, DrawPersonIcon);
+            AttachFieldHost(pnlPassHost, txtPass, DrawLockIcon);
+            txtPass.Enter += (s, e) => btnEye.Invalidate();
+            txtPass.Leave += (s, e) => btnEye.Invalidate();
+            pnlCapsIcon.Paint += (s, e) => { e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; e.Graphics.Clear(pnlCapsIcon.Parent.BackColor); DrawWarningIcon(e.Graphics, pnlCapsIcon.ClientRectangle, Warn); };
+
             // Caps Lock hint — refresh on load and on any typing in either box.
             Load += (s, e) => { UpdateCaps(); txtUser.Focus(); };
             txtUser.KeyUp += (s, e) => UpdateCaps();
             txtPass.KeyUp += (s, e) => UpdateCaps();
             txtPass.Enter += (s, e) => UpdateCaps();
 
-            CROMS.Modules.UiTheme.PolishButtons(this);   // hand cursor + hover on Sign In / eye / Exit
+            CROMS.Modules.UiTheme.PolishButtons(this);   // hand cursor + hover on Sign In / Exit
         }
 
-        private void UpdateCaps() => lblCaps.Visible = Control.IsKeyLocked(Keys.CapsLock);
+        private void UpdateCaps()
+        {
+            bool on = Control.IsKeyLocked(Keys.CapsLock);
+            lblCaps.Visible = on;
+            pnlCapsIcon.Visible = on;
+        }
+
+        private void PnlBadge_Paint(object sender, PaintEventArgs e)
+        {
+            Graphics g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(pnlBadge.Parent.BackColor);
+
+            const string text = "Secure Access";
+            using (var font = new Font("Segoe UI", 8.25f, FontStyle.Bold))
+            {
+                var fmt = new StringFormat
+                {
+                    LineAlignment = StringAlignment.Center,
+                    Alignment = StringAlignment.Near,
+                    FormatFlags = StringFormatFlags.NoWrap
+                };
+                SizeF textSize = g.MeasureString(text, font, pnlBadge.Width, fmt);
+
+                // Pill sized to the actual measured text so it can never wrap/clip, capped to
+                // the panel's own width and centered inside it.
+                int pillW = Math.Min(pnlBadge.Width, (int)Math.Ceiling(textSize.Width) + 40);
+                var rect = new Rectangle((pnlBadge.Width - pillW) / 2, 0, pillW - 1, pnlBadge.Height - 1);
+                using (var path = RoundedRect(rect, rect.Height / 2))
+                using (var fill = new SolidBrush(AccentTint))
+                    g.FillPath(fill, path);
+
+                DrawLockIcon(g, new RectangleF(rect.X + 12, (pnlBadge.Height - 12) / 2f, 12, 12), Accent);
+                var textRect = new RectangleF(rect.X + 30, 0, rect.Width - 32, pnlBadge.Height);
+                using (var brush = new SolidBrush(Accent))
+                    g.DrawString(text, font, brush, textRect, fmt);
+            }
+        }
 
         /// <summary>
-        /// Draws a crisp vector eye icon on the show/hide button (no emoji — emoji don't render
-        /// under the app's owner-drawn buttons). Open eye = password hidden; eye with a slash =
-        /// password visible.
+        /// Wires a rounded "field host" panel around a textbox: white fill, a hairline border
+        /// that switches to the accent color while the textbox has focus, and a leading line
+        /// icon drawn by <paramref name="drawIcon"/>. Mirrors the focus-highlight pattern the
+        /// kiosk already uses for its detail fields.
+        /// </summary>
+        private void AttachFieldHost(Panel host, TextBox tb, Action<Graphics, RectangleF, Color> drawIcon)
+        {
+            typeof(Control).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(host, true);
+
+            float focusT = 0f;
+            HoverFade.AttachFocus(tb, 150, t => { focusT = t; host.Invalidate(); });
+
+            host.Paint += (s, e) =>
+            {
+                Graphics g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.Clear(host.Parent.BackColor);
+                var rect = new Rectangle(0, 0, host.Width - 1, host.Height - 1);
+                Color borderNow = HoverFade.Lerp(HostLine, Accent, focusT);
+                float borderW = HoverFade.Lerp(1f, 1.6f, focusT);
+                using (var path = RoundedRect(rect, 8))
+                {
+                    using (var fill = new SolidBrush(HostBg)) g.FillPath(fill, path);
+                    using (var pen = new Pen(borderNow, borderW)) g.DrawPath(pen, path);
+                }
+                drawIcon(g, new RectangleF(14, (host.Height - 16) / 2f, 16, 16), HoverFade.Lerp(SoftInk, Accent, focusT));
+            };
+        }
+
+        private static void FillRounded(Graphics g, Rectangle r, Color color, int radius)
+        {
+            using (var path = RoundedRect(r, radius))
+            using (var brush = new SolidBrush(color))
+                g.FillPath(brush, path);
+        }
+
+        private static GraphicsPath RoundedRect(Rectangle r, int radius)
+        {
+            int d = radius * 2;
+            var path = new GraphicsPath();
+            if (d <= 0 || d > r.Width || d > r.Height) { path.AddRectangle(r); return path; }
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        /// <summary>Minimal line-art icons — single stroke color, no fills, no emoji.</summary>
+        private static void DrawPersonIcon(Graphics g, RectangleF r, Color stroke)
+        {
+            using (var pen = new Pen(stroke, 1.6f))
+            {
+                float cx = r.X + r.Width / 2f;
+                float headR = r.Width * 0.16f;
+                float headCy = r.Y + r.Height * 0.28f;
+                g.DrawEllipse(pen, cx - headR, headCy - headR, headR * 2, headR * 2);
+
+                var body = new RectangleF(r.X + r.Width * 0.14f, r.Y + r.Height * 0.5f, r.Width * 0.72f, r.Height * 0.62f);
+                g.DrawArc(pen, body, 180, 180);
+            }
+        }
+
+        private static void DrawLockIcon(Graphics g, RectangleF r, Color stroke)
+        {
+            using (var pen = new Pen(stroke, 1.6f))
+            {
+                float cx = r.X + r.Width / 2f;
+                float bodyTop = r.Y + r.Height * 0.42f;
+                var body = new RectangleF(r.X + r.Width * 0.10f, bodyTop, r.Width * 0.80f, r.Height * 0.52f);
+                using (var path = RoundedRect(Rectangle.Round(body), (int)(r.Height * 0.10f)))
+                    g.DrawPath(pen, path);
+
+                float shackleW = body.Width * 0.62f;
+                var shackle = new RectangleF(cx - shackleW / 2f, bodyTop - r.Height * 0.36f, shackleW, r.Height * 0.5f);
+                g.DrawArc(pen, shackle, 180, 180);
+            }
+        }
+
+        private static void DrawBuildingIcon(Graphics g, RectangleF r, Color stroke)
+        {
+            using (var pen = new Pen(stroke, 1.5f))
+            {
+                float cx = r.X + r.Width / 2f;
+                float roofBaseY = r.Y + r.Height * 0.32f;
+                float baseY = r.Bottom - r.Height * 0.06f;
+                float halfW = r.Width * 0.44f;
+
+                g.DrawLine(pen, cx, r.Y, cx - halfW, roofBaseY);
+                g.DrawLine(pen, cx, r.Y, cx + halfW, roofBaseY);
+                g.DrawLine(pen, cx - halfW, roofBaseY, cx + halfW, roofBaseY);
+
+                float colTop = roofBaseY + r.Height * 0.08f;
+                float[] colXs = { cx - halfW * 0.55f, cx, cx + halfW * 0.55f };
+                foreach (float x in colXs) g.DrawLine(pen, x, colTop, x, baseY);
+
+                g.DrawLine(pen, cx - halfW - 1.5f, baseY, cx + halfW + 1.5f, baseY);
+            }
+        }
+
+        private static void DrawWarningIcon(Graphics g, RectangleF r, Color stroke)
+        {
+            using (var pen = new Pen(stroke, 1.5f))
+            {
+                float cx = r.X + r.Width / 2f;
+                var top = new PointF(cx, r.Y + 1f);
+                var left = new PointF(r.X + 1f, r.Bottom - 1f);
+                var right = new PointF(r.Right - 1f, r.Bottom - 1f);
+                g.DrawLine(pen, top, left);
+                g.DrawLine(pen, left, right);
+                g.DrawLine(pen, right, top);
+
+                g.DrawLine(pen, cx, r.Y + r.Height * 0.42f, cx, r.Y + r.Height * 0.66f);
+                using (var brush = new SolidBrush(stroke))
+                    g.FillEllipse(brush, cx - 1.1f, r.Y + r.Height * 0.76f, 2.2f, 2.2f);
+            }
+        }
+
+        /// <summary>
+        /// Draws a bold, rounded show/hide eye icon (no emoji — emoji don't render under the
+        /// app's owner-drawn buttons): a full almond outline with a large solid pupil, matching
+        /// the classic password-field eye glyph. Open eye = password hidden; eye with a slash =
+        /// password visible. Color blends toward the accent on hover OR while the password
+        /// field has focus, whichever is stronger.
         /// </summary>
         private void btnEye_Paint(object sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(btnEye.BackColor);
 
             RectangleF r = btnEye.ClientRectangle;
             float cx = r.Width / 2f, cy = r.Height / 2f;
-            float w = 20f, h = 12f;                       // eye almond size
-            var eye = new RectangleF(cx - w / 2f, cy - h / 2f, w, h);
+            float halfW = 9.5f, lidH = 7.5f;               // fuller/rounder almond than a sharp point
+            float emphasis = Math.Max(_eyeHoverT, txtPass.Focused ? 1f : 0f);
+            Color stroke = HoverFade.Lerp(SoftInk, Accent, emphasis);
 
-            using (var pen = new Pen(Color.White, 1.8f))
+            using (var pen = new Pen(stroke, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
             {
-                // Almond outline: two arcs (top + bottom) meeting at the corners.
-                g.DrawArc(pen, cx - w / 2f, cy - h / 2f - 3f, w, h + 6f, 20, 140);   // top lid
-                g.DrawArc(pen, cx - w / 2f, cy - h / 2f - 3f, w, h + 6f, 200, 140);  // bottom lid
+                var left = new PointF(cx - halfW, cy);
+                var right = new PointF(cx + halfW, cy);
+                var topC1 = new PointF(cx - halfW * 0.55f, cy - lidH);
+                var topC2 = new PointF(cx + halfW * 0.55f, cy - lidH);
+                var botC1 = new PointF(cx + halfW * 0.55f, cy + lidH);
+                var botC2 = new PointF(cx - halfW * 0.55f, cy + lidH);
 
-                // Pupil.
-                float pr = 3.2f;
-                using (var b = new SolidBrush(Color.White))
+                using (var path = new GraphicsPath())
+                {
+                    path.AddBezier(left, topC1, topC2, right);
+                    path.AddBezier(right, botC1, botC2, left);
+                    g.DrawPath(pen, path);
+                }
+
+                // Large, bold pupil — the defining feature of the reference icon.
+                float pr = 4.2f;
+                using (var b = new SolidBrush(stroke))
                     g.FillEllipse(b, cx - pr, cy - pr, pr * 2f, pr * 2f);
 
                 // Slash when the password is visible ("eye off").
                 if (!txtPass.UseSystemPasswordChar)
-                    g.DrawLine(pen, cx - w / 2f - 1f, cy + h / 2f + 2f, cx + w / 2f + 1f, cy - h / 2f - 2f);
+                    g.DrawLine(pen, cx - halfW - 1.5f, cy + lidH + 1.5f, cx + halfW + 1.5f, cy - lidH - 1.5f);
             }
         }
 
@@ -210,6 +415,16 @@ namespace CROMS.Forms
             btnSignIn.Text = busy ? "Signing in…" : "Sign In";
             if (busy) lblMsg.Text = "";
             Refresh();
+        }
+
+        private void lblHeadline_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void lblSubtitle_Click(object sender, EventArgs e)
+        {
+
         }
     }
 

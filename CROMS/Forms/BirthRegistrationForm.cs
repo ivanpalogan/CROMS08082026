@@ -1,3 +1,5 @@
+﻿// BirthRegistrationForm.cs - runtime logic, events, database operations, and dynamic UI helpers
+
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -17,7 +19,49 @@ namespace CROMS.Forms
     public partial class BirthRegistrationForm : Form, IRefreshable
     {
         private int? _editingId;
+
+        /// <summary>
+        /// WHICH FORM this record is. A record typed in here is on the revision the office
+        /// issues today; a record auto-filled from a scan is on whatever revision that
+        /// scan was, which PrimeFromExtraction supplies. It is stored on the row because
+        /// `births` is shared by every MF-102 revision — the revision cannot be recovered
+        /// from the data, and a certificate cannot be reprinted in the right layout
+        /// without it.
+        /// </summary>
+        private string _formCode = FormCatalog.Current(DocKind.Birth)?.FormCode;
+        private string _formName = FormCatalog.Current(DocKind.Birth)?.FormName;
         private int _queueTicketId;   // set when a "New Registration" queue ticket is served here
+
+        /// <summary>
+        /// The date the loaded record was registered, or null for a new entry and for any
+        /// record that predates the column. Held here so an edit keeps the record's own
+        /// registration date instead of silently re-dating it to today, which would make a
+        /// long-registered birth read as delayed the moment someone fixes a typo in it.
+        /// </summary>
+        private DateTime? _dateRegistered;
+
+        /// <summary>
+        /// Set while <see cref="RecomputeDelayed"/> is writing the checkbox, so its own
+        /// change does not re-enter the recompute.
+        /// </summary>
+        private bool _suppressDelayedRecompute;
+
+        // Step-by-step registration wizard
+        private FlowLayoutPanel _stepNavigation;
+        private Label _lblStep;
+        private Button _btnBackStep;
+        private Button _btnNextStep;
+        private Button _btnAddAnotherBirth;
+
+        // Cascading location lookup controls:
+        // address = House/Street, Province, Municipality, Barangay
+        // place of birth = Hospital/Clinic, Province, Municipality
+        private ComboBox _mProvince, _mMunicipality, _mBarangay;
+        private ComboBox _fProvince, _fMunicipality, _fBarangay;
+        private ComboBox _attProvince, _attMunicipality, _attBarangay;
+        private ComboBox _infProvince, _infMunicipality, _infBarangay;
+        private ComboBox _pobProvince, _pobMunicipality;
+        private ComboBox _pomProvince, _pomMunicipality;
 
         public void RefreshData()
         {
@@ -47,6 +91,14 @@ namespace CROMS.Forms
             {
                 if (t != null && f.TryGetValue(key, out string v) && !string.IsNullOrWhiteSpace(v)) t.Text = v.Trim();
             }
+
+            // The scan's own form revision, when Intelligent Document Processing
+            // identified one. Without this an auto-filled record would be filed under the
+            // revision the office issues today, which may not be the sheet in hand.
+            if (f.TryGetValue("FormCode", out string fc) && !string.IsNullOrWhiteSpace(fc))
+                _formCode = fc.Trim();
+            if (f.TryGetValue("FormName", out string fn) && !string.IsNullOrWhiteSpace(fn))
+                _formName = fn.Trim();
 
             Set(txtRegNo, "RegistryNo");
             Set(txtFirstName, "ChildFirst");
@@ -87,8 +139,9 @@ namespace CROMS.Forms
                 if (bits.Length > 2) pp = bits[2].Trim();
             }
             PrimeLookup(_pob[0], "hospitals", LearningLibrary.Hospital, ph);
-            PrimeLookup(_pob[1], "municipalities", LearningLibrary.Municipality, pm);
-            PrimeLookup(_pob[2], "provinces", LearningLibrary.Province, pp);
+            PrimeLookup(_pob[1], "provinces", LearningLibrary.Province, pp);
+            GeoLookup.LoadMunicipalities(_pob[2], pp);
+            PrimeLookup(_pob[2], "municipalities", LearningLibrary.Municipality, pm);
 
             string nat = Val("Nationality");
             PrimeLookup(_cboMCit, "nationalities", LearningLibrary.Nationality, nat);
@@ -106,13 +159,78 @@ namespace CROMS.Forms
                     System.Globalization.DateTimeStyles.None, out DateTime d))
                 dtpDob.Value = d;
 
-            if (f.TryGetValue("TimeOfBirth", out string tob) &&
-                DateTime.TryParse(tob, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out DateTime tt))
-                dtpTime.Value = tt;
+
+            // The certification blocks at the foot of the form - 19b/21b attendant,
+            // 20/22 informant, 21/23 prepared by, 22/24 received, 25 registered. These are
+            // read off the scan like every other field; a value the scan did not carry
+            // stays blank for the operator to type.
+            Set(txtAttName, "AttendantName");
+            Set(txtAttTitle, "AttendantTitle");
+            Set(txtInfName, "Informant");
+            Set(txtPreparedBy, "PreparedByName");
+            Set(txtPreparedTitle, "PreparedByTitle");
+            Set(txtReceivedBy, "ReceivedByName");
+            Set(txtReceivedTitle, "ReceivedByTitle");
+            Set(txtRegisteredBy, "RegisteredByName");
+            Set(txtRegisteredTitle, "RegisteredByTitle");
+
+            OthersBox.Apply(_cboInfRel, txtInfRelOther, lblInfRelOther,
+                Val("InformantRelationship"), SetLookup);
+            PrimeAddress(_attAddr, Val("AttendantAddress"));
+            PrimeAddress(_infAddr, Val("InformantAddress"));
+
+            OthersBox.Apply(cboAttType, txtAttTypeOther, lblAttTypeOther,
+                Val("Attendant"), (c, v) => c.Text = v);
+
+            // A scan that produced neither a marriage date nor a place has NOT told us
+            // the parents are unmarried - it has told us it could not read item 18. The
+            // toggle therefore stays on its default and the operator answers it; guessing
+            // "not married" from a failed read would put illegitimacy on the record.
+            PrimeDate(dtpAttDate, Val("AttendantDate"));
+            PrimeDate(dtpInfDate, Val("InformantDate"));
+            PrimeDate(dtpPreparedDate, Val("PreparedByDate"));
+            PrimeDate(dtpReceivedDate, Val("ReceivedByDate"));
+            PrimeDate(dtpRegisteredDate, Val("RegisteredByDate"));
 
             cboStatus.SelectedItem = "Draft";
             tabControl.SelectedTab = tabChild;
+        }
+
+        /// <summary>
+        /// Fill an address triple (province / municipality / barangay) from one scanned
+        /// place string. The cells CASCADE, so they must be filled parent-first and the
+        /// child list reloaded in between - setting the barangay before its municipality
+        /// is chosen would select into a list that is still empty.
+        /// </summary>
+        private void PrimeAddress(ComboBox[] cells, string value)
+        {
+            if (cells == null || cells.Length < 3 || string.IsNullOrWhiteSpace(value)) return;
+            string[] parts = value.Split(',');
+            string province = parts.Length > 0 ? parts[0].Trim() : "";
+            string municipality = parts.Length > 1 ? parts[1].Trim() : "";
+            string barangay = parts.Length > 2 ? parts[2].Trim() : "";
+
+            PrimeLookup(cells[0], "provinces", LearningLibrary.Province, province);
+            GeoLookup.LoadMunicipalities(cells[1], province);
+            PrimeLookup(cells[1], "municipalities", LearningLibrary.Municipality, municipality);
+            GeoLookup.LoadBarangays(cells[2], province, municipality);
+            PrimeLookup(cells[2], "barangays", LearningLibrary.Barangay, barangay);
+        }
+
+        /// <summary>
+        /// Set an optional date picker from a scanned value.
+        /// <para/>
+        /// yyyy-MM-dd only: the extractor emits that form only when a named month made the
+        /// order certain. A numeric reading like "2-6-2018" is ambiguous, and ticking the
+        /// box on a guess would put a date on the record that nobody read off the paper. It
+        /// stays unticked for the operator to enter.
+        /// </summary>
+        private static void PrimeDate(DateTimePicker dtp, string value)
+        {
+            if (DateTime.TryParseExact(value, "yyyy-MM-dd",
+                                       System.Globalization.CultureInfo.InvariantCulture,
+                                       System.Globalization.DateTimeStyles.None, out DateTime d))
+            { dtp.Value = d; dtp.Checked = true; }
         }
 
         /// <summary>
@@ -145,46 +263,82 @@ namespace CROMS.Forms
                 new MySqlParameter("@id", id));
         }
 
-        // Master-File dropdowns that replace free-text lookup fields at runtime.
-        private ComboBox _cboMCit, _cboMRel, _cboMOcc;
-        private ComboBox _cboFCit, _cboFRel, _cboFOcc;
-        private ComboBox _cboInfRel, _cboBirthOrder;
-        private ComboBox[] _pob;   // Place of Birth:  hospital, municipality, province
-        private ComboBox[] _pom;   // Marriage Place:  church,  municipality, province
-        private ComboBox[] _mres;  // Mother Residence: house/st, barangay, municipality, province
-        private ComboBox[] _fres;  // Father Residence: house/st, barangay, municipality, province
-        private ComboBox[] _attAddr;  // Attendant Address: barangay, municipality, province
-        private ComboBox[] _infAddr;  // Informant Address: barangay, municipality, province
-
         public BirthRegistrationForm()
         {
             InitializeComponent();
-            LoadCombos();
-            BuildLookups();
-            dgvBirths.CellClick += dgvBirths_CellClick;
+            dtpInfDate.ShowCheckBox = true;
+            dtpInfDate.Checked = false;
+
+            // Runtime-only UI setup. Keep dynamic control creation and resizing out of
+            // InitializeComponent so the WinForms Designer does not try to invoke them.
+            InitializeLookupControls();
+            WireGeography();
+            InitializeParentsMarried();
+            // Every dropdown that still offers "Others" gets its specify box. Without one
+            // the record says "Others" and what the paper actually says is lost.
+            OthersBox.Bind(cboAttType, txtAttTypeOther, lblAttTypeOther);
+            OthersBox.Bind(_cboInfRel, txtInfRelOther, lblInfRelOther);
+            InitializeStepNavigation();
+            InitializeAddAnotherBirthButton();
+
+            this.Resize += new EventHandler(this.BirthRegistrationForm_Resize);
+            CenterContent();
+            UpdateStepNavigation();
+
+            if (System.ComponentModel.LicenseManager.UsageMode ==
+                System.ComponentModel.LicenseUsageMode.Designtime) return;
+
+            LoadLookupData();
             LoadBirths();
-            BuildSoftcopyButton();
-            SetupCenteredLayout();
             WireLearningAutocomplete();
+
+            // Subscribe after initialization and data loading so the initial values
+            // do not trigger delayed-registration calculations during construction.
+            dtpDob.ValueChanged += dtpDob_ValueChanged;
+            RecomputeDelayed();
         }
 
-        private Button btnViewScan;
-
-        /// <summary>Adds a "View Softcopy" button beside the record actions.</summary>
-        private void BuildSoftcopyButton()
+        /// <summary>
+        /// Print Certificate and View Softcopy are two things done with the SAME saved
+        /// record, so they are one control: printing on the main half, the softcopy under
+        /// the chevron. Side by side they read as two unrelated choices and cost twice the
+        /// width; printing is what the operator is nearly always here for, so it keeps the
+        /// label and the softcopy moves one click away rather than out of reach.
+        /// </summary>
+        private void certificateMenu_Opening(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            btnViewScan = new Button
+            mnuViewSoftcopy.Enabled = _scanImage != null || _editingId != null;
+        }
+
+        /// <summary>Opens the existing OCR Digitization module in the main application.</summary>
+        private void btnOCRLiveBirth_Click(object sender, EventArgs e)
+        {
+            try
             {
-                Text = "View Softcopy",
-                Font = new System.Drawing.Font("Segoe UI", 9F),
-                FlatStyle = FlatStyle.Flat,
-                Size = new System.Drawing.Size(110, btnNew.Height),
-                Top = btnNew.Top,
-                Anchor = AnchorStyles.Top
-            };
-            btnViewScan.Click += btnViewScan_Click;
-            btnNew.Parent.Controls.Add(btnViewScan);
-            btnViewScan.BringToFront();
+                MainForm shell = null;
+                for (Control parent = Parent; parent != null; parent = parent.Parent)
+                {
+                    shell = parent as MainForm;
+                    if (shell != null) break;
+                }
+                if (shell == null) shell = Owner as MainForm;
+
+                if (shell != null)
+                {
+                    // The registered "ocr" module is OcrDigitizationForm. Reuse it so
+                    // extracted birth fields can return through the existing workflow.
+                    shell.GoToModule("ocr");
+                    return;
+                }
+
+                // Also support opening Birth Registration as a standalone form.
+                using (OcrDigitizationForm ocr = CreateStandaloneOcrWindow())
+                    ocr.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                Fail(ex);
+            }
         }
 
         private void btnViewScan_Click(object sender, EventArgs e)
@@ -206,6 +360,67 @@ namespace CROMS.Forms
             SoftcopyViewer.Show(bytes, "Birth Certificate — Original Softcopy", this);
         }
 
+        private void btnPrintCert_Click(object sender, EventArgs e)
+        {
+            // A certificate is printed from the REGISTRY ENTRY, not from the boxes on
+            // screen. That is not bureaucracy for its own sake: an unsaved form has no
+            // registry number, no audit row and no record anyone can look up, so a
+            // certificate printed from it would be an official-looking document the
+            // registry cannot account for.
+            //
+            // But the operator should never be sent to hunt for the record in the list —
+            // especially right after Intelligent Document Processing filled this form from
+            // a scan, where the record does not exist yet at all. So the missing step is
+            // OFFERED instead of just reported.
+            if (_editingId == null)
+            {
+                if (!SaveThenPrint()) return;
+            }
+
+            // One reusable report path for every form: Crystal when a .rpt exists for
+            // this revision, otherwise CROMS's own replica/structured renderer. The old
+            // BirthCertificatePrinter's measured coordinates now live in FormCatalog as
+            // this form's print map, so the replica is unchanged — it is just no longer
+            // hardcoded to Municipal Form 102.
+            CROMS.Data.CertificateReport.Show(_formCode, _editingId.Value, this);
+        }
+
+        /// <summary>
+        /// Register what is on the form and stay on it, so the certificate can be printed
+        /// in the same click. Returns true when a record now exists to print.
+        /// <para/>
+        /// The record is saved with the status the operator has already chosen on the form
+        /// rather than a status invented here — pressing Print must not silently promote a
+        /// draft into a registered birth. A Draft has no registry number by design, so the
+        /// prompt says so before printing a certificate with that line blank.
+        /// </summary>
+        private bool SaveThenPrint()
+        {
+            if (!ValidateChild()) return false;
+
+            string status = cboStatus.SelectedItem?.ToString() ?? "Draft";
+            bool draft = status == "Draft";
+
+            string message =
+                "This record has not been saved yet, and a certificate is printed from the " +
+                "saved registry entry — not from the form on screen.\n\n" +
+                "Save it now as \"" + status + "\" and print the certificate?\n\n" +
+                (draft
+                    ? "Note: a Draft is not yet an official record, so the certificate will " +
+                      "print with no registry number. Choose \"Registered\" or \"Pending " +
+                      "Approval\" in the Status box first if it should have one."
+                    : "A registry number will be assigned if the record does not have one.");
+
+            if (MessageBox.Show(message, "Save and print certificate",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return false;
+
+            long? id = Create(status, keepOpen: true);
+            // LoadBirth in Create sets _editingId; verify rather than assume, so a failed
+            // save can never fall through into printing a certificate for nothing.
+            return id.HasValue && _editingId != null;
+        }
+
         /// <summary>Give the free-text place/name boxes live suggestions from the shared
         /// Learning Library, and learn whatever the registrar types.</summary>
         private void WireLearningAutocomplete()
@@ -220,143 +435,139 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Keeps the Form-102 tab + records grid centered at a comfortable max width so the
-        /// whitespace is balanced on both sides instead of piling up on the right (the Child
-        /// tab is sparse). The fields inside the tabs are untouched — layout only.
+        /// Caps the content column at a comfortable reading width and lets the two gutter
+        /// columns share whatever is left, so on a wide monitor the whitespace is balanced on
+        /// both sides instead of stretching a sparse tab across the screen.
+        /// <para/>
+        /// Everything INSIDE the column is laid out by nested TableLayoutPanels, so this is the
+        /// only measurement the form makes: one number, applied to one column style.
         /// </summary>
-        private void SetupCenteredLayout()
+        private void BirthRegistrationForm_Resize(object sender, EventArgs e)
         {
-            tabControl.Anchor = AnchorStyles.Top;                       // width/left controlled below
-            dgvBirths.Anchor = AnchorStyles.Top | AnchorStyles.Bottom;  // keep filling vertically
-            lblRecent.Anchor = AnchorStyles.Top;
-            btnNew.Anchor = AnchorStyles.Top;
-            btnUpdate.Anchor = AnchorStyles.Top;
-            btnDelete.Anchor = AnchorStyles.Top;
-            Resize += (s, e) => CenterContent();
             CenterContent();
         }
 
-        private void CenterContent()
+        /// <summary>Loads the Master File choices into the designed lookup controls.</summary>
+        private void LoadLookupData()
         {
-            const int margin = 24, maxW = 1280;
-            int w = Math.Min(maxW, ClientSize.Width - margin * 2);
-            if (w < 400) w = 400;
-            int left = Math.Max(margin, (ClientSize.Width - w) / 2);
-            int right = left + w;
-
-            tabControl.Left = left; tabControl.Width = w;
-            dgvBirths.Left = left; dgvBirths.Width = w;
-            lblRecent.Left = left;
-
-            // Right-align the record action buttons to the content's right edge.
-            btnDelete.Left = right - btnDelete.Width;
-            btnUpdate.Left = btnDelete.Left - 6 - btnUpdate.Width;
-            btnNew.Left = btnUpdate.Left - 6 - btnNew.Width;
-            if (btnViewScan != null) btnViewScan.Left = btnNew.Left - 6 - btnViewScan.Width;
+            foreach (var field in LookupFields())
+                FillLookup(field.Key, field.Value);
+            LoadRelationships();
         }
 
         /// <summary>
-        /// Replaces the free-text lookup fields with selection-only comboboxes fed from
-        /// the Master Files, so staff can only pick registered values. The comboboxes
-        /// are laid over the original textboxes (which are hidden); values still save
-        /// into the same database columns, so no schema change is needed.
+        /// "Relationship to the Child" - only the entries that belong on a birth
+        /// certificate. `relationships` is shared with Municipal Form 103, so an unfiltered
+        /// read offers a newborn's informant "Wife", "Widower" and "Funeral Director"
+        /// (BR-16). Migration 32 marks each entry with the form it belongs on.
         /// </summary>
-        private void BuildLookups()
+        private void LoadRelationships()
         {
-            _cboMCit = Lookup(txtMCitizen, "nationalities");
-            _cboMRel = Lookup(txtMReligion, "religions");
-            _cboMOcc = Lookup(txtMOccupation, "occupations");
-            _mres = LookupQuad(txtMResidence, "residences", "barangays", "municipalities", "provinces",
-                "House / St.", "Barangay", "Municipality", "Province");
-            _cboFCit = Lookup(txtFCitizen, "nationalities");
-            _cboFRel = Lookup(txtFReligion, "religions");
-            _cboFOcc = Lookup(txtFOccupation, "occupations");
-            _fres = LookupQuad(txtFResidence, "residences", "barangays", "municipalities", "provinces",
-                "House / St.", "Barangay", "Municipality", "Province");
-            _cboInfRel = Lookup(txtInfRel, "relationships");
-            _cboBirthOrder = Lookup(txtBirthOrder, "birth_orders");
-            _pob = LookupTriple(txtPlace, "hospitals", "municipalities", "provinces",
-                "Hospital / Clinic", "Municipality", "Province");
-            _pom = LookupTriple(txtMarrPlace, "churches", "municipalities", "provinces",
-                "Church", "Municipality", "Province");
-            _attAddr = LookupTriple(txtAttAddress, "barangays", "municipalities", "provinces",
-                "Barangay", "Municipality", "Province");
-            _infAddr = LookupTriple(txtInfAddress, "barangays", "municipalities", "provinces",
-                "Barangay", "Municipality", "Province");
-        }
-
-        /// <summary>Creates a pick-only combobox over a textbox and hides the textbox.</summary>
-        private ComboBox Lookup(TextBox tb, string masterTable)
-        {
-            var cbo = new ComboBox
+            if (_cboInfRel == null) return;
+            _cboInfRel.Items.Clear();
+            _cboInfRel.Items.Add("");
+            try
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = tb.Location,
-                Size = tb.Size,
-                Font = tb.Font,
-                Anchor = tb.Anchor
-            };
-            FillLookup(cbo, masterTable);
-            tb.Parent.Controls.Add(cbo);
-            cbo.BringToFront();
-            tb.Visible = false;
-            return cbo;
+                using (DataTable dt = Db.Pull(
+                    "SELECT name FROM relationships WHERE applies_to IN ('Birth','Both') ORDER BY name"))
+                    foreach (DataRow r in dt.Rows) _cboInfRel.Items.Add(r["name"].ToString());
+            }
+            catch { }
         }
 
-        /// <summary>Splits a textbox's width into three pick-only comboboxes, each with
-        /// a small caption underneath so it's clear what to pick.</summary>
-        private ComboBox[] LookupTriple(TextBox tb, string t1, string t2, string t3,
-            string cap1, string cap2, string cap3)
+        private IEnumerable<KeyValuePair<ComboBox, string>> LookupFields()
         {
-            const int gap = 6;
-            int w = (tb.Width - 2 * gap) / 3;
-            var a = TripleCombo(tb, tb.Left, w, t1, cap1);
-            var b = TripleCombo(tb, tb.Left + w + gap, w, t2, cap2);
-            var c = TripleCombo(tb, tb.Left + 2 * (w + gap), tb.Width - 2 * (w + gap), t3, cap3);
-            tb.Visible = false;
-            return new[] { a, b, c };
+            yield return new KeyValuePair<ComboBox, string>(_cboMCit, "nationalities");
+            yield return new KeyValuePair<ComboBox, string>(_cboMRel, "religions");
+            yield return new KeyValuePair<ComboBox, string>(_cboMOcc, "occupations");
+            yield return new KeyValuePair<ComboBox, string>(_mres[0], "residences");
+            yield return new KeyValuePair<ComboBox, string>(_cboFCit, "nationalities");
+            yield return new KeyValuePair<ComboBox, string>(_cboFRel, "religions");
+            yield return new KeyValuePair<ComboBox, string>(_cboFOcc, "occupations");
+            yield return new KeyValuePair<ComboBox, string>(_fres[0], "residences");
+            // Filled by LoadRelationships instead: this list is scoped to the entries that
+            // belong on Form 102, which a whole-table read cannot express.
+
+            yield return new KeyValuePair<ComboBox, string>(_cboBirthOrder, "birth_orders");
+            yield return new KeyValuePair<ComboBox, string>(_pob[0], "hospitals");
+            yield return new KeyValuePair<ComboBox, string>(_pom[0], "churches");
         }
 
-        /// <summary>Splits a textbox's width into four pick-only comboboxes with captions.</summary>
-        private ComboBox[] LookupQuad(TextBox tb, string t1, string t2, string t3, string t4,
-            string cap1, string cap2, string cap3, string cap4)
+        // Called on submission, never from typing or autocomplete events.
+        private void SaveTypedLookupValues()
         {
-            const int gap = 5;
-            int w = (tb.Width - 3 * gap) / 4;
-            var a = TripleCombo(tb, tb.Left, w, t1, cap1);
-            var b = TripleCombo(tb, tb.Left + (w + gap), w, t2, cap2);
-            var c = TripleCombo(tb, tb.Left + 2 * (w + gap), w, t3, cap3);
-            var d = TripleCombo(tb, tb.Left + 3 * (w + gap), tb.Width - 3 * (w + gap), t4, cap4);
-            tb.Visible = false;
-            return new[] { a, b, c, d };
-        }
+            var fields = new List<KeyValuePair<ComboBox, string>>(LookupFields());
+            var typed = new Dictionary<ComboBox, string>();
+            var namesByTable = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var field in fields)
+                typed[field.Key] = (field.Key.Text ?? "").Trim();
 
-        private ComboBox TripleCombo(TextBox tb, int x, int w, string masterTable, string caption)
-        {
-            var cbo = new ComboBox
+            foreach (var field in fields)
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new System.Drawing.Point(x, tb.Top),
-                Size = new System.Drawing.Size(w, tb.Height),
-                Font = tb.Font,
-                Anchor = tb.Anchor
-            };
-            FillLookup(cbo, masterTable);
-            tb.Parent.Controls.Add(cbo);
-            cbo.BringToFront();
+                string value = typed[field.Key];
+                if (value.Length == 0) continue;
 
-            var lbl = new Label
+                List<string> names;
+                if (!namesByTable.TryGetValue(field.Value, out names))
+                {
+                    names = ReadLookupNames(field.Value);
+                    namesByTable.Add(field.Value, names);
+                }
+
+                string canonical = MatchingLookupName(names, value);
+                if (canonical == null)
+                {
+                    // Existing application helper inserts only missing, normalized names.
+                    if (LookupStore.Ensure(field.Value, value))
+                    {
+                        names.Add(value);
+                        canonical = value;
+                    }
+                    else
+                    {
+                        // Ensure returns false for both duplicates and failures. Confirm
+                        // a concurrent insert exists before reporting a successful save.
+                        names = ReadLookupNames(field.Value);
+                        namesByTable[field.Value] = names;
+                        canonical = MatchingLookupName(names, value);
+                        if (canonical == null)
+                            throw new InvalidOperationException(
+                                "Could not save '" + value + "' to " + field.Value +
+                                ". The birth record has not been submitted. Please try again.");
+                    }
+                }
+                typed[field.Key] = canonical;
+            }
+
+            // Make the saved choices available in every field sharing that Master File,
+            // while preserving each field's own entered value.
+            foreach (var field in fields)
             {
-                Text = caption,
-                AutoSize = true,
-                ForeColor = System.Drawing.Color.FromArgb(108, 117, 125),
-                Font = new System.Drawing.Font("Segoe UI", 7.5F),
-                Location = new System.Drawing.Point(x, tb.Bottom + 2),
-                Anchor = tb.Anchor
-            };
-            tb.Parent.Controls.Add(lbl);
-            lbl.BringToFront();
-            return cbo;
+                List<string> names;
+                if (namesByTable.TryGetValue(field.Value, out names))
+                    foreach (string name in names)
+                        if (field.Key.FindStringExact(name) < 0) field.Key.Items.Add(name);
+                SetLookup(field.Key, typed[field.Key]);
+            }
+        }
+
+        private static List<string> ReadLookupNames(string masterTable)
+        {
+            // Table names come only from the fixed LookupFields mapping above.
+            var names = new List<string>();
+            using (DataTable rows = Db.Pull("SELECT name FROM " + masterTable + " ORDER BY name"))
+                foreach (DataRow row in rows.Rows)
+                    if (row["name"] != DBNull.Value) names.Add(row["name"].ToString());
+            return names;
+        }
+
+        private static string MatchingLookupName(IEnumerable<string> names, string value)
+        {
+            string normalized = LearningLibrary.Normalize(value);
+            foreach (string name in names)
+                if (string.Equals(LearningLibrary.Normalize(name), normalized,
+                    StringComparison.OrdinalIgnoreCase)) return name;
+            return null;
         }
 
         private static void FillLookup(ComboBox cbo, string masterTable)
@@ -373,7 +584,7 @@ namespace CROMS.Forms
         // ---- read/write helpers for the lookup comboboxes ----
         private static object ComboVal(ComboBox c)
         {
-            string v = c.SelectedItem?.ToString() ?? "";
+            string v = (c.Text ?? "").Trim();
             return string.IsNullOrWhiteSpace(v) ? (object)DBNull.Value : v;
         }
 
@@ -382,7 +593,7 @@ namespace CROMS.Forms
             var vals = new List<string>();
             foreach (var c in parts)
             {
-                string v = c.SelectedItem?.ToString() ?? "";
+                string v = (c.Text ?? "").Trim();
                 if (!string.IsNullOrWhiteSpace(v)) vals.Add(v);
             }
             return vals.Count == 0 ? (object)DBNull.Value : string.Join(", ", vals);
@@ -390,7 +601,7 @@ namespace CROMS.Forms
 
         private static void SetLookup(ComboBox c, string value)
         {
-            if (string.IsNullOrEmpty(value)) { c.SelectedIndex = c.Items.Count > 0 ? 0 : -1; return; }
+            if (string.IsNullOrEmpty(value)) { c.SelectedIndex = c.Items.Count > 0 ? 0 : -1; c.Text = ""; return; }
             int idx = c.Items.IndexOf(value);
             if (idx < 0) { c.Items.Add(value); idx = c.Items.Count - 1; }   // keep legacy values visible
             c.SelectedIndex = idx;
@@ -401,15 +612,6 @@ namespace CROMS.Forms
             string[] bits = (value ?? "").Split(new[] { ", " }, StringSplitOptions.None);
             for (int i = 0; i < parts.Length; i++)
                 SetLookup(parts[i], i < bits.Length ? bits[i].Trim() : "");
-        }
-
-        private void LoadCombos()
-        {
-            cboSex.Items.AddRange(new object[] { "Male", "Female" });
-            cboTypeOfBirth.Items.AddRange(new object[] { "Single", "Twin", "Triplet", "Quadruplet" });
-            cboAttType.Items.AddRange(new object[] { "Physician", "Nurse", "Midwife", "Hilot (Traditional)", "Others" });
-            cboStatus.Items.AddRange(new object[] { "Draft", "Pending Approval", "Registered", "Delayed Posting" });
-            cboStatus.SelectedItem = "Draft";
         }
 
         private void LoadBirths()
@@ -431,7 +633,16 @@ namespace CROMS.Forms
             Create("Pending Approval");
         }
 
-        private void Create(string status)
+        /// <summary>
+        /// Write a new record.
+        /// <para/>
+        /// <paramref name="keepOpen"/> changes what happens afterwards: normally the form
+        /// is cleared for the next entry, but a caller that needs to act on the record it
+        /// just created — Print Certificate, which has to print from the saved registry
+        /// entry — reloads it instead, so the form stays on that record and
+        /// <c>_editingId</c> is set. Returns the new id, or null if nothing was written.
+        /// </summary>
+        private long? Create(string status, bool keepOpen = false)
         {
             // Assign an official registry number the moment the record becomes more than
             // a draft (Submit / Registered), unless the registrar typed one already.
@@ -443,7 +654,8 @@ namespace CROMS.Forms
                 "INSERT INTO births (" + Columns + ") VALUES (" + ValuePlaceholders + ")";
             try
             {
-                long newId = Db.Insert(sql, FieldParams(status));
+                if (status == "Pending Approval") SaveTypedLookupValues();
+                long newId = InsertTakingNextFreeNumber(sql, status);
                 SaveScan(newId);   // attach the scanned softcopy, if this came from Document AI
                 Audit.Write(Audit.Create, "births", newId,
                     txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim() + " (" + status + ")");
@@ -463,13 +675,54 @@ namespace CROMS.Forms
                     _queueTicketId = 0;
                 }
 
-                MessageBox.Show(
-                    (status == "Draft" ? "Saved as draft." : "Submitted for approval.") + extra,
-                    "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                ClearForm();
+                if (!keepOpen)
+                {
+                    MessageBox.Show(
+                        (status == "Draft" ? "Saved as draft." : "Submitted for approval.") + extra,
+                        "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearForm();
+                }
                 LoadBirths();
+                // Reload from the row that was actually written, so what the operator now
+                // sees (and prints) is the registry entry, including the registry number
+                // assigned during the save.
+                if (keepOpen) LoadBirth((int)newId);
+                return newId;
             }
             catch (Exception ex) { Fail(ex); }
+            return null;
+        }
+
+        /// <summary>
+        /// Inserts the record, and if another workstation claimed the same registry number
+        /// in the meantime, takes the next one and tries again.
+        ///
+        /// <para>The number is read (MAX+1) in one statement and written in another, so two
+        /// registrars saving in the same moment can compute the same number. Since migration
+        /// 27 <c>registry_no</c> is UNIQUE, so the loser now gets error 1062 instead of
+        /// writing a duplicate — the constraint prevents the corruption and this loop turns
+        /// that refusal back into a correct save. Neither half works alone: without the
+        /// constraint two records share the key, without the retry the second registrar sees
+        /// a crash.</para>
+        ///
+        /// <para>Only a clash on the registry-number index is retried
+        /// (<see cref="RegistryNumber.WasTaken"/>) — any other duplicate-key error is a real
+        /// fault and is left to surface.</para>
+        /// </summary>
+        private long InsertTakingNextFreeNumber(string sql, string status)
+        {
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    return Db.Insert(sql, FieldParams(status));
+                }
+                catch (MySqlException ex)
+                    when (RegistryNumber.WasTaken(ex, "births") && attempt < RegistryNumber.MaxRetries)
+                {
+                    txtRegNo.Text = NextRegistryNo();
+                }
+            }
         }
 
         // ---------- READ (row -> form) ----------
@@ -484,9 +737,28 @@ namespace CROMS.Forms
         {
             DataTable dt = Db.Pull("SELECT * FROM births WHERE id = " + id);
             if (dt.Rows.Count == 0) return;
+            // The row's own form identity, so an edit or a reprint keeps the revision the
+            // record was registered on rather than silently migrating it to today's.
+            if (dt.Columns.Contains("form_code") && dt.Rows[0]["form_code"] != DBNull.Value)
+                _formCode = dt.Rows[0]["form_code"].ToString();
+            if (dt.Columns.Contains("form_name") && dt.Rows[0]["form_name"] != DBNull.Value)
+                _formName = dt.Rows[0]["form_name"].ToString();
             DataRow r = dt.Rows[0];
             _editingId = id;
 
+            // The record's OWN registration date, so editing it later does not re-date the
+            // registration to today (which would turn a timely birth into a delayed one).
+            _dateRegistered = dt.Columns.Contains("date_registered") &&
+                              r["date_registered"] != DBNull.Value
+                ? (DateTime?)Convert.ToDateTime(r["date_registered"])
+                : null;
+
+            // The registrar's own determination is shown as stored, not recomputed — they
+            // may have overridden it, and the affidavits are filed on their decision.
+            // Suppression is held across the WHOLE load, not just this line: setting
+            // dtpDob further down raises ValueChanged, which would otherwise recompute the
+            // flag and overwrite what was actually recorded.
+            _suppressDelayedRecompute = true;
             chkDelayed.Checked = ToInt(r["is_delayed"]) == 1;
             txtRegNo.Text = Str(r["registry_no"]);
             txtBook.Text = Str(r["book_volume"]);
@@ -496,8 +768,10 @@ namespace CROMS.Forms
             txtLastName.Text = Str(r["last_name"]);
             SetCombo(cboSex, r["sex"]);
             SetDate(dtpDob, r["date_of_birth"]);
-            SetTime(dtpTime, r["time_of_birth"]);
-            SplitToTriple(_pob, Str(r["place_of_birth"]));
+
+            // Country first: it rebuilds the province list the place cells select into.
+            GeoLookup.Select(_pobCountry, Str(r["birth_country"]));
+            SetPlace3(_pob, Str(r["place_of_birth"]));
             SetCombo(cboTypeOfBirth, r["type_of_birth"]);
             SetLookup(_cboBirthOrder, Str(r["birth_order"]));
             txtWeight.Text = Str(r["weight_grams"]);
@@ -511,7 +785,7 @@ namespace CROMS.Forms
             txtMBornAlive.Text = Str(r["mother_children_born_alive"]);
             txtMLiving.Text = Str(r["mother_children_living"]);
             txtMDead.Text = Str(r["mother_children_dead"]);
-            SplitToTriple(_mres, Str(r["mother_residence"]));
+            SetResidence(_mres, Str(r["mother_residence"]));
             txtFFirst.Text = Str(r["father_first_name"]);
             txtFMiddle.Text = Str(r["father_middle_name"]);
             txtFLast.Text = Str(r["father_last_name"]);
@@ -519,22 +793,45 @@ namespace CROMS.Forms
             SetLookup(_cboFRel, Str(r["father_religion"]));
             SetLookup(_cboFOcc, Str(r["father_occupation"]));
             txtFAge.Text = Str(r["father_age"]);
-            SplitToTriple(_fres, Str(r["father_residence"]));
+            SetResidence(_fres, Str(r["father_residence"]));
+            // NULL means the record predates the column - "not stated", not "not
+            // married" - so it shows as the default ON with its fields live, exactly as it
+            // did before. Only a stored 0 greys them out.
+            tglParentsMarried.SetCheckedSilently(
+                !dt.Columns.Contains("parents_married") ||
+                r["parents_married"] == DBNull.Value ||
+                ToInt(r["parents_married"]) == 1);
             SetOptionalDate(dtpMarrDate, r["parents_marriage_date"]);
-            SplitToTriple(_pom, Str(r["parents_marriage_place"]));
-            SetCombo(cboAttType, r["attendant_type"]);
+            SetPlace3(_pom, Str(r["parents_marriage_place"]));
+            ApplyParentsMarried();
+            OthersBox.Apply(cboAttType, txtAttTypeOther, lblAttTypeOther,
+                Str(r["attendant_type"]), (c, v) => c.Text = v);
             txtAttName.Text = Str(r["attendant_name"]);
             txtAttTitle.Text = Str(r["attendant_title"]);
-            SplitToTriple(_attAddr, Str(r["attendant_address"]));
+            SetAddress3(_attAddr, Str(r["attendant_address"]));
+            SetOptionalDate(dtpAttDate, r["attendant_date"]);
             txtInfName.Text = Str(r["informant_name"]);
-            SetLookup(_cboInfRel, Str(r["informant_relationship"]));
-            SplitToTriple(_infAddr, Str(r["informant_address"]));
-            SetDate(dtpInfDate, r["informant_date"]);
+            OthersBox.Apply(_cboInfRel, txtInfRelOther, lblInfRelOther,
+                Str(r["informant_relationship"]), SetLookup);
+            SetAddress3(_infAddr, Str(r["informant_address"]));
+            SetOptionalDate(dtpInfDate, r["informant_date"]);
             txtPreparedBy.Text = Str(r["prepared_by"]);
+            txtPreparedTitle.Text = Str(r["prepared_by_title"]);
+            SetOptionalDate(dtpPreparedDate, r["prepared_by_date"]);
             txtReceivedBy.Text = Str(r["received_by"]);
+            txtReceivedTitle.Text = Str(r["received_by_title"]);
+            SetOptionalDate(dtpReceivedDate, r["received_by_date"]);
+            txtRegisteredBy.Text = Str(r["registered_by"]);
+            txtRegisteredTitle.Text = Str(r["registered_by_title"]);
+            SetOptionalDate(dtpRegisteredDate, r["registered_by_date"]);
             txtRemarks.Text = Str(r["remarks"]);
             _scanImage = dt.Columns.Contains("scan_image") && r["scan_image"] != DBNull.Value
                 ? (byte[])r["scan_image"] : null;
+
+            // Release the suppression taken above and restate the arithmetic on the label,
+            // leaving the stored determination itself untouched.
+            _suppressDelayedRecompute = false;
+            UpdateDelayedLabel();
         }
 
         // ---------- UPDATE ----------
@@ -554,13 +851,28 @@ namespace CROMS.Forms
             if (status != "Draft" && string.IsNullOrWhiteSpace(txtRegNo.Text))
                 txtRegNo.Text = NextRegistryNo();
 
-            var ps = new List<MySqlParameter>(FieldParams(status))
-            {
-                new MySqlParameter("@id", _editingId.Value)
-            };
             try
             {
-                Db.Push("UPDATE births SET " + SetClause + " WHERE id = @id", ps.ToArray());
+                if (status == "Pending Approval") SaveTypedLookupValues();
+                // Same collision as on create: promoting a draft assigns a number that
+                // another workstation may have taken between the read and this write.
+                for (int attempt = 0; ; attempt++)
+                {
+                    var ps = new List<MySqlParameter>(FieldParams(status))
+                    {
+                        new MySqlParameter("@id", _editingId.Value)
+                    };
+                    try
+                    {
+                        Db.Push("UPDATE births SET " + SetClause + " WHERE id = @id", ps.ToArray());
+                        break;
+                    }
+                    catch (MySqlException ex)
+                        when (RegistryNumber.WasTaken(ex, "births") && attempt < RegistryNumber.MaxRetries)
+                    {
+                        txtRegNo.Text = NextRegistryNo();
+                    }
+                }
                 SaveScan(_editingId.Value);   // keep/refresh the softcopy on edit
                 Audit.Write(Audit.Update, "births", _editingId.Value,
                     txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim());
@@ -605,41 +917,54 @@ namespace CROMS.Forms
 
         // ---------- shared SQL fragments ----------
         private const string Columns =
-            "is_delayed, registry_no, book_volume, status, first_name, middle_name, last_name, sex, " +
-            "date_of_birth, time_of_birth, place_of_birth, type_of_birth, birth_order, weight_grams, " +
+            "form_code, form_name, is_delayed, date_registered, registry_no, book_volume, status, first_name, middle_name, last_name, sex, " +
+            "date_of_birth, place_of_birth, birth_country, type_of_birth, birth_order, weight_grams, " +
             "mother_first_name, mother_middle_name, mother_last_name, mother_citizenship, mother_religion, " +
             "mother_occupation, mother_age, mother_children_born_alive, mother_children_living, " +
             "mother_children_dead, mother_residence, father_first_name, father_middle_name, father_last_name, " +
             "father_citizenship, father_religion, father_occupation, father_age, father_residence, " +
-            "parents_marriage_date, parents_marriage_place, attendant_type, attendant_name, attendant_title, " +
-            "attendant_address, informant_name, informant_relationship, informant_address, informant_date, " +
-            "prepared_by, received_by, remarks";
+            "parents_marriage_date, parents_marriage_place, parents_married, attendant_type, attendant_name, attendant_title, " +
+            "attendant_address, attendant_date, informant_name, informant_relationship, informant_address, informant_date, " +
+            "prepared_by, prepared_by_title, prepared_by_date, " +
+            "received_by, received_by_title, received_by_date, " +
+            "registered_by, registered_by_title, registered_by_date, remarks";
 
         private const string ValuePlaceholders =
-            "@is_delayed, @registry_no, @book_volume, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, " +
+            "@form_code, @form_name, @is_delayed, @date_registered, @registry_no, @book_volume, @status, @fn, @mn, @ln, @sex, @dob, @place, @country, " +
             "@type, @order, @weight, @mfn, @mmn, @mln, @mcit, @mrel, @mocc, @mage, @mba, @mlv, @mdd, @mres, " +
-            "@ffn, @fmn, @fln, @fcit, @frel, @focc, @fage, @fres, @pmdate, @pmplace, @atype, @aname, @atitle, " +
-            "@aaddr, @iname, @irel, @iaddr, @idate, @prep, @recv, @remarks";
+            "@ffn, @fmn, @fln, @fcit, @frel, @focc, @fage, @fres, @pmdate, @pmplace, @pmarried, @atype, @aname, @atitle, " +
+            "@aaddr, @adate, @iname, @irel, @iaddr, @idate, " +
+            "@prep, @preptitle, @prepdate, @recv, @recvtitle, @recvdate, " +
+            "@regby, @regbytitle, @regbydate, @remarks";
 
         private const string SetClause =
-            "is_delayed=@is_delayed, registry_no=@registry_no, book_volume=@book_volume, status=@status, " +
-            "first_name=@fn, middle_name=@mn, last_name=@ln, sex=@sex, date_of_birth=@dob, time_of_birth=@tob, " +
-            "place_of_birth=@place, type_of_birth=@type, birth_order=@order, weight_grams=@weight, " +
+            "form_code=@form_code, form_name=@form_name, is_delayed=@is_delayed, date_registered=@date_registered, registry_no=@registry_no, book_volume=@book_volume, status=@status, " +
+            "first_name=@fn, middle_name=@mn, last_name=@ln, sex=@sex, date_of_birth=@dob, " +
+            "place_of_birth=@place, birth_country=@country, type_of_birth=@type, birth_order=@order, weight_grams=@weight, " +
             "mother_first_name=@mfn, mother_middle_name=@mmn, mother_last_name=@mln, mother_citizenship=@mcit, " +
             "mother_religion=@mrel, mother_occupation=@mocc, mother_age=@mage, mother_children_born_alive=@mba, " +
             "mother_children_living=@mlv, mother_children_dead=@mdd, mother_residence=@mres, " +
             "father_first_name=@ffn, father_middle_name=@fmn, father_last_name=@fln, father_citizenship=@fcit, " +
             "father_religion=@frel, father_occupation=@focc, father_age=@fage, father_residence=@fres, " +
-            "parents_marriage_date=@pmdate, parents_marriage_place=@pmplace, attendant_type=@atype, " +
-            "attendant_name=@aname, attendant_title=@atitle, attendant_address=@aaddr, informant_name=@iname, " +
+            "parents_marriage_date=@pmdate, parents_marriage_place=@pmplace, " +
+            "parents_married=@pmarried, attendant_type=@atype, " +
+            "attendant_name=@aname, attendant_title=@atitle, attendant_address=@aaddr, " +
+            "attendant_date=@adate, informant_name=@iname, " +
             "informant_relationship=@irel, informant_address=@iaddr, informant_date=@idate, " +
-            "prepared_by=@prep, received_by=@recv, remarks=@remarks";
+            "prepared_by=@prep, prepared_by_title=@preptitle, prepared_by_date=@prepdate, " +
+            "received_by=@recv, received_by_title=@recvtitle, received_by_date=@recvdate, " +
+            "registered_by=@regby, registered_by_title=@regbytitle, registered_by_date=@regbydate, " +
+            "remarks=@remarks";
 
         private MySqlParameter[] FieldParams(string status)
         {
             return new[]
             {
+                new MySqlParameter("@form_code", _formCode),
+                new MySqlParameter("@form_name", _formName),
                 new MySqlParameter("@is_delayed", chkDelayed.Checked ? 1 : 0),
+                new MySqlParameter("@date_registered",
+                    (object)RegistrationDateFor(status) ?? DBNull.Value),
                 new MySqlParameter("@registry_no", S(txtRegNo)),
                 new MySqlParameter("@book_volume", S(txtBook)),
                 new MySqlParameter("@status", status),
@@ -648,8 +973,9 @@ namespace CROMS.Forms
                 new MySqlParameter("@ln", txtLastName.Text.Trim()),
                 new MySqlParameter("@sex", Combo(cboSex)),
                 new MySqlParameter("@dob", dtpDob.Value.Date),
-                new MySqlParameter("@tob", dtpTime.Value.ToString("HH:mm")),
+
                 new MySqlParameter("@place", ComboJoin(_pob)),
+                new MySqlParameter("@country", NullIfBlank(_pobCountry.Text)),
                 new MySqlParameter("@type", Combo(cboTypeOfBirth)),
                 new MySqlParameter("@order", ComboVal(_cboBirthOrder)),
                 new MySqlParameter("@weight", I(txtWeight)),
@@ -672,20 +998,44 @@ namespace CROMS.Forms
                 new MySqlParameter("@focc", ComboVal(_cboFOcc)),
                 new MySqlParameter("@fage", I(txtFAge)),
                 new MySqlParameter("@fres", ComboJoin(_fres)),
-                new MySqlParameter("@pmdate", dtpMarrDate.Checked ? (object)dtpMarrDate.Value.Date : DBNull.Value),
-                new MySqlParameter("@pmplace", ComboJoin(_pom)),
-                new MySqlParameter("@atype", Combo(cboAttType)),
+                // Both are forced NULL when the parents are not married, so a value left
+                // over from before the toggle was switched can never be written onto a
+                // record that says there was no marriage.
+                new MySqlParameter("@pmdate", tglParentsMarried.Checked && dtpMarrDate.Checked
+                    ? (object)dtpMarrDate.Value.Date : DBNull.Value),
+                new MySqlParameter("@pmplace", tglParentsMarried.Checked
+                    ? ComboJoin(_pom) : DBNull.Value),
+                new MySqlParameter("@pmarried", tglParentsMarried.Checked ? 1 : 0),
+                new MySqlParameter("@atype", NullIfBlank(OthersBox.Compose(cboAttType, txtAttTypeOther))),
                 new MySqlParameter("@aname", S(txtAttName)),
                 new MySqlParameter("@atitle", S(txtAttTitle)),
                 new MySqlParameter("@aaddr", ComboJoin(_attAddr)),
+                new MySqlParameter("@adate", PickedDate(dtpAttDate)),
                 new MySqlParameter("@iname", S(txtInfName)),
-                new MySqlParameter("@irel", ComboVal(_cboInfRel)),
+                new MySqlParameter("@irel", NullIfBlank(OthersBox.Compose(_cboInfRel, txtInfRelOther))),
                 new MySqlParameter("@iaddr", ComboJoin(_infAddr)),
-                new MySqlParameter("@idate", dtpInfDate.Value.Date),
+                new MySqlParameter("@idate", dtpInfDate.Checked ? (object)dtpInfDate.Value.Date : DBNull.Value),
                 new MySqlParameter("@prep", S(txtPreparedBy)),
+                new MySqlParameter("@preptitle", S(txtPreparedTitle)),
+                new MySqlParameter("@prepdate", PickedDate(dtpPreparedDate)),
                 new MySqlParameter("@recv", S(txtReceivedBy)),
+                new MySqlParameter("@recvtitle", S(txtReceivedTitle)),
+                new MySqlParameter("@recvdate", PickedDate(dtpReceivedDate)),
+                new MySqlParameter("@regby", S(txtRegisteredBy)),
+                new MySqlParameter("@regbytitle", S(txtRegisteredTitle)),
+                new MySqlParameter("@regbydate", PickedDate(dtpRegisteredDate)),
                 new MySqlParameter("@remarks", S(txtRemarks)),
             };
+        }
+
+        /// <summary>
+        /// A date the certification block may not carry. These pickers show their check box,
+        /// so an unticked one means the sheet states no date there and the column stays NULL
+        /// rather than recording a signing date nobody wrote.
+        /// </summary>
+        private static object PickedDate(DateTimePicker dtp)
+        {
+            return dtp.Checked ? (object)dtp.Value.Date : DBNull.Value;
         }
 
         /// <summary>
@@ -695,14 +1045,90 @@ namespace CROMS.Forms
         /// </summary>
         private static string NextRegistryNo()
         {
-            int year = DateTime.Now.Year;
-            DataTable dt = Db.Pull(
-                "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(registry_no, '-', -1) AS UNSIGNED)), 0) + 1 AS n " +
-                "FROM births WHERE registry_no LIKE @p",
-                new MySqlParameter("@p", year + "-B-%"));
-            int next = (dt.Rows.Count > 0 && dt.Rows[0]["n"] != DBNull.Value)
-                ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
-            return string.Format("{0}-B-{1:D4}", year, next);
+            return RegistryNumber.Next("births", 'B');
+        }
+
+        // ---------- delayed registration (RA 3753) ----------
+
+        /// <summary>
+        /// Days the law allows between the birth and its registration. RA 3753 gives 30;
+        /// past that the registration is "delayed" and needs the extra affidavits, which
+        /// is why the monthly PSA report has to split the two.
+        /// </summary>
+        private const int ReglementaryDays = 30;
+
+        /// <summary>
+        /// The date this record was (or is being) registered, or null when that is genuinely
+        /// unknown.
+        ///
+        /// <para>A Draft is not registered yet, so it has no registration date. A record
+        /// being registered now gets today. An existing record keeps the date it was
+        /// registered on — reopening a 2019 record to correct a spelling must not re-date
+        /// its registration to today and turn it delayed.</para>
+        ///
+        /// <para>Null for every row that predates this column: those were either migrated
+        /// from the old system or digitized from the paper books, and in neither case does
+        /// the database know when the office actually registered them. See migration 27 —
+        /// created_at is a row-creation date, and for a scan that is the DIGITIZATION date,
+        /// so deriving a registration date from it would mark the whole backlog delayed.</para>
+        /// </summary>
+        private DateTime? RegistrationDateFor(string status)
+        {
+            if (status == "Draft") return null;
+            return _dateRegistered ?? DateTime.Today;
+        }
+
+        /// <summary>
+        /// Sets the Delayed Registration box from the dates rather than waiting for someone
+        /// to remember it, and says on the label why.
+        ///
+        /// <para>THIS IS THE FIX for a wrong statutory figure, not a convenience. The box
+        /// was purely manual, nobody ticked it, and <c>ReportsPsaForm</c> reads that flag —
+        /// so the monthly PSA submission was reporting every registration as timely while
+        /// the dates said otherwise. Computing it means the report can only be wrong if the
+        /// dates are.</para>
+        ///
+        /// <para>Still overridable: whether a registration is delayed is the registrar's
+        /// determination (they are the one collecting the affidavits), so this sets the
+        /// default and shows the arithmetic — it does not lock the box.</para>
+        /// </summary>
+        private void RecomputeDelayed()
+        {
+            _suppressDelayedRecompute = true;
+            try { chkDelayed.Checked = LagDays() > ReglementaryDays; }
+            finally { _suppressDelayedRecompute = false; }
+            UpdateDelayedLabel();
+        }
+
+        /// <summary>Days between the birth and the registration date being used.</summary>
+        private int LagDays()
+        {
+            DateTime asOf = (_dateRegistered ?? DateTime.Today).Date;
+            return (int)(asOf - dtpDob.Value.Date).TotalDays;
+        }
+
+        /// <summary>
+        /// Shows the arithmetic behind the box, so a registrar who disagrees can see what
+        /// the system counted before overriding it. Label only — never touches the flag,
+        /// which is why loading a record can call this without rewriting what was recorded.
+        /// </summary>
+        private void UpdateDelayedLabel()
+        {
+            int lag = LagDays();
+            chkDelayed.Text = lag < 0
+                ? "Delayed Registration — check the date of birth, it is in the future"
+                : lag > ReglementaryDays
+                    ? string.Format(
+                        "Delayed Registration — birth was {0:N0} days ago, past the {1}-day period",
+                        lag, ReglementaryDays)
+                    : string.Format(
+                        "Delayed Registration — not delayed, {0:N0} of {1} days used",
+                        lag, ReglementaryDays);
+        }
+
+        private void dtpDob_ValueChanged(object sender, EventArgs e)
+        {
+            if (!_suppressDelayedRecompute) RecomputeDelayed();
         }
 
         private bool ValidateChild()
@@ -723,10 +1149,41 @@ namespace CROMS.Forms
         {
             _editingId = null;
             _scanImage = null;
+            // A new record is on the revision the office issues today. Without this reset
+            // the form would keep the revision of the last scan it was primed from.
+            _formCode = FormCatalog.Current(DocKind.Birth)?.FormCode;
+            _formName = FormCatalog.Current(DocKind.Birth)?.FormName;
             foreach (Control c in EnumerateInputs(this)) ClearControl(c);
             cboStatus.SelectedItem = "Draft";
-            chkDelayed.Checked = false;
             dtpMarrDate.Checked = false;
+            // Back to the form's own default: married, with items 18a/18b live.
+            tglParentsMarried.SetCheckedSilently(true);
+            ApplyParentsMarried();
+
+            // Date pickers are not touched by ClearControl (it handles TextBox and ComboBox
+            // only), so New used to leave the PREVIOUS record's date of birth on screen — a
+            // registrar who did not notice would date a newborn 2018. Reset to today, which
+            // is also the only sane basis for the delayed calculation below.
+            dtpDob.Value = DateTime.Today;
+
+            dtpInfDate.Value = DateTime.Today;
+
+            // The certification-block dates are optional (ShowCheckBox), so a fresh record
+            // must clear the TICK as well as the value - a left-over tick would carry the
+            // previous record's signing date onto a blank form.
+            dtpInfDate.Checked = false;
+            dtpAttDate.Checked = false;
+            dtpPreparedDate.Checked = false;
+            dtpReceivedDate.Checked = false;
+            dtpRegisteredDate.Checked = false;
+
+            // ClearControl empties every combo, including the country, which would leave a
+            // fresh record with no country rather than the one this office almost always
+            // registers. A loaded record still shows whatever it actually holds.
+            GeoLookup.Select(_pobCountry, GeoLookup.HomeCountry);
+
+            _dateRegistered = null;   // a fresh entry is registered today, not on some past date
+            RecomputeDelayed();       // sets the box from the (now reset) date of birth
         }
 
         private IEnumerable<Control> EnumerateInputs(Control parent)
@@ -741,10 +1198,460 @@ namespace CROMS.Forms
         private static void ClearControl(Control c)
         {
             if (c is TextBox t) t.Clear();
-            else if (c is ComboBox cb) cb.SelectedIndex = -1;
+            else if (c is ComboBox cb) { cb.SelectedIndex = -1; cb.Text = ""; }
+        }
+
+        // ---------- runtime UI helpers / dynamic lookup controls ----------
+        // These belong in BirthRegistrationForm.cs, not the generated Designer file.
+        private ComboBox _cboMCit, _cboMRel, _cboMOcc;
+        private ComboBox _cboFCit, _cboFRel, _cboFOcc;
+        private ComboBox _cboInfRel, _cboBirthOrder;
+        private ComboBox _pobCountry;  // Place of Birth country — its OWN column, never joined into place_of_birth
+        private ComboBox[] _pob;   // Place of Birth:  hospital, municipality, province
+        private ComboBox[] _pom;   // Marriage Place:  church,  municipality, province
+        private ComboBox[] _mres;  // Mother Residence: house/st, barangay, municipality, province
+        private ComboBox[] _fres;  // Father Residence: house/st, barangay, municipality, province
+        private ComboBox[] _attAddr;  // Attendant Address: barangay, municipality, province
+        private ComboBox[] _infAddr;  // Informant Address: barangay, municipality, province
+
+        private void InitializeLookupControls()
+        {
+            _cboMCit = CreateLookupCells(txtMCitizen, 1, null)[0];
+            _cboMRel = CreateLookupCells(txtMReligion, 1, null)[0];
+            _cboMOcc = CreateLookupCells(txtMOccupation, 1, null)[0];
+            _mres = CreateLookupCells(txtMResidence, 4, new[] { "House / St.", "Province", "Municipality", "Barangay" });
+            _mProvince = _mres[1];
+            _mMunicipality = _mres[2];
+            _mBarangay = _mres[3];
+
+            _cboFCit = CreateLookupCells(txtFCitizen, 1, null)[0];
+            _cboFRel = CreateLookupCells(txtFReligion, 1, null)[0];
+            _cboFOcc = CreateLookupCells(txtFOccupation, 1, null)[0];
+            _fres = CreateLookupCells(txtFResidence, 4, new[] { "House / St.", "Province", "Municipality", "Barangay" });
+            _fProvince = _fres[1];
+            _fMunicipality = _fres[2];
+            _fBarangay = _fres[3];
+            _cboInfRel = CreateLookupCells(txtInfRel, 1, null)[0];
+            _cboInfRel.Tag = "relationships:birth";
+            _cboBirthOrder = CreateLookupCells(txtBirthOrder, 1, null)[0];
+            // Four cells, but only the last three are the PLACE. The country is kept out of
+            // _pob deliberately: _pob is comma-joined into births.place_of_birth and split
+            // back out on load, so a fourth part would re-split every row already written.
+            ComboBox[] pobCells = CreateLookupCells(txtPlace, 4,
+                new[] { "Country", "Hospital / Clinic", "Province", "Municipality" });
+            _pobCountry = pobCells[0];
+            _pob = new[] { pobCells[1], pobCells[2], pobCells[3] };
+            _pobProvince = _pob[1];
+            _pobMunicipality = _pob[2];
+
+            _pom = CreateLookupCells(txtMarrPlace, 3, new[] { "Church", "Province", "Municipality" });
+            _pomProvince = _pom[1];
+            _pomMunicipality = _pom[2];
+
+            _attAddr = CreateLookupCells(txtAttAddress, 3, new[] { "Province", "Municipality", "Barangay" });
+            _attProvince = _attAddr[0];
+            _attMunicipality = _attAddr[1];
+            _attBarangay = _attAddr[2];
+
+            _infAddr = CreateLookupCells(txtInfAddress, 3, new[] { "Province", "Municipality", "Barangay" });
+            _infProvince = _infAddr[0];
+            _infMunicipality = _infAddr[1];
+            _infBarangay = _infAddr[2];
+        }
+
+
+        /// <summary>
+        /// Item 18 of Municipal Form 102 - the marriage of the parents - behind a toggle
+        /// that DEFAULTS TO ON, because most registrations are of married parents.
+        /// <para/>
+        /// Turned off, the date and place are not merely cleared: they are DISABLED, and
+        /// that difference is the whole point. A blank box says "nobody filled this in";
+        /// a greyed box says "this question does not apply to this child". On a birth
+        /// certificate that is not presentation - whether the parents were married is what
+        /// determines the child's legitimacy under the Family Code, and it is what an
+        /// RA 9255 acknowledgement later attaches to. The answer is stored in its own
+        /// column (migration 31) rather than inferred from two empty fields.
+        /// </summary>
+        private void InitializeParentsMarried()
+        {
+            tglParentsMarried.SetCheckedSilently(true);
+            tglParentsMarried.CheckedChanged += tglParentsMarried_CheckedChanged;
+            ApplyParentsMarried();
+        }
+
+        private void tglParentsMarried_CheckedChanged(object sender, EventArgs e)
+        {
+            ApplyParentsMarried();
+        }
+
+        /// <summary>
+        /// Enable or grey out items 18a/18b, and say in words which state the record is in.
+        /// <para/>
+        /// Switching to "not married" CLEARS the two fields as well as disabling them. A
+        /// disabled control still holds its text and would still be read by FieldParams,
+        /// so leaving a date behind would write a marriage date onto a record that states
+        /// there was no marriage.
+        /// </summary>
+        private void ApplyParentsMarried()
+        {
+            bool married = tglParentsMarried.Checked;
+
+            if (!married)
+            {
+                dtpMarrDate.Checked = false;
+                dtpMarrDate.Value = DateTime.Today;
+                foreach (ComboBox c in _pom) GeoLookup.Select(c, "");
+            }
+
+            dtpMarrDate.Enabled = married;
+            lblMarrDate.Enabled = married;
+            lblMarrPlace.Enabled = married;
+            foreach (ComboBox c in _pom)
+            {
+                c.Enabled = married;
+                // The caption under each cell is a sibling in the same grid, so it has to
+                // be greyed with it or the block reads half-live.
+                if (c.Parent != null)
+                    foreach (Control sibling in c.Parent.Controls)
+                        if (sibling is Label) sibling.Enabled = married;
+            }
+
+            lblParentsMarriedState.Text = married
+                ? "Married - state the date and place below"
+                : "Not married - items 18a and 18b do not apply";
+            lblParentsMarriedState.ForeColor = married ? UiTheme.Ink : UiTheme.Muted;
+        }
+
+        /// <summary>
+        /// Province -> Municipality -> Barangay, from the national PSGC set loaded by
+        /// migration 29. The lists and the cascade itself live in <see cref="GeoLookup"/>
+        /// so Birth, Marriage and Death behave identically; this method only says which
+        /// cells on THIS form form a trio.
+        /// </summary>
+        private void WireGeography()
+        {
+            GeoLookup.CascadeAddress(_mres[1], _mres[2], _mres[3]);
+            GeoLookup.CascadeAddress(_fres[1], _fres[2], _fres[3]);
+            GeoLookup.CascadeAddress(_attAddr[0], _attAddr[1], _attAddr[2]);
+            GeoLookup.CascadeAddress(_infAddr[0], _infAddr[1], _infAddr[2]);
+            GeoLookup.CascadePlace(_pob[1], _pob[2]);
+            GeoLookup.CascadePlace(_pom[1], _pom[2]);
+
+            foreach (ComboBox province in new[]
+                     { _mres[1], _fres[1], _attAddr[0], _infAddr[0], _pob[1], _pom[1] })
+                GeoLookup.LoadProvinces(province);
+
+            // Country last: wiring it before the province list exists would have the first
+            // selection fire into an unbuilt cascade.
+            GeoLookup.LoadCountries(_pobCountry);
+            GeoLookup.CascadeCountry(_pobCountry, _pob[1], _pob[2], null);
+            GeoLookup.Select(_pobCountry, GeoLookup.HomeCountry);
+        }
+
+        /// <summary>
+        /// Put a stored "House/St., Province, Municipality, Barangay" back on screen.
+        /// <para/>
+        /// Written through <see cref="GeoLookup.SetAddress"/> rather than by setting the
+        /// four boxes independently, because the cells CASCADE: selecting a barangay whose
+        /// municipality has not been chosen selects into an empty list, so the value shows
+        /// while the dropdown behind it belongs to nowhere.
+        /// </summary>
+        private static void SetResidence(ComboBox[] cells, string value)
+        {
+            string[] b = Parts(value, 4);
+            GeoLookup.Select(cells[0], b[0]);
+            GeoLookup.SetAddress(cells[1], cells[2], cells[3], b[1], b[2], b[3]);
+        }
+
+        /// <summary>A stored "Province, Municipality, Barangay" trio.</summary>
+        private static void SetAddress3(ComboBox[] cells, string value)
+        {
+            string[] b = Parts(value, 3);
+            GeoLookup.SetAddress(cells[0], cells[1], cells[2], b[0], b[1], b[2]);
+        }
+
+        /// <summary>A stored "Facility, Province, Municipality" place.</summary>
+        private static void SetPlace3(ComboBox[] cells, string value)
+        {
+            string[] b = Parts(value, 3);
+            GeoLookup.Select(cells[0], b[0]);
+            GeoLookup.Select(cells[1], b[1]);
+            GeoLookup.LoadMunicipalities(cells[2], b[1]);
+            GeoLookup.Select(cells[2], b[2]);
+        }
+
+        private static string[] Parts(string value, int count)
+        {
+            string[] bits = (value ?? "").Split(new[] { "," }, StringSplitOptions.None);
+            var outp = new string[count];
+            for (int i = 0; i < count; i++) outp[i] = i < bits.Length ? bits[i].Trim() : "";
+            return outp;
+        }
+
+        /// <summary>
+        /// Adds a simple wizard navigation bar below the tabs.
+        /// Existing tab pages remain the seven registration steps.
+        /// </summary>
+        private void InitializeStepNavigation()
+        {
+            if (_stepNavigation != null) return;
+
+            _stepNavigation = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 52,
+                Padding = new Padding(8),
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false
+            };
+
+            _lblStep = new Label
+            {
+                AutoSize = false,
+                Width = 170,
+                Height = 32,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                Font = new System.Drawing.Font("Segoe UI", 9.75F)
+            };
+
+            _btnBackStep = new Button
+            {
+                Width = 95,
+                Height = 32,
+                Text = "← Back",
+                Enabled = false
+            };
+
+            _btnNextStep = new Button
+            {
+                Width = 95,
+                Height = 32,
+                Text = "Next →"
+            };
+
+            _btnBackStep.Click += delegate { GoToStep(tabControl.SelectedIndex - 1); };
+            _btnNextStep.Click += delegate { GoToStep(tabControl.SelectedIndex + 1); };
+            tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); };
+
+            _stepNavigation.Controls.Add(_lblStep);
+            _stepNavigation.Controls.Add(_btnBackStep);
+            _stepNavigation.Controls.Add(_btnNextStep);
+
+            cardForm.Controls.Add(_stepNavigation);
+        }
+
+        private void InitializeAddAnotherBirthButton()
+        {
+            if (_btnAddAnotherBirth != null || _stepNavigation == null) return;
+            _btnAddAnotherBirth = new Button
+            {
+                Width = 190,
+                Height = 32,
+                Text = "+ Add Another Birth Form"
+            };
+            _btnAddAnotherBirth.Click += btnAddAnotherBirth_Click;
+            _stepNavigation.Controls.Add(_btnAddAnotherBirth);
+        }
+
+        private void btnAddAnotherBirth_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null)
+            {
+                MessageBox.Show("Save or submit the current child's form first. Then add the next child.",
+                    "Add Another Birth Form", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string mFirst = txtMFirst.Text, mMiddle = txtMMiddle.Text, mLast = txtMLast.Text;
+            string mCit = _cboMCit.Text, mRel = _cboMRel.Text, mOcc = _cboMOcc.Text, mAge = txtMAge.Text;
+            object mRes = ComboJoin(_mres);
+
+            string fFirst = txtFFirst.Text, fMiddle = txtFMiddle.Text, fLast = txtFLast.Text;
+            string fCit = _cboFCit.Text, fRel = _cboFRel.Text, fOcc = _cboFOcc.Text, fAge = txtFAge.Text;
+            object fRes = ComboJoin(_fres);
+
+            bool parentsMarried = tglParentsMarried.Checked;
+            bool marrKnown = dtpMarrDate.Checked;
+            DateTime marrDate = dtpMarrDate.Value;
+            object marrPlace = ComboJoin(_pom);
+
+            string attType = cboAttType.Text, attName = txtAttName.Text, attTitle = txtAttTitle.Text;
+            object attAddr = ComboJoin(_attAddr);
+
+            string infName = txtInfName.Text, infRel = _cboInfRel.Text;
+            object infAddr = ComboJoin(_infAddr);
+            bool infDateKnown = dtpInfDate.Checked;
+            DateTime infDate = dtpInfDate.Value;
+
+            string prepared = txtPreparedBy.Text, received = txtReceivedBy.Text;
+            object place = ComboJoin(_pob);
+            string placeCountry = _pobCountry.Text;
+
+            // New separate Form 102 / births row. This does NOT depend on Type of Birth.
+            // ClearForm does not reset the queue ticket, so the parent stays in the same service flow.
+            ClearForm();
+
+            txtMFirst.Text = mFirst; txtMMiddle.Text = mMiddle; txtMLast.Text = mLast;
+            SetLookup(_cboMCit, mCit); SetLookup(_cboMRel, mRel); SetLookup(_cboMOcc, mOcc);
+            txtMAge.Text = mAge; SetResidence(_mres, mRes == DBNull.Value ? "" : mRes.ToString());
+
+            txtFFirst.Text = fFirst; txtFMiddle.Text = fMiddle; txtFLast.Text = fLast;
+            SetLookup(_cboFCit, fCit); SetLookup(_cboFRel, fRel); SetLookup(_cboFOcc, fOcc);
+            txtFAge.Text = fAge; SetResidence(_fres, fRes == DBNull.Value ? "" : fRes.ToString());
+
+            // Siblings share their parents, so they share the answer to item 18 - and it
+            // has to be restored BEFORE the date and place, or ApplyParentsMarried would
+            // clear what was just copied in.
+            tglParentsMarried.SetCheckedSilently(parentsMarried);
+            ApplyParentsMarried();
+            dtpMarrDate.Checked = marrKnown;
+            if (marrKnown) dtpMarrDate.Value = marrDate;
+            SetPlace3(_pom, marrPlace == DBNull.Value ? "" : marrPlace.ToString());
+
+            SetCombo(cboAttType, attType); txtAttName.Text = attName; txtAttTitle.Text = attTitle;
+            SetAddress3(_attAddr, attAddr == DBNull.Value ? "" : attAddr.ToString());
+
+            txtInfName.Text = infName; SetLookup(_cboInfRel, infRel);
+            SetAddress3(_infAddr, infAddr == DBNull.Value ? "" : infAddr.ToString());
+            dtpInfDate.Checked = infDateKnown;
+            if (infDateKnown) dtpInfDate.Value = infDate;
+
+            txtPreparedBy.Text = prepared; txtReceivedBy.Text = received;
+            GeoLookup.Select(_pobCountry, placeCountry);
+            SetPlace3(_pob, place == DBNull.Value ? "" : place.ToString());
+
+            // Child-specific values remain fresh for the next twin/triplet/etc.
+            txtFirstName.Clear(); txtMiddleName.Clear(); txtLastName.Clear();
+            cboSex.SelectedIndex = -1; cboSex.Text = "";
+            cboTypeOfBirth.SelectedIndex = -1; cboTypeOfBirth.Text = "";
+            _cboBirthOrder.SelectedIndex = -1; _cboBirthOrder.Text = "";
+            txtWeight.Clear();
+            txtRegNo.Clear();
+            cboStatus.SelectedItem = "Draft";
+
+            tabControl.SelectedTab = tabChild;
+            txtFirstName.Focus();
+        }
+
+        private void GoToStep(int index)
+        {
+            if (index < 0 || index >= tabControl.TabPages.Count) return;
+
+            tabControl.SelectedIndex = index;
+            UpdateStepNavigation();
+        }
+
+        private void UpdateStepNavigation()
+        {
+            if (_stepNavigation == null || _lblStep == null) return;
+
+            int step = tabControl.SelectedIndex + 1;
+            int total = tabControl.TabPages.Count;
+
+            _lblStep.Text = "Step " + step + " of " + total +
+                            "  •  " + tabControl.TabPages[tabControl.SelectedIndex].Text;
+
+            _btnBackStep.Enabled = step > 1;
+            _btnNextStep.Text = step == total ? "Finish ✓" : "Next →";
+        }
+
+        private ComboBox[] CreateLookupCells(TextBox tb, int count, string[] captions)
+        {
+            var owner = tb.Parent as TableLayoutPanel;
+            if (owner == null) throw new InvalidOperationException(
+                "Lookup placeholder '" + tb.Name + "' must sit in a TableLayoutPanel cell.");
+
+            // Read the cell BEFORE removing the control — the position and span are lost with it.
+            TableLayoutPanelCellPosition cell = owner.GetPositionFromControl(tb);
+            int span = owner.GetColumnSpan(tb);
+            bool captioned = captions != null;
+
+            var grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                ColumnCount = count,
+                RowCount = captioned ? 2 : 1
+            };
+            for (int i = 0; i < count; i++)
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / count));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 27f));
+            if (captioned) grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 16f));
+
+            var host = new Panel
+            {
+                Margin = tb.Margin,
+                Anchor = tb.Anchor,
+                Height = captioned ? 43 : 25,
+                BackColor = System.Drawing.Color.Transparent
+            };
+            // A placeholder anchored Left only is a deliberately narrow field (an age, a birth
+            // order); one anchored to both sides is meant to fill its column.
+            if ((tb.Anchor & AnchorStyles.Right) == 0) host.Width = tb.Width;
+
+            var made = new ComboBox[count];
+            for (int i = 0; i < count; i++)
+            {
+                var cbo = new ComboBox
+                {
+                    Name = tb.Name + "Lookup" + i,
+                    DropDownStyle = ComboBoxStyle.DropDown,
+                    AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                    AutoCompleteSource = AutoCompleteSource.ListItems,
+                    Dock = DockStyle.Top,
+                    Font = tb.Font,
+                    Margin = new Padding(0, 0, i == count - 1 ? 0 : 6, 0)
+                };
+                grid.Controls.Add(cbo, i, 0);
+                made[i] = cbo;
+
+                if (captioned)
+                    grid.Controls.Add(new Label
+                    {
+                        Text = captions[i],
+                        Dock = DockStyle.Fill,
+                        ForeColor = UiTheme.Faint,
+                        Font = new System.Drawing.Font("Segoe UI", 7.5F),
+                        Margin = new Padding(1, 1, 6, 0)
+                    }, i, 1);
+            }
+
+            owner.Controls.Remove(tb);
+            host.Controls.Add(grid);
+            host.Controls.Add(tb);
+            tb.Visible = false;
+            owner.Controls.Add(host, cell.Column, cell.Row);
+            if (span > 1) owner.SetColumnSpan(host, span);
+            return made;
+        }
+
+        private void CenterContent()
+        {
+            const int maxW = 1240;
+            // The gutters are Percent columns: an Absolute wider than the client would push
+            // them negative and the content off the left edge, so the cap is clamped to what
+            // is actually available. Below the floor the FORM scrolls (AutoScrollMinSize)
+            // rather than the content shrinking away.
+            int w = Math.Min(maxW, ClientSize.Width);
+            if (w < 900) w = 900;
+            layoutRoot.ColumnStyles[1].SizeType = SizeType.Absolute;
+            layoutRoot.ColumnStyles[1].Width = w;
+        }
+
+        private static OcrDigitizationForm CreateStandaloneOcrWindow()
+        {
+            return new OcrDigitizationForm
+            {
+                FormBorderStyle = FormBorderStyle.Sizable,  
+                StartPosition = FormStartPosition.CenterParent,
+                ShowInTaskbar = false
+            };
         }
 
         // ---------- helpers ----------
+        private static object NullIfBlank(string v) =>
+            string.IsNullOrWhiteSpace(v) ? (object)DBNull.Value : v.Trim();
+
         private static object S(TextBox t) =>
             string.IsNullOrWhiteSpace(t.Text) ? (object)DBNull.Value : t.Text.Trim();
 
@@ -756,6 +1663,11 @@ namespace CROMS.Forms
 
         private static string Str(object v) => v == DBNull.Value || v == null ? "" : v.ToString();
         private static int ToInt(object v) => v == DBNull.Value || v == null ? 0 : Convert.ToInt32(v);
+
+        private void pnlRecordActions_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
 
         private static void SetCombo(ComboBox c, object v) =>
             c.SelectedItem = v == DBNull.Value || v == null ? null : v.ToString();

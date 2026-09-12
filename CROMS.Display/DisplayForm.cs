@@ -14,7 +14,7 @@ namespace CROMS.Display
     /// this board follows with no code change (was hardcoded to exactly 3 before).
     /// No controls: press Esc or double-click to close.
     /// </summary>
-    public class DisplayForm : Form
+    public partial class DisplayForm : Form
     {
         // Minutes without a heartbeat before an operator counts as offline.
         // (Kept in sync with the main app's WindowAssignmentForm.StaleMinutes = 2.)
@@ -25,11 +25,16 @@ namespace CROMS.Display
         private readonly Dictionary<int, Label> _codeLabels = new Dictionary<int, Label>();
         private readonly Dictionary<int, Label> _subLabels = new Dictionary<int, Label>();
         private string _builtSignature = "";   // ids+names the current grid was built for
-        private TableLayoutPanel _grid;
-        private Label _header;
-        private Label _clock;
+        // _grid / _header / _clock live in DisplayForm.Designer.cs.
         private DataTable _lastWins;           // last data, so a resize can re-lay the grid
         private Timer _timer;
+
+        // Voice announcement of the queue number on THIS (display / waiting-area) PC.
+        // windowId → last spoken key (ticket_code + recall_count) so each new call /
+        // recall is announced once. Speech runs on the display laptop's speakers.
+        private readonly Dictionary<int, string> _lastSpoken = new Dictionary<int, string>();
+        private System.Speech.Synthesis.SpeechSynthesizer _voice;
+        private bool _primed;   // first load records what's already serving WITHOUT announcing it
 
         // Every font/height on this board is a multiple of this factor so the whole
         // board scales with the actual screen — small laptop or big TV, it fits and
@@ -42,15 +47,12 @@ namespace CROMS.Display
 
         public DisplayForm()
         {
-            Text = "CROMS — Now Serving";
-            FormBorderStyle = FormBorderStyle.None;
-            WindowState = FormWindowState.Maximized;
-            BackColor = Color.FromArgb(17, 24, 39);
-            KeyPreview = true;
+            InitializeComponent();
             KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Close(); };
             DoubleClick += (s, e) => Close();
 
-            BuildUi();
+            try { _voice = new System.Speech.Synthesis.SpeechSynthesizer(); _voice.SetOutputToDefaultAudioDevice(); }
+            catch { _voice = null; }   // no audio device → board still works silently
 
             _timer = new Timer { Interval = 2000 };
             _timer.Tick += (s, e) => Reload();
@@ -78,41 +80,6 @@ namespace CROMS.Display
             }
             if (_grid != null)
                 _grid.Padding = new Padding((int)(40 * s));
-        }
-
-        private void BuildUi()
-        {
-            _grid = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                Padding = new Padding(40),
-                BackColor = Color.Transparent
-            };
-
-            _header = new Label
-            {
-                Text = "NOW SERVING",
-                ForeColor = Color.White,
-                Font = new Font("Segoe UI", 40F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Top,
-                Height = 150
-            };
-
-            _clock = new Label
-            {
-                Text = "",
-                ForeColor = Color.FromArgb(148, 163, 184),
-                Font = new Font("Segoe UI", 14F),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Dock = DockStyle.Bottom,
-                Height = 50
-            };
-
-            // Fill first, then the docked edges, so the grid fills the middle.
-            Controls.Add(_grid);
-            Controls.Add(_clock);
-            Controls.Add(_header);
         }
 
         private void Reload()
@@ -146,7 +113,7 @@ namespace CROMS.Display
                     // for client privacy + a cleaner display. Only 'Serving' tickets appear
                     // (Accepted ones are still being located and stay private).
                     DataTable dt = Db.Pull(
-                        "SELECT ticket_code FROM queue_tickets " +
+                        "SELECT ticket_code, COALESCE(recall_count,0) AS rc FROM queue_tickets " +
                         "WHERE status = 'Serving' AND window_no = " + id +
                         " AND DATE(created_at) = CURDATE() ORDER BY id DESC LIMIT 1");
 
@@ -158,20 +125,57 @@ namespace CROMS.Display
                         _subLabels[id].ForeColor = online
                             ? Color.FromArgb(74, 222, 128)      // green
                             : Color.FromArgb(148, 163, 184);    // grey
+                        _lastSpoken[id] = "";   // reset so re-serving the same number later is re-announced
                     }
                     else
                     {
-                        _codeLabels[id].Text = dt.Rows[0]["ticket_code"].ToString();
+                        string code = dt.Rows[0]["ticket_code"].ToString();
+                        _codeLabels[id].Text = code;
                         _subLabels[id].Text = "";   // no service name on the public board
+
+                        // Announce when a NEW number is called, or the same one is recalled.
+                        string key = code + "#" + dt.Rows[0]["rc"];
+                        string prev = _lastSpoken.ContainsKey(id) ? _lastSpoken[id] : "";
+                        if (key != prev)
+                        {
+                            _lastSpoken[id] = key;
+                            if (_primed) Announce(code, w["window_name"].ToString());
+                        }
                     }
                 }
                 _clock.Text = DateTime.Now.ToString("dddd, dd MMMM yyyy   hh:mm:ss tt");
+                _primed = true;   // after the first pass, later changes are announced
             }
             catch
             {
                 // Database unreachable — show a gentle notice instead of crashing.
                 _clock.Text = "Waiting for connection to the CROMS database…";
             }
+        }
+
+        /// <summary>Speaks the queue number to the window on this PC's speakers (best-effort).</summary>
+        private void Announce(string code, string windowName)
+        {
+            if (_voice == null || string.IsNullOrWhiteSpace(code)) return;
+            try
+            {
+                _voice.SpeakAsyncCancelAll();
+                // e.g. "Queue number Q 0 1 8, please proceed to Window 1."
+                _voice.SpeakAsync("Queue number " + Spell(code) + ", please proceed to " + windowName + ".");
+            }
+            catch { /* audio busy / no device — never break the board */ }
+        }
+
+        /// <summary>Reads "Q-016" clearly as "Q 0 1 6" (letters kept, digits spoken singly).</summary>
+        private static string Spell(string code)
+        {
+            var sb = new StringBuilder();
+            foreach (char ch in code)
+            {
+                if (ch == '-' || ch == '_') sb.Append(' ');
+                else { sb.Append(ch); sb.Append(' '); }
+            }
+            return sb.ToString().Trim();
         }
 
         /// <summary>Lays out one card per active window: up to 4 per row, then wraps.</summary>
@@ -212,9 +216,11 @@ namespace CROMS.Display
             for (int r = 0; r < rows; r++)
                 _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
 
-            // Font scales down a little as more windows share the screen, THEN scales
-            // with the screen size so it fits a small laptop or fills a big TV.
-            float codeSize = (count <= 3 ? 90F : count <= 6 ? 64F : 46F) * sc;
+            // Upper bound for the ticket-code font. It's generous so a short number (e.g.
+            // "Q-037") GROWS to fill the card and reads across the room; AutoFit shrinks a
+            // long code back down to fit. Scales down a little as more windows share the
+            // screen, then with the screen size (small laptop ↔ big TV).
+            float codeSize = (count <= 3 ? 230F : count <= 6 ? 150F : 100F) * sc;
 
             int i = 0;
             foreach (DataRow w in wins.Rows)
@@ -262,7 +268,7 @@ namespace CROMS.Display
 
                 // Ticket code shrinks to fit its card so a long queue number stays
                 // readable on the public board — never clipped or cut in half.
-                AttachAutoFit(code, codeSize, 16F * sc);
+                AttachAutoFit(code, codeSize, 30F * sc);
 
                 _codeLabels[id] = code;
                 _subLabels[id] = sub;
@@ -291,8 +297,9 @@ namespace CROMS.Display
         private static void FitFont(Label lbl, float maxPt, float minPt)
         {
             if (lbl == null || lbl.IsDisposed || !lbl.IsHandleCreated) return;
-            int w = lbl.ClientSize.Width - lbl.Padding.Horizontal;
-            int h = lbl.ClientSize.Height - lbl.Padding.Vertical;
+            // Small safety margin so the biggest fitted size doesn't kiss the card edges.
+            int w = (int)((lbl.ClientSize.Width - lbl.Padding.Horizontal) * 0.94f);
+            int h = (int)((lbl.ClientSize.Height - lbl.Padding.Vertical) * 0.94f);
             if (w <= 2 || h <= 2) return;
 
             string text = string.IsNullOrEmpty(lbl.Text) ? " " : lbl.Text;
@@ -325,6 +332,7 @@ namespace CROMS.Display
         {
             _timer.Stop();
             _timer.Dispose();
+            try { _voice?.Dispose(); } catch { }
             base.OnFormClosed(e);
         }
     }

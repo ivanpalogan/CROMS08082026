@@ -24,6 +24,25 @@ namespace CROMS
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // Launcher: pick what opens on THIS computer. Display / Kiosk launch as their own
+            // sibling .exe and this process exits; Admin (and "Run All Three") continue here.
+            LauncherChoice choice = LauncherForm.Ask();
+            switch (choice)
+            {
+                case LauncherChoice.Exit:
+                    return;
+                case LauncherChoice.Display:
+                    LauncherForm.Start("CROMS.Display");
+                    return;
+                case LauncherChoice.Kiosk:
+                    LauncherForm.Start("CROMS.Kiosk");
+                    return;
+                case LauncherChoice.All:
+                    LauncherForm.Start("CROMS.Display");
+                    LauncherForm.Start("CROMS.Kiosk");
+                    break;   // then continue into the Admin app below
+            }
+
             // Put a clickable CROMS icon on the desktop (first run only).
             DesktopShortcut.Ensure();
 
@@ -31,6 +50,9 @@ namespace CROMS
             // First run: ask for the server IP. Later: if the server moved / is
             // unreachable, re-ask instead of failing with a cryptic error.
             if (!EnsureServerReachable()) return;   // user chose Exit
+
+            // Keep reconnecting if the server's Wi-Fi/hotspot IP changes mid-session.
+            ServerConfig.StartAutoReconnect();
 
             // Auto-start the Ionic mobile dev server (background). The Login screen
             // shows its live status + mobile URL + QR. Guaranteed shutdown below.
@@ -60,22 +82,32 @@ namespace CROMS
             // false for every normal launch → login is required as usual.
             if (!SessionResume.TryConsume())
             {
-                using (var login = new LoginForm())
+                // Sign-in and window selection are one loop: the window screen's Log out button
+                // comes straight back here rather than dropping the operator into the app.
+                while (true)
                 {
-                    if (login.ShowDialog() != DialogResult.OK)
+                    using (var login = new LoginForm())
                     {
-                        IonicServerManager.ClaimApp.Stop();
-                        IonicServerManager.Instance.Stop();
-                        ApiServerManager.Instance.Stop();
-                        return;   // not authenticated — exit without opening the app
+                        if (login.ShowDialog() != DialogResult.OK)
+                        {
+                            IonicServerManager.ClaimApp.Stop();
+                            IonicServerManager.Instance.Stop();
+                            ApiServerManager.Instance.Stop();
+                            return;   // not authenticated — exit without opening the app
+                        }
                     }
-                }
 
-                // Window Assignment: claim a window (Online) + pick transaction types.
-                // Skippable for staff not manning a window (e.g. admins).
-                using (var assign = new WindowAssignmentForm())
-                {
-                    assign.ShowDialog();
+                    // Window selection: claim a window (Online) + confirm what it handles.
+                    // Skippable for staff not manning a window (e.g. admins).
+                    using (var assign = new WindowAssignmentForm())
+                    {
+                        if (assign.ShowDialog() != DialogResult.Abort) break;   // proceed into the app
+                    }
+
+                    // Logged out from the window screen — drop the session and ask again.
+                    Session.User = null;
+                    Session.WindowId = 0;
+                    Session.WindowName = null;
                 }
             }
 
@@ -93,10 +125,9 @@ namespace CROMS
         {
             if (Db.IsConnected()) return true;   // already good — nothing to ask
 
-            // Saved server unreachable (server moved to a new Wi-Fi/hotspot IP, etc.).
-            // Before bothering the operator, try to auto-find it on the network. If
-            // found, save it and carry on with zero clicks.
-            if (ServerConfig.IsConfigured)
+            // Server unreachable — either never configured (first run) or the saved
+            // server moved to a new Wi-Fi/hotspot IP. Either way, try to auto-find it
+            // on the network FIRST. If found, save it and carry on with zero clicks.
             {
                 int port = ServerConfig.Port > 0 ? ServerConfig.Port : 3306;
                 string found = ServerSetupForm.AutoDiscover(port);

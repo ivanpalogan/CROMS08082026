@@ -1,4 +1,4 @@
-namespace CROMS
+﻿namespace CROMS
 {
     partial class MainForm
     {
@@ -29,6 +29,7 @@ namespace CROMS
             this.btnTransactions = new System.Windows.Forms.Button();
             this.btnCertRequest = new System.Windows.Forms.Button();
             this.btnRelease = new System.Windows.Forms.Button();
+            this.lblGrpCertification = new System.Windows.Forms.Label();
             this.lblGrpRecord = new System.Windows.Forms.Label();
             this.btnBirth = new System.Windows.Forms.Button();
             this.btnMarriage = new System.Windows.Forms.Button();
@@ -37,7 +38,6 @@ namespace CROMS
             this.btnSearch = new System.Windows.Forms.Button();
             this.lblGrpDocument = new System.Windows.Forms.Label();
             this.btnOcr = new System.Windows.Forms.Button();
-            this.btnDocAI = new System.Windows.Forms.Button();
             this.lblGrpOperations = new System.Windows.Forms.Label();
             this.btnFees = new System.Windows.Forms.Button();
             this.btnReports = new System.Windows.Forms.Button();
@@ -67,7 +67,7 @@ namespace CROMS
             // contentPanel
             //
             this.contentPanel.AutoScroll = true;
-            this.contentPanel.BackColor = System.Drawing.Color.White;
+            this.contentPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.contentPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.contentPanel.Location = new System.Drawing.Point(0, 56);
             this.contentPanel.Name = "contentPanel";
@@ -88,7 +88,7 @@ namespace CROMS
             //
             this.headerLabel.AutoSize = true;
             this.headerLabel.Font = new System.Drawing.Font("Segoe UI", 15F, System.Drawing.FontStyle.Bold);
-            this.headerLabel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.headerLabel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.headerLabel.Location = new System.Drawing.Point(20, 12);
             this.headerLabel.Name = "headerLabel";
             this.headerLabel.Size = new System.Drawing.Size(114, 28);
@@ -97,7 +97,7 @@ namespace CROMS
             //
             // sidebarPanel
             //
-            this.sidebarPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.sidebarPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.sidebarPanel.Controls.Add(this.navFlow);
             this.sidebarPanel.Controls.Add(this.brandPanel);
             this.sidebarPanel.Dock = System.Windows.Forms.DockStyle.Left;
@@ -113,17 +113,17 @@ namespace CROMS
             this.navFlow.Controls.Add(this.btnDashboard);
             this.navFlow.Controls.Add(this.btnQueue);
             this.navFlow.Controls.Add(this.btnTransactions);
+            this.navFlow.Controls.Add(this.lblGrpCertification);
             this.navFlow.Controls.Add(this.btnCertRequest);
             this.navFlow.Controls.Add(this.btnRelease);
-            this.navFlow.Controls.Add(this.lblGrpRecord);
             this.navFlow.Controls.Add(this.btnBirth);
             this.navFlow.Controls.Add(this.btnMarriage);
             this.navFlow.Controls.Add(this.btnDeath);
+            this.navFlow.Controls.Add(this.lblGrpRecord);
             this.navFlow.Controls.Add(this.btnPetitions);
             this.navFlow.Controls.Add(this.btnSearch);
             this.navFlow.Controls.Add(this.lblGrpDocument);
             this.navFlow.Controls.Add(this.btnOcr);
-            this.navFlow.Controls.Add(this.btnDocAI);
             this.navFlow.Controls.Add(this.lblGrpOperations);
             this.navFlow.Controls.Add(this.btnFees);
             this.navFlow.Controls.Add(this.btnReports);
@@ -142,7 +142,7 @@ namespace CROMS
             // lblGrpClient
             //
             this.lblGrpClient.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpClient.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(142)))), ((int)(((byte)(150)))));
+            this.lblGrpClient.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
             this.lblGrpClient.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
             this.lblGrpClient.Name = "lblGrpClient";
             this.lblGrpClient.Size = new System.Drawing.Size(200, 24);
@@ -152,12 +152,12 @@ namespace CROMS
             //
             // btnDashboard
             //
-            this.btnDashboard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnDashboard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnDashboard.FlatAppearance.BorderSize = 0;
-            this.btnDashboard.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnDashboard.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnDashboard.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDashboard.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnDashboard.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnDashboard.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnDashboard.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnDashboard.Name = "btnDashboard";
             this.btnDashboard.Size = new System.Drawing.Size(204, 38);
@@ -170,12 +170,12 @@ namespace CROMS
             //
             // btnQueue
             //
-            this.btnQueue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnQueue.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnQueue.FlatAppearance.BorderSize = 0;
-            this.btnQueue.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnQueue.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnQueue.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnQueue.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnQueue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnQueue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnQueue.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnQueue.Name = "btnQueue";
             this.btnQueue.Size = new System.Drawing.Size(204, 38);
@@ -188,12 +188,12 @@ namespace CROMS
             //
             // btnTransactions
             //
-            this.btnTransactions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnTransactions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnTransactions.FlatAppearance.BorderSize = 0;
-            this.btnTransactions.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnTransactions.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnTransactions.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnTransactions.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnTransactions.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnTransactions.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnTransactions.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnTransactions.Name = "btnTransactions";
             this.btnTransactions.Size = new System.Drawing.Size(204, 38);
@@ -206,12 +206,12 @@ namespace CROMS
             //
             // btnCertRequest
             //
-            this.btnCertRequest.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnCertRequest.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnCertRequest.FlatAppearance.BorderSize = 0;
-            this.btnCertRequest.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnCertRequest.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnCertRequest.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnCertRequest.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnCertRequest.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnCertRequest.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnCertRequest.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnCertRequest.Name = "btnCertRequest";
             this.btnCertRequest.Size = new System.Drawing.Size(204, 38);
@@ -224,12 +224,12 @@ namespace CROMS
             //
             // btnRelease
             //
-            this.btnRelease.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnRelease.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnRelease.FlatAppearance.BorderSize = 0;
-            this.btnRelease.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnRelease.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnRelease.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnRelease.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnRelease.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnRelease.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnRelease.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnRelease.Name = "btnRelease";
             this.btnRelease.Size = new System.Drawing.Size(204, 38);
@@ -240,25 +240,36 @@ namespace CROMS
             this.btnRelease.UseVisualStyleBackColor = false;
             this.btnRelease.Click += new System.EventHandler(this.NavButton_Click);
             //
+            // lblGrpCertification
+            //
+            this.lblGrpCertification.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpCertification.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpCertification.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpCertification.Name = "lblGrpCertification";
+            this.lblGrpCertification.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpCertification.TabIndex = 6;
+            this.lblGrpCertification.Text = "CERTIFICATION";
+            this.lblGrpCertification.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            //
             // lblGrpRecord
             //
             this.lblGrpRecord.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpRecord.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(142)))), ((int)(((byte)(150)))));
+            this.lblGrpRecord.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
             this.lblGrpRecord.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
             this.lblGrpRecord.Name = "lblGrpRecord";
             this.lblGrpRecord.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpRecord.TabIndex = 6;
-            this.lblGrpRecord.Text = "RECORD MANAGEMENT";
+            this.lblGrpRecord.TabIndex = 10;
+            this.lblGrpRecord.Text = "PETITIONS & SEARCH";
             this.lblGrpRecord.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
             //
             // btnBirth
             //
-            this.btnBirth.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnBirth.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnBirth.FlatAppearance.BorderSize = 0;
-            this.btnBirth.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnBirth.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnBirth.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnBirth.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnBirth.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnBirth.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnBirth.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnBirth.Name = "btnBirth";
             this.btnBirth.Size = new System.Drawing.Size(204, 38);
@@ -271,12 +282,12 @@ namespace CROMS
             //
             // btnMarriage
             //
-            this.btnMarriage.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnMarriage.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnMarriage.FlatAppearance.BorderSize = 0;
-            this.btnMarriage.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnMarriage.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnMarriage.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnMarriage.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnMarriage.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnMarriage.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnMarriage.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnMarriage.Name = "btnMarriage";
             this.btnMarriage.Size = new System.Drawing.Size(204, 38);
@@ -289,12 +300,12 @@ namespace CROMS
             //
             // btnDeath
             //
-            this.btnDeath.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnDeath.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnDeath.FlatAppearance.BorderSize = 0;
-            this.btnDeath.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnDeath.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnDeath.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDeath.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnDeath.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnDeath.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnDeath.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnDeath.Name = "btnDeath";
             this.btnDeath.Size = new System.Drawing.Size(204, 38);
@@ -307,12 +318,12 @@ namespace CROMS
             //
             // btnPetitions
             //
-            this.btnPetitions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnPetitions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnPetitions.FlatAppearance.BorderSize = 0;
-            this.btnPetitions.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnPetitions.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnPetitions.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnPetitions.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnPetitions.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnPetitions.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnPetitions.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnPetitions.Name = "btnPetitions";
             this.btnPetitions.Size = new System.Drawing.Size(204, 38);
@@ -325,12 +336,12 @@ namespace CROMS
             //
             // btnSearch
             //
-            this.btnSearch.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnSearch.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnSearch.FlatAppearance.BorderSize = 0;
-            this.btnSearch.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnSearch.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnSearch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSearch.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnSearch.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnSearch.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnSearch.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(204, 38);
@@ -344,7 +355,7 @@ namespace CROMS
             // lblGrpDocument
             //
             this.lblGrpDocument.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpDocument.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(142)))), ((int)(((byte)(150)))));
+            this.lblGrpDocument.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
             this.lblGrpDocument.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
             this.lblGrpDocument.Name = "lblGrpDocument";
             this.lblGrpDocument.Size = new System.Drawing.Size(200, 24);
@@ -354,44 +365,26 @@ namespace CROMS
             //
             // btnOcr
             //
-            this.btnOcr.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnOcr.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnOcr.FlatAppearance.BorderSize = 0;
-            this.btnOcr.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnOcr.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnOcr.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnOcr.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnOcr.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnOcr.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnOcr.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnOcr.Name = "btnOcr";
             this.btnOcr.Size = new System.Drawing.Size(204, 38);
             this.btnOcr.TabIndex = 15;
             this.btnOcr.Tag = "ocr";
-            this.btnOcr.Text = "   OCR Digitization";
+            this.btnOcr.Text = "   Intelligent Document Processing";
             this.btnOcr.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnOcr.UseVisualStyleBackColor = false;
             this.btnOcr.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // btnDocAI
-            //
-            this.btnDocAI.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
-            this.btnDocAI.FlatAppearance.BorderSize = 0;
-            this.btnDocAI.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
-            this.btnDocAI.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnDocAI.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnDocAI.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
-            this.btnDocAI.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnDocAI.Name = "btnDocAI";
-            this.btnDocAI.Size = new System.Drawing.Size(204, 38);
-            this.btnDocAI.TabIndex = 16;
-            this.btnDocAI.Tag = "docai";
-            this.btnDocAI.Text = "   Document AI";
-            this.btnDocAI.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnDocAI.UseVisualStyleBackColor = false;
-            this.btnDocAI.Click += new System.EventHandler(this.NavButton_Click);
-            //
             // lblGrpOperations
             //
             this.lblGrpOperations.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpOperations.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(142)))), ((int)(((byte)(150)))));
+            this.lblGrpOperations.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
             this.lblGrpOperations.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
             this.lblGrpOperations.Name = "lblGrpOperations";
             this.lblGrpOperations.Size = new System.Drawing.Size(200, 24);
@@ -401,12 +394,12 @@ namespace CROMS
             //
             // btnFees
             //
-            this.btnFees.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnFees.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnFees.FlatAppearance.BorderSize = 0;
-            this.btnFees.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnFees.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnFees.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnFees.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnFees.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnFees.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnFees.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnFees.Name = "btnFees";
             this.btnFees.Size = new System.Drawing.Size(204, 38);
@@ -419,18 +412,18 @@ namespace CROMS
             //
             // btnReports
             //
-            this.btnReports.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnReports.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnReports.FlatAppearance.BorderSize = 0;
-            this.btnReports.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnReports.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnReports.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnReports.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnReports.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnReports.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnReports.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnReports.Name = "btnReports";
             this.btnReports.Size = new System.Drawing.Size(204, 38);
             this.btnReports.TabIndex = 18;
             this.btnReports.Tag = "reports";
-            this.btnReports.Text = "   Reports && PSA";
+            this.btnReports.Text = "   Reports && Analytics";
             this.btnReports.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnReports.UseVisualStyleBackColor = false;
             this.btnReports.Click += new System.EventHandler(this.NavButton_Click);
@@ -438,7 +431,7 @@ namespace CROMS
             // lblGrpAdmin
             //
             this.lblGrpAdmin.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpAdmin.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(134)))), ((int)(((byte)(142)))), ((int)(((byte)(150)))));
+            this.lblGrpAdmin.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
             this.lblGrpAdmin.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
             this.lblGrpAdmin.Name = "lblGrpAdmin";
             this.lblGrpAdmin.Size = new System.Drawing.Size(200, 24);
@@ -448,12 +441,12 @@ namespace CROMS
             //
             // btnMaster
             //
-            this.btnMaster.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnMaster.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnMaster.FlatAppearance.BorderSize = 0;
-            this.btnMaster.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnMaster.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnMaster.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnMaster.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnMaster.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnMaster.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnMaster.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnMaster.Name = "btnMaster";
             this.btnMaster.Size = new System.Drawing.Size(204, 38);
@@ -466,12 +459,12 @@ namespace CROMS
             //
             // btnUsers
             //
-            this.btnUsers.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnUsers.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnUsers.FlatAppearance.BorderSize = 0;
-            this.btnUsers.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnUsers.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnUsers.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnUsers.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnUsers.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnUsers.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnUsers.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnUsers.Name = "btnUsers";
             this.btnUsers.Size = new System.Drawing.Size(204, 38);
@@ -484,12 +477,12 @@ namespace CROMS
             //
             // btnWindows
             //
-            this.btnWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
+            this.btnWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
             this.btnWindows.FlatAppearance.BorderSize = 0;
-            this.btnWindows.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(52)))), ((int)(((byte)(58)))), ((int)(((byte)(64)))));
+            this.btnWindows.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
             this.btnWindows.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnWindows.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnWindows.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(206)))), ((int)(((byte)(212)))), ((int)(((byte)(218)))));
+            this.btnWindows.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
             this.btnWindows.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
             this.btnWindows.Name = "btnWindows";
             this.btnWindows.Size = new System.Drawing.Size(204, 38);
@@ -502,7 +495,7 @@ namespace CROMS
             //
             // brandPanel
             //
-            this.brandPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(30)))));
+            this.brandPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(12)))), ((int)(((byte)(24)))), ((int)(((byte)(44)))));
             this.brandPanel.Controls.Add(this.brandLabel);
             this.brandPanel.Dock = System.Windows.Forms.DockStyle.Top;
             this.brandPanel.Location = new System.Drawing.Point(0, 0);
@@ -557,6 +550,7 @@ namespace CROMS
         private System.Windows.Forms.Button btnTransactions;
         private System.Windows.Forms.Button btnCertRequest;
         private System.Windows.Forms.Button btnRelease;
+        private System.Windows.Forms.Label lblGrpCertification;
         private System.Windows.Forms.Label lblGrpRecord;
         private System.Windows.Forms.Button btnBirth;
         private System.Windows.Forms.Button btnMarriage;
@@ -565,7 +559,6 @@ namespace CROMS
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Label lblGrpDocument;
         private System.Windows.Forms.Button btnOcr;
-        private System.Windows.Forms.Button btnDocAI;
         private System.Windows.Forms.Label lblGrpOperations;
         private System.Windows.Forms.Button btnFees;
         private System.Windows.Forms.Button btnReports;

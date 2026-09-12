@@ -29,6 +29,9 @@ namespace CROMS.Forms
             this.btnDelete = new System.Windows.Forms.Button();
             this.btnNew = new System.Windows.Forms.Button();
             this.lblHint = new System.Windows.Forms.Label();
+            this.lblSearch = new System.Windows.Forms.Label();
+            this.txtSearch = new System.Windows.Forms.TextBox();
+            this.lblCount = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.dgvItems)).BeginInit();
             this.SuspendLayout();
             // 
@@ -72,14 +75,42 @@ namespace CROMS.Forms
             this.cboCategory.Name = "cboCategory";
             this.cboCategory.Size = new System.Drawing.Size(292, 25);
             this.cboCategory.TabIndex = 3;
-            // 
+            //
+            // lblSearch
+            //
+            this.lblSearch.AutoSize = true;
+            this.lblSearch.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.lblSearch.Location = new System.Drawing.Point(402, 83);
+            this.lblSearch.Name = "lblSearch";
+            this.lblSearch.Size = new System.Drawing.Size(50, 17);
+            this.lblSearch.TabIndex = 12;
+            this.lblSearch.Text = "Search";
+            //
+            // txtSearch
+            //
+            this.txtSearch.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtSearch.Location = new System.Drawing.Point(458, 81);
+            this.txtSearch.Name = "txtSearch";
+            this.txtSearch.Size = new System.Drawing.Size(146, 25);
+            this.txtSearch.TabIndex = 13;
+            this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
+            //
+            // lblCount
+            //
+            this.lblCount.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCount.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.lblCount.Location = new System.Drawing.Point(637, 294);
+            this.lblCount.Name = "lblCount";
+            this.lblCount.Size = new System.Drawing.Size(360, 36);
+            this.lblCount.TabIndex = 14;
+            this.lblCount.Text = "";
+            //
             // dgvItems
             // 
             this.dgvItems.AllowUserToAddRows = false;
             this.dgvItems.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
             this.dgvItems.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.dgvItems.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells;
             this.dgvItems.BackgroundColor = System.Drawing.Color.White;
             this.dgvItems.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvItems.Location = new System.Drawing.Point(21, 121);
@@ -189,6 +220,9 @@ namespace CROMS.Forms
             this.Controls.Add(this.btnDelete);
             this.Controls.Add(this.btnNew);
             this.Controls.Add(this.lblHint);
+            this.Controls.Add(this.lblSearch);
+            this.Controls.Add(this.txtSearch);
+            this.Controls.Add(this.lblCount);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "MasterFilesForm";
             this.Text = "Master Files";
@@ -212,5 +246,8 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnDelete;
         private System.Windows.Forms.Button btnNew;
         private System.Windows.Forms.Label lblHint;
+        private System.Windows.Forms.Label lblSearch;
+        private System.Windows.Forms.TextBox txtSearch;
+        private System.Windows.Forms.Label lblCount;
     }
 }

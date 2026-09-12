@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -28,26 +28,52 @@ namespace CROMS.Forms
         private Label lblPhotoCap;
         private PictureBox picUploadedId;   // ID photo uploaded via claimapp (claim_requests.id_image)
         private Label lblUploadedIdCap;
+        private Label lblPhotoState, lblIdState;   // "On file" / "Not uploaded" under each photo
+        private Label _chkSelected, _chkClaimant, _chkPhoto, _chkId;   // "before releasing" list
 
         // responsive-redesign controls (built in BuildResponsiveLayout)
         private TextBox txtSearch;
-        private Label lblTilePending, lblTileToday, lblTileWaiting;
         private Label lblValidation;    // validation message under the claim fields
-        private Label lblClaimStatus;   // claim/verification status in the right card
+        private Label lblClaimStatus;   // the note under the request summary
         private Panel _camPanel;        // whole camera block (one collapsible row)
+
+        // ---- rail (left): find the request ----
+        private Control _tabRow;
+        private Panel _findRow;
+        private Button _btnHistory;     // footer line: released today / back to worklist
+        private bool _historyOpen;      // rail is showing release history instead of the worklist
+
+        // ---- workspace (right): one state, one action ----
+        private Panel _wHead, _wBody, _pnlEmpty, _notePanel, _noteBar;
+        private StatusPill _pill;
+        private Label _wMeta, _nextLab;
+        private TableLayoutPanel _pnlSummary, _pnlClaim, _repBlock, _claimStack;
+        private int _repRow, _camRow;                 // collapsible rows in the claim block
+        private const int RepRowHeight = 108;         // two ID field rows
+        private const int CamRowHeight = 290;         // BuildCameraPanel's own height
+        private string _state = "";     // the status ApplyState last rendered
 
         // Left-list mode: 0 = For Release (ready), 1 = Waiting to Release (parked).
         private int _listMode;
-        private Button _btnResume, _tabPending, _tabWaiting;
+        private Button _tabPending, _tabWaiting;
 
-        // Palette
-        private static readonly Color Bg      = Color.FromArgb(245, 247, 250);
-        private static readonly Color CardBg  = Color.White;
-        private static readonly Color Accent  = Color.FromArgb(13, 110, 253);
-        private static readonly Color Green    = Color.FromArgb(25, 135, 84);
-        private static readonly Color Ink     = Color.FromArgb(33, 37, 41);
-        private static readonly Color Muted   = Color.FromArgb(108, 117, 125);
-        private static readonly Color Line    = Color.FromArgb(222, 226, 230);
+        // Pickup claim loaded from the queue (no transaction yet). When set, Release
+        // closes the claim_requests row directly (mirrors the Claim Form).
+        private int? _pickupClaimId;
+        private string _pickupClaimCode;
+
+        // Palette — the app-wide tokens, not a private copy. This screen used to carry its
+        // own Bootstrap set, which is how it drifted off the retinted shell.
+        private static readonly Color Bg      = UiTheme.PageBg;
+        private static readonly Color CardBg  = UiTheme.Surface;
+        private static readonly Color Accent  = UiTheme.Accent;
+        private static readonly Color Green   = UiTheme.Success;
+        private static readonly Color Amber   = UiTheme.Warning;
+        private static readonly Color Ink     = UiTheme.Ink;
+        private static readonly Color Muted   = UiTheme.Muted;
+        private static readonly Color Line    = UiTheme.CardLine;
+        private static readonly Color Chip    = UiTheme.Chrome;      // inactive tab / neutral chip
+        private static readonly Color Faint   = UiTheme.Faint;
 
         // ---- claimant webcam ----
         private VideoCaptureDevice _camera;
@@ -63,6 +89,7 @@ namespace CROMS.Forms
             PopulateCameras();
             BuildResponsiveLayout();     // docked card layout (replaces the absolute one)
             dgvPending.CellClick += dgvPending_CellClick;
+            txtClaimant.TextChanged += (s, e) => UpdateChecklist();
             this.Disposed += (s, e) => StopCamera();
 
             // Camera is optional per release — default to Off so nothing is initialized
@@ -70,8 +97,11 @@ namespace CROMS.Forms
             tglUseCam.SetCheckedSilently(false);
             ApplyCameraOption();             // hide the camera panel to match the Off state
 
+            SetFaceState(lblPhotoState, false, null, "No kiosk photo");
+            SetFaceState(lblIdState, false, null, "No uploaded ID");
             LoadPending();
             LoadReleased();
+            UpdateChecklist();
         }
 
         // ================================================================
@@ -91,111 +121,140 @@ namespace CROMS.Forms
                 Dock = DockStyle.Fill,
                 BackColor = Bg,
                 Padding = new Padding(16),
-                ColumnCount = 3,
+                ColumnCount = 2,
                 RowCount = 2
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 28));
+            // 340 could not carry four columns: at that width "TXN-2026-000037" and
+            // "Aug 27, 2026" both truncated, and a worklist you cannot read is not a
+            // worklist. 400 fits them and still leaves the workspace ~960 at 1400.
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            // --- title row (spans all 3 columns) ---
+            // --- title row (spans both columns) ---
             var titleBar = new Panel { Dock = DockStyle.Fill, BackColor = Bg };
             titleBar.Controls.Add(new Label
             {
-                Text = "Release & Claim", AutoSize = true, ForeColor = Ink,
+                Text = "Release & Claim", AutoSize = true, ForeColor = Ink, UseMnemonic = false,
                 Font = new Font("Segoe UI", 19F, FontStyle.Bold), Location = new Point(2, 0)
             });
+            // 19pt renders ~40px tall, so the subtitle has to clear 40 — at 36 the two
+            // labels genuinely overlapped (caught by the sibling-overlap sweep, not by eye).
             titleBar.Controls.Add(new Label
             {
                 Text = "Release documents · verify the claimant · capture proof",
                 AutoSize = true, ForeColor = Muted,
-                Font = new Font("Segoe UI", 9F), Location = new Point(4, 36)
+                Font = new Font("Segoe UI", 9F), Location = new Point(4, 41)
             });
             root.Controls.Add(titleBar, 0, 0);
-            root.SetColumnSpan(titleBar, 3);
+            root.SetColumnSpan(titleBar, 2);
 
-            root.Controls.Add(BuildLeftCard(), 0, 1);
-            root.Controls.Add(BuildCenterColumn(), 1, 1);
-            root.Controls.Add(BuildRightCard(), 2, 1);
+            root.Controls.Add(BuildRail(), 0, 1);
+            root.Controls.Add(BuildWorkspace(), 1, 1);
 
             Controls.Add(root);
             ResumeLayout(true);
+
+            ApplyState(null);   // nothing selected yet
         }
 
-        // ---- LEFT: summary tiles + tabs + search + pending grid ----
-        private Control BuildLeftCard()
+        // ---- RAIL: "which request" — tabs, search, scan, worklist, release history ----
+        private Control BuildRail()
         {
-            var card = new Card("Releases") { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 8, 0) };
+            var card = new Card("Find the request", 1) { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 8, 0) };
 
-            var tiles = new TableLayoutPanel
+            // The counts live IN the tab captions. Two of the three summary tiles this
+            // replaces printed the same two numbers a second time, right above the tabs.
+            var tabRow = new TableLayoutPanel
             {
-                Dock = DockStyle.Top, Height = 78, ColumnCount = 3, RowCount = 1, BackColor = CardBg
+                Dock = DockStyle.Top, Height = 42, ColumnCount = 2, RowCount = 1, BackColor = CardBg
             };
-            for (int i = 0; i < 3; i++) tiles.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3));
-            tiles.Controls.Add(Tile("FOR RELEASE", out lblTilePending, Accent), 0, 0);
-            tiles.Controls.Add(Tile("WAITING", out lblTileWaiting, Color.FromArgb(214, 137, 16)), 1, 0);
-            tiles.Controls.Add(Tile("RELEASED TODAY", out lblTileToday, Green), 2, 0);
-
-            // Two tabs: For Release (ready to hand over) / Waiting to Release (parked).
-            var tabRow = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, WrapContents = false, BackColor = CardBg };
+            tabRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            tabRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _tabPending = MakeTab("For Release", true);
-            _tabWaiting = MakeTab("Waiting to Release", false);
+            _tabWaiting = MakeTab("Waiting", false);
+            _tabPending.Dock = DockStyle.Fill;
+            _tabWaiting.Dock = DockStyle.Fill;
             _tabPending.Click += (s, e) => SetListMode(0);
             _tabWaiting.Click += (s, e) => SetListMode(1);
-            tabRow.Controls.Add(_tabPending);
-            tabRow.Controls.Add(_tabWaiting);
+            tabRow.Controls.Add(_tabPending, 0, 0);
+            tabRow.Controls.Add(_tabWaiting, 1, 0);
+            _tabRow = tabRow;
 
-            var search = BuildSearchBar();
+            _findRow = BuildFindRow();
 
             dgvPending.Dock = DockStyle.Fill;
             dgvPending.Margin = new Padding(0);
             StyleGrid(dgvPending);
 
-            // Resume button — only for the Waiting tab. Sends a parked request to payment.
-            _btnResume = new Button
-            {
-                Text = "➡  Resume — Send to Payment",
-                Dock = DockStyle.Bottom, Height = 46, Visible = false,
-                FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(214, 137, 16),
-                ForeColor = Color.White, Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
-                Cursor = Cursors.Hand, Margin = new Padding(0, 6, 0, 0)
-            };
-            _btnResume.FlatAppearance.BorderSize = 0;
-            _btnResume.Click += (s, e) => ResumeSelected();
+            // Release history moved out of the middle of the screen. It is reference
+            // material, not the client in front of you, so it lives behind the footer
+            // line and takes the SAME space as the worklist instead of competing with it.
+            dgvReleased.Dock = DockStyle.Fill;
+            dgvReleased.Margin = new Padding(0);
+            dgvReleased.Visible = false;
+            StyleGrid(dgvReleased);
+            dgvReleased.CellDoubleClick += (s, e) => ShowReleaseDetails(e.RowIndex);
 
-            card.Content.Controls.Add(dgvPending);   // fill (add first)
-            card.Content.Controls.Add(_btnResume);   // bottom
-            card.Content.Controls.Add(search);       // top
-            card.Content.Controls.Add(tabRow);       // top
-            card.Content.Controls.Add(tiles);        // top (outermost = highest)
+            var listHost = new Panel { Dock = DockStyle.Fill, BackColor = CardBg };
+            listHost.Controls.Add(dgvPending);
+            listHost.Controls.Add(dgvReleased);
+
+            _btnHistory = new Button
+            {
+                Text = "Released today · 0", Dock = DockStyle.Bottom, Height = 40,
+                FlatStyle = FlatStyle.Flat, BackColor = CardBg, ForeColor = Muted,
+                Font = new Font("Segoe UI", 9.5F), TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(2, 0, 0, 0), Cursor = Cursors.Hand
+            };
+            _btnHistory.FlatAppearance.BorderSize = 0;
+            _btnHistory.Click += (s, e) => ShowHistory(!_historyOpen);
+
+            card.Content.Controls.Add(listHost);     // Fill added FIRST — see the note in BuildWorkspace
+            card.Content.Controls.Add(_btnHistory);  // Bottom
+            card.Content.Controls.Add(_findRow);     // Top
+            card.Content.Controls.Add(tabRow);       // Top (outermost = highest)
             return card;
+        }
+
+        /// <summary>Swaps the rail between the worklist and the release history.</summary>
+        private void ShowHistory(bool on)
+        {
+            _historyOpen = on;
+            _tabRow.Visible = !on;
+            _findRow.Visible = !on;
+            dgvPending.Visible = !on;
+            dgvReleased.Visible = on;
+            if (on) LoadReleased();
+            UpdateSummary();
         }
 
         private Button MakeTab(string text, bool active) => new Button
         {
-            Text = text, AutoSize = false, Width = 168, Height = 32,
+            Text = text, AutoSize = false, Height = 34,
             FlatStyle = FlatStyle.Flat,
-            BackColor = active ? Accent : Color.FromArgb(233, 236, 239),
+            BackColor = active ? Accent : Chip,
             ForeColor = active ? Color.White : Ink,
             Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
-            Cursor = Cursors.Hand, Margin = new Padding(0, 4, 8, 4)
+            Cursor = Cursors.Hand, Margin = new Padding(0, 4, 6, 4)
         };
 
         /// <summary>Switches the left list between For-Release and Waiting-to-Release.</summary>
         private void SetListMode(int mode)
         {
+            if (_historyOpen) ShowHistory(false);
             _listMode = mode;
             bool waiting = mode == 1;
-            _tabPending.BackColor = waiting ? Color.FromArgb(233, 236, 239) : Accent;
+            _tabPending.BackColor = waiting ? Chip : Accent;
             _tabPending.ForeColor = waiting ? Ink : Color.White;
-            _tabWaiting.BackColor = waiting ? Color.FromArgb(214, 137, 16) : Color.FromArgb(233, 236, 239);
+            _tabWaiting.BackColor = waiting ? Amber : Chip;
             _tabWaiting.ForeColor = waiting ? Color.White : Ink;
-            _btnResume.Visible = waiting;
             _selectedTxnId = null;
+            _pickupClaimId = null;
             if (lblValidation != null) lblValidation.Text = "";
             LoadPending();
+            ApplyState(null);
         }
 
         /// <summary>Sends the selected parked request to Fees &amp; Payments (status → ForPayment).</summary>
@@ -233,7 +292,13 @@ namespace CROMS.Forms
             return null;
         }
 
-        private Panel BuildSearchBar()
+        /// <summary>
+        /// Search + QR scan on one row. Both answer the SAME question — which request is
+        /// this — so they sit together and both load into the workspace on the right. The
+        /// QR button used to open a second release window (ClaimFormForm) with its own
+        /// claimant fields and its own Release button: two code paths to the same handover.
+        /// </summary>
+        private Panel BuildFindRow()
         {
             var bar = new Panel { Dock = DockStyle.Top, Height = 52, BackColor = CardBg, Padding = new Padding(0, 8, 0, 8) };
 
@@ -243,24 +308,127 @@ namespace CROMS.Forms
                 Font = new Font("Segoe UI", 11F),
                 ForeColor = Ink
             };
-            SetCue(txtSearch, "Search transaction no. or name…");
+            SetCue(txtSearch, "Txn no., queue no., or name…");
             txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; DoSearch(); } };
 
-            var btnSearch = MakeMiniButton("Search", Accent, Color.White);
+            var btnScan = MakeMiniButton("Scan QR", Chip, Accent);
+            btnScan.Width = 86;
+            btnScan.Click += (s, e) => ScanClaimQr();
+            var btnSearch = MakeMiniButton("Find", Accent, Color.White);
+            btnSearch.Width = 60;
             btnSearch.Click += (s, e) => DoSearch();
-            var btnClear = MakeMiniButton("Clear", Color.FromArgb(233, 236, 239), Ink);
+            var btnClear = MakeMiniButton("Clear", Chip, Ink);
+            btnClear.Width = 60;
             btnClear.Click += (s, e) => { txtSearch.Text = ""; LoadPending(); lblValidation.Text = ""; };
 
-            // right-docked buttons first (so Fill textbox takes the rest)
+            // right-docked buttons first (so the Fill textbox takes the rest)
             bar.Controls.Add(txtSearch);
+            bar.Controls.Add(btnScan);
             bar.Controls.Add(btnSearch);
             bar.Controls.Add(btnClear);
+            btnScan.Dock = DockStyle.Right;
             btnSearch.Dock = DockStyle.Right;
             btnClear.Dock = DockStyle.Right;
             var pad = new Panel { Dock = DockStyle.Right, Width = 6, BackColor = CardBg };
             bar.Controls.Add(pad);
             bar.Controls.SetChildIndex(txtSearch, 0);
             return bar;
+        }
+
+        /// <summary>
+        /// Reads a scanned claim QR (handheld scanners type the token then Enter) and loads
+        /// that claim into THIS workspace. Scanning identifies a claim; it does not verify a
+        /// person, which is why the button no longer says "Verify by QR".
+        /// </summary>
+        private void ScanClaimQr()
+        {
+            string token = PromptForToken();
+            if (string.IsNullOrWhiteSpace(token)) return;
+            token = token.Trim();
+
+            // A QR may carry the raw token or a URL ending in it; take the last segment.
+            int cut = token.LastIndexOfAny(new[] { '/', '=', '?', '&' });
+            if (cut >= 0 && cut < token.Length - 1) token = token.Substring(cut + 1);
+
+            DataTable dt = Db.Pull(
+                "SELECT id, queue_ticket_id, transaction_id, claim_ticket_no " +
+                "FROM claim_requests WHERE qr_token = @t OR claim_ticket_no = @t LIMIT 1",
+                new MySqlParameter("@t", token));
+            if (dt.Rows.Count == 0)
+            {
+                if (lblValidation != null) lblValidation.Text = "⚠ No claim request matches that QR / token.";
+                MessageBox.Show("No claim request matches that QR or token.", "Not found",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DataRow r = dt.Rows[0];
+            if (r["queue_ticket_id"] != DBNull.Value)
+            {
+                PrepareFromQueueTicket(Convert.ToInt32(r["queue_ticket_id"]));
+                return;
+            }
+            if (r["transaction_id"] != DBNull.Value)
+            {
+                long txn = Convert.ToInt64(r["transaction_id"]);
+                SetListMode(0);
+                PreselectTransaction(txn);
+                if (!_selectedTxnId.HasValue && lblValidation != null)
+                    lblValidation.Text = "⚠ Claim " + r["claim_ticket_no"] +
+                        " is not in the For Release list — check its payment status.";
+                return;
+            }
+            if (lblValidation != null)
+                lblValidation.Text = "⚠ Claim " + r["claim_ticket_no"] + " has no queue ticket or transaction yet.";
+        }
+
+        /// <summary>Small modal that takes the scanner's keystrokes (or a typed token).</summary>
+        private string PromptForToken()
+        {
+            using (var dlg = new Form
+            {
+                Text = "Scan claim QR",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false, MaximizeBox = false,
+                ClientSize = new Size(430, 150), BackColor = CardBg
+            })
+            {
+                var lbl = new Label
+                {
+                    Text = "Scan the claimant's QR now, or type the claim token / ticket number.",
+                    Location = new Point(18, 18), Size = new Size(394, 36),
+                    ForeColor = Muted, Font = new Font("Segoe UI", 9F)
+                };
+                var box = new TextBox
+                {
+                    Location = new Point(18, 58), Size = new Size(394, 30),
+                    Font = new Font("Segoe UI", 12F)
+                };
+                var ok = new Button
+                {
+                    Text = "Load", DialogResult = DialogResult.OK,
+                    Location = new Point(292, 100), Size = new Size(120, 34),
+                    FlatStyle = FlatStyle.Flat, BackColor = Accent, ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold), Cursor = Cursors.Hand
+                };
+                ok.FlatAppearance.BorderSize = 0;
+                var cancel = new Button
+                {
+                    Text = "Cancel", DialogResult = DialogResult.Cancel,
+                    Location = new Point(186, 100), Size = new Size(96, 34),
+                    FlatStyle = FlatStyle.Flat, BackColor = Chip, ForeColor = Ink,
+                    Font = new Font("Segoe UI", 10F), Cursor = Cursors.Hand
+                };
+                cancel.FlatAppearance.BorderSize = 0;
+                dlg.Controls.Add(lbl);
+                dlg.Controls.Add(box);
+                dlg.Controls.Add(ok);
+                dlg.Controls.Add(cancel);
+                dlg.AcceptButton = ok;
+                dlg.CancelButton = cancel;
+                return dlg.ShowDialog(this) == DialogResult.OK ? box.Text : null;
+            }
         }
 
         /// <summary>Search filters the pending list by transaction code or client name; a
@@ -342,154 +510,525 @@ namespace CROMS.Forms
             return 0;
         }
 
-        // ---- CENTER: claim details card + recent releases card ----
-        private Control BuildCenterColumn()
+        // ---- WORKSPACE: "what to do about it" — header, state-driven body, one action ----
+        private Control BuildWorkspace()
         {
-            var col = new TableLayoutPanel
+            var card = new Card(null) { Dock = DockStyle.Fill, Margin = new Padding(8, 0, 0, 0) };
+
+            // ---------- header: status, who, what ----------
+            _wHead = new Panel { Dock = DockStyle.Top, Height = 92, BackColor = CardBg, Padding = new Padding(4, 8, 4, 6) };
+            _pill = new StatusPill
             {
-                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
-                BackColor = Bg, Margin = new Padding(8, 0, 8, 0)
+                Text = "No request selected",
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Location = new Point(4, 4)
             };
-            col.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            col.RowStyles.Add(new RowStyle(SizeType.Percent, 60));
-            col.RowStyles.Add(new RowStyle(SizeType.Percent, 40));
+            _pill.SetTone(Chip, Muted);
 
-            // -- Claim Details --
-            var claim = new Card("Claim Details") { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, 8) };
+            lblSelected.AutoSize = true;
+            lblSelected.UseMnemonic = false;
+            lblSelected.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
+            lblSelected.ForeColor = Ink;
+            lblSelected.Location = new Point(2, 30);
+            lblSelected.Text = "—";
 
-            var fields = new TableLayoutPanel
+            _wMeta = new Label
             {
-                Dock = DockStyle.Fill, ColumnCount = 2, BackColor = CardBg,
-                GrowStyle = TableLayoutPanelGrowStyle.AddRows, AutoScroll = true
+                AutoSize = false, Dock = DockStyle.Bottom, Height = 20, UseMnemonic = false,
+                ForeColor = Muted, Font = new Font("Segoe UI", 9.5F), Text = ""
             };
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            _wHead.Controls.Add(_wMeta);
+            _wHead.Controls.Add(lblSelected);
+            _wHead.Controls.Add(_pill);
 
-            lblSelected.AutoSize = false;
-            lblSelected.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
-            AddRowSpan(fields, lblSelected, 30);
+            // ---------- body ----------
+            _wBody = new Panel { Dock = DockStyle.Fill, BackColor = CardBg, AutoScroll = true, Padding = new Padding(2, 6, 2, 6) };
 
-            txtClaimant.Font = new Font("Segoe UI", 11F);
-            txtIdType.Font = new Font("Segoe UI", 11F);
-            txtIdNum.Font = new Font("Segoe UI", 11F);
-            AddFieldRow(fields, lblClaimant, txtClaimant);
-            AddRowSpan(fields, chkRep, 30);
-            AddFieldRow(fields, lblIdType, txtIdType);
-            AddFieldRow(fields, lblIdNum, txtIdNum);
-
-            lblValidation = new Label
+            // Dock=Top children in an AutoScroll panel, with EXPLICIT heights. An AutoSize
+            // TableLayoutPanel here overflows the stack instead: its own height depends on
+            // its children while a Dock=Fill child's height depends on it, and WinForms
+            // resolves that by recursing until the process dies (measured — StackOverflow
+            // on construction, before anything reaches the screen).
+            _pnlSummary = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill, AutoSize = false, ForeColor = Color.FromArgb(200, 35, 51),
-                Font = new Font("Segoe UI", 9F), Text = ""
+                Dock = DockStyle.Top, ColumnCount = 2, BackColor = CardBg, Height = 0,
+                GrowStyle = TableLayoutPanelGrowStyle.AddRows, Margin = new Padding(0)
             };
-            AddRowSpan(fields, lblValidation, 36);
+            _pnlSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+            _pnlSummary.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            // Release button — full-width, prominent green, docked at the card bottom.
-            btnRelease.Dock = DockStyle.Bottom;
-            btnRelease.Height = 56;
-            btnRelease.Text = "✔  Release Document";
+            _pnlClaim = BuildClaimBlock();
+            _pnlEmpty = BuildEmptyBlock();
+
+            // added in reverse: Dock=Top stacks the LAST added at the top.
+            // NOTHING here is Dock=Fill: a Fill child inside an AutoScroll panel that also
+            // holds Top children oscillates — the scrollbar appears, the display rect
+            // shrinks, the Fill child resizes, the scrollbar goes away — and WinForms
+            // resolves that by recursing until the process dies.
+            _wBody.Controls.Add(_pnlEmpty);
+            _wBody.Controls.Add(_pnlClaim);
+            _wBody.Controls.Add(BuildNotePanel());
+            _wBody.Controls.Add(_pnlSummary);
+
+            // ---------- footer: where this goes, and the one action ----------
+            var foot = new Panel { Dock = DockStyle.Bottom, Height = 68, BackColor = CardBg, Padding = new Padding(0, 10, 0, 4) };
+            btnRelease.Dock = DockStyle.Right;
+            btnRelease.Width = 250;
+            btnRelease.Text = "Release document";
             btnRelease.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
             btnRelease.FlatStyle = FlatStyle.Flat;
             btnRelease.BackColor = Green;
             btnRelease.ForeColor = Color.White;
             btnRelease.Cursor = Cursors.Hand;
             btnRelease.FlatAppearance.BorderSize = 0;
-            btnRelease.FlatAppearance.MouseOverBackColor = Color.FromArgb(20, 108, 67);
-            btnRelease.Margin = new Padding(0, 8, 0, 0);
+            btnRelease.Margin = new Padding(0);
+            _nextLab = new Label
+            {
+                Dock = DockStyle.Fill, AutoSize = false, ForeColor = Muted, UseMnemonic = false,
+                Font = new Font("Segoe UI", 9.5F), TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(4, 0, 12, 0), Text = ""
+            };
+            foot.Controls.Add(_nextLab);     // Fill first
+            foot.Controls.Add(btnRelease);   // Right
 
-            claim.Content.Controls.Add(btnRelease);   // bottom
-            claim.Content.Controls.Add(fields);       // fill (add last)
-            col.Controls.Add(claim, 0, 0);
-
-            // -- Recent Releases --
-            var recent = new Card("Recent Releases") { Dock = DockStyle.Fill, Margin = new Padding(0, 8, 0, 0) };
-            dgvReleased.Dock = DockStyle.Fill;
-            dgvReleased.Margin = new Padding(0);
-            StyleGrid(dgvReleased);
-            dgvReleased.CellDoubleClick += (s, e) => ShowReleaseDetails(e.RowIndex);
-            recent.Content.Controls.Add(dgvReleased);
-            col.Controls.Add(recent, 0, 1);
-
-            return col;
+            // ORDER MATTERS: a docked child added LATER is laid out FIRST, so the Fill
+            // control must be added FIRST to receive what is left. Adding Fill last is what
+            // made the old Release button share pixels with the fields panel above it.
+            card.Content.Controls.Add(_wBody);   // Fill
+            card.Content.Controls.Add(foot);     // Bottom
+            card.Content.Controls.Add(_wHead);   // Top
+            return card;
         }
 
-        // ---- RIGHT: QR claim, status, photo, optional camera ----
-        private Control BuildRightCard()
+        /// <summary>The one-line explanation under the request summary (reuses lblClaimStatus).</summary>
+        private Panel BuildNotePanel()
         {
-            var card = new Card("Claim & Verification") { Dock = DockStyle.Fill, Margin = new Padding(8, 0, 0, 0) };
-            var stack = new TableLayoutPanel
+            _notePanel = new Panel
             {
-                Dock = DockStyle.Fill, ColumnCount = 1, BackColor = CardBg,
-                AutoScroll = true, GrowStyle = TableLayoutPanelGrowStyle.AddRows
+                Dock = DockStyle.Top, BackColor = UiTheme.AccentTint, Padding = new Padding(14, 10, 12, 10),
+                Height = 62, Margin = new Padding(2, 2, 2, 10), Visible = false
             };
-            stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-            var qr = new Button
-            {
-                Text = "🔎  Claim by QR", Dock = DockStyle.Fill, Height = 48,
-                FlatStyle = FlatStyle.Flat, BackColor = Accent, ForeColor = Color.White,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand
-            };
-            qr.FlatAppearance.BorderSize = 0;
-            qr.FlatAppearance.MouseOverBackColor = Color.FromArgb(11, 94, 215);
-            qr.Click += (s, e) =>
-            {
-                using (var dlg = new ClaimFormForm()) dlg.ShowDialog(this);
-                LoadReleased(); UpdateSummary();
-            };
-            AddStack(stack, qr, 52);
-
+            _noteBar = new Panel { Dock = DockStyle.Left, Width = 3, BackColor = Accent };
             lblClaimStatus = new Label
             {
-                Text = "No release selected.", Dock = DockStyle.Fill, AutoSize = false,
-                Font = new Font("Segoe UI", 9.5F), ForeColor = Muted
+                Dock = DockStyle.Fill, AutoSize = false, UseMnemonic = false,
+                ForeColor = Ink, Font = new Font("Segoe UI", 9.5F), Text = ""
             };
-            AddStack(stack, lblClaimStatus, 42);
+            _notePanel.Controls.Add(lblClaimStatus);   // Fill first
+            _notePanel.Controls.Add(_noteBar);         // Left
+            return _notePanel;
+        }
 
+        private void SetNote(string text, Color tint, Color bar)
+        {
+            if (_notePanel == null) return;
+            bool has = !string.IsNullOrWhiteSpace(text);
+            _notePanel.Visible = has;
+            OrderBody();
+            if (!has) { lblClaimStatus.Text = ""; return; }
+            lblClaimStatus.Text = text;
+            _notePanel.BackColor = tint;
+            _noteBar.BackColor = bar;
+        }
+
+        /// <summary>Shown when nothing is picked — instead of live fields for a release
+        /// that does not exist yet, and a button whose only answer is a message box.</summary>
+        private Panel BuildEmptyBlock()
+        {
+            var p = new Panel { Dock = DockStyle.Top, Height = 200, BackColor = CardBg, Visible = false };
+            var big = new Label
+            {
+                Text = "No request selected", Dock = DockStyle.Top, Height = 30, AutoSize = false,
+                ForeColor = Muted, Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            var sm = new Label
+            {
+                Text = "Pick a request on the left, or scan the claimant's QR to load it here.",
+                Dock = DockStyle.Top, Height = 26, AutoSize = false, ForeColor = Faint,
+                Font = new Font("Segoe UI", 10F), TextAlign = ContentAlignment.MiddleCenter
+            };
+            var spacer = new Panel { Dock = DockStyle.Top, Height = 120, BackColor = CardBg };
+            p.Controls.Add(sm);
+            p.Controls.Add(big);
+            p.Controls.Add(spacer);
+            return p;
+        }
+
+        /// <summary>
+        /// Everything the officer needs to hand a document over: who is claiming, the
+        /// representative's ID (only once the box is ticked), the two faces side by side,
+        /// the optional camera, and the before-releasing list. Hidden entirely while the
+        /// request is not yet releasable — the fields cannot be acted on then.
+        /// </summary>
+        private TableLayoutPanel BuildClaimBlock()
+        {
+            var t = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top, ColumnCount = 1, BackColor = CardBg,
+                GrowStyle = TableLayoutPanelGrowStyle.AddRows, Margin = new Padding(0)
+            };
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            AddStack(t, Section("WHO IS CLAIMING"), 24);
+
+            var nameRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = CardBg
+            };
+            nameRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
+            nameRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            lblClaimant.AutoSize = true;
+            lblClaimant.Anchor = AnchorStyles.Left;
+            lblClaimant.Margin = new Padding(4, 10, 8, 0);
+            txtClaimant.Dock = DockStyle.Fill;
+            txtClaimant.Font = new Font("Segoe UI", 11F);
+            txtClaimant.Margin = new Padding(0, 5, 8, 5);
+            nameRow.Controls.Add(lblClaimant, 0, 0);
+            nameRow.Controls.Add(txtClaimant, 1, 0);
+            AddStack(t, nameRow, 42);
+
+            chkRep.AutoSize = true;
+            chkRep.Margin = new Padding(4, 4, 4, 4);
+            AddStack(t, chkRep, 28);
+
+            // Progressive disclosure: the representative's ID fields only exist when a
+            // representative is claiming. Live for every release, they read as two more
+            // blanks the officer has failed to fill in.
+            _repBlock = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, BackColor = UiTheme.Surface,
+                GrowStyle = TableLayoutPanelGrowStyle.AddRows,
+                Padding = new Padding(10, 2, 4, 2),
+                Visible = false
+            };
+            _repBlock.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
+            _repBlock.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            txtIdType.Font = new Font("Segoe UI", 11F);
+            txtIdNum.Font = new Font("Segoe UI", 11F);
+            AddFieldRow(_repBlock, lblIdType, txtIdType);
+            AddFieldRow(_repBlock, lblIdNum, txtIdNum);
+            _repRow = t.RowCount;
+            AddStack(t, _repBlock, 0);   // 0 until the box is ticked (see ShowRepFields)
+            chkRep.CheckedChanged += (s, e) => ShowRepFields(chkRep.Checked);
+
+            AddStack(t, Section("IDENTITY EVIDENCE"), 24);
+
+            // The two faces sit SIDE BY SIDE because that is the officer's actual task —
+            // compare the ID the claimant uploaded against the photo the kiosk took.
             lblPhotoCap = new Label
             {
-                Text = "Client Photo (from kiosk)", Dock = DockStyle.Fill, AutoSize = false,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), ForeColor = Color.FromArgb(73, 80, 87)
+                Text = "Kiosk photo", Dock = DockStyle.Top, Height = 20, AutoSize = false,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Ink
             };
-            AddStack(stack, lblPhotoCap, 22);
             picClient = new PictureBox
             {
                 Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle,
-                SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(248, 249, 250)
+                SizeMode = PictureBoxSizeMode.Zoom, BackColor = UiTheme.PageBg
             };
-            AddStack(stack, picClient, 230);
-
-            // Uploaded ID photo (from claimapp) — the officer compares this face against
-            // the kiosk photo above / the person in front of them, then releases.
+            lblPhotoState = new Label
+            {
+                Text = "—", Dock = DockStyle.Bottom, Height = 20, AutoSize = false,
+                Font = new Font("Segoe UI", 8.25F), ForeColor = Faint
+            };
             lblUploadedIdCap = new Label
             {
-                Text = "Uploaded ID (from claimapp)", Dock = DockStyle.Fill, AutoSize = false,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), ForeColor = Color.FromArgb(73, 80, 87)
+                Text = "Uploaded ID", Dock = DockStyle.Top, Height = 20, AutoSize = false,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Ink
             };
-            AddStack(stack, lblUploadedIdCap, 22);
             picUploadedId = new PictureBox
             {
                 Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle,
-                SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(248, 249, 250)
+                SizeMode = PictureBoxSizeMode.Zoom, BackColor = UiTheme.PageBg
             };
-            AddStack(stack, picUploadedId, 230);
+            lblIdState = new Label
+            {
+                Text = "—", Dock = DockStyle.Bottom, Height = 20, AutoSize = false,
+                Font = new Font("Segoe UI", 8.25F), ForeColor = Faint
+            };
+            var faces = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = CardBg
+            };
+            faces.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            faces.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            faces.Controls.Add(FacePane(lblPhotoCap, picClient, lblPhotoState, new Padding(0, 0, 6, 0)), 0, 0);
+            faces.Controls.Add(FacePane(lblUploadedIdCap, picUploadedId, lblIdState, new Padding(6, 0, 0, 0)), 1, 0);
+            AddStack(t, faces, 250);
 
             // "Use Camera?" toggle — always visible (outside the collapsible block).
-            var toggleRow = new FlowLayoutPanel { Dock = DockStyle.Fill, Height = 34, WrapContents = false, BackColor = CardBg };
-            lblUseCam.AutoSize = true; lblUseCam.Margin = new Padding(0, 8, 6, 0);
+            var toggleRow = new FlowLayoutPanel { Dock = DockStyle.Fill, WrapContents = false, BackColor = CardBg };
+            lblUseCam.AutoSize = true; lblUseCam.Margin = new Padding(2, 8, 6, 0);
             tglUseCam.Margin = new Padding(0, 2, 6, 0);
             lblUseCamState.AutoSize = true; lblUseCamState.Margin = new Padding(0, 8, 0, 0);
             toggleRow.Controls.Add(lblUseCam);
             toggleRow.Controls.Add(tglUseCam);
             toggleRow.Controls.Add(lblUseCamState);
-            AddStack(stack, toggleRow, 38);
+            AddStack(t, toggleRow, 38);
 
             // Camera preview block — collapses to zero height when the camera is Off.
             _camPanel = BuildCameraPanel();
-            AddStackAuto(stack, _camPanel);
+            _camRow = t.RowCount;
+            AddStack(t, _camPanel, 0);
 
-            card.Content.Controls.Add(stack);
-            return card;
+            AddStack(t, BuildChecklist(), 132);
+
+            lblValidation = new Label
+            {
+                Dock = DockStyle.Fill, AutoSize = false, ForeColor = UiTheme.Danger,
+                Font = new Font("Segoe UI", 9F), Text = ""
+            };
+            AddStack(t, lblValidation, 30);
+            _claimStack = t;
+            SizeClaimBlock();
+            return t;
+        }
+
+        /// <summary>Opens / closes the representative's ID fields and re-measures the block.</summary>
+        private void ShowRepFields(bool on)
+        {
+            if (_repBlock == null) return;
+            _repBlock.Visible = on;
+            _claimStack.RowStyles[_repRow].Height = on ? RepRowHeight : 0;
+            SizeClaimBlock();
+            UpdateChecklist();
+        }
+
+        /// <summary>Opens / closes the camera preview row and re-measures the block.</summary>
+        private void ShowCameraRow(bool on)
+        {
+            if (_camPanel == null || _claimStack == null) return;
+            _claimStack.RowStyles[_camRow].Height = on ? CamRowHeight : 0;
+            SizeClaimBlock();
+        }
+
+        /// <summary>
+        /// The claim block states its own height from its rows. It cannot AutoSize: it holds
+        /// Dock=Fill children whose height comes FROM it, so AutoSize makes the measurement
+        /// circular (that is the StackOverflow noted in BuildWorkspace).
+        /// </summary>
+        private void SizeClaimBlock()
+        {
+            if (_claimStack == null) return;
+            float h = 0;
+            foreach (RowStyle rs in _claimStack.RowStyles) h += rs.Height;
+            // AddStack gives every row a 3px margin top and bottom.
+            _claimStack.Height = (int)h + _claimStack.RowCount * 6 + 4;
+        }
+
+        private static Label Section(string text) => new Label
+        {
+            Text = text, Dock = DockStyle.Fill, AutoSize = false,
+            Font = new Font("Segoe UI", 8F, FontStyle.Bold), ForeColor = UiTheme.Faint,
+            TextAlign = ContentAlignment.BottomLeft, Padding = new Padding(2, 0, 0, 2)
+        };
+
+        /// <summary>Rebuilds the request summary rows (label / value pairs, in order).</summary>
+        private void SetSummary(params string[] pairs)
+        {
+            if (_pnlSummary == null) return;
+            _pnlSummary.SuspendLayout();
+            _pnlSummary.Controls.Clear();
+            _pnlSummary.RowStyles.Clear();
+            _pnlSummary.RowCount = 0;
+            for (int i = 0; i + 1 < pairs.Length; i += 2)
+            {
+                if (string.IsNullOrWhiteSpace(pairs[i + 1])) continue;
+                int r = _pnlSummary.RowCount++;
+                _pnlSummary.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+                _pnlSummary.Controls.Add(new Label
+                {
+                    Text = pairs[i], Dock = DockStyle.Fill, AutoSize = false, UseMnemonic = false,
+                    ForeColor = Muted, Font = new Font("Segoe UI", 9.5F),
+                    TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(4, 0, 0, 0)
+                }, 0, r);
+                _pnlSummary.Controls.Add(new Label
+                {
+                    Text = pairs[i + 1], Dock = DockStyle.Fill, AutoSize = false, UseMnemonic = false,
+                    ForeColor = Ink, Font = new Font("Segoe UI", 9.5F),
+                    TextAlign = ContentAlignment.MiddleLeft
+                }, 1, r);
+            }
+            _pnlSummary.Height = _pnlSummary.RowCount * 26 + 8;
+            _pnlSummary.Visible = _pnlSummary.RowCount > 0;
+            _pnlSummary.ResumeLayout(true);
+        }
+
+        // ================================================================
+        //  ApplyState — the whole screen in one place.
+        //
+        //  What the request IS decides what is on the screen and what the
+        //  single action does. Showing every state at once is what produced
+        //  two buttons for "send to payment", claimant fields on a request
+        //  that cannot be released, and a Release button whose only possible
+        //  answer was a message box.
+        // ================================================================
+        private void ApplyState(string status)
+        {
+            if (_pnlClaim == null) return;   // called before the layout exists
+
+            bool picked = _selectedTxnId.HasValue || _pickupClaimId.HasValue;
+            // A kiosk pickup claim has no transaction; it releases directly, so it is
+            // treated as ready (that is what PrepareFromQueueTicket already decided).
+            string st = _pickupClaimId.HasValue && !_selectedTxnId.HasValue
+                ? "ForRelease"
+                : (status ?? "");
+            _state = picked ? st : "";
+
+            _pnlEmpty.Visible = !picked;
+            _pnlSummary.Visible = picked && _pnlSummary.RowCount > 0;
+            _notePanel.Visible = picked && !string.IsNullOrWhiteSpace(lblClaimStatus.Text);
+            _wHead.Visible = picked;
+            if (!picked)
+            {
+                // Hide the claim block too. Leaving it up put live claimant fields, both
+                // face panes and the checklist on screen for a release that has not been
+                // chosen — the exact "looks ready, nothing behind it" state this screen
+                // is meant to remove.
+                _pnlClaim.Visible = false;
+                btnRelease.Text = "Release document";
+                btnRelease.Enabled = false;
+                btnRelease.BackColor = Chip;
+                btnRelease.ForeColor = Faint;
+                _nextLab.Text = "";
+                return;
+            }
+
+            bool ready = st == "ForRelease";
+            _pnlClaim.Visible = ready;
+            // Nothing below the claim block should keep the camera running when the block
+            // itself is gone — a hidden preview still holds the device open.
+            if (!ready && tglUseCam.Checked) tglUseCam.Checked = false;
+
+            switch (st)
+            {
+                case "ForRelease":
+                    _pill.Text = _pickupClaimId.HasValue ? "Claim · ready to release" : "Paid · ready to release";
+                    _pill.SetTone(UiTheme.SuccessTint, Green);
+                    PrimaryButton("Verify && Release…", Green, Color.White, true);
+                    _nextLab.Text = "Next: confirm the ID matches, then hand over";
+                    break;
+
+                case "WaitingToRelease":
+                case "ForPrint":
+                    _pill.Text = st == "ForPrint" ? "Awaiting print" : "Waiting to release";
+                    _pill.SetTone(UiTheme.WarningTint, Amber);
+                    PrimaryButton("Send to Payment", Amber, Color.White, true);
+                    _nextLab.Text = "Next: Fees & Payments";
+                    break;
+
+                case "ForPayment":
+                    _pill.Text = "At the cashier";
+                    _pill.SetTone(UiTheme.AccentTint, Accent);
+                    PrimaryButton("Open in Fees && Payments", Chip, Accent, true);
+                    _nextLab.Text = "Nothing to do here until the Official Receipt is issued";
+                    break;
+
+                case "Released":
+                    _pill.Text = "Released";
+                    _pill.SetTone(UiTheme.SuccessTint, Green);
+                    PrimaryButton("View release details", Chip, Accent, true);
+                    _nextLab.Text = "Transaction closed";
+                    break;
+
+                default:
+                    _pill.Text = string.IsNullOrEmpty(st) ? "Unknown status" : st;
+                    _pill.SetTone(Chip, Muted);
+                    PrimaryButton("Release document", Chip, Faint, false);
+                    _nextLab.Text = "This request is not at a releasing step";
+                    break;
+            }
+
+            if (ready) UpdateChecklist();
+            else btnRelease.Enabled = true;   // the non-release actions do not need the checklist
+            OrderBody();
+        }
+
+        /// <summary>
+        /// Re-asserts the body's top-to-bottom order: summary, note, claim, empty.
+        /// Dock=Top order follows z-order, and a control that was hidden when the panel
+        /// last laid out does NOT reclaim its place on its own — the note came back
+        /// UNDER the claim block, explaining a state 600px below the state it described.
+        /// Index 0 docks last (bottom), so the order here reads bottom-up.
+        /// </summary>
+        private void OrderBody()
+        {
+            if (_wBody == null) return;
+            _wBody.Controls.SetChildIndex(_pnlEmpty, 0);
+            _wBody.Controls.SetChildIndex(_pnlClaim, 1);
+            _wBody.Controls.SetChildIndex(_notePanel, 2);
+            _wBody.Controls.SetChildIndex(_pnlSummary, 3);
+        }
+
+        private void PrimaryButton(string text, Color back, Color fore, bool enabled)
+        {
+            btnRelease.Text = text;
+            btnRelease.BackColor = back;
+            btnRelease.ForeColor = fore;
+            btnRelease.Enabled = enabled;
+            btnRelease.FlatAppearance.MouseOverBackColor = UiTheme.Mix(back, Color.Black, 0.10f);
+            btnRelease.FlatAppearance.BorderSize = back == Chip ? 1 : 0;
+            btnRelease.FlatAppearance.BorderColor = UiTheme.CardLine;
+        }
+
+        /// <summary>
+        /// "Before releasing" — the four things the officer should have in front of them.
+        /// These are FACTS the screen already knows (is a release picked, is there a name,
+        /// is each photo on file), not a verdict: CROMS does not match a face to an ID, so
+        /// the list never claims the claimant was verified, only what is on file.
+        /// </summary>
+        private Control BuildChecklist()
+        {
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = CardBg };
+            var cap = new Label
+            {
+                Text = "BEFORE RELEASING", Dock = DockStyle.Top, Height = 20, AutoSize = false,
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold), ForeColor = Accent
+            };
+            _chkId       = CheckLine();
+            _chkPhoto    = CheckLine();
+            _chkClaimant = CheckLine();
+            _chkSelected = CheckLine();
+            p.Controls.Add(_chkId);
+            p.Controls.Add(_chkPhoto);
+            p.Controls.Add(_chkClaimant);
+            p.Controls.Add(_chkSelected);
+            p.Controls.Add(cap);
+            return p;
+        }
+
+        private static Label CheckLine() => new Label
+        {
+            Dock = DockStyle.Top, Height = 25, AutoSize = false, Text = "",
+            Font = new Font("Segoe UI", 9F), ForeColor = UiTheme.Faint,
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+
+        /// <summary>Refreshes the checklist and gates the Release button on a selection.</summary>
+        private void UpdateChecklist()
+        {
+            if (_chkSelected == null) return;
+            bool picked   = _selectedTxnId.HasValue || _pickupClaimId.HasValue;
+            bool named    = txtClaimant != null && txtClaimant.Text.Trim().Length > 0;
+            bool hasPhoto = picClient != null && picClient.Image != null;
+            bool hasId    = picUploadedId != null && picUploadedId.Image != null;
+
+            Mark(_chkSelected, picked,   "Release selected",        "Select a release on the left");
+            Mark(_chkClaimant, named,    "Claimant name entered",   "Enter who is claiming");
+            Mark(_chkPhoto,    hasPhoto, "Kiosk photo on file",     "No kiosk photo on file");
+            Mark(_chkId,       hasId,    "Uploaded ID on file",     "No uploaded ID on file");
+
+            // Nothing to release until something is picked. Leaving it live meant a click
+            // that could only ever answer with a message box. Only the RELEASE state is
+            // gated here — "Send to Payment" and the read-only actions do not need a
+            // claimant, and ApplyState owns their enabled state.
+            if (_state == "ForRelease") btnRelease.Enabled = picked;
+        }
+
+        private static void Mark(Label lbl, bool ok, string yes, string no)
+        {
+            lbl.Text = (ok ? "✓   " : "○   ") + (ok ? yes : no);
+            lbl.ForeColor = ok ? UiTheme.Ink : UiTheme.Faint;
         }
 
         /// <summary>Camera preview + controls in one fixed-height panel (collapsible as a unit).</summary>
@@ -519,6 +1058,25 @@ namespace CROMS.Forms
             p.Controls.Add(pbCam);
             p.Controls.Add(lblCam);
             return p;
+        }
+
+        /// <summary>One face pane: caption on top, picture filling, state line underneath.</summary>
+        private static Panel FacePane(Label cap, PictureBox pic, Label state, Padding margin)
+        {
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = CardBg, Margin = margin };
+            p.Controls.Add(pic);      // Fill added first so the docked edges keep their space
+            p.Controls.Add(state);    // Bottom
+            p.Controls.Add(cap);      // Top
+            return p;
+        }
+
+        /// <summary>Adds a row that soaks up whatever height the column has left over.</summary>
+        private static void AddStackFill(TableLayoutPanel t, Control c)
+        {
+            int r = t.RowCount++;
+            t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            c.Margin = new Padding(2, 3, 2, 3);
+            t.Controls.Add(c, 0, r);
         }
 
         private static void AddStackAuto(TableLayoutPanel t, Control c)
@@ -560,28 +1118,6 @@ namespace CROMS.Forms
             t.Controls.Add(c, 0, r);
         }
 
-        private Panel Tile(string caption, out Label value, Color accent)
-        {
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = Color.FromArgb(248, 250, 252), Margin = new Padding(4) };
-            var stripe = new Panel { Dock = DockStyle.Left, Width = 4, BackColor = accent };
-            value = new Label
-            {
-                Text = "0", Dock = DockStyle.Top, Height = 34, ForeColor = Ink,
-                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 4, 0, 0)
-            };
-            var cap = new Label
-            {
-                Text = caption, Dock = DockStyle.Top, Height = 22, ForeColor = Muted,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(10, 0, 0, 0)
-            };
-            p.Controls.Add(cap);
-            p.Controls.Add(value);
-            p.Controls.Add(stripe);
-            return p;
-        }
-
         private static Button MakeMiniButton(Color back, Color fore, string text) => new Button
         {
             Text = text, Width = 78, FlatStyle = FlatStyle.Flat, BackColor = back, ForeColor = fore,
@@ -592,7 +1128,7 @@ namespace CROMS.Forms
         {
             var b = MakeMiniButton(back, fore, text);
             b.FlatAppearance.BorderSize = fore == Color.White ? 0 : 1;
-            b.FlatAppearance.BorderColor = Color.FromArgb(206, 212, 218);
+            b.FlatAppearance.BorderColor = UiTheme.CardLine;
             return b;
         }
 
@@ -607,12 +1143,12 @@ namespace CROMS.Forms
             g.BorderStyle = BorderStyle.None;
             g.BackgroundColor = Color.White;
             g.EnableHeadersVisualStyles = false;
-            g.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(248, 249, 250);
-            g.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(73, 80, 87);
+            g.ColumnHeadersDefaultCellStyle.BackColor = UiTheme.PageBg;
+            g.ColumnHeadersDefaultCellStyle.ForeColor = Ink;
             g.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            g.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 251, 252);
-            g.DefaultCellStyle.SelectionBackColor = Color.FromArgb(232, 240, 254);
-            g.DefaultCellStyle.SelectionForeColor = Color.FromArgb(13, 71, 161);
+            g.AlternatingRowsDefaultCellStyle.BackColor = UiTheme.RowLine;
+            g.DefaultCellStyle.SelectionBackColor = UiTheme.AccentTint;
+            g.DefaultCellStyle.SelectionForeColor = UiTheme.Accent;
         }
 
         /// <summary>Grey placeholder cue text on an empty textbox (WinForms lacks PlaceholderText on .NET FW).</summary>
@@ -642,13 +1178,14 @@ namespace CROMS.Forms
             bool use = tglUseCam.Checked;
             lblUseCamState.Text = use ? "On" : "Off";
             lblUseCamState.ForeColor = use
-                ? System.Drawing.Color.FromArgb(25, 135, 84)         // green when On
-                : System.Drawing.Color.FromArgb(108, 117, 125);      // grey when Off
+                ? UiTheme.Success                                     // green when On
+                : UiTheme.Muted;                                      // grey when Off
 
             if (!use) ResetCamera();            // stop capture + drop any pending photo
 
             // Collapse the whole preview block as a unit (no leftover gap when Off).
             if (_camPanel != null) _camPanel.Visible = use;
+            ShowCameraRow(use);   // the row collapses with it, so no leftover gap
 
             if (use && cboCamera.Items.Count == 0) PopulateCameras();
         }
@@ -741,38 +1278,59 @@ namespace CROMS.Forms
                 }
                 catch { /* stored value wasn't a readable image */ }
             }
+            // States the FACT, not a verdict: CROMS does not match faces, the officer does.
+            SetFaceState(lblPhotoState, picClient.Image != null, "On file", "No kiosk photo");
 
             ShowUploadedIdFor(txnId);
+            UpdateChecklist();
         }
 
-        /// <summary>Loads the ID image + OCR'd name uploaded via claimapp for this transaction.</summary>
+        /// <summary>
+        /// Loads the ID image + OCR'd name uploaded via claimapp for this transaction. Every
+        /// kiosk visit now creates a claim_requests row for its "Upload Your ID" QR (not just
+        /// Release &amp; Claim pickups), so this is looked up two ways: linked directly by
+        /// transaction_id (the reclaim/pickup path), or via the queue ticket that carried this
+        /// transaction (a first-time visit — the QR was created before the transaction existed,
+        /// so only queue_ticket_id was set at the time).
+        /// </summary>
         private void ShowUploadedIdFor(int txnId)
         {
             picUploadedId.Image?.Dispose();
             picUploadedId.Image = null;
-            lblUploadedIdCap.Text = "Uploaded ID (from claimapp)";
             DataTable dt = Db.Pull(
-                "SELECT id_image, id_first_name, id_middle_name, id_last_name " +
-                "FROM claim_requests WHERE transaction_id = " + txnId +
-                " ORDER BY id DESC LIMIT 1");
-            if (dt.Rows.Count == 0) { lblUploadedIdCap.Text = "Uploaded ID — none (no claimapp upload)"; return; }
+                "SELECT cr.id_image, cr.id_first_name, cr.id_middle_name, cr.id_last_name " +
+                "FROM claim_requests cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
+                "WHERE cr.transaction_id = " + txnId + " OR qt.transaction_id = " + txnId +
+                " ORDER BY cr.id DESC LIMIT 1");
+            if (dt.Rows.Count == 0 || dt.Rows[0]["id_image"] == DBNull.Value)
+            {
+                SetFaceState(lblIdState, false, null, "Not yet uploaded");
+                return;
+            }
 
             DataRow r = dt.Rows[0];
             string idName = JoinName(r["id_first_name"], r["id_middle_name"], r["id_last_name"]);
-            if (r["id_image"] == DBNull.Value)
-                lblUploadedIdCap.Text = "Uploaded ID — not yet uploaded";
-            else
+            try
             {
-                try
-                {
-                    using (var ms = new MemoryStream((byte[])r["id_image"]))
-                        picUploadedId.Image = Image.FromStream(ms);
-                }
-                catch { /* stored value wasn't a readable image */ }
-                lblUploadedIdCap.Text = idName.Length > 0
-                    ? "Uploaded ID — name on ID: " + idName
-                    : "Uploaded ID (from claimapp)";
+                using (var ms = new MemoryStream((byte[])r["id_image"]))
+                    picUploadedId.Image = Image.FromStream(ms);
             }
+            catch { /* stored value wasn't a readable image */ }
+            // The name the claimant's ID was read as — the officer checks it against
+            // the claimant name on the left. Shown, never auto-matched.
+            SetFaceState(lblIdState, true,
+                idName.Length > 0 ? "Name on ID: " + idName : "On file", null);
+        }
+
+        /// <summary>
+        /// Writes the small line under a face pane. Present is stated in the ink tone,
+        /// absent in the faint one, so a missing photo reads as missing at a glance.
+        /// </summary>
+        private static void SetFaceState(Label lbl, bool present, string yes, string no)
+        {
+            if (lbl == null) return;
+            lbl.Text = present ? (yes ?? "On file") : (no ?? "—");
+            lbl.ForeColor = present ? UiTheme.Ink : UiTheme.Faint;
         }
 
         private static string JoinName(object f, object m, object l)
@@ -801,19 +1359,182 @@ namespace CROMS.Forms
             }
         }
 
-        /// <summary>Selects a pending row: fills the claim header, status, and kiosk photo.</summary>
+        /// <summary>
+        /// Selects a pending row: fills the workspace header and request summary, loads the
+        /// kiosk photo, and hands the row's STATUS to ApplyState — which decides what the
+        /// screen shows and what its single action does.
+        /// </summary>
         private void SelectRow(DataGridViewRow row)
         {
+            _pickupClaimId = null;
             _selectedTxnId = Convert.ToInt32(row.Cells["id"].Value);
             string code = Convert.ToString(row.Cells["Txn Code"].Value);
             string client = Convert.ToString(row.Cells["Client"].Value);
-            lblSelected.Text = "Releasing:  " + code + "  —  " + client;
             if (lblValidation != null) lblValidation.Text = "";
-            if (lblClaimStatus != null)
-                lblClaimStatus.Text = "Selected: " + code + "\r\nClient: " + client +
-                    "\r\nVerify the claimant, then Release.";
+
+            DataTable stt = Db.Pull("SELECT status FROM transactions WHERE id = @t LIMIT 1",
+                new MySqlParameter("@t", _selectedTxnId.Value));
+            string st = stt.Rows.Count > 0 ? stt.Rows[0]["status"].ToString() : "";
+
+            lblSelected.Text = string.IsNullOrWhiteSpace(client) ? code : client;
+            _wMeta.Text = Join(" · ", code, Cell(row, "Type"), Cell(row, "Queue Ticket"));
+            SetSummary(
+                "Transaction", code,
+                "Client", client,
+                "Document", Cell(row, "Type"),
+                "Queue ticket", Cell(row, "Queue Ticket"),
+                "Requested", Cell(row, "Requested"));
+            SetStateNote(st);
             ShowPhotoFor(_selectedTxnId.Value);
+            ApplyState(st);
+            if (st == "ForRelease") txtClaimant.Focus();
+        }
+
+        /// <summary>The one-line explanation of the state, in the officer's terms.</summary>
+        private void SetStateNote(string st)
+        {
+            switch (st)
+            {
+                case "ForRelease":
+                    SetNote("Paid and ready. Compare the uploaded ID against the kiosk photo, "
+                          + "then Verify & Release.", UiTheme.SuccessTint, Green);
+                    break;
+                case "WaitingToRelease":
+                    SetNote("Parked at the window — no fee has been assessed yet. Send it to the "
+                          + "cashier to continue; claimant verification happens after payment.",
+                          UiTheme.WarningTint, Amber);
+                    break;
+                case "ForPrint":
+                    SetNote("Still awaiting print, so no fee has been assessed yet. Send it to the "
+                          + "cashier once the document is ready.", UiTheme.WarningTint, Amber);
+                    break;
+                case "ForPayment":
+                    SetNote("At the cashier. This request returns to the For Release list on its "
+                          + "own once the Official Receipt is issued.", UiTheme.AccentTint, Accent);
+                    break;
+                case "Released":
+                    SetNote("Already released — this transaction is closed and in the audit trail.",
+                          UiTheme.SuccessTint, Green);
+                    break;
+                default:
+                    SetNote("", UiTheme.AccentTint, Accent);
+                    break;
+            }
+        }
+
+        private static string Cell(DataGridViewRow row, string column)
+        {
+            if (!row.DataGridView.Columns.Contains(column)) return null;
+            object v = row.Cells[column].Value;
+            string s = v == null || v == DBNull.Value ? null : Convert.ToString(v);
+            return s == "—" ? null : s;
+        }
+
+        private static string Join(string sep, params string[] parts)
+        {
+            var keep = new System.Collections.Generic.List<string>();
+            foreach (string p in parts) if (!string.IsNullOrWhiteSpace(p)) keep.Add(p.Trim());
+            return string.Join(sep, keep.ToArray());
+        }
+
+        /// <summary>
+        /// Opens Release &amp; Claim pre-loaded from a kiosk pickup ticket (clicked in Queue
+        /// Management). Fills the claimant name, kiosk face photo, and the claimapp-uploaded ID,
+        /// so staff verify + release on this one screen. If the linked claim already has a
+        /// paid ForRelease transaction it uses the normal transaction path; otherwise it loads
+        /// the claim_requests row and Release closes the claim directly.
+        /// </summary>
+        public void PrepareFromQueueTicket(int ticketId)
+        {
+            _pickupClaimId = null;
+            _pickupClaimCode = null;
+
+            // Find the claim tied to this kiosk ticket (direct link, else via the ticket's txn).
+            DataTable c = Db.Pull(
+                "SELECT id, claim_ticket_no, transaction_id, first_name, middle_name, last_name, status " +
+                "FROM claim_requests WHERE queue_ticket_id = @tid " +
+                "OR (transaction_id IS NOT NULL AND transaction_id = " +
+                "    (SELECT transaction_id FROM queue_tickets WHERE id = @tid)) " +
+                "ORDER BY id DESC LIMIT 1",
+                new MySqlParameter("@tid", ticketId));
+
+            if (c.Rows.Count == 0)
+            {
+                // No claim row — just show the kiosk face photo so staff can still verify.
+                ShowClaimImages(ticketId, null);
+                if (lblClaimStatus != null)
+                    lblClaimStatus.Text = "Loaded queue ticket, but no claim request is linked.";
+                return;
+            }
+
+            DataRow r = c.Rows[0];
+            int claimId = Convert.ToInt32(r["id"]);
+            string claimNo = Convert.ToString(r["claim_ticket_no"]);
+            string name = JoinName(r["first_name"], r["middle_name"], r["last_name"]);
+
+            // If a paid, ready transaction exists, use the normal release path.
+            if (r["transaction_id"] != DBNull.Value)
+            {
+                long txn = Convert.ToInt64(r["transaction_id"]);
+                DataTable stt = Db.Pull("SELECT status FROM transactions WHERE id = @t LIMIT 1",
+                    new MySqlParameter("@t", txn));
+                if (stt.Rows.Count > 0 && stt.Rows[0]["status"].ToString() == "ForRelease")
+                {
+                    SetListMode(0);
+                    PreselectTransaction(txn);
+                    if (!string.IsNullOrWhiteSpace(name)) txtClaimant.Text = name;
+                    return;
+                }
+            }
+
+            // Fresh pickup claim (no ready transaction) — release closes the claim directly.
+            _pickupClaimId = claimId;
+            _pickupClaimCode = claimNo;
+            _selectedTxnId = null;
+            if (!string.IsNullOrWhiteSpace(name)) txtClaimant.Text = name;
+            lblSelected.Text = string.IsNullOrWhiteSpace(name) ? claimNo : name;
+            _wMeta.Text = Join(" · ", "Kiosk pickup claim", claimNo);
+            SetSummary(
+                "Claim ticket", claimNo,
+                "Claimant on file", name,
+                "Claim status", Convert.ToString(r["status"]));
+            SetNote("Kiosk pickup claim — releasing here closes the claim directly. Compare the "
+                  + "uploaded ID against the kiosk photo, then Verify & Release.",
+                  UiTheme.SuccessTint, Green);
+            if (lblValidation != null) lblValidation.Text = "";
+            ShowClaimImages(ticketId, claimId);
+            ApplyState("ForRelease");   // a pickup claim has no transaction; it releases here
             txtClaimant.Focus();
+        }
+
+        /// <summary>Loads the kiosk face photo (by ticket id) and the uploaded ID (by claim id).</summary>
+        private void ShowClaimImages(int ticketId, int? claimId)
+        {
+            picClient.Image?.Dispose(); picClient.Image = null;
+            DataTable pt = Db.Pull(
+                "SELECT id_image FROM queue_tickets WHERE id = @id AND id_image IS NOT NULL LIMIT 1",
+                new MySqlParameter("@id", ticketId));
+            if (pt.Rows.Count > 0 && pt.Rows[0]["id_image"] != DBNull.Value)
+            {
+                try { using (var ms = new MemoryStream((byte[])pt.Rows[0]["id_image"])) picClient.Image = Image.FromStream(ms); }
+                catch { }
+            }
+
+            picUploadedId.Image?.Dispose(); picUploadedId.Image = null;
+            lblUploadedIdCap.Text = "Uploaded ID (from claimapp)";
+            if (claimId == null) { lblUploadedIdCap.Text = "Uploaded ID — no claim linked"; return; }
+
+            DataTable ct = Db.Pull(
+                "SELECT id_image, id_first_name, id_middle_name, id_last_name " +
+                "FROM claim_requests WHERE id = @id LIMIT 1", new MySqlParameter("@id", claimId.Value));
+            if (ct.Rows.Count == 0) { lblUploadedIdCap.Text = "Uploaded ID — none"; return; }
+            DataRow cr = ct.Rows[0];
+            if (cr["id_image"] == DBNull.Value) { lblUploadedIdCap.Text = "Uploaded ID — not yet uploaded"; return; }
+            try { using (var ms = new MemoryStream((byte[])cr["id_image"])) picUploadedId.Image = Image.FromStream(ms); }
+            catch { }
+            string idName = JoinName(cr["id_first_name"], cr["id_middle_name"], cr["id_last_name"]);
+            lblUploadedIdCap.Text = idName.Length > 0 ? "Uploaded ID — name on ID: " + idName
+                                                      : "Uploaded ID (from claimapp)";
         }
 
         // ---------- claimant webcam ----------
@@ -949,7 +1670,28 @@ namespace CROMS.Forms
                 "type AS Type, DATE_FORMAT(created_at, '%b %d, %Y') AS Requested " +
                 "FROM transactions WHERE " + where + " ORDER BY created_at DESC, id DESC", ps);
             if (dgvPending.Columns.Contains("id")) dgvPending.Columns["id"].Visible = false;
+            SizeWorklistColumns();
             UpdateSummary();
+        }
+
+        /// <summary>
+        /// The rail is 340px wide, so four equal columns gave every one of them ~73px —
+        /// the header "Txn Code" wrapped onto two lines and every code rendered as
+        /// "TXN-2026-...". A worklist row only has to let the officer RECOGNISE the
+        /// request; the document type and everything else about it is in the workspace
+        /// header the moment the row is clicked, so Type is dropped here rather than
+        /// squeezed, and the remaining columns are weighted by how much each needs.
+        /// </summary>
+        private void SizeWorklistColumns()
+        {
+            var cols = dgvPending.Columns;
+            if (cols.Contains("Type")) cols["Type"].Visible = false;
+            if (cols.Contains("Txn Code")) { cols["Txn Code"].FillWeight = 34; cols["Txn Code"].HeaderText = "Transaction"; }
+            if (cols.Contains("Client")) cols["Client"].FillWeight = 30;
+            if (cols.Contains("Requested")) cols["Requested"].FillWeight = 22;
+            // Waiting mode adds the parked queue ticket — the one thing a returning
+            // client can actually quote at the counter, so it keeps real room.
+            if (cols.Contains("Queue Ticket")) cols["Queue Ticket"].FillWeight = 20;
         }
 
         private void LoadReleased()
@@ -983,9 +1725,19 @@ namespace CROMS.Forms
         {
             try
             {
-                lblTilePending.Text = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease'");
-                lblTileWaiting.Text = Scalar("SELECT COUNT(*) FROM transactions WHERE status IN ('WaitingToRelease','ForPrint')");
-                lblTileToday.Text = Scalar("SELECT COUNT(*) FROM releases WHERE DATE(released_at)=CURDATE()");
+                // The counts ride ON the tabs and the history line. As separate tiles they
+                // printed the same two numbers directly above the tabs that filter by them.
+                if (_tabPending != null)
+                    _tabPending.Text = "For Release  " +
+                        Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease'");
+                if (_tabWaiting != null)
+                    _tabWaiting.Text = "Waiting  " +
+                        Scalar("SELECT COUNT(*) FROM transactions WHERE status IN ('WaitingToRelease','ForPrint')");
+                if (_btnHistory != null)
+                    _btnHistory.Text = _historyOpen
+                        ? "‹  Back to the worklist"
+                        : "Released today · " +
+                          Scalar("SELECT COUNT(*) FROM releases WHERE DATE(released_at)=CURDATE()") + "   ›";
             }
             catch { /* summary is best-effort */ }
         }
@@ -999,11 +1751,44 @@ namespace CROMS.Forms
         private void btnRelease_Click(object sender, EventArgs e)
         {
             if (lblValidation != null) lblValidation.Text = "";
+
+            // Pickup claim loaded from the queue (no transaction) → close the claim directly.
+            if (_pickupClaimId != null && _selectedTxnId == null) { ReleasePickupClaim(); return; }
+
             if (_selectedTxnId == null)
             {
                 if (lblValidation != null) lblValidation.Text = "⚠ Select a pending release on the left first.";
                 return;
             }
+
+            // The button is whatever the state says it is, so it does whatever that state's
+            // next step is. Re-read the status here rather than trusting the rendered state:
+            // another window may have moved this request since it was selected.
+            DataTable stt = Db.Pull("SELECT status FROM transactions WHERE id = @t LIMIT 1",
+                new MySqlParameter("@t", _selectedTxnId.Value));
+            string st = stt.Rows.Count > 0 ? stt.Rows[0]["status"].ToString() : "";
+
+            if (st == "Released")
+            {
+                // Already handed over — show the release record instead of releasing twice.
+                ShowHistory(true);
+                if (lblValidation != null)
+                    lblValidation.Text = "This transaction was already released — see the history.";
+                return;
+            }
+            if (st == "ForPayment")
+            {
+                // Already at the cashier; just follow it there. Running ResumeSelected would
+                // re-stamp a status it already has.
+                MainForm shell = Shell();
+                if (shell != null && shell.GoToModule("fees") is FeesPaymentsForm fp)
+                    fp.PreselectTransaction(_selectedTxnId.Value);
+                return;
+            }
+            // Parked / awaiting print — send it to the cashier (status → ForPayment).
+            if (st != "ForRelease") { ResumeSelected(); return; }
+
+            // Paid → verify the claimant, then hand over.
             if (string.IsNullOrWhiteSpace(txtClaimant.Text))
             {
                 if (lblValidation != null) lblValidation.Text = "⚠ Claimant name is required.";
@@ -1017,24 +1802,14 @@ namespace CROMS.Forms
                 return;
             }
 
-            // Only a paid, For-Release request can be handed over. A parked / awaiting-print
-            // one must first be resumed to payment (Waiting tab → Resume).
-            DataTable stt = Db.Pull("SELECT status FROM transactions WHERE id = @t LIMIT 1",
-                new MySqlParameter("@t", _selectedTxnId.Value));
-            string st = stt.Rows.Count > 0 ? stt.Rows[0]["status"].ToString() : "";
-            if (st != "ForRelease")
-            {
-                if (lblValidation != null)
-                    lblValidation.Text = "⚠ This request is not paid yet (status: " + st +
-                        "). Open the Waiting-to-Release tab and Resume it to payment first.";
-                return;
-            }
-
-            if (MessageBox.Show(
-                    "Release this document to " + txtClaimant.Text.Trim() + "?\r\n\r\n" +
-                    "This closes the transaction and cannot be undone.",
-                    "Confirm release", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
-                return;
+            // Verification step — open the identity-verification window showing the request
+            // details, the kiosk face photo and the uploaded valid ID side by side. The admin
+            // confirms the ID matches, then presses Release inside that window.
+            string repInfo = chkRep.Checked
+                ? (txtIdType.Text.Trim() + "  " + txtIdNum.Text.Trim()).Trim()
+                : null;
+            using (var v = new ReleaseVerifyDialog(_selectedTxnId.Value, txtClaimant.Text.Trim(), repInfo))
+                if (v.ShowDialog(this) != DialogResult.OK) return;
 
             try
             {
@@ -1054,19 +1829,70 @@ namespace CROMS.Forms
                     photoParam,
                     new MySqlParameter("@by", Session.UserIdParam));
 
-                // close the transaction + mark any linked cert request released
+                // close the transaction + mark any linked cert request / claim released
                 Db.Push("UPDATE transactions SET status = 'Released' WHERE id = @txn",
                     new MySqlParameter("@txn", _selectedTxnId.Value));
                 Db.Push("UPDATE certificate_requests SET status = 'Released' WHERE transaction_id = @txn",
+                    new MySqlParameter("@txn", _selectedTxnId.Value));
+                Db.Push("UPDATE claim_requests SET status = 'Released', released_by = @by, " +
+                        "released_at = NOW() WHERE transaction_id = @txn AND status <> 'Released'",
+                    new MySqlParameter("@by", Session.UserIdParam),
                     new MySqlParameter("@txn", _selectedTxnId.Value));
 
                 Audit.Write(Audit.Update, "transactions", _selectedTxnId.Value,
                     "Released to " + txtClaimant.Text.Trim());
 
-                MessageBox.Show("Released and closed.", "Done",
+                MessageBox.Show("Document released successfully.", "Done",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 // Transaction is saved; wipe the form for the next client.
+                ClearClaimForm();
+                LoadPending();
+                LoadReleased();
+                UpdateSummary();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not release: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>Releases a kiosk pickup claim that has no transaction (mirrors the Claim Form).</summary>
+        private void ReleasePickupClaim()
+        {
+            if (string.IsNullOrWhiteSpace(txtClaimant.Text))
+            {
+                if (lblValidation != null) lblValidation.Text = "⚠ Claimant name is required.";
+                txtClaimant.Focus();
+                return;
+            }
+            if (chkRep.Checked && string.IsNullOrWhiteSpace(txtIdNum.Text))
+            {
+                if (lblValidation != null) lblValidation.Text = "⚠ Representative ID number is required.";
+                txtIdNum.Focus();
+                return;
+            }
+            if (MessageBox.Show(
+                    "Release claim " + _pickupClaimCode + " to " + txtClaimant.Text.Trim() + "?\r\n\r\n" +
+                    "This closes the claim and cannot be undone.",
+                    "Confirm release", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            try
+            {
+                string info = "Released to " + txtClaimant.Text.Trim() +
+                    (chkRep.Checked ? " (rep: " + txtIdType.Text + " " + txtIdNum.Text + ")" : "");
+                Db.Push(
+                    "UPDATE claim_requests SET status = 'Released', release_info = @ri, " +
+                    "released_by = @by, released_at = NOW() WHERE id = @id",
+                    new MySqlParameter("@ri", info),
+                    new MySqlParameter("@by", Session.UserIdParam),
+                    new MySqlParameter("@id", _pickupClaimId.Value));
+                Audit.Write(Audit.Update, "claim_requests", _pickupClaimId.Value,
+                    "Released claim " + _pickupClaimCode + " to " + txtClaimant.Text.Trim());
+
+                MessageBox.Show("Released.", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearClaimForm();
                 LoadPending();
                 LoadReleased();
@@ -1086,9 +1912,13 @@ namespace CROMS.Forms
         private void ClearClaimForm()
         {
             _selectedTxnId = null;
-            lblSelected.Text = "Select a pending release on the left →";
+            _pickupClaimId = null;
+            _pickupClaimCode = null;
+            lblSelected.Text = "—";
+            if (_wMeta != null) _wMeta.Text = "";
+            SetSummary();
+            SetNote("", UiTheme.AccentTint, Accent);
             if (lblValidation != null) lblValidation.Text = "";
-            if (lblClaimStatus != null) lblClaimStatus.Text = "No release selected.";
             txtClaimant.Clear();
             chkRep.Checked = false;
             txtIdType.SelectedIndex = -1;
@@ -1099,6 +1929,10 @@ namespace CROMS.Forms
             if (lblUploadedIdCap != null) lblUploadedIdCap.Text = "Uploaded ID (from claimapp)";
             tglUseCam.Checked = false;   // fires ApplyCameraOption → hides + releases the camera
             ResetCamera();
+            SetFaceState(lblPhotoState, false, null, "No kiosk photo");
+            SetFaceState(lblIdState, false, null, "No uploaded ID");
+            UpdateChecklist();
+            ApplyState(null);   // back to the empty state, not a live form for no request
         }
 
         private static object NullIfEmpty(string s) =>
@@ -1115,22 +1949,53 @@ namespace CROMS.Forms
         /// <summary>Put your content here (already padded).</summary>
         public Panel Content { get; }
 
-        public Card(string title)
+        /// <param name="step">
+        /// 1-based position in the release workflow. Draws a filled accent badge before the
+        /// title so the three columns read as an order instead of three unrelated panels.
+        /// 0 = no badge (a supporting card such as Recent Releases).
+        /// </param>
+        /// <remarks>
+        /// A NULL title draws no title bar at all. The workspace card carries its own header
+        /// (status pill, client name, transaction line), so a card title above it would just
+        /// name the panel a second time and cost 44px doing it.
+        /// </remarks>
+        public Card(string title, int step = 0)
         {
             DoubleBuffered = true;
-            BackColor = Color.FromArgb(245, 247, 250);   // page bg shows in the shadow gap
+            BackColor = UiTheme.PageBg;   // page bg shows in the shadow gap
             Padding = new Padding(2, 2, 2 + Shadow, 2 + Shadow);
 
-            Content = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(14, 6, 14, 12) };
+            Content = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Surface, Padding = new Padding(14, 6, 14, 12) };
+
+            var head = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top, Height = 44, WrapContents = false, AutoSize = false,
+                BackColor = UiTheme.Surface, Padding = new Padding(14, 10, 0, 0)
+            };
+            if (step > 0)
+                head.Controls.Add(new StatusPill
+                {
+                    Text = step.ToString(),
+                    BackColor = UiTheme.Accent,
+                    ForeColor = UiTheme.Surface,
+                    Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                    Inset = new Padding(10, 5, 10, 5),
+                    Margin = new Padding(0, 1, 10, 0)
+                });
             _title = new Label
             {
-                Dock = DockStyle.Top, Height = 36, Text = title, BackColor = Color.White,
-                ForeColor = Color.FromArgb(33, 37, 41),
+                AutoSize = true, Text = title, BackColor = Color.Transparent,
+                ForeColor = UiTheme.Ink,
                 Font = new Font("Segoe UI", 12.5F, FontStyle.Bold),
-                Padding = new Padding(14, 9, 0, 0)
+                // A Label eats "&" as a mnemonic prefix, which is why this screen's own
+                // heading rendered as "Release  Claim".
+                UseMnemonic = false,
+                Margin = new Padding(0, 3, 0, 0)
             };
+            head.Controls.Add(_title);
+
             Controls.Add(Content);
-            Controls.Add(_title);
+            if (title != null) Controls.Add(head);
         }
 
         private static GraphicsPath RoundPath(Rectangle r, int rad)
@@ -1163,10 +2028,182 @@ namespace CROMS.Forms
             }
             using (var path = RoundPath(rect, Radius))
             {
-                using (var b = new SolidBrush(Color.White)) g.FillPath(b, path);
-                using (var pen = new Pen(Color.FromArgb(230, 233, 237), 1f)) g.DrawPath(pen, path);
+                using (var b = new SolidBrush(UiTheme.Surface)) g.FillPath(b, path);
+                using (var pen = new Pen(UiTheme.CardLine, 1f)) g.DrawPath(pen, path);
             }
             base.OnPaint(e);
         }
+    }
+
+    /// <summary>
+    /// Identity-verification window shown before a paid document is released. Displays the
+    /// request details, the kiosk face photo and the claimant's uploaded valid ID side by
+    /// side so the officer can confirm the ID matches the claimant, then release. Returns
+    /// <see cref="DialogResult.OK"/> when the officer presses Release (the caller performs
+    /// the actual release). Purely a review screen — it never writes to the database.
+    /// </summary>
+    internal sealed class ReleaseVerifyDialog : Form
+    {
+        private static readonly Color Ink = UiTheme.Ink;
+        private static readonly Color Muted = UiTheme.Muted;
+        private static readonly Color Green = UiTheme.Success;
+
+        public ReleaseVerifyDialog(long txnId, string claimant, string repInfo)
+        {
+            Text = "Identity Verification";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            StartPosition = FormStartPosition.CenterParent;
+            MinimizeBox = false; MaximizeBox = false;
+            ClientSize = new Size(880, 560);
+            BackColor = Color.White;
+            Font = new Font("Segoe UI", 10F);
+
+            // ---- lookup transaction + linked details
+            string txnCode = "—", client = "—", type = "—", idName = "";
+            DataTable t = Db.Pull(
+                "SELECT txn_code, client_name, type FROM transactions WHERE id = @t LIMIT 1",
+                new MySqlParameter("@t", txnId));
+            if (t.Rows.Count > 0)
+            {
+                txnCode = Str(t.Rows[0]["txn_code"]);
+                client = Str(t.Rows[0]["client_name"]);
+                type = Str(t.Rows[0]["type"]);
+            }
+
+            Image clientPhoto = LoadImage(
+                "SELECT id_image FROM queue_tickets WHERE transaction_id = @t " +
+                "AND id_image IS NOT NULL ORDER BY id DESC LIMIT 1", txnId);
+
+            Image uploadedId = null;
+            DataTable c = Db.Pull(
+                "SELECT id_image, id_first_name, id_middle_name, id_last_name " +
+                "FROM claim_requests WHERE transaction_id = @t ORDER BY id DESC LIMIT 1",
+                new MySqlParameter("@t", txnId));
+            if (c.Rows.Count > 0)
+            {
+                idName = JoinName(c.Rows[0]["id_first_name"], c.Rows[0]["id_middle_name"], c.Rows[0]["id_last_name"]);
+                if (c.Rows[0]["id_image"] != DBNull.Value)
+                    try { using (var ms = new MemoryStream((byte[])c.Rows[0]["id_image"])) uploadedId = Image.FromStream(ms); }
+                    catch { }
+            }
+
+            // ---- header
+            Controls.Add(new Label
+            {
+                Text = "Identity Verification", Location = new Point(24, 18), AutoSize = true,
+                Font = new Font("Segoe UI", 16F, FontStyle.Bold), ForeColor = Ink
+            });
+            Controls.Add(new Label
+            {
+                Text = "Check that the uploaded ID matches the claimant, then release the document.",
+                Location = new Point(26, 52), AutoSize = true, ForeColor = Muted
+            });
+
+            // ---- left: details
+            var details = new TableLayoutPanel
+            {
+                Location = new Point(24, 96), Size = new Size(360, 400),
+                ColumnCount = 1, BackColor = UiTheme.PageBg
+            };
+            details.Controls.Add(Field("Transaction", txnCode));
+            details.Controls.Add(Field("Type", type));
+            details.Controls.Add(Field("Client (record owner)", client));
+            details.Controls.Add(Field("Claimant", string.IsNullOrWhiteSpace(claimant) ? "—" : claimant));
+            details.Controls.Add(Field("Representative", string.IsNullOrWhiteSpace(repInfo) ? "Owner (not a representative)" : repInfo));
+            details.Controls.Add(Field("Name on uploaded ID", idName.Length > 0 ? idName : "— (no ID uploaded)"));
+            Controls.Add(details);
+
+            // ---- right: photos
+            Controls.Add(PhotoBox("CLIENT PHOTO (from kiosk)", clientPhoto, 404, 96, "No kiosk photo on file."));
+            Controls.Add(PhotoBox("UPLOADED VALID ID (from claimapp)", uploadedId, 404, 300, "No ID uploaded yet."));
+
+            // ---- buttons
+            var release = new Button
+            {
+                Text = "✔  Release Document", Location = new Point(596, 504), Size = new Size(258, 44),
+                FlatStyle = FlatStyle.Flat, BackColor = Green, ForeColor = Color.White,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand,
+                DialogResult = DialogResult.OK
+            };
+            release.FlatAppearance.BorderSize = 0;
+            release.FlatAppearance.MouseOverBackColor = UiTheme.Mix(Green, Color.Black, 0.18f);
+            var cancel = new Button
+            {
+                Text = "Cancel", Location = new Point(486, 504), Size = new Size(100, 44),
+                FlatStyle = FlatStyle.Flat, BackColor = UiTheme.Chrome, ForeColor = Ink,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold), Cursor = Cursors.Hand,
+                DialogResult = DialogResult.Cancel
+            };
+            cancel.FlatAppearance.BorderSize = 0;
+            Controls.Add(release); Controls.Add(cancel);
+            AcceptButton = release; CancelButton = cancel;
+
+            FormClosed += (s, e) => { clientPhoto?.Dispose(); uploadedId?.Dispose(); };
+        }
+
+        private static Control Field(string label, string value)
+        {
+            var p = new Panel { Width = 350, Height = 58, Margin = new Padding(6, 6, 6, 0) };
+            p.Controls.Add(new Label
+            {
+                Text = label, Location = new Point(4, 4), AutoSize = true,
+                Font = new Font("Segoe UI", 8.5F), ForeColor = Muted
+            });
+            p.Controls.Add(new Label
+            {
+                Text = value, Location = new Point(4, 24), Size = new Size(340, 30),
+                Font = new Font("Segoe UI", 11.5F, FontStyle.Bold), ForeColor = Ink,
+                AutoEllipsis = true
+            });
+            return p;
+        }
+
+        private static Control PhotoBox(string caption, Image img, int x, int y, string emptyText)
+        {
+            var host = new Panel { Location = new Point(x, y), Size = new Size(448, 186) };
+            host.Controls.Add(new Label
+            {
+                Text = caption, Location = new Point(0, 0), AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Muted
+            });
+            var pic = new PictureBox
+            {
+                Location = new Point(0, 22), Size = new Size(448, 160),
+                BorderStyle = BorderStyle.FixedSingle, BackColor = UiTheme.PageBg,
+                SizeMode = PictureBoxSizeMode.Zoom, Image = img
+            };
+            host.Controls.Add(pic);
+            if (img == null)
+                host.Controls.Add(new Label
+                {
+                    Text = emptyText, Location = new Point(0, 90), Size = new Size(448, 24),
+                    TextAlign = ContentAlignment.MiddleCenter, ForeColor = Muted, BackColor = Color.Transparent
+                });
+            return host;
+        }
+
+        private static Image LoadImage(string sql, long txnId)
+        {
+            try
+            {
+                DataTable dt = Db.Pull(sql, new MySqlParameter("@t", txnId));
+                if (dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value)
+                    using (var ms = new MemoryStream((byte[])dt.Rows[0][0])) return Image.FromStream(ms);
+            }
+            catch { }
+            return null;
+        }
+
+        private static string JoinName(object f, object m, object l)
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            if (f != DBNull.Value && f != null && f.ToString().Length > 0) parts.Add(f.ToString());
+            if (m != DBNull.Value && m != null && m.ToString().Length > 0) parts.Add(m.ToString());
+            if (l != DBNull.Value && l != null && l.ToString().Length > 0) parts.Add(l.ToString());
+            return string.Join(" ", parts);
+        }
+
+        private static string Str(object v) =>
+            v == null || v == DBNull.Value || v.ToString().Length == 0 ? "—" : v.ToString();
     }
 }

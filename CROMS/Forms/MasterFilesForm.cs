@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Windows.Forms;
 using CROMS.Data;
 using MySql.Data.MySqlClient;
@@ -21,6 +22,7 @@ namespace CROMS.Forms
             { "Barangays", "barangays" },
             { "Municipalities", "municipalities" },
             { "Provinces", "provinces" },
+            { "Countries", "countries" },
             { "Hospitals", "hospitals" },
             { "Churches", "churches" },
             { "Causes of Death", "causes_of_death" },
@@ -34,7 +36,16 @@ namespace CROMS.Forms
             { "Residences", "residences" },
         };
 
+        // The geography tables hold the whole country since migration 29 (42,029 barangays,
+        // 1,647 municipalities). Binding all of that to a grid froze the screen, and nobody
+        // scrolls 42,000 rows anyway - so the list shows at most this many and the search box
+        // narrows it. The count label says when rows are being held back.
+        private const int MaxRows = 500;
+
         private int? _selectedId;
+
+        // Debounce: one query when the operator stops typing, not one per keystroke.
+        private readonly Timer _searchTimer = new Timer { Interval = 300 };
 
         public MasterFilesForm()
         {
@@ -43,12 +54,20 @@ namespace CROMS.Forms
             // Fill the list to the right edge and pin the edit controls to the right, so a wide
             // window has no dead gap between the grid and the (previously left-floating) editor.
             dgvItems.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            foreach (Control c in new Control[] { lblName, txtName, btnAdd, btnUpdate, btnDelete, btnNew, lblHint })
+            foreach (Control c in new Control[] { lblName, txtName, btnAdd, btnUpdate, btnDelete, btnNew, lblHint, lblCount })
                 c.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            _searchTimer.Tick += (s, e) => { _searchTimer.Stop(); LoadItems(); };
+            Disposed += (s, e) => _searchTimer.Dispose();
 
             foreach (var name in Tables.Keys)
                 cboCategory.Items.Add(name);
-            cboCategory.SelectedIndexChanged += (s, e) => LoadItems();
+            cboCategory.SelectedIndexChanged += (s, e) =>
+            {
+                txtSearch.Clear();   // a search typed for barangays means nothing for religions
+                _searchTimer.Stop(); // Clear raised TextChanged; this load already covers it
+                LoadItems();
+            };
             if (cboCategory.Items.Count > 0) cboCategory.SelectedIndex = 0;
         }
 
@@ -58,11 +77,62 @@ namespace CROMS.Forms
             return Tables.TryGetValue(cboCategory.Text, out string t) ? t : null;
         }
 
+        private void txtSearch_TextChanged(object sender, EventArgs e)
+        {
+            _searchTimer.Stop();
+            _searchTimer.Start();
+        }
+
         private void LoadItems()
         {
             string table = Table();
             if (table == null) return;
-            dgvItems.DataSource = Db.Pull("SELECT id AS ID, name AS Name FROM " + table + " ORDER BY name");
+
+            // Barangay and municipality names repeat across the country (3,942 barangay names
+            // and 109 municipality names occur more than once), so a bare name cannot tell two
+            // rows apart. Show the parent place beside it.
+            string select, from;
+            switch (table)
+            {
+                case "barangays":
+                    select = "t.id AS ID, t.name AS Name, m.name AS Municipality, p.name AS Province";
+                    from = "barangays t LEFT JOIN municipalities m ON m.id = t.municipality_id " +
+                           "LEFT JOIN provinces p ON p.id = m.province_id";
+                    break;
+                case "municipalities":
+                    select = "t.id AS ID, t.name AS Name, p.name AS Province";
+                    from = "municipalities t LEFT JOIN provinces p ON p.id = t.province_id";
+                    break;
+                default:
+                    select = "t.id AS ID, t.name AS Name";
+                    from = table + " t";
+                    break;
+            }
+
+            string term = txtSearch.Text.Trim();
+            string where = term.Length > 0 ? " WHERE t.name LIKE @q" : "";
+            var q = new MySqlParameter("@q", "%" + term + "%");
+
+            try
+            {
+                DataTable dt = Db.Pull("SELECT " + select + " FROM " + from + where +
+                                       " ORDER BY t.name LIMIT " + MaxRows, q);
+                int total = Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM " + table + " t" + where,
+                                       new MySqlParameter("@q", "%" + term + "%")).Rows[0][0]);
+
+                dgvItems.DataSource = dt;
+                if (dgvItems.Columns.Contains("ID")) dgvItems.Columns["ID"].FillWeight = 20;
+
+                lblCount.Text = total > dt.Rows.Count
+                    ? string.Format("Showing {0:N0} of {1:N0} — type in Search to narrow the list.", dt.Rows.Count, total)
+                    : string.Format("{0:N0} {1}.", total, total == 1 ? "entry" : "entries");
+            }
+            catch (Exception ex)
+            {
+                dgvItems.DataSource = null;
+                lblCount.Text = "Could not load this list: " + ex.Message;
+            }
+
             _selectedId = null;
             txtName.Clear();
         }

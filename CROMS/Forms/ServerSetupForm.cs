@@ -15,111 +15,31 @@ namespace CROMS.Forms
     /// client PC never edits App.config, and a changed server IP is fixed here
     /// instead of in a text file. Code-built (a startup dialog, not a module).
     /// </summary>
-    public class ServerSetupForm : Form
+    public partial class ServerSetupForm : Form
     {
-        private readonly TextBox _txtHost = new TextBox();
-        private readonly TextBox _txtPort = new TextBox();
-        private readonly Label _lblStatus = new Label();
-        private readonly Button _btnScan = new Button();
-        private readonly Button _btnTest = new Button();
-        private readonly Button _btnSave = new Button();
-        private readonly Button _btnCancel = new Button();
         private CancellationTokenSource _scanCts;
 
         public ServerSetupForm(string message = null)
         {
-            Text = "Connect to CROMS Server";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            StartPosition = FormStartPosition.CenterScreen;
-            MaximizeBox = false;
-            MinimizeBox = false;
-            ClientSize = new Size(440, 350);
-            Font = new Font("Segoe UI", 9.75f);
-            BackColor = Color.White;
+            InitializeComponent();
 
-            var title = new Label
-            {
-                Text = "Connect to the CROMS database",
-                Font = new Font("Segoe UI", 13.5f, FontStyle.Bold),
-                ForeColor = Color.FromArgb(33, 37, 41),
-                AutoSize = true,
-                Location = new Point(20, 18)
-            };
-
-            var help = new Label
-            {
-                Text = message ?? "Enter the IP address of the computer that has the CROMS database " +
-                                  "(the \"server\" PC). Make sure this PC is on the same Wi-Fi or hotspot.",
-                ForeColor = Color.FromArgb(90, 90, 90),
-                AutoSize = false,
-                Location = new Point(22, 52),
-                Size = new Size(396, 44)
-            };
+            // Runtime text + prefill (message is a caller-supplied reconnect note).
+            help.Text = message ?? "Enter the IP address of the computer that has the CROMS database " +
+                                   "(the \"server\" PC). Make sure this PC is on the same Wi-Fi or hotspot.";
             if (message != null) help.ForeColor = Color.FromArgb(176, 0, 32);
-
-            var lblHost = new Label { Text = "Server IP address", AutoSize = true, Location = new Point(22, 104) };
-            _txtHost.Location = new Point(24, 126);
-            _txtHost.Size = new Size(260, 28);
-            _txtHost.Font = new Font("Segoe UI", 11f);
-
-            var lblPort = new Label { Text = "Port", AutoSize = true, Location = new Point(300, 104) };
-            _txtPort.Location = new Point(302, 126);
-            _txtPort.Size = new Size(114, 28);
-            _txtPort.Font = new Font("Segoe UI", 11f);
 
             // Pre-fill with the saved value, else the App.config default host.
             _txtHost.Text = ServerConfig.IsConfigured ? ServerConfig.Host : DefaultHost();
             _txtPort.Text = (ServerConfig.IsConfigured ? ServerConfig.Port : 3306).ToString();
 
-            _lblStatus.Location = new Point(24, 166);
-            _lblStatus.Size = new Size(392, 40);
-            _lblStatus.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
-            _lblStatus.Text = "";
-
-            // Auto-find the server on the network — the fix for a changed Wi-Fi/hotspot IP.
-            _btnScan.Text = "🔍  Find Server Automatically";
-            _btnScan.Size = new Size(392, 40);
-            _btnScan.Location = new Point(24, 210);
-            _btnScan.BackColor = Color.FromArgb(13, 110, 253);
-            _btnScan.ForeColor = Color.White;
-            _btnScan.FlatStyle = FlatStyle.Flat;
-            _btnScan.FlatAppearance.BorderSize = 0;
-            _btnScan.Click += async (s, e) => await ScanAsync();
-
-            _btnTest.Text = "Test Connection";
-            _btnTest.Size = new Size(150, 40);
-            _btnTest.Location = new Point(24, 286);
-            _btnTest.BackColor = Color.FromArgb(233, 236, 239);
-            _btnTest.FlatStyle = FlatStyle.Flat;
-            _btnTest.FlatAppearance.BorderSize = 0;
-            _btnTest.Click += async (s, e) => await TestAsync();
-
-            _btnSave.Text = "Save && Continue";
-            _btnSave.Size = new Size(150, 40);
-            _btnSave.Location = new Point(184, 286);
-            _btnSave.BackColor = Color.FromArgb(25, 135, 84);
-            _btnSave.ForeColor = Color.White;
-            _btnSave.FlatStyle = FlatStyle.Flat;
-            _btnSave.FlatAppearance.BorderSize = 0;
-            _btnSave.Click += async (s, e) => await SaveAsync();
-
-            _btnCancel.Text = "Exit";
-            _btnCancel.Size = new Size(72, 40);
-            _btnCancel.Location = new Point(344, 286);
-            _btnCancel.BackColor = Color.FromArgb(233, 236, 239);
-            _btnCancel.FlatStyle = FlatStyle.Flat;
-            _btnCancel.FlatAppearance.BorderSize = 0;
-            _btnCancel.DialogResult = DialogResult.Cancel;
-
-            Controls.AddRange(new Control[] {
-                title, help, lblHost, _txtHost, lblPort, _txtPort,
-                _lblStatus, _btnScan, _btnTest, _btnSave, _btnCancel
-            });
-
             AcceptButton = _btnSave;
             CancelButton = _btnCancel;
             ActiveControl = _txtHost;
         }
+
+        private async void btnScan_Click(object sender, EventArgs e) => await ScanAsync();
+        private async void btnTest_Click(object sender, EventArgs e) => await TestAsync();
+        private async void btnSave_Click(object sender, EventArgs e) => await SaveAsync();
 
         /// <summary>
         /// Silently sweep the network for the CROMS server, showing a small

@@ -15,6 +15,23 @@ namespace CROMS.Display
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // If the saved/localhost database isn't reachable (e.g. the server's
+            // Wi-Fi/hotspot IP changed), auto-scan the LAN to find it before opening
+            // the board — same behaviour as the main app, no IP to type.
+            try
+            {
+                if (!ServerConfig.IsReachable())
+                {
+                    string ip = ServerConfig.DiscoverServerAsync(3306).GetAwaiter().GetResult();
+                    if (!string.IsNullOrEmpty(ip)) ServerConfig.Save(ip, 3306);
+                }
+            }
+            catch { /* board will show "waiting for connection…" and keep polling */ }
+
+            // Keep reconnecting if the server's IP changes while the board is running.
+            ServerConfig.StartAutoReconnect();
+
             Application.Run(new DisplayForm());
         }
     }

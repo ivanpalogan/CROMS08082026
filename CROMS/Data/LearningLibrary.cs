@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -241,7 +241,8 @@ namespace CROMS.Data
         {
             "hospitals", "municipalities", "provinces", "barangays", "churches",
             "nationalities", "religions", "occupations", "residences", "relationships",
-            "birth_orders", "causes_of_death", "civil_statuses", "type_of_births"
+            "birth_orders", "causes_of_death", "civil_statuses", "type_of_births",
+            "countries"
         };
 
         /// <summary>Ensure a value exists in a whitelisted lookup table (dedup by normalized

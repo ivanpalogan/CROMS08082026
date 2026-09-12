@@ -23,9 +23,6 @@ namespace CROMS.Forms
         // request is then written back to this queue ticket for traceability.
         private int _queueTicketId;
         private string _queueTicketCode;
-        private System.Windows.Forms.Label lblQueueRef;
-        private System.Windows.Forms.Label lblPhotoCap;
-        private System.Windows.Forms.PictureBox picClient;
 
         public void RefreshData() => LoadRequests();
 
@@ -39,8 +36,6 @@ namespace CROMS.Forms
             ClearForm();
             _queueTicketId = ticketId;
             _queueTicketCode = ticketCode;
-            EnsureQueueRefLabel();
-            EnsurePhotoBox();
 
             // Pre-fill from what the client entered on the kiosk (name, purpose, photo).
             string contact = "";
@@ -55,11 +50,11 @@ namespace CROMS.Forms
                 ShowPhoto(row["id_image"]);
             }
 
-            lblQueueRef.Text = "Linked to queue ticket:  " + ticketCode +
-                (contact.Length > 0 ? "     ·     Contact: " + contact : "");
-            lblQueueRef.Visible = true;
-            picClient.Visible = true;
-            lblPhotoCap.Visible = true;
+            pillQueueRef.Text = "Queue ticket " + ticketCode +
+                (contact.Length > 0 ? "   ·   " + contact : "");
+            pillQueueRef.Visible = true;
+            cardPhoto.Visible = true;
+            UpdateSummary();
             txtFirst.Focus();
         }
 
@@ -80,36 +75,6 @@ namespace CROMS.Forms
             }
         }
 
-        /// <summary>Lazily builds the panel that shows the client's captured photo.</summary>
-        private void EnsurePhotoBox()
-        {
-            if (picClient != null) return;
-            lblPhotoCap = new System.Windows.Forms.Label
-            {
-                Text = "Client Photo (from kiosk)",
-                AutoSize = true,
-                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
-                Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.FromArgb(73, 80, 87),
-                Location = new System.Drawing.Point(1168, 90),
-                Visible = false
-            };
-            picClient = new System.Windows.Forms.PictureBox
-            {
-                Location = new System.Drawing.Point(1168, 112),
-                Size = new System.Drawing.Size(260, 283),
-                Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right,
-                BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle,
-                SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom,
-                BackColor = System.Drawing.Color.FromArgb(248, 249, 250),
-                Visible = false
-            };
-            Controls.Add(lblPhotoCap);
-            Controls.Add(picClient);
-            lblPhotoCap.BringToFront();
-            picClient.BringToFront();
-        }
-
         private void ShowPhoto(object idImage)
         {
             picClient.Image = null;
@@ -123,30 +88,14 @@ namespace CROMS.Forms
             catch { /* stored value wasn't a readable image */ }
         }
 
-        /// <summary>Lazily builds the small badge that shows the linked queue ticket.</summary>
-        private void EnsureQueueRefLabel()
-        {
-            if (lblQueueRef != null) return;
-            lblQueueRef = new System.Windows.Forms.Label
-            {
-                AutoSize = true,
-                Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold),
-                ForeColor = System.Drawing.Color.FromArgb(13, 110, 253),
-                Location = new System.Drawing.Point(530, 266),
-                Name = "lblQueueRef",
-                Visible = false
-            };
-            grpDetails.Controls.Add(lblQueueRef);
-        }
-
-        /// <summary>Forgets any linked queue ticket and hides its badge.</summary>
+        /// <summary>Forgets any linked queue ticket and hides its badge + photo card.</summary>
         private void ResetQueueLink()
         {
             _queueTicketId = 0;
             _queueTicketCode = null;
-            if (lblQueueRef != null) lblQueueRef.Visible = false;
-            if (picClient != null) { picClient.Image = null; picClient.Visible = false; }
-            if (lblPhotoCap != null) lblPhotoCap.Visible = false;
+            pillQueueRef.Visible = false;
+            picClient.Image = null;
+            cardPhoto.Visible = false;
         }
 
         /// <summary>Joins the three name parts into "First Middle Last", skipping blanks.</summary>
@@ -172,11 +121,114 @@ namespace CROMS.Forms
             cboCertType.Items.AddRange(new object[] { "CTC", "Negative" });
             cboCertType.SelectedItem = "CTC";
             cboRecordType.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });
-            cboRecordType.SelectedIndexChanged += (s, e) => LoadRecords();
+            cboRecordType.SelectedIndexChanged += (s, e) => { LoadRecords(); UpdateSummary(); };
             LoadRequests();
             LearningLibrary.Attach(txtFirst, LearningLibrary.GivenName);
             LearningLibrary.Attach(txtLast, LearningLibrary.Surname);
+
+            // Request summary panel — mirrors every field live so the officer can check the
+            // request before creating it, rather than only after.
+            txtFirst.TextChanged += (s, e) => UpdateSummary();
+            txtMiddle.TextChanged += (s, e) => UpdateSummary();
+            txtLast.TextChanged += (s, e) => UpdateSummary();
+            cboCertType.SelectedIndexChanged += (s, e) => UpdateSummary();
+            cboRecord.SelectedIndexChanged += (s, e) => UpdateSummary();
+            cboRecord.TextChanged += (s, e) => UpdateSummary();
+            txtCopies.TextChanged += (s, e) => UpdateSummary();
+            txtPurpose.TextChanged += (s, e) => UpdateSummary();
+
+            SetupRefreshIcon();
+            UpdateSummary();
         }
+
+        /// <summary>Refreshes the "Request summary" panel from the current field values.</summary>
+        private void UpdateSummary()
+        {
+            SetSummary(lblSumClient, FullClientName());
+            SetSummary(lblSumCertType, cboCertType.SelectedItem?.ToString());
+            SetSummary(lblSumRecordType, cboRecordType.SelectedItem?.ToString());
+            SetSummary(lblSumRecord, cboRecord.Text);
+            SetSummary(lblSumCopies, txtCopies.Text);
+            SetSummary(lblSumPurpose, txtPurpose.Text);
+
+            // The callout says what to do NEXT, so it has to know whether the form is
+            // actually ready — otherwise it is decoration that reads the same either way.
+            bool ready = !string.IsNullOrWhiteSpace(txtFirst.Text)
+                      && !string.IsNullOrWhiteSpace(txtLast.Text);
+            lblNextStep.Text = ready
+                ? "Click Create request to open the transaction, then print the certificate."
+                : "Enter the client's first and last name, then click Create request.";
+        }
+
+        /// <summary>
+        /// Writes one summary value. An empty entry is drawn in the faint tone so a filled
+        /// row and a still-blank one are told apart at a glance, not only by reading them.
+        /// </summary>
+        private static void SetSummary(Label lbl, string value)
+        {
+            bool filled = !string.IsNullOrWhiteSpace(value);
+            // AutoEllipsis trims at the label's real pixel width; a character count would
+            // cut a name that still fits, or overflow one that does not.
+            lbl.Text = filled ? value.Trim() : "—";
+            lbl.ForeColor = filled ? UiTheme.Ink : UiTheme.Faint;
+        }
+
+        /// <summary>
+        /// Draws the refresh control as a circular arrow. The button is tagged "noskin" so
+        /// UiTheme leaves it alone — its owner-draw renders the caption with TextRenderer,
+        /// which mangles a glyph like "↻" at this size.
+        /// </summary>
+        private void SetupRefreshIcon()
+        {
+            bool hover = false;
+            btnRefresh.Cursor = Cursors.Hand;
+            btnRefresh.FlatAppearance.BorderSize = 0;
+            btnRefresh.BackColor = UiTheme.Surface;
+            typeof(Control).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(btnRefresh, true);
+
+            btnRefresh.MouseEnter += (s, e) => { hover = true; btnRefresh.Invalidate(); };
+            btnRefresh.MouseLeave += (s, e) => { hover = false; btnRefresh.Invalidate(); };
+            btnRefresh.Paint += (s, e) =>
+            {
+                Graphics g = e.Graphics;
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                var face = new Rectangle(0, 0, btnRefresh.Width - 1, btnRefresh.Height - 1);
+                using (var path = CardPanel.RoundedRect(face, 8))
+                using (var fill = new SolidBrush(hover ? UiTheme.AccentTint : UiTheme.Chrome))
+                    g.FillPath(fill, path);
+
+                Color ink = hover ? UiTheme.Accent : UiTheme.Muted;
+                var box = new RectangleF(face.Width / 2f - 7.5f, face.Height / 2f - 7.5f, 15f, 15f);
+                using (var pen = new Pen(ink, 1.9f))
+                {
+                    // Open arc + arrowhead — a circular arrow, drawn rather than typed.
+                    pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                    pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                    g.DrawArc(pen, box, 20f, 300f);
+                }
+                using (var brush = new SolidBrush(ink))
+                {
+                    float cx = box.Right, cy = box.Y + box.Height / 2f;
+                    g.FillPolygon(brush, new[]
+                    {
+                        new PointF(cx - 0.5f, cy - 5.5f),
+                        new PointF(cx + 4.5f, cy - 1.5f),
+                        new PointF(cx - 1.5f, cy + 0.5f)
+                    });
+                }
+            };
+        }
+
+        /// <summary>Shows the inline validation banner with the given message.</summary>
+        private void ShowValidation(string msg)
+        {
+            lblValidation.Text = "⚠  " + msg;
+            pnlValidation.Visible = true;
+        }
+
+        private void HideValidation() => pnlValidation.Visible = false;
 
         /// <summary>Fills the Record dropdown with records of the chosen type.</summary>
         private void LoadRecords()
@@ -213,10 +265,10 @@ namespace CROMS.Forms
         {
             if (string.IsNullOrWhiteSpace(txtFirst.Text) || string.IsNullOrWhiteSpace(txtLast.Text))
             {
-                MessageBox.Show("First name and last name are required.", "Missing data",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowValidation("Please complete the required field: Client name (first and last name).");
                 return;
             }
+            HideValidation();
 
             string txnCode = NextTxnCode();
             string clientName = FullClientName();   // captured before ClearForm() wipes the boxes
@@ -339,6 +391,8 @@ namespace CROMS.Forms
             cboRecord.DataSource = null;
             txtCopies.Text = "1";
             txtPurpose.Clear();
+            HideValidation();
+            UpdateSummary();
         }
 
         private void LoadRequests()
@@ -382,7 +436,6 @@ namespace CROMS.Forms
         private readonly int _recordId, _copies;
         private DataRow _record;     // the located record row (null until Find runs)
         private int _recalls;        // how many times the client's number has been called
-        private System.Speech.Synthesis.SpeechSynthesizer _voice;
 
         public CertNextStep Result { get; private set; } = CertNextStep.None;
         public string ParkReason { get; private set; }
@@ -407,7 +460,7 @@ namespace CROMS.Forms
 
             var head = new Label
             {
-                Text = "Step 2 — Find & Print the Certificate",
+                Text = "Step 2 — Print the Certificate",
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 37, 41),
                 Location = new Point(24, 18), AutoSize = true
@@ -436,13 +489,13 @@ namespace CROMS.Forms
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(108, 117, 125),
                 Text = _recordId > 0
-                    ? "Record is linked. Click \"Find & Print\" to print the certificate."
+                    ? "Record is linked. Click \"Print Certificate\" to print the certificate."
                     : "⚠ No record was picked on the request. You can still park it to Waiting-to-Release and locate the record later."
             };
 
             _btnPrint = new Button
             {
-                Text = "🖨  Find & Print Certificate",
+                Text = "🖨  Print Certificate",
                 Location = new Point(26, 236), Size = new Size(508, 46),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(13, 110, 253),
                 ForeColor = Color.White, Font = new Font("Segoe UI", 11F, FontStyle.Bold),
@@ -479,7 +532,7 @@ namespace CROMS.Forms
 
             var btnPark = new Button
             {
-                Text = "⏸  No-show — Put to Waiting-to-Release",
+                Text = "⏸  Client Not Present — Hold for Release",
                 Location = new Point(26, 406), Size = new Size(360, 44),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(233, 236, 239),
                 ForeColor = Color.FromArgb(33, 37, 41), Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
@@ -503,7 +556,6 @@ namespace CROMS.Forms
             Controls.Add(_lblFound); Controls.Add(_btnPrint); Controls.Add(_btnCall);
             Controls.Add(_btnPay); Controls.Add(btnPark); Controls.Add(btnCancel);
 
-            FormClosed += (s, e) => { try { _voice?.Dispose(); } catch { } };
         }
 
         /// <summary>
@@ -511,34 +563,50 @@ namespace CROMS.Forms
         /// System.Speech engine the queue board uses). Guarded — a PC with no audio never
         /// crashes. After the 2nd call, the button hints that a no-show should be parked.
         /// </summary>
+        private const int MaxCalls = 2;   // hard cap so the callout can't be spammed
+
         private void CallClient()
         {
-            _recalls++;
-            try
+            // Cap at MaxCalls total (first call + one recall). Past that the button is disabled
+            // and the officer should park the request as a no-show.
+            if (_recalls >= MaxCalls)
             {
-                if (_voice == null) _voice = new System.Speech.Synthesis.SpeechSynthesizer();
-                string who = _queueCode != null ? Spell(_queueCode) : _client;
-                _voice.SpeakAsync("Now serving " + who + ", please proceed to the window.");
+                _btnCall.Enabled = false;
+                _lblFound.Text = "Called " + _recalls + " times (limit reached). If the client does " +
+                    "not come, use \"Client Not Present — Hold for Release\".";
+                _lblFound.ForeColor = Color.FromArgb(200, 35, 51);
+                return;
             }
-            catch { /* no audio device — the on-screen prompt still updates */ }
 
+            _recalls++;
+
+            // Bump the queue ticket's recall counter so the public Display board (a separate
+            // PC by the waiting area) announces this number too — the board watches recall_count.
+            if (_queueCode != null)
+            {
+                try
+                {
+                    Db.Push(
+                        "UPDATE queue_tickets SET recall_count = COALESCE(recall_count,0) + 1 " +
+                        "WHERE ticket_code = @c AND status = 'Serving' AND DATE(created_at) = CURDATE()",
+                        new MySqlParameter("@c", _queueCode));
+                }
+                catch { /* board just won't re-announce — never block the counter call */ }
+            }
+
+            // Voice is spoken ONLY by the public queue Display PC (it watches the ticket's
+            // Serving status + recall_count, bumped above). Staff PC stays silent so no one
+            // has to mute it.
+
+            bool capped = _recalls >= MaxCalls;
             _btnCall.Text = _queueCode != null
                 ? "📢  Recall Client  (" + _queueCode + ")   ·  called " + _recalls + "×"
                 : "📢  Recall Client   ·  called " + _recalls + "×";
-            _lblFound.Text = _recalls >= 2
-                ? "Called " + _recalls + " times. If the client does not come, use \"No-show — Put to Waiting-to-Release\"."
+            _btnCall.Enabled = !capped;   // no more calls after the limit — can't be spammed
+            _lblFound.Text = capped
+                ? "Called " + _recalls + " times (limit reached). If the client does not come, use \"Client Not Present — Hold for Release\"."
                 : "Client called. Waiting for them at the window…";
-            _lblFound.ForeColor = Color.FromArgb(102, 16, 242);
-        }
-
-        // "Q-006" reads better spoken as "Q 0 0 6".
-        private static string Spell(string code)
-        {
-            if (string.IsNullOrEmpty(code)) return "";
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in code.Replace('-', ' '))
-                sb.Append(char.IsDigit(c) ? " " + c : c.ToString());
-            return sb.ToString();
+            _lblFound.ForeColor = capped ? Color.FromArgb(200, 35, 51) : Color.FromArgb(102, 16, 242);
         }
 
         private void Park()

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -104,8 +104,32 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
-    <Compile Include="KioskForm.cs">
+    <Compile Include="KioskControls.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="KioskCore.cs" />
+    <Compile Include="KioskIcons.cs" />
+    <Compile Include="KioskButtons.cs" />
+    <Compile Include="IconFont.cs" />
+    <Compile Include="HoverFade.cs" />
+    <Compile Include="KioskSession.cs" />
+    <Compile Include="WelcomeForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="WelcomeForm.Designer.cs">
+      <DependentUpon>WelcomeForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="ServiceSelectForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ServiceSelectForm.Designer.cs">
+      <DependentUpon>ServiceSelectForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="DetailsPhotoForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="DetailsPhotoForm.Designer.cs">
+      <DependentUpon>DetailsPhotoForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Db.cs" />
     <Compile Include="ClaimLink.cs" />
@@ -114,8 +138,18 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="ServiceSelectForm.resx">
+      <DependentUpon>ServiceSelectForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="DetailsPhotoForm.resx">
+      <DependentUpon>DetailsPhotoForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Phosphor-Light.ttf" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <None Include="Resources\Phosphor-LICENSE.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

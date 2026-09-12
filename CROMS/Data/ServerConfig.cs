@@ -101,6 +101,34 @@ namespace CROMS.Data
             }
         }
 
+        // LAN account used automatically when connecting to a REMOTE server. The
+        // App.config account (root) is granted only for localhost; croms_user is
+        // granted for the private subnets. Overridable via App.config so no code
+        // change is needed to rotate it. This lets ONE config work on every PC:
+        // the server machine (localhost) keeps root; any client pointed at a remote
+        // IP silently uses croms_user — no special client config, no wrong-creds bug.
+        private static string LanUser =>
+            (ConfigurationManager.AppSettings["LanDbUser"] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings["LanDbUser"].Trim() : "croms_user";
+        private static string LanPassword =>
+            (ConfigurationManager.AppSettings["LanDbPassword"] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings["LanDbPassword"].Trim() : "Croms#2026";
+
+        private static bool IsLocalHost(string h)
+        {
+            if (string.IsNullOrWhiteSpace(h)) return true;
+            h = h.Trim().ToLowerInvariant();
+            return h == "localhost" || h == "127.0.0.1" || h == "::1" || h == ".";
+        }
+
+        /// <summary>On a remote host, swap in the LAN account (root is localhost-only).</summary>
+        private static void ApplyLanCreds(MySqlConnectionStringBuilder b, string host)
+        {
+            if (IsLocalHost(host)) return;
+            b.UserID = LanUser;
+            b.Password = LanPassword;
+        }
+
         /// <summary>
         /// The connection string CROMS actually uses: the App.config template with
         /// Server/Port replaced by the saved values (when configured).
@@ -118,6 +146,7 @@ namespace CROMS.Data
                         Server = Host,
                         Port = (uint)Port
                     };
+                    ApplyLanCreds(b, Host);
                     return b.ConnectionString;
                 }
                 catch
@@ -135,11 +164,13 @@ namespace CROMS.Data
         {
             try
             {
-                return new MySqlConnectionStringBuilder(BaseConnectionString)
+                var b = new MySqlConnectionStringBuilder(BaseConnectionString)
                 {
                     Server = host,
                     Port = (uint)(port > 0 ? port : 3306)
-                }.ConnectionString;
+                };
+                ApplyLanCreds(b, host);
+                return b.ConnectionString;
             }
             catch { return BaseConnectionString; }
         }
@@ -175,6 +206,42 @@ namespace CROMS.Data
         /// <param name="progress">Optional "scanned/total" callback for the UI.</param>
         /// <param name="cancel">Cancels the sweep early (e.g. a Stop button / found).</param>
         /// <returns>The server IP if found, else null.</returns>
+        /// <summary>True if the current effective connection opens.</summary>
+        public static bool IsReachable()
+        {
+            try { using (var c = new MySqlConnection(EffectiveConnectionString)) { c.Open(); return true; } }
+            catch { return false; }
+        }
+
+        private static Timer _reconnect;
+        private static int _reconnecting;
+
+        /// <summary>
+        /// Background watcher: while the DB is unreachable (e.g. the server's Wi-Fi/hotspot
+        /// IP changed mid-session), re-scan the LAN and adopt the new IP — no restart. Does
+        /// nothing while the connection is healthy. Safe to call once at startup.
+        /// </summary>
+        public static void StartAutoReconnect(int intervalMs = 15000)
+        {
+            if (_reconnect != null) return;
+            _reconnect = new Timer(_ => TryReconnect(), null, intervalMs, intervalMs);
+        }
+
+        private static void TryReconnect()
+        {
+            if (Interlocked.Exchange(ref _reconnecting, 1) == 1) return;   // one at a time
+            try
+            {
+                if (IsReachable()) return;                                 // healthy — skip
+                string ip = DiscoverServerAsync(Port).GetAwaiter().GetResult();
+                if (!string.IsNullOrEmpty(ip) &&
+                    !string.Equals(ip, Host, StringComparison.OrdinalIgnoreCase))
+                    Save(ip, Port);
+            }
+            catch { }
+            finally { Interlocked.Exchange(ref _reconnecting, 0); }
+        }
+
         public static async Task<string> DiscoverServerAsync(
             int port = 3306, Action<int, int> progress = null, CancellationToken cancel = default)
         {

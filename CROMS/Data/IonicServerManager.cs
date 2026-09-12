@@ -31,20 +31,30 @@ namespace CROMS.Data
         // Two servers can auto-start: the certificate-scanner app (Instance, :4200) and
         // the claimapp ID-upload app (ClaimApp, :4300). Each is an independent instance
         // with its own folder / serve command / port, so one CROMS launch brings up both.
+        // Served over plain HTTP (no --ssl) so the scanner QR opens with no cert warning.
+        // Its capture uses the native camera file-input (no secure context needed).
         public static readonly IonicServerManager Instance = new IonicServerManager(
             "Mobile", "IonicAppPath", @"C:\Users\ivan palogan\ORCMobile_Application",
-            "MobileServeCommand", "npx ng serve --ssl --host 0.0.0.0 --port 4200 --disable-host-check", 4200);
+            "MobileServeCommand", "npx ng serve --host 0.0.0.0 --port 4200 --disable-host-check", 4200,
+            "MobileScheme", "http");
+        // claimapp is served over plain HTTP (no --ssl) so a phone's stock camera opens
+        // the QR link with NO "your connection is not private" warning. Its ID capture uses
+        // the native camera file-input, which does not need a secure context.
         public static readonly IonicServerManager ClaimApp = new IonicServerManager(
             "ClaimApp", "ClaimAppPath", @"C:\Users\ivan palogan\claimapp",
-            "ClaimAppServeCommand", "npx ng serve --ssl --host 0.0.0.0 --port 4300 --disable-host-check", 4300);
+            "ClaimAppServeCommand", "npx ng serve --host 0.0.0.0 --port 4300 --disable-host-check", 4300,
+            "ClaimAppScheme", "http");
 
-        private readonly string _label, _appPathKey, _appPathDefault, _serveCmdKey, _serveCmdDefault;
+        private readonly string _label, _appPathKey, _appPathDefault, _serveCmdKey, _serveCmdDefault,
+                                _schemeKey, _schemeDefault;
         private IonicServerManager(string label, string appPathKey, string appPathDefault,
-            string serveCmdKey, string serveCmdDefault, int defaultPort)
+            string serveCmdKey, string serveCmdDefault, int defaultPort,
+            string schemeKey, string schemeDefault)
         {
             _label = label;
             _appPathKey = appPathKey; _appPathDefault = appPathDefault;
             _serveCmdKey = serveCmdKey; _serveCmdDefault = serveCmdDefault;
+            _schemeKey = schemeKey; _schemeDefault = schemeDefault;
             Port = defaultPort;
         }
 
@@ -88,11 +98,12 @@ namespace CROMS.Data
                 ? ConfigurationManager.AppSettings[_serveCmdKey].Trim()
                 : _serveCmdDefault;
 
-        // URL scheme the QR/URL is built with (https for the --ssl server).
+        // URL scheme the QR/URL is built with. Per-instance (Mobile=https for its --ssl
+        // camera server, ClaimApp=http so the QR opens with no cert warning).
         public string Scheme =>
-            (ConfigurationManager.AppSettings["MobileScheme"] ?? "").Trim().Length > 0
-                ? ConfigurationManager.AppSettings["MobileScheme"].Trim()
-                : "https";
+            (ConfigurationManager.AppSettings[_schemeKey] ?? "").Trim().Length > 0
+                ? ConfigurationManager.AppSettings[_schemeKey].Trim()
+                : _schemeDefault;
 
         private const int MaxRestarts = 3;
 
@@ -136,6 +147,11 @@ namespace CROMS.Data
                 {
                     LogFile = Path.Combine(Path.GetTempPath(), "croms-ionic-serve-" + _label + ".log");
                     try { File.WriteAllText(LogFile, "CROMS ionic serve — " + DateTime.Now + Environment.NewLine); } catch { }
+
+                    // Free the port first: a leftover node from a previous run holding it makes
+                    // `ng serve` fail with "Port is already in use" and give up. Kill whatever
+                    // is listening on our port so startup always succeeds.
+                    FreePort(Port);
 
                     var psi = new ProcessStartInfo
                     {
@@ -332,6 +348,40 @@ namespace CROMS.Data
                 MobileUrl = Scheme + "://" + LanIp + ":" + Port;
                 Raise();   // dashboard regenerates the QR + URL
             }
+        }
+
+        /// <summary>
+        /// Kill any process currently LISTENING on <paramref name="port"/> (a leftover
+        /// node/ng from an earlier run). Never touches this app's own process.
+        /// </summary>
+        private void FreePort(int port)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("cmd.exe", "/c netstat -ano -p tcp")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    StandardOutputEncoding = Encoding.UTF8,
+                };
+                string output;
+                using (var p = Process.Start(psi)) { output = p.StandardOutput.ReadToEnd(); p.WaitForExit(4000); }
+
+                int self = Process.GetCurrentProcess().Id;
+                var pids = new System.Collections.Generic.HashSet<int>();
+                foreach (var line in output.Split('\n'))
+                {
+                    if (line.IndexOf("LISTENING", StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    // e.g. "  TCP    0.0.0.0:4300   0.0.0.0:0   LISTENING   17764"
+                    var m = Regex.Match(line, @":" + port + @"\s+\S+\s+LISTENING\s+(\d+)", RegexOptions.IgnoreCase);
+                    if (m.Success && int.TryParse(m.Groups[1].Value, out int pid) && pid > 0 && pid != self)
+                        pids.Add(pid);
+                }
+                foreach (var pid in pids) KillTree(pid);
+                if (pids.Count > 0) Thread.Sleep(400);   // let the OS release the socket
+            }
+            catch { }
         }
 
         private static void KillTree(int pid)

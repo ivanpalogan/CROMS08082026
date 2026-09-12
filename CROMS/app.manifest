@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <assemblyIdentity version="1.0.0.0" name="CROMS.app" />
+
+  <!-- Windows version compatibility (needed so the DPI + per-monitor settings below
+       are honoured on Windows 8.1 / 10 / 11). -->
+  <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+      <!-- Windows 10 and 11 -->
+      <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}" />
+      <!-- Windows 8.1 -->
+      <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}" />
+      <!-- Windows 8 -->
+      <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}" />
+      <!-- Windows 7 -->
+      <supportedOS Id="{35138b9a-5d96-4fbd-8e2d-a2440225f93a}" />
+    </application>
+  </compatibility>
+
+  <!-- High-DPI awareness. This is the key fix for "the layout looks different / blurry
+       / mis-sized on another laptop": most office laptops run Windows display scaling at
+       125% or 150%. Without this block the app is DPI-UNAWARE, so Windows bitmap-stretches
+       the whole window (blurry text, wrong sizes). With System DPI awareness, WinForms
+       scales the forms itself (AutoScaleMode.Font on every form does the real work), so the
+       UI stays crisp and consistently sized across laptops of any resolution / scaling.
+
+       System (not PerMonitor) is chosen deliberately: it applies one scale factor for the
+       whole app and is the safest match for these designer-placed layouts. -->
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <dpiAware xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">true</dpiAware>
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">system</dpiAwareness>
+      <!-- Allow file paths longer than 260 chars (harmless, useful for deep OneDrive paths). -->
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+</assembly>

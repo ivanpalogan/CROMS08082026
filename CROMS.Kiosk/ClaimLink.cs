@@ -29,7 +29,7 @@ namespace CROMS.Kiosk
         {
             string host = ServerConfig.Host;
             if (string.IsNullOrWhiteSpace(host) || IsLoopback(host)) host = LanIp();
-            string scheme = Cfg("ClaimAppScheme", "https");
+            string scheme = Cfg("ClaimAppScheme", "http");
             string port = Cfg("ClaimAppPort", "4300");
             return scheme + "://" + host + ":" + port;
         }

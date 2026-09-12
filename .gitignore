@@ -361,3 +361,9 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# CROMS: build products and scratch, never source
+CROMS_Bundle/
+CROMS_AllApps_Bundle.zip
+CROMS_UI_UX_Mockups.zip
+output/
+tmp/

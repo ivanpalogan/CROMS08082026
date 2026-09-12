@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Diagnostics;
@@ -34,6 +34,7 @@ namespace CROMS.Data
             public string Sub;       // share sub-folder: Main / Kiosk / Display
             public string LocalDir;  // where it's installed on this PC
             public bool WasRunning;  // relaunch after update if it was open
+            public bool IsNewInstall; // app absent on this PC — copy it in for the first time
         }
 
         /// <summary>UNC path to the release share, or null on the server PC itself.</summary>
@@ -121,13 +122,23 @@ namespace CROMS.Data
             list.Add(new AppTarget { Exe = "CROMS.exe", Sub = "Main", LocalDir = mainDir });
 
             string baseDir = Directory.GetParent(mainDir)?.FullName;
-            if (baseDir != null)
+
+            // Kiosk/Display: update them where they already are; if this PC never got them,
+            // INSTALL them next to CROMS.exe (the launcher looks in its own folder first).
+            // Without this a client that only received CROMS.exe could never obtain the other
+            // two apps, and the launcher kept reporting "Could not find CROMS.Display.exe".
+            string kiosk = baseDir != null ? FindExeDir(baseDir, "CROMS.Kiosk.exe") : null;
+            list.Add(new AppTarget
             {
-                string k = FindExeDir(baseDir, "CROMS.Kiosk.exe");
-                if (k != null) list.Add(new AppTarget { Exe = "CROMS.Kiosk.exe", Sub = "Kiosk", LocalDir = k });
-                string d = FindExeDir(baseDir, "CROMS.Display.exe");
-                if (d != null) list.Add(new AppTarget { Exe = "CROMS.Display.exe", Sub = "Display", LocalDir = d });
-            }
+                Exe = "CROMS.Kiosk.exe", Sub = "Kiosk",
+                LocalDir = kiosk ?? mainDir, IsNewInstall = kiosk == null
+            });
+            string disp = baseDir != null ? FindExeDir(baseDir, "CROMS.Display.exe") : null;
+            list.Add(new AppTarget
+            {
+                Exe = "CROMS.Display.exe", Sub = "Display",
+                LocalDir = disp ?? mainDir, IsNewInstall = disp == null
+            });
 
             // Mark which are currently running (so we relaunch them afterwards).
             foreach (var t in list)
@@ -181,7 +192,8 @@ namespace CROMS.Data
                 {
                     string remoteExe = Path.Combine(share, t.Sub, t.Exe);
                     string localExe = Path.Combine(t.LocalDir, t.Exe);
-                    if (!File.Exists(remoteExe) || !File.Exists(localExe)) continue;
+                    if (!File.Exists(remoteExe)) continue;               // not published — nothing to pull
+                    if (!File.Exists(localExe)) { newer.Add(t.Sub + " (new)"); continue; }
                     if (File.GetLastWriteTimeUtc(remoteExe) > File.GetLastWriteTimeUtc(localExe).AddSeconds(2))
                         newer.Add(t.Sub);
                 }
@@ -236,6 +248,10 @@ namespace CROMS.Data
                     if (!File.Exists(Path.Combine(remoteSub, t.Exe))) continue;   // not published — skip
                     string stageSub = Path.Combine(stageRoot, t.Sub);
                     CopyDir(remoteSub, stageSub);   // excludes *.config
+                    // A first-time install has no local config to preserve, so it must take the
+                    // server's one — otherwise the new exe starts with no server IP at all.
+                    // Copy it straight across now (nothing is holding the file yet).
+                    if (t.IsNewInstall) CopyConfigs(remoteSub, t.LocalDir);
                     staged.Add(t);
                 }
                 if (staged.Count == 0) { error = "No app builds found on the server share."; return false; }
@@ -283,6 +299,21 @@ namespace CROMS.Data
                 error = ex.Message;
                 return false;
             }
+        }
+
+        /// <summary>Copies only the *.config files of a published app (first-time install).</summary>
+        private static void CopyConfigs(string src, string dst)
+        {
+            try
+            {
+                Directory.CreateDirectory(dst);
+                foreach (var f in Directory.GetFiles(src, "*.config"))
+                {
+                    string target = Path.Combine(dst, Path.GetFileName(f));
+                    if (!File.Exists(target)) File.Copy(f, target, false);   // never clobber a local config
+                }
+            }
+            catch { }
         }
 
         private static void CopyDir(string src, string dst)

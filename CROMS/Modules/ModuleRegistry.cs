@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using CROMS.Forms;
 
 namespace CROMS.Modules
@@ -12,7 +12,8 @@ namespace CROMS.Modules
     {
         // Group labels shown as sidebar section headers.
         public const string GroupClientServices = "Client Services";
-        public const string GroupRecordManagement = "Record Management";
+        public const string GroupCertification = "Certification";
+        public const string GroupRecordManagement = "Petitions & Search";
         public const string GroupDocumentWorkflow = "Document Workflow";
         public const string GroupOperations = "Operations";
         public const string GroupAdministration = "Administration";
@@ -26,34 +27,42 @@ namespace CROMS.Modules
                 () => new QueueManagementForm()),
             new ModuleInfo("transactions", "Transactions", GroupClientServices,
                 () => new TransactionsForm()),
-            new ModuleInfo("certrequest", "Certificate Request", GroupClientServices,
-                () => new CertificateRequestForm()),
-            new ModuleInfo("release", "Release & Claim", GroupClientServices,
-                () => new ReleaseClaimForm()),
 
-            // Record Management
-            new ModuleInfo("birth", "Birth Registration", GroupRecordManagement,
+            // Certification — register the event, then issue/release its certificate.
+            // Birth/Marriage/Death are the source records; Certificate Request/Release &
+            // Claim are how a copy of one of those records is issued to a client. One
+            // pipeline, one group.
+            new ModuleInfo("certrequest", "Certificate Request", GroupCertification,
+                () => new CertificateRequestForm()),
+            new ModuleInfo("release", "Release & Claim", GroupCertification,
+                () => new ReleaseClaimForm()),
+            new ModuleInfo("birth", "Birth Registration", GroupCertification,
                 () => new BirthRegistrationForm()),
-            new ModuleInfo("marriage", "Marriage Registration", GroupRecordManagement,
+            new ModuleInfo("marriage", "Marriage Registration", GroupCertification,
                 () => new MarriageRegistrationForm()),
-            new ModuleInfo("death", "Death Registration", GroupRecordManagement,
+            new ModuleInfo("death", "Death Registration", GroupCertification,
                 () => new DeathRegistrationForm()),
+
+            // Petitions & Search — post-registration correction (RA 9048 / RA 10172 /
+            // RA 9255 legitimation) and cross-record lookup. Separate from Certification:
+            // this group AMENDS a record already registered, it doesn't create/issue one.
             new ModuleInfo("petitions", "Petitions", GroupRecordManagement,
                 () => new PetitionsForm()),
             new ModuleInfo("search", "Record Search", GroupRecordManagement,
                 () => new RecordSearchForm()),
 
             // Document Workflow
-            new ModuleInfo("ocr", "OCR Digitization", GroupDocumentWorkflow,
+            new ModuleInfo("ocr", "Intelligent Document Processing", GroupDocumentWorkflow,
                 () => new OcrDigitizationForm()),
-            new ModuleInfo("docai", "Document AI", GroupDocumentWorkflow,
-                () => new DocumentAiForm()),
 
             // Operations
             new ModuleInfo("fees", "Fees & Payments", GroupOperations,
                 () => new FeesPaymentsForm()),
-            new ModuleInfo("reports", "Reports & PSA", GroupOperations,
-                () => new ReportsPsaForm()),
+            // Reports & Analytics: six tabbed domains. The PSA / statutory report is
+            // rehosted unchanged inside its own tab (ReportsPsaForm), so statutory output
+            // stays separate from analytical output.
+            new ModuleInfo("reports", "Reports & Analytics", GroupOperations,
+                () => new ReportsAnalyticsForm()),
 
             // Administration
             new ModuleInfo("masterfiles", "Master Files", GroupAdministration,

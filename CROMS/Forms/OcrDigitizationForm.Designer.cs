@@ -1,4 +1,4 @@
-namespace CROMS.Forms
+﻿namespace CROMS.Forms
 {
     partial class OcrDigitizationForm
     {
@@ -21,9 +21,11 @@ namespace CROMS.Forms
             this.lblSubtitle = new System.Windows.Forms.Label();
             this.btnLoad = new System.Windows.Forms.Button();
             this.btnRunOcr = new System.Windows.Forms.Button();
-            this.btnMode1 = new System.Windows.Forms.Button();
-            this.btnMode2 = new System.Windows.Forms.Button();
-            this.btnMode3 = new System.Windows.Forms.Button();
+            this.lblEngine = new System.Windows.Forms.Label();
+            this.dgvFields = new System.Windows.Forms.DataGridView();
+            this.btnAutoFill = new System.Windows.Forms.Button();
+            this.btnReview = new System.Windows.Forms.Button();
+            this.progress = new System.Windows.Forms.ProgressBar();
             this.grpScan = new System.Windows.Forms.GroupBox();
             this.pnlScanHost = new System.Windows.Forms.Panel();
             this.pbScan = new System.Windows.Forms.PictureBox();
@@ -34,27 +36,13 @@ namespace CROMS.Forms
             this.lblDocClass = new System.Windows.Forms.Label();
             this.txtDocClass = new System.Windows.Forms.TextBox();
             this.lblConf = new System.Windows.Forms.Label();
-            this.lblRegNo = new System.Windows.Forms.Label();
-            this.txtRegNo = new System.Windows.Forms.TextBox();
-            this.lblYear = new System.Windows.Forms.Label();
-            this.txtYear = new System.Windows.Forms.TextBox();
-            this.lblFirst = new System.Windows.Forms.Label();
-            this.txtFirst = new System.Windows.Forms.TextBox();
-            this.lblMiddle = new System.Windows.Forms.Label();
-            this.txtMiddle = new System.Windows.Forms.TextBox();
-            this.lblLast = new System.Windows.Forms.Label();
-            this.txtLast = new System.Windows.Forms.TextBox();
-            this.lblSex = new System.Windows.Forms.Label();
-            this.txtSex = new System.Windows.Forms.TextBox();
-            this.lblDob = new System.Windows.Forms.Label();
-            this.txtDob = new System.Windows.Forms.TextBox();
-            this.lblPlace = new System.Windows.Forms.Label();
-            this.txtPlace = new System.Windows.Forms.TextBox();
-            this.lblMother = new System.Windows.Forms.Label();
-            this.txtMother = new System.Windows.Forms.TextBox();
-            this.lblFather = new System.Windows.Forms.Label();
-            this.txtFather = new System.Windows.Forms.TextBox();
             this.lblFieldConf = new System.Windows.Forms.Label();
+            this.lblFormCap = new System.Windows.Forms.Label();
+            this.txtFormId = new System.Windows.Forms.TextBox();
+            this.lblRegCap = new System.Windows.Forms.Label();
+            this.txtRegistryNo = new System.Windows.Forms.TextBox();
+            this.btnReport = new System.Windows.Forms.Button();
+            this.btnSeal = new System.Windows.Forms.Button();
             this.btnReocr = new System.Windows.Forms.Button();
             this.btnDraft = new System.Windows.Forms.Button();
             this.btnCommit = new System.Windows.Forms.Button();
@@ -65,6 +53,7 @@ namespace CROMS.Forms
             ((System.ComponentModel.ISupportInitialize)(this.pbScan)).BeginInit();
             this.grpFields.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvBatch)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvFields)).BeginInit();
             this.SuspendLayout();
             //
             // lblTitle
@@ -76,7 +65,7 @@ namespace CROMS.Forms
             this.lblTitle.Name = "lblTitle";
             this.lblTitle.Size = new System.Drawing.Size(202, 37);
             this.lblTitle.TabIndex = 0;
-            this.lblTitle.Text = "OCR Digitization";
+            this.lblTitle.Text = "Intelligent Document Processing";
             //
             // lblSubtitle
             //
@@ -117,48 +106,16 @@ namespace CROMS.Forms
             this.btnRunOcr.UseVisualStyleBackColor = false;
             this.btnRunOcr.Click += new System.EventHandler(this.btnRunOcr_Click);
             //
-            // btnMode1
+            // lblEngine
             //
-            this.btnMode1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(13)))), ((int)(((byte)(110)))), ((int)(((byte)(253)))));
-            this.btnMode1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnMode1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.btnMode1.ForeColor = System.Drawing.Color.White;
-            this.btnMode1.Location = new System.Drawing.Point(24, 84);
-            this.btnMode1.Name = "btnMode1";
-            this.btnMode1.Size = new System.Drawing.Size(190, 34);
-            this.btnMode1.TabIndex = 4;
-            this.btnMode1.Tag = "Backlog Digitization";
-            this.btnMode1.Text = "Backlog Digitization";
-            this.btnMode1.UseVisualStyleBackColor = false;
-            this.btnMode1.Click += new System.EventHandler(this.ModeButton_Click);
-            //
-            // btnMode2
-            //
-            this.btnMode2.BackColor = System.Drawing.Color.White;
-            this.btnMode2.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnMode2.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnMode2.Location = new System.Drawing.Point(216, 84);
-            this.btnMode2.Name = "btnMode2";
-            this.btnMode2.Size = new System.Drawing.Size(200, 34);
-            this.btnMode2.TabIndex = 5;
-            this.btnMode2.Tag = "Single Document Attach";
-            this.btnMode2.Text = "Single Document Attach";
-            this.btnMode2.UseVisualStyleBackColor = false;
-            this.btnMode2.Click += new System.EventHandler(this.ModeButton_Click);
-            //
-            // btnMode3
-            //
-            this.btnMode3.BackColor = System.Drawing.Color.White;
-            this.btnMode3.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnMode3.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnMode3.Location = new System.Drawing.Point(418, 84);
-            this.btnMode3.Name = "btnMode3";
-            this.btnMode3.Size = new System.Drawing.Size(200, 34);
-            this.btnMode3.TabIndex = 6;
-            this.btnMode3.Tag = "Endorsement Encoding";
-            this.btnMode3.Text = "Endorsement Encoding";
-            this.btnMode3.UseVisualStyleBackColor = false;
-            this.btnMode3.Click += new System.EventHandler(this.ModeButton_Click);
+            this.lblEngine.AutoSize = true;
+            this.lblEngine.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.lblEngine.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.lblEngine.Location = new System.Drawing.Point(24, 92);
+            this.lblEngine.Name = "lblEngine";
+            this.lblEngine.Size = new System.Drawing.Size(90, 15);
+            this.lblEngine.TabIndex = 6;
+            this.lblEngine.Text = "OCR engine: —";
             //
             // grpScan
             //
@@ -166,6 +123,7 @@ namespace CROMS.Forms
             this.grpScan.Controls.Add(this.btnZoomOut);
             this.grpScan.Controls.Add(this.btnZoomIn);
             this.grpScan.Controls.Add(this.btnDeskew);
+            this.grpScan.Controls.Add(this.btnSeal);
             this.grpScan.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.grpScan.Location = new System.Drawing.Point(24, 130);
             this.grpScan.Name = "grpScan";
@@ -205,6 +163,19 @@ namespace CROMS.Forms
             this.btnZoomOut.UseVisualStyleBackColor = true;
             this.btnZoomOut.Click += new System.EventHandler(this.btnZoomOut_Click);
             //
+            // btnSeal
+            //
+            this.btnSeal.Enabled = false;
+            this.btnSeal.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSeal.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnSeal.Location = new System.Drawing.Point(380, 22);
+            this.btnSeal.Name = "btnSeal";
+            this.btnSeal.Size = new System.Drawing.Size(200, 30);
+            this.btnSeal.TabIndex = 35;
+            this.btnSeal.Text = "Seal / Stamp";
+            this.btnSeal.UseVisualStyleBackColor = true;
+            this.btnSeal.Click += new System.EventHandler(this.btnSeal_Click);
+            //
             // btnZoomIn
             //
             this.btnZoomIn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -231,30 +202,19 @@ namespace CROMS.Forms
             //
             this.grpFields.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
                         | System.Windows.Forms.AnchorStyles.Right)));
+            this.grpFields.Controls.Add(this.dgvFields);
+            this.grpFields.Controls.Add(this.progress);
+            this.grpFields.Controls.Add(this.btnAutoFill);
+            this.grpFields.Controls.Add(this.btnReview);
             this.grpFields.Controls.Add(this.lblDocClass);
             this.grpFields.Controls.Add(this.txtDocClass);
             this.grpFields.Controls.Add(this.lblConf);
-            this.grpFields.Controls.Add(this.lblRegNo);
-            this.grpFields.Controls.Add(this.txtRegNo);
-            this.grpFields.Controls.Add(this.lblYear);
-            this.grpFields.Controls.Add(this.txtYear);
-            this.grpFields.Controls.Add(this.lblFirst);
-            this.grpFields.Controls.Add(this.txtFirst);
-            this.grpFields.Controls.Add(this.lblMiddle);
-            this.grpFields.Controls.Add(this.txtMiddle);
-            this.grpFields.Controls.Add(this.lblLast);
-            this.grpFields.Controls.Add(this.txtLast);
-            this.grpFields.Controls.Add(this.lblSex);
-            this.grpFields.Controls.Add(this.txtSex);
-            this.grpFields.Controls.Add(this.lblDob);
-            this.grpFields.Controls.Add(this.txtDob);
-            this.grpFields.Controls.Add(this.lblPlace);
-            this.grpFields.Controls.Add(this.txtPlace);
-            this.grpFields.Controls.Add(this.lblMother);
-            this.grpFields.Controls.Add(this.txtMother);
-            this.grpFields.Controls.Add(this.lblFather);
-            this.grpFields.Controls.Add(this.txtFather);
             this.grpFields.Controls.Add(this.lblFieldConf);
+            this.grpFields.Controls.Add(this.lblFormCap);
+            this.grpFields.Controls.Add(this.txtFormId);
+            this.grpFields.Controls.Add(this.lblRegCap);
+            this.grpFields.Controls.Add(this.txtRegistryNo);
+            this.grpFields.Controls.Add(this.btnReport);
             this.grpFields.Controls.Add(this.btnReocr);
             this.grpFields.Controls.Add(this.btnDraft);
             this.grpFields.Controls.Add(this.btnCommit);
@@ -297,196 +257,6 @@ namespace CROMS.Forms
             this.lblConf.Text = "CONFIDENCE —";
             this.lblConf.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             //
-            // lblRegNo
-            //
-            this.lblRegNo.AutoSize = true;
-            this.lblRegNo.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblRegNo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblRegNo.Location = new System.Drawing.Point(20, 88);
-            this.lblRegNo.Name = "lblRegNo";
-            this.lblRegNo.Size = new System.Drawing.Size(83, 13);
-            this.lblRegNo.TabIndex = 3;
-            this.lblRegNo.Text = "REGISTRY NO.";
-            //
-            // txtRegNo
-            //
-            this.txtRegNo.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtRegNo.Location = new System.Drawing.Point(20, 106);
-            this.txtRegNo.Name = "txtRegNo";
-            this.txtRegNo.Size = new System.Drawing.Size(370, 25);
-            this.txtRegNo.TabIndex = 4;
-            //
-            // lblYear
-            //
-            this.lblYear.AutoSize = true;
-            this.lblYear.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblYear.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblYear.Location = new System.Drawing.Point(410, 88);
-            this.lblYear.Name = "lblYear";
-            this.lblYear.Size = new System.Drawing.Size(34, 13);
-            this.lblYear.TabIndex = 5;
-            this.lblYear.Text = "YEAR";
-            //
-            // txtYear
-            //
-            this.txtYear.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtYear.Location = new System.Drawing.Point(410, 106);
-            this.txtYear.Name = "txtYear";
-            this.txtYear.Size = new System.Drawing.Size(376, 25);
-            this.txtYear.TabIndex = 6;
-            //
-            // lblFirst
-            //
-            this.lblFirst.AutoSize = true;
-            this.lblFirst.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblFirst.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblFirst.Location = new System.Drawing.Point(20, 148);
-            this.lblFirst.Name = "lblFirst";
-            this.lblFirst.Size = new System.Drawing.Size(114, 13);
-            this.lblFirst.TabIndex = 7;
-            this.lblFirst.Text = "CHILD FIRST NAME";
-            //
-            // txtFirst
-            //
-            this.txtFirst.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtFirst.Location = new System.Drawing.Point(20, 166);
-            this.txtFirst.Name = "txtFirst";
-            this.txtFirst.Size = new System.Drawing.Size(370, 25);
-            this.txtFirst.TabIndex = 8;
-            //
-            // lblMiddle
-            //
-            this.lblMiddle.AutoSize = true;
-            this.lblMiddle.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblMiddle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblMiddle.Location = new System.Drawing.Point(410, 148);
-            this.lblMiddle.Name = "lblMiddle";
-            this.lblMiddle.Size = new System.Drawing.Size(90, 13);
-            this.lblMiddle.TabIndex = 9;
-            this.lblMiddle.Text = "MIDDLE NAME";
-            //
-            // txtMiddle
-            //
-            this.txtMiddle.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtMiddle.Location = new System.Drawing.Point(410, 166);
-            this.txtMiddle.Name = "txtMiddle";
-            this.txtMiddle.Size = new System.Drawing.Size(376, 25);
-            this.txtMiddle.TabIndex = 10;
-            //
-            // lblLast
-            //
-            this.lblLast.AutoSize = true;
-            this.lblLast.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblLast.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblLast.Location = new System.Drawing.Point(20, 208);
-            this.lblLast.Name = "lblLast";
-            this.lblLast.Size = new System.Drawing.Size(72, 13);
-            this.lblLast.TabIndex = 11;
-            this.lblLast.Text = "LAST NAME";
-            //
-            // txtLast
-            //
-            this.txtLast.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtLast.Location = new System.Drawing.Point(20, 226);
-            this.txtLast.Name = "txtLast";
-            this.txtLast.Size = new System.Drawing.Size(370, 25);
-            this.txtLast.TabIndex = 12;
-            //
-            // lblSex
-            //
-            this.lblSex.AutoSize = true;
-            this.lblSex.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblSex.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblSex.Location = new System.Drawing.Point(410, 208);
-            this.lblSex.Name = "lblSex";
-            this.lblSex.Size = new System.Drawing.Size(29, 13);
-            this.lblSex.TabIndex = 13;
-            this.lblSex.Text = "SEX";
-            //
-            // txtSex
-            //
-            this.txtSex.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtSex.Location = new System.Drawing.Point(410, 226);
-            this.txtSex.Name = "txtSex";
-            this.txtSex.Size = new System.Drawing.Size(376, 25);
-            this.txtSex.TabIndex = 14;
-            //
-            // lblDob
-            //
-            this.lblDob.AutoSize = true;
-            this.lblDob.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblDob.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblDob.Location = new System.Drawing.Point(20, 268);
-            this.lblDob.Name = "lblDob";
-            this.lblDob.Size = new System.Drawing.Size(89, 13);
-            this.lblDob.TabIndex = 15;
-            this.lblDob.Text = "DATE OF BIRTH";
-            //
-            // txtDob
-            //
-            this.txtDob.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtDob.Location = new System.Drawing.Point(20, 286);
-            this.txtDob.Name = "txtDob";
-            this.txtDob.Size = new System.Drawing.Size(766, 25);
-            this.txtDob.TabIndex = 16;
-            //
-            // lblPlace
-            //
-            this.lblPlace.AutoSize = true;
-            this.lblPlace.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblPlace.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblPlace.Location = new System.Drawing.Point(20, 328);
-            this.lblPlace.Name = "lblPlace";
-            this.lblPlace.Size = new System.Drawing.Size(94, 13);
-            this.lblPlace.TabIndex = 17;
-            this.lblPlace.Text = "PLACE OF BIRTH";
-            //
-            // txtPlace
-            //
-            this.txtPlace.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtPlace.Location = new System.Drawing.Point(20, 346);
-            this.txtPlace.Name = "txtPlace";
-            this.txtPlace.Size = new System.Drawing.Size(766, 25);
-            this.txtPlace.TabIndex = 18;
-            //
-            // lblMother
-            //
-            this.lblMother.AutoSize = true;
-            this.lblMother.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblMother.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblMother.Location = new System.Drawing.Point(20, 388);
-            this.lblMother.Name = "lblMother";
-            this.lblMother.Size = new System.Drawing.Size(52, 13);
-            this.lblMother.TabIndex = 19;
-            this.lblMother.Text = "MOTHER";
-            //
-            // txtMother
-            //
-            this.txtMother.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtMother.Location = new System.Drawing.Point(20, 406);
-            this.txtMother.Name = "txtMother";
-            this.txtMother.Size = new System.Drawing.Size(370, 25);
-            this.txtMother.TabIndex = 20;
-            //
-            // lblFather
-            //
-            this.lblFather.AutoSize = true;
-            this.lblFather.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
-            this.lblFather.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.lblFather.Location = new System.Drawing.Point(410, 388);
-            this.lblFather.Name = "lblFather";
-            this.lblFather.Size = new System.Drawing.Size(48, 13);
-            this.lblFather.TabIndex = 21;
-            this.lblFather.Text = "FATHER";
-            //
-            // txtFather
-            //
-            this.txtFather.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtFather.Location = new System.Drawing.Point(410, 406);
-            this.txtFather.Name = "txtFather";
-            this.txtFather.Size = new System.Drawing.Size(376, 25);
-            this.txtFather.TabIndex = 22;
-            //
             // lblFieldConf
             //
             this.lblFieldConf.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
@@ -497,15 +267,16 @@ namespace CROMS.Forms
             this.lblFieldConf.Size = new System.Drawing.Size(766, 40);
             this.lblFieldConf.TabIndex = 23;
             this.lblFieldConf.Text = "FIELD CONFIDENCE  —  run OCR to populate";
+            this.lblFieldConf.Click += new System.EventHandler(this.lblFieldConf_Click);
             this.lblFieldConf.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // btnReocr
             //
             this.btnReocr.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnReocr.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.btnReocr.Location = new System.Drawing.Point(360, 500);
+            this.btnReocr.Location = new System.Drawing.Point(20, 500);
             this.btnReocr.Name = "btnReocr";
-            this.btnReocr.Size = new System.Drawing.Size(100, 40);
+            this.btnReocr.Size = new System.Drawing.Size(90, 40);
             this.btnReocr.TabIndex = 24;
             this.btnReocr.Text = "Re-OCR";
             this.btnReocr.UseVisualStyleBackColor = true;
@@ -515,9 +286,9 @@ namespace CROMS.Forms
             //
             this.btnDraft.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDraft.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.btnDraft.Location = new System.Drawing.Point(466, 500);
+            this.btnDraft.Location = new System.Drawing.Point(292, 500);
             this.btnDraft.Name = "btnDraft";
-            this.btnDraft.Size = new System.Drawing.Size(120, 40);
+            this.btnDraft.Size = new System.Drawing.Size(110, 40);
             this.btnDraft.TabIndex = 25;
             this.btnDraft.Text = "Save as Draft";
             this.btnDraft.UseVisualStyleBackColor = true;
@@ -529,13 +300,123 @@ namespace CROMS.Forms
             this.btnCommit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnCommit.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnCommit.ForeColor = System.Drawing.Color.White;
-            this.btnCommit.Location = new System.Drawing.Point(592, 500);
+            this.btnCommit.Location = new System.Drawing.Point(408, 500);
             this.btnCommit.Name = "btnCommit";
-            this.btnCommit.Size = new System.Drawing.Size(194, 40);
+            this.btnCommit.Size = new System.Drawing.Size(170, 40);
             this.btnCommit.TabIndex = 26;
-            this.btnCommit.Text = "Commit to Birth Registry";
+            this.btnCommit.Text = "Commit to Registry";
             this.btnCommit.UseVisualStyleBackColor = false;
             this.btnCommit.Click += new System.EventHandler(this.btnCommit_Click);
+            //
+            // lblFormCap
+            //
+            this.lblFormCap.AutoSize = true;
+            this.lblFormCap.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
+            this.lblFormCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.lblFormCap.Location = new System.Drawing.Point(20, 80);
+            this.lblFormCap.Name = "lblFormCap";
+            this.lblFormCap.Size = new System.Drawing.Size(130, 13);
+            this.lblFormCap.TabIndex = 30;
+            this.lblFormCap.Text = "FORM IDENTIFICATION";
+            //
+            // txtFormId
+            //
+            this.txtFormId.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
+            this.txtFormId.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.txtFormId.Location = new System.Drawing.Point(20, 98);
+            this.txtFormId.Name = "txtFormId";
+            this.txtFormId.ReadOnly = true;
+            this.txtFormId.Size = new System.Drawing.Size(440, 23);
+            this.txtFormId.TabIndex = 31;
+            //
+            // lblRegCap
+            //
+            this.lblRegCap.AutoSize = true;
+            this.lblRegCap.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
+            this.lblRegCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.lblRegCap.Location = new System.Drawing.Point(470, 80);
+            this.lblRegCap.Name = "lblRegCap";
+            this.lblRegCap.Size = new System.Drawing.Size(90, 13);
+            this.lblRegCap.TabIndex = 32;
+            this.lblRegCap.Text = "REGISTRY NO.";
+            //
+            // txtRegistryNo
+            //
+            this.txtRegistryNo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
+            this.txtRegistryNo.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.txtRegistryNo.Location = new System.Drawing.Point(470, 98);
+            this.txtRegistryNo.Name = "txtRegistryNo";
+            this.txtRegistryNo.ReadOnly = true;
+            this.txtRegistryNo.Size = new System.Drawing.Size(170, 23);
+            this.txtRegistryNo.TabIndex = 33;
+            //
+            // btnReport
+            //
+            this.btnReport.Enabled = false;
+            this.btnReport.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnReport.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnReport.Location = new System.Drawing.Point(650, 96);
+            this.btnReport.Name = "btnReport";
+            this.btnReport.Size = new System.Drawing.Size(136, 27);
+            this.btnReport.TabIndex = 34;
+            this.btnReport.Text = "Print Certificate";
+            this.btnReport.UseVisualStyleBackColor = true;
+            this.btnReport.Click += new System.EventHandler(this.btnReport_Click);
+            //
+            // dgvFields
+            //
+            this.dgvFields.AllowUserToAddRows = false;
+            this.dgvFields.AllowUserToDeleteRows = false;
+            this.dgvFields.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dgvFields.BackgroundColor = System.Drawing.Color.White;
+            this.dgvFields.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvFields.Location = new System.Drawing.Point(20, 134);
+            this.dgvFields.Name = "dgvFields";
+            this.dgvFields.RowHeadersVisible = false;
+            this.dgvFields.Size = new System.Drawing.Size(766, 306);
+            this.dgvFields.TabIndex = 27;
+            //
+            // progress
+            //
+            this.progress.Location = new System.Drawing.Point(20, 486);
+            this.progress.MarqueeAnimationSpeed = 30;
+            this.progress.Name = "progress";
+            this.progress.Size = new System.Drawing.Size(766, 10);
+            this.progress.Style = System.Windows.Forms.ProgressBarStyle.Marquee;
+            this.progress.TabIndex = 28;
+            this.progress.Visible = false;
+            //
+            // btnAutoFill
+            //
+            this.btnAutoFill.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(135)))), ((int)(((byte)(84)))));
+            this.btnAutoFill.Enabled = false;
+            this.btnAutoFill.FlatAppearance.BorderSize = 0;
+            this.btnAutoFill.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnAutoFill.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnAutoFill.ForeColor = System.Drawing.Color.White;
+            this.btnAutoFill.Location = new System.Drawing.Point(584, 500);
+            this.btnAutoFill.Name = "btnAutoFill";
+            this.btnAutoFill.Size = new System.Drawing.Size(202, 40);
+            this.btnAutoFill.TabIndex = 29;
+            this.btnAutoFill.Text = "Auto-Fill Form";
+            this.btnAutoFill.UseVisualStyleBackColor = false;
+            this.btnAutoFill.Click += new System.EventHandler(this.btnAutoFill_Click);
+            //
+            // btnReview
+            //
+            this.btnReview.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(193)))), ((int)(((byte)(7)))));
+            this.btnReview.Enabled = false;
+            this.btnReview.FlatAppearance.BorderSize = 0;
+            this.btnReview.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnReview.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnReview.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(66)))), ((int)(((byte)(50)))), ((int)(((byte)(3)))));
+            this.btnReview.Location = new System.Drawing.Point(116, 500);
+            this.btnReview.Name = "btnReview";
+            this.btnReview.Size = new System.Drawing.Size(170, 40);
+            this.btnReview.TabIndex = 30;
+            this.btnReview.Text = "Send to Manual Review";
+            this.btnReview.UseVisualStyleBackColor = false;
+            this.btnReview.Click += new System.EventHandler(this.btnReview_Click);
             //
             // lblBatch
             //
@@ -574,21 +455,20 @@ namespace CROMS.Forms
             this.Controls.Add(this.lblSubtitle);
             this.Controls.Add(this.btnLoad);
             this.Controls.Add(this.btnRunOcr);
-            this.Controls.Add(this.btnMode1);
-            this.Controls.Add(this.btnMode2);
-            this.Controls.Add(this.btnMode3);
+            this.Controls.Add(this.lblEngine);
             this.Controls.Add(this.grpScan);
             this.Controls.Add(this.grpFields);
             this.Controls.Add(this.lblBatch);
             this.Controls.Add(this.dgvBatch);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "OcrDigitizationForm";
-            this.Text = "OCR Digitization";
+            this.Text = "Intelligent Document Processing";
             this.grpScan.ResumeLayout(false);
             this.pnlScanHost.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.pbScan)).EndInit();
             this.grpFields.ResumeLayout(false);
             this.grpFields.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvFields)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvBatch)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -600,9 +480,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblSubtitle;
         private System.Windows.Forms.Button btnLoad;
         private System.Windows.Forms.Button btnRunOcr;
-        private System.Windows.Forms.Button btnMode1;
-        private System.Windows.Forms.Button btnMode2;
-        private System.Windows.Forms.Button btnMode3;
         private System.Windows.Forms.GroupBox grpScan;
         private System.Windows.Forms.Panel pnlScanHost;
         private System.Windows.Forms.PictureBox pbScan;
@@ -613,31 +490,22 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblDocClass;
         private System.Windows.Forms.TextBox txtDocClass;
         private System.Windows.Forms.Label lblConf;
-        private System.Windows.Forms.Label lblRegNo;
-        private System.Windows.Forms.TextBox txtRegNo;
-        private System.Windows.Forms.Label lblYear;
-        private System.Windows.Forms.TextBox txtYear;
-        private System.Windows.Forms.Label lblFirst;
-        private System.Windows.Forms.TextBox txtFirst;
-        private System.Windows.Forms.Label lblMiddle;
-        private System.Windows.Forms.TextBox txtMiddle;
-        private System.Windows.Forms.Label lblLast;
-        private System.Windows.Forms.TextBox txtLast;
-        private System.Windows.Forms.Label lblSex;
-        private System.Windows.Forms.TextBox txtSex;
-        private System.Windows.Forms.Label lblDob;
-        private System.Windows.Forms.TextBox txtDob;
-        private System.Windows.Forms.Label lblPlace;
-        private System.Windows.Forms.TextBox txtPlace;
-        private System.Windows.Forms.Label lblMother;
-        private System.Windows.Forms.TextBox txtMother;
-        private System.Windows.Forms.Label lblFather;
-        private System.Windows.Forms.TextBox txtFather;
         private System.Windows.Forms.Label lblFieldConf;
+        private System.Windows.Forms.Label lblFormCap;
+        private System.Windows.Forms.TextBox txtFormId;
+        private System.Windows.Forms.Label lblRegCap;
+        private System.Windows.Forms.TextBox txtRegistryNo;
+        private System.Windows.Forms.Button btnReport;
+        private System.Windows.Forms.Button btnSeal;
         private System.Windows.Forms.Button btnReocr;
         private System.Windows.Forms.Button btnDraft;
         private System.Windows.Forms.Button btnCommit;
         private System.Windows.Forms.Label lblBatch;
+        private System.Windows.Forms.Label lblEngine;
+        private System.Windows.Forms.DataGridView dgvFields;
+        private System.Windows.Forms.ProgressBar progress;
+        private System.Windows.Forms.Button btnAutoFill;
+        private System.Windows.Forms.Button btnReview;
         private System.Windows.Forms.DataGridView dgvBatch;
     }
 }

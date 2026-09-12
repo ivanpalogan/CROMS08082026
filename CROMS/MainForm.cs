@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -21,9 +21,11 @@ namespace CROMS
         private readonly Dictionary<string, Button> _navButtons = new Dictionary<string, Button>();
         private string _activeKey;
 
-        private static readonly Color SidebarBack = Color.FromArgb(33, 37, 41);
-        private static readonly Color NavIdleFore = Color.FromArgb(206, 212, 218);
-        private static readonly Color NavActiveBack = Color.FromArgb(13, 110, 253);
+        // Shell colours come from the one shared token set (Modules/UiTheme) so the sidebar,
+        // the module surfaces and the kiosk can't drift apart again.
+        private static readonly Color SidebarBack   = UiTheme.Navy;          // #132441
+        private static readonly Color NavIdleFore   = Color.FromArgb(196, 206, 227);
+        private static readonly Color NavActiveBack = UiTheme.Accent;        // #1D4ED8
 
         private Timer _heartbeat;
 
@@ -89,13 +91,13 @@ namespace CROMS
                 Size = new Size(104, 36),
                 FlatStyle = FlatStyle.Flat,
                 ForeColor = Color.White,
-                BackColor = Color.FromArgb(220, 53, 69),
+                BackColor = UiTheme.Danger,
                 Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
                 Cursor = Cursors.Hand,
                 Margin = new Padding(0, 10, 0, 10)
             };
             btnLogout.FlatAppearance.BorderSize = 0;
-            btnLogout.FlatAppearance.MouseOverBackColor = Color.FromArgb(200, 35, 51);
+            btnLogout.FlatAppearance.MouseOverBackColor = Color.FromArgb(168, 40, 52);
             btnLogout.Click += (s, e) => Logout();
 
             var lblUser = new Label
@@ -219,7 +221,7 @@ namespace CROMS
                 case "Registrar":
                     return new HashSet<string> { "dashboard", "queue", "transactions", "certrequest",
                         "release", "birth", "marriage", "death", "petitions", "search", "ocr",
-                        "docai", "reports", "masterfiles", "settings" };
+                        "reports", "masterfiles", "settings" };
                 case "Staff":
                     return new HashSet<string> { "dashboard", "queue", "certrequest", "transactions",
                         "search", "release" };

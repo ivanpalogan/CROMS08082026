@@ -12,6 +12,8 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <!-- High-DPI awareness: app runs crisp + consistently sized on 125%/150% laptops. -->
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -77,6 +79,25 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Speech" />
     <Reference Include="System.Web.Extensions" />
+    <!-- SAP Crystal Reports for .NET Framework 13.0.4000.0, resolved from the GAC.
+         Installed per-machine by the Crystal Reports runtime, so there is no NuGet
+         package and no DLL to copy: Private=False keeps them out of bin\Debug and out
+         of the client bundle. A PC without the runtime still runs CROMS — every
+         Crystal call is behind CertificateReport.CrystalAvailable, which returns false
+         when these assemblies cannot be loaded, and the report falls back to the
+         built-in printer. -->
+    <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="CrystalDecisions.Shared, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="CrystalDecisions.ReportSource, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="CrystalDecisions.Windows.Forms, Version=13.0.4000.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System.Runtime.WindowsRuntime">
       <HintPath>C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETCore\v4.5\System.Runtime.WindowsRuntime.dll</HintPath>
     </Reference>
@@ -114,6 +135,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xml" />
     <Reference Include="ZstdSharp, Version=0.8.6.0, Culture=neutral, PublicKeyToken=8d151af33a4ad5cf, processorArchitecture=MSIL">
       <HintPath>..\packages\ZstdSharp.Port.0.8.6\lib\net462\ZstdSharp.dll</HintPath>
@@ -138,6 +160,9 @@
     <Compile Include="Forms\DashboardForm.Designer.cs">
       <DependentUpon>DashboardForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\TicketPrepForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\QueueManagementForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -156,7 +181,7 @@
     <Compile Include="Forms\CertificateRequestForm.Designer.cs">
       <DependentUpon>CertificateRequestForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Forms\ClaimFormForm.cs">
+    <Compile Include="Forms\LauncherForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Forms\ReleaseClaimForm.cs">
@@ -176,6 +201,22 @@
     </Compile>
     <Compile Include="Forms\MarriageRegistrationForm.Designer.cs">
       <DependentUpon>MarriageRegistrationForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\MarriageUi.cs" />
+    <Compile Include="Forms\MarriageLicenseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MarriageEntryForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MarriageCaseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MarriageRecordForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\PsaTransmittalForm.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="Forms\DeathRegistrationForm.cs">
       <SubType>Form</SubType>
@@ -261,27 +302,161 @@
     <Compile Include="Forms\WindowAssignmentForm.Designer.cs">
       <DependentUpon>WindowAssignmentForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Analytics\IAnalyticsWidget.cs" />
+    <Compile Include="Analytics\DateRange.cs" />
+    <Compile Include="Analytics\AnalyticsData.cs" />
+    <Compile Include="Analytics\TimeBuckets.cs" />
+    <Compile Include="Analytics\ChartStyle.cs" />
+    <Compile Include="Analytics\SummaryCard.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\EmptyStatePanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Analytics\AnalyticsWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\DateRangeBar.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\AnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Tabs\BirthAnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Tabs\PendingAnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\BirthSexWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\BirthLagWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\BirthAttendantWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\BirthMotherAgeWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\HeatmapGrid.cs" />
+    <Compile Include="Analytics\Widgets\RegistrationTrendWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\MonthYearHeatmapWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\DeathPyramidWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\DeathCausesWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\DeathDisposalWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\MarriageAgeWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\MarriageCeremonyWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\MarriageLicenceWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Tabs\DeathAnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Tabs\MarriageAnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\QueuePeakHeatmapWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\QueueWaitTrendWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\QueueServiceTimeWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\QueueWindowVolumeWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\QueueOutcomesWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\CertDemandWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\CertTurnaroundWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\CertAgingWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\CertRegistryYearsWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Widgets\CertCollectionWidget.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Tabs\QueuingAnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Analytics\Tabs\CertificateAnalyticsTab.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Forms\ReportsAnalyticsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Data\Db.cs" />
+    <Compile Include="Data\RegistryNumber.cs" />
+    <Compile Include="Data\MarriageRules.cs" />
+    <Compile Include="Data\MarriageService.cs" />
+    <Compile Include="Data\BirthCertificatePrinter.cs" />
     <Compile Include="Data\ClaimLink.cs" />
     <Compile Include="Data\IonicServerManager.cs" />
     <Compile Include="Data\ApiServerManager.cs" />
     <Compile Include="Data\HotspotInfo.cs" />
     <Compile Include="Data\QrHelper.cs" />
+    <Compile Include="Data\DocIntelligence.cs" />
+    <Compile Include="Data\OcrAudit.cs" />
+    <Compile Include="Data\FormCatalog.cs" />
+    <Compile Include="Data\GeoLookup.cs" />
+    <Compile Include="Data\OfficeAssets.cs" />
+    <Compile Include="Data\CertificateReport.cs" />
+    <Compile Include="Data\CrystalRunner.cs" />
+    <Compile Include="Data\Mf90Form.cs" />
+    <Compile Include="Modules\CtrlWheelZoom.cs" />
+    <Compile Include="Forms\ZoomPrintPreviewForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Data\SealDetector.cs" />
+    <Compile Include="Forms\CertificateViewerForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\OfficeAssetsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Data\DocVocabulary.cs" />
+    <Compile Include="Data\DocLayouts.cs" />
     <Compile Include="Data\DocumentAI.cs" />
     <Compile Include="Data\LearningLibrary.cs" />
     <Compile Include="Forms\SoftcopyViewer.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Forms\DocumentAiForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\DocumentAiForm.Designer.cs">
-      <DependentUpon>DocumentAiForm.cs</DependentUpon>
+    <Compile Include="Forms\SoftcopyViewer.Designer.cs">
+      <DependentUpon>SoftcopyViewer.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\OcrService.cs" />
     <Compile Include="Data\PasswordHasher.cs" />
     <Compile Include="Data\Session.cs" />
     <Compile Include="Data\SessionResume.cs" />
+    <Compile Include="Data\PrintCalibration.cs" />
+    <Compile Include="Forms\FormAlignForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Data\ServerConfig.cs" />
     <Compile Include="Data\AppUpdater.cs" />
     <Compile Include="Data\ReleasePublisher.cs" />
@@ -290,6 +465,9 @@
     <Compile Include="Forms\ServerSetupForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\ServerSetupForm.Designer.cs">
+      <DependentUpon>ServerSetupForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\LoginForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -297,16 +475,33 @@
       <DependentUpon>LoginForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\IRefreshable.cs" />
+    <Compile Include="Modules\OthersBox.cs" />
     <Compile Include="Modules\ModuleInfo.cs" />
     <Compile Include="Modules\ModuleRegistry.cs" />
     <Compile Include="Modules\ToggleSwitch.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\UiTheme.cs" />
+    <Compile Include="Modules\HoverFade.cs" />
+    <Compile Include="Modules\SplitButton.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\CardPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Modules\KpiCard.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\LoginForm.resx">
+      <DependentUpon>LoginForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\WindowAssignmentForm.resx">
+      <DependentUpon>WindowAssignmentForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
@@ -383,6 +578,29 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Reports\MF-90-1993.rpt" Condition="Exists('Reports\MF-90-1993.rpt')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Reports\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Reports\**\*.rpt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="Assets\Form102Blank.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Form90Blank.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Form97Blank.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Form103Blank.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <None Include="Tesseract\x64\leptonica-1.80.0.dll">
       <Link>x64\leptonica-1.80.0.dll</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -402,6 +620,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="app.manifest" />
     <None Include="Database\01_schema.sql" />
     <None Include="Database\02_seed.sql" />
     <None Include="Database\03_migrate_from_ocr.sql" />
@@ -416,6 +635,22 @@
     <None Include="Database\20_claimant_photo.sql" />
     <None Include="Database\21_workflow_enhancements.sql" />
     <None Include="Database\22_certificate_workflow.sql" />
+    <None Include="Database\23_claim_queue_link.sql" />
+    <None Include="Database\24_ocr_routing.sql" />
+    <None Include="Database\25_document_intelligence.sql" />
+    <None Include="Database\26_form_identity.sql" />
+    <None Include="Database\27_registry_integrity.sql" />
+    <None Include="Database\28_certification_block.sql" />
+    <None Include="Database\29_philippine_geography.sql" />
+    <None Include="Database\30_marriage_death_certification.sql" />
+    <None Include="Database\31_parents_married.sql" />
+    <None Include="Database\32_relationships.sql" />
+    <None Include="Database\33_marriage_workflow.sql" />
+    <None Include="Database\34_kiosk_id_upload.sql" />
+    <None Include="Database\35_kiosk_spouse.sql" />
+    <None Include="Database\36_license_sex.sql" />
+    <None Include="Database\37_country_of_birth.sql" />
+    <None Include="Database\38_form90_applicant_blocks.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>

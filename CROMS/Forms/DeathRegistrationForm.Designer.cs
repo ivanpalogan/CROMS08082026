@@ -1,4 +1,4 @@
-namespace CROMS.Forms
+﻿namespace CROMS.Forms
 {
     partial class DeathRegistrationForm
     {
@@ -61,9 +61,39 @@ namespace CROMS.Forms
             this.cboPermit = new System.Windows.Forms.ComboBox();
             this.lblRecent = new System.Windows.Forms.Label();
             this.dgvDeaths = new System.Windows.Forms.DataGridView();
+            this.grpCert = new System.Windows.Forms.GroupBox();
+            this.lblCInfName = new System.Windows.Forms.Label();
+            this.txtCInfName = new System.Windows.Forms.TextBox();
+            this.lblCInfRel = new System.Windows.Forms.Label();
+            this.txtCInfRel = new System.Windows.Forms.TextBox();
+            this.lblCInfRelOther = new System.Windows.Forms.Label();
+            this.txtCInfRelOther = new System.Windows.Forms.TextBox();
+            this.lblCInfDate = new System.Windows.Forms.Label();
+            this.dtpCInfDate = new System.Windows.Forms.DateTimePicker();
+            this.lblCInfAddr = new System.Windows.Forms.Label();
+            this.txtCInfAddr = new System.Windows.Forms.TextBox();
+            this.lblCPrepBy = new System.Windows.Forms.Label();
+            this.txtCPrepBy = new System.Windows.Forms.TextBox();
+            this.lblCPrepTitle = new System.Windows.Forms.Label();
+            this.txtCPrepTitle = new System.Windows.Forms.TextBox();
+            this.lblCPrepDate = new System.Windows.Forms.Label();
+            this.dtpCPrepDate = new System.Windows.Forms.DateTimePicker();
+            this.lblCRecvBy = new System.Windows.Forms.Label();
+            this.txtCRecvBy = new System.Windows.Forms.TextBox();
+            this.lblCRecvTitle = new System.Windows.Forms.Label();
+            this.txtCRecvTitle = new System.Windows.Forms.TextBox();
+            this.lblCRecvDate = new System.Windows.Forms.Label();
+            this.dtpCRecvDate = new System.Windows.Forms.DateTimePicker();
+            this.lblCRegBy = new System.Windows.Forms.Label();
+            this.txtCRegBy = new System.Windows.Forms.TextBox();
+            this.lblCRegTitle = new System.Windows.Forms.Label();
+            this.txtCRegTitle = new System.Windows.Forms.TextBox();
+            this.lblCRegDate = new System.Windows.Forms.Label();
+            this.dtpCRegDate = new System.Windows.Forms.DateTimePicker();
             this.btnNew = new System.Windows.Forms.Button();
             this.btnUpdate = new System.Windows.Forms.Button();
             this.btnDelete = new System.Windows.Forms.Button();
+            this.grpCert.SuspendLayout();
             this.grpDeceased.SuspendLayout();
             this.grpCause.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvDeaths)).BeginInit();
@@ -525,13 +555,287 @@ namespace CROMS.Forms
             this.cboPermit.Name = "cboPermit";
             this.cboPermit.Size = new System.Drawing.Size(323, 25);
             this.cboPermit.TabIndex = 17;
+            //
+            // grpCert
+            //
+            this.grpCert.Controls.Add(this.lblCInfName);
+            this.grpCert.Controls.Add(this.txtCInfName);
+            this.grpCert.Controls.Add(this.lblCInfRel);
+            this.grpCert.Controls.Add(this.txtCInfRel);
+            this.grpCert.Controls.Add(this.lblCInfRelOther);
+            this.grpCert.Controls.Add(this.txtCInfRelOther);
+            this.grpCert.Controls.Add(this.lblCInfDate);
+            this.grpCert.Controls.Add(this.dtpCInfDate);
+            this.grpCert.Controls.Add(this.lblCInfAddr);
+            this.grpCert.Controls.Add(this.txtCInfAddr);
+            this.grpCert.Controls.Add(this.lblCPrepBy);
+            this.grpCert.Controls.Add(this.txtCPrepBy);
+            this.grpCert.Controls.Add(this.lblCPrepTitle);
+            this.grpCert.Controls.Add(this.txtCPrepTitle);
+            this.grpCert.Controls.Add(this.lblCPrepDate);
+            this.grpCert.Controls.Add(this.dtpCPrepDate);
+            this.grpCert.Controls.Add(this.lblCRecvBy);
+            this.grpCert.Controls.Add(this.txtCRecvBy);
+            this.grpCert.Controls.Add(this.lblCRecvTitle);
+            this.grpCert.Controls.Add(this.txtCRecvTitle);
+            this.grpCert.Controls.Add(this.lblCRecvDate);
+            this.grpCert.Controls.Add(this.dtpCRecvDate);
+            this.grpCert.Controls.Add(this.lblCRegBy);
+            this.grpCert.Controls.Add(this.txtCRegBy);
+            this.grpCert.Controls.Add(this.lblCRegTitle);
+            this.grpCert.Controls.Add(this.txtCRegTitle);
+            this.grpCert.Controls.Add(this.lblCRegDate);
+            this.grpCert.Controls.Add(this.dtpCRegDate);
+            this.grpCert.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.grpCert.Location = new System.Drawing.Point(21, 492);
+            this.grpCert.Name = "grpCert";
+            this.grpCert.Size = new System.Drawing.Size(1407, 347);
+            this.grpCert.TabIndex = 4;
+            this.grpCert.TabStop = false;
+            this.grpCert.Text = "Certification (Items 26-29)";
+            //
+            // lblCInfName
+            //
+            this.lblCInfName.AutoSize = true;
+            this.lblCInfName.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCInfName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCInfName.Location = new System.Drawing.Point(17, 28);
+            this.lblCInfName.Name = "lblCInfName";
+            this.lblCInfName.Text = "Informant - Name in Print";
+            //
+            // txtCInfName
+            //
+            this.txtCInfName.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCInfName.Location = new System.Drawing.Point(17, 48);
+            this.txtCInfName.Name = "txtCInfName";
+            this.txtCInfName.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCInfRel
+            //
+            this.lblCInfRel.AutoSize = true;
+            this.lblCInfRel.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCInfRel.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCInfRel.Location = new System.Drawing.Point(361, 28);
+            this.lblCInfRel.Name = "lblCInfRel";
+            this.lblCInfRel.Text = "Relationship to the Deceased";
+            //
+            // txtCInfRel
+            //
+            this.txtCInfRel.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCInfRel.Location = new System.Drawing.Point(361, 48);
+            this.txtCInfRel.Name = "txtCInfRel";
+            this.txtCInfRel.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCInfRelOther
+            //
+            this.lblCInfRelOther.AutoSize = true;
+            this.lblCInfRelOther.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCInfRelOther.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCInfRelOther.Location = new System.Drawing.Point(705, 28);
+            this.lblCInfRelOther.Name = "lblCInfRelOther";
+            this.lblCInfRelOther.Text = "If Others, specify";
+            //
+            // txtCInfRelOther
+            //
+            this.txtCInfRelOther.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCInfRelOther.Location = new System.Drawing.Point(705, 48);
+            this.txtCInfRelOther.Name = "txtCInfRelOther";
+            this.txtCInfRelOther.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCInfDate
+            //
+            this.lblCInfDate.AutoSize = true;
+            this.lblCInfDate.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCInfDate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCInfDate.Location = new System.Drawing.Point(1049, 28);
+            this.lblCInfDate.Name = "lblCInfDate";
+            this.lblCInfDate.Text = "Date Signed";
+            //
+            // dtpCInfDate
+            //
+            this.dtpCInfDate.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.dtpCInfDate.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpCInfDate.ShowCheckBox = true;
+            this.dtpCInfDate.Checked = false;
+            this.dtpCInfDate.Location = new System.Drawing.Point(1049, 48);
+            this.dtpCInfDate.Name = "dtpCInfDate";
+            this.dtpCInfDate.Size = new System.Drawing.Size(240, 25);
+            //
+            // lblCInfAddr
+            //
+            this.lblCInfAddr.AutoSize = true;
+            this.lblCInfAddr.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCInfAddr.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCInfAddr.Location = new System.Drawing.Point(17, 92);
+            this.lblCInfAddr.Name = "lblCInfAddr";
+            this.lblCInfAddr.Text = "Informant - Address";
+            //
+            // txtCInfAddr
+            //
+            this.txtCInfAddr.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCInfAddr.Location = new System.Drawing.Point(17, 112);
+            this.txtCInfAddr.Name = "txtCInfAddr";
+            this.txtCInfAddr.Size = new System.Drawing.Size(674, 25);
+            //
+            // lblCPrepBy
+            //
+            this.lblCPrepBy.AutoSize = true;
+            this.lblCPrepBy.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCPrepBy.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCPrepBy.Location = new System.Drawing.Point(17, 156);
+            this.lblCPrepBy.Name = "lblCPrepBy";
+            this.lblCPrepBy.Text = "Prepared By - Name in Print";
+            //
+            // txtCPrepBy
+            //
+            this.txtCPrepBy.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCPrepBy.Location = new System.Drawing.Point(17, 176);
+            this.txtCPrepBy.Name = "txtCPrepBy";
+            this.txtCPrepBy.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCPrepTitle
+            //
+            this.lblCPrepTitle.AutoSize = true;
+            this.lblCPrepTitle.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCPrepTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCPrepTitle.Location = new System.Drawing.Point(361, 156);
+            this.lblCPrepTitle.Name = "lblCPrepTitle";
+            this.lblCPrepTitle.Text = "Prepared By - Title or Position";
+            //
+            // txtCPrepTitle
+            //
+            this.txtCPrepTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCPrepTitle.Location = new System.Drawing.Point(361, 176);
+            this.txtCPrepTitle.Name = "txtCPrepTitle";
+            this.txtCPrepTitle.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCPrepDate
+            //
+            this.lblCPrepDate.AutoSize = true;
+            this.lblCPrepDate.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCPrepDate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCPrepDate.Location = new System.Drawing.Point(705, 156);
+            this.lblCPrepDate.Name = "lblCPrepDate";
+            this.lblCPrepDate.Text = "Prepared By - Date";
+            //
+            // dtpCPrepDate
+            //
+            this.dtpCPrepDate.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.dtpCPrepDate.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpCPrepDate.ShowCheckBox = true;
+            this.dtpCPrepDate.Checked = false;
+            this.dtpCPrepDate.Location = new System.Drawing.Point(705, 176);
+            this.dtpCPrepDate.Name = "dtpCPrepDate";
+            this.dtpCPrepDate.Size = new System.Drawing.Size(240, 25);
+            //
+            // lblCRecvBy
+            //
+            this.lblCRecvBy.AutoSize = true;
+            this.lblCRecvBy.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCRecvBy.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCRecvBy.Location = new System.Drawing.Point(17, 220);
+            this.lblCRecvBy.Name = "lblCRecvBy";
+            this.lblCRecvBy.Text = "Received By - Name in Print";
+            //
+            // txtCRecvBy
+            //
+            this.txtCRecvBy.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCRecvBy.Location = new System.Drawing.Point(17, 240);
+            this.txtCRecvBy.Name = "txtCRecvBy";
+            this.txtCRecvBy.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCRecvTitle
+            //
+            this.lblCRecvTitle.AutoSize = true;
+            this.lblCRecvTitle.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCRecvTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCRecvTitle.Location = new System.Drawing.Point(361, 220);
+            this.lblCRecvTitle.Name = "lblCRecvTitle";
+            this.lblCRecvTitle.Text = "Received By - Title or Position";
+            //
+            // txtCRecvTitle
+            //
+            this.txtCRecvTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCRecvTitle.Location = new System.Drawing.Point(361, 240);
+            this.txtCRecvTitle.Name = "txtCRecvTitle";
+            this.txtCRecvTitle.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCRecvDate
+            //
+            this.lblCRecvDate.AutoSize = true;
+            this.lblCRecvDate.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCRecvDate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCRecvDate.Location = new System.Drawing.Point(705, 220);
+            this.lblCRecvDate.Name = "lblCRecvDate";
+            this.lblCRecvDate.Text = "Received By - Date";
+            //
+            // dtpCRecvDate
+            //
+            this.dtpCRecvDate.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.dtpCRecvDate.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpCRecvDate.ShowCheckBox = true;
+            this.dtpCRecvDate.Checked = false;
+            this.dtpCRecvDate.Location = new System.Drawing.Point(705, 240);
+            this.dtpCRecvDate.Name = "dtpCRecvDate";
+            this.dtpCRecvDate.Size = new System.Drawing.Size(240, 25);
+            //
+            // lblCRegBy
+            //
+            this.lblCRegBy.AutoSize = true;
+            this.lblCRegBy.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCRegBy.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCRegBy.Location = new System.Drawing.Point(17, 284);
+            this.lblCRegBy.Name = "lblCRegBy";
+            this.lblCRegBy.Text = "Registered By - Name in Print";
+            //
+            // txtCRegBy
+            //
+            this.txtCRegBy.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCRegBy.Location = new System.Drawing.Point(17, 304);
+            this.txtCRegBy.Name = "txtCRegBy";
+            this.txtCRegBy.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCRegTitle
+            //
+            this.lblCRegTitle.AutoSize = true;
+            this.lblCRegTitle.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCRegTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCRegTitle.Location = new System.Drawing.Point(361, 284);
+            this.lblCRegTitle.Name = "lblCRegTitle";
+            this.lblCRegTitle.Text = "Registered By - Title or Position";
+            //
+            // txtCRegTitle
+            //
+            this.txtCRegTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtCRegTitle.Location = new System.Drawing.Point(361, 304);
+            this.txtCRegTitle.Name = "txtCRegTitle";
+            this.txtCRegTitle.Size = new System.Drawing.Size(330, 25);
+            //
+            // lblCRegDate
+            //
+            this.lblCRegDate.AutoSize = true;
+            this.lblCRegDate.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblCRegDate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCRegDate.Location = new System.Drawing.Point(705, 284);
+            this.lblCRegDate.Name = "lblCRegDate";
+            this.lblCRegDate.Text = "Registered By - Date";
+            //
+            // dtpCRegDate
+            //
+            this.dtpCRegDate.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.dtpCRegDate.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpCRegDate.ShowCheckBox = true;
+            this.dtpCRegDate.Checked = false;
+            this.dtpCRegDate.Location = new System.Drawing.Point(705, 304);
+            this.dtpCRegDate.Name = "dtpCRegDate";
+            this.dtpCRegDate.Size = new System.Drawing.Size(240, 25);
             // 
             // lblRecent
             // 
             this.lblRecent.AutoSize = true;
             this.lblRecent.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblRecent.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblRecent.Location = new System.Drawing.Point(21, 492);
+            this.lblRecent.Location = new System.Drawing.Point(21, 855);
             this.lblRecent.Name = "lblRecent";
             this.lblRecent.Size = new System.Drawing.Size(205, 17);
             this.lblRecent.TabIndex = 6;
@@ -547,7 +851,7 @@ namespace CROMS.Forms
             this.dgvDeaths.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells;
             this.dgvDeaths.BackgroundColor = System.Drawing.Color.White;
             this.dgvDeaths.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dgvDeaths.Location = new System.Drawing.Point(5, 512);
+            this.dgvDeaths.Location = new System.Drawing.Point(5, 875);
             this.dgvDeaths.Name = "dgvDeaths";
             this.dgvDeaths.ReadOnly = true;
             this.dgvDeaths.RowHeadersVisible = false;
@@ -600,7 +904,7 @@ namespace CROMS.Forms
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            this.ClientSize = new System.Drawing.Size(1449, 837);
+            this.ClientSize = new System.Drawing.Size(1449, 1200);
             this.Controls.Add(this.lblTitle);
             this.Controls.Add(this.lblSubtitle);
             this.Controls.Add(this.btnSave);
@@ -611,10 +915,13 @@ namespace CROMS.Forms
             this.Controls.Add(this.btnNew);
             this.Controls.Add(this.btnUpdate);
             this.Controls.Add(this.btnDelete);
+            this.Controls.Add(this.grpCert);
             this.Controls.Add(this.dgvDeaths);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "DeathRegistrationForm";
             this.Text = "Death Registration";
+            this.grpCert.ResumeLayout(false);
+            this.grpCert.PerformLayout();
             this.grpDeceased.ResumeLayout(false);
             this.grpDeceased.PerformLayout();
             this.grpCause.ResumeLayout(false);
@@ -671,6 +978,35 @@ namespace CROMS.Forms
         private System.Windows.Forms.ComboBox cboPermit;
         private System.Windows.Forms.Label lblRecent;
         private System.Windows.Forms.DataGridView dgvDeaths;
+        private System.Windows.Forms.GroupBox grpCert;
+        private System.Windows.Forms.Label lblCInfName;
+        private System.Windows.Forms.TextBox txtCInfName;
+        private System.Windows.Forms.Label lblCInfRel;
+        private System.Windows.Forms.TextBox txtCInfRel;
+        private System.Windows.Forms.Label lblCInfRelOther;
+        private System.Windows.Forms.TextBox txtCInfRelOther;
+        private System.Windows.Forms.Label lblCInfDate;
+        private System.Windows.Forms.DateTimePicker dtpCInfDate;
+        private System.Windows.Forms.Label lblCInfAddr;
+        private System.Windows.Forms.TextBox txtCInfAddr;
+        private System.Windows.Forms.Label lblCPrepBy;
+        private System.Windows.Forms.TextBox txtCPrepBy;
+        private System.Windows.Forms.Label lblCPrepTitle;
+        private System.Windows.Forms.TextBox txtCPrepTitle;
+        private System.Windows.Forms.Label lblCPrepDate;
+        private System.Windows.Forms.DateTimePicker dtpCPrepDate;
+        private System.Windows.Forms.Label lblCRecvBy;
+        private System.Windows.Forms.TextBox txtCRecvBy;
+        private System.Windows.Forms.Label lblCRecvTitle;
+        private System.Windows.Forms.TextBox txtCRecvTitle;
+        private System.Windows.Forms.Label lblCRecvDate;
+        private System.Windows.Forms.DateTimePicker dtpCRecvDate;
+        private System.Windows.Forms.Label lblCRegBy;
+        private System.Windows.Forms.TextBox txtCRegBy;
+        private System.Windows.Forms.Label lblCRegTitle;
+        private System.Windows.Forms.TextBox txtCRegTitle;
+        private System.Windows.Forms.Label lblCRegDate;
+        private System.Windows.Forms.DateTimePicker dtpCRegDate;
         private System.Windows.Forms.Button btnNew;
         private System.Windows.Forms.Button btnUpdate;
         private System.Windows.Forms.Button btnDelete;

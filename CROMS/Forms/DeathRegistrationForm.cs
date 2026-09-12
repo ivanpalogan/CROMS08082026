@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -21,9 +21,36 @@ namespace CROMS.Forms
     {
         private int? _editingId;
 
+        /// <summary>
+        /// WHICH FORM this record is — stored on the row so the certificate can be
+        /// reprinted in the layout it came off. Defaults to the revision the office issues
+        /// today; a scan routed here through Intelligent Document Processing supplies its
+        /// own through PrimeFromExtraction.
+        /// </summary>
+        private string _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;
+        private string _formName = FormCatalog.Current(DocKind.Death)?.FormName;
+
         // Master-File dropdowns that replace free-text lookup fields at runtime.
         private ComboBox _cboDCit, _cboDRel, _cboDImm, _cboDAnt, _cboDUnd;
-        private ComboBox[] _pod;   // Place of Death: hospital, municipality, province
+        /// <summary>
+        /// Place of Death, in the order the boxes appear on screen:
+        /// facility, PROVINCE, MUNICIPALITY.
+        /// <para/>
+        /// Province comes before municipality because the two now CASCADE - the
+        /// municipality list is the municipalities of the chosen province, out of the
+        /// 1,647 the country has, and a list cannot be narrowed by a choice that has not
+        /// been made yet.
+        /// <para/>
+        /// The STORED string keeps its original order, "facility, municipality, province",
+        /// which is what every existing record holds and what the death-certificate view
+        /// rebuilds when the text column is empty. Reordering the boxes is a screen
+        /// change; reordering the storage would silently re-read every row already
+        /// written. <see cref="JoinPod"/> and <see cref="SetPod"/> hold that mapping.
+        /// </summary>
+        private ComboBox[] _pod;
+
+        /// <summary>Relationship to the Deceased, item 26.</summary>
+        private ComboBox _cboInfRel;
 
         public void RefreshData() => LoadDeaths();
 
@@ -101,8 +128,47 @@ namespace CROMS.Forms
             _cboDImm = Lookup(txtImm, "causes_of_death");
             _cboDAnt = Lookup(txtAnt, "causes_of_death");
             _cboDUnd = Lookup(txtUnd, "causes_of_death");
-            _pod = LookupTriple(txtPlace, "hospitals", "municipalities", "provinces",
-                "Hospital / Clinic", "Municipality", "Province");
+            // Relationship to the DECEASED, so the list is filtered to the entries that
+            // belong on Municipal Form 103 - the shared master file also carries the
+            // birth-side answers (Attending Midwife, Clinic Administrator), and offering
+            // those here is what BR-16 was raised about.
+            _cboInfRel = LookupOver(txtCInfRel, "SELECT name FROM relationships " +
+                "WHERE applies_to IN ('Death','Both') ORDER BY name");
+            OthersBox.Bind(_cboInfRel, txtCInfRelOther, lblCInfRelOther);
+
+            _pod = LookupTriple(txtPlace, "hospitals", null, null,
+                "Hospital / Clinic", "Province", "Municipality");
+            GeoLookup.LoadProvinces(_pod[1]);
+            GeoLookup.CascadePlace(_pod[1], _pod[2]);
+        }
+
+        /// <summary>
+        /// The same overlay as <see cref="Lookup"/>, but the list comes from a query rather
+        /// than a whole table - used where only part of a master file belongs on this form.
+        /// </summary>
+        private ComboBox LookupOver(TextBox tb, string sql)
+        {
+            var cbo = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDown,
+                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                AutoCompleteSource = AutoCompleteSource.ListItems,
+                Location = tb.Location,
+                Size = tb.Size,
+                Font = tb.Font,
+                Anchor = tb.Anchor
+            };
+            cbo.Items.Add("");
+            try
+            {
+                using (DataTable dt = Db.Pull(sql))
+                    foreach (DataRow r in dt.Rows) cbo.Items.Add(r[0].ToString());
+            }
+            catch { }
+            tb.Parent.Controls.Add(cbo);
+            cbo.BringToFront();
+            tb.Visible = false;
+            return cbo;
         }
 
         private ComboBox Lookup(TextBox tb, string masterTable)
@@ -138,13 +204,16 @@ namespace CROMS.Forms
         {
             var cbo = new ComboBox
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
+                DropDownStyle = masterTable == null
+                    ? ComboBoxStyle.DropDown : ComboBoxStyle.DropDownList,
                 Location = new System.Drawing.Point(x, tb.Top),
                 Size = new System.Drawing.Size(w, tb.Height),
                 Font = tb.Font,
                 Anchor = tb.Anchor
             };
-            FillLookup(cbo, masterTable);
+            // A null table means the cell is filled by GeoLookup, which loads it from the
+            // parent choice rather than from the whole master file.
+            if (masterTable != null) FillLookup(cbo, masterTable);
             tb.Parent.Controls.Add(cbo);
             cbo.BringToFront();
 
@@ -198,6 +267,46 @@ namespace CROMS.Forms
             c.SelectedIndex = idx;
         }
 
+        /// <summary>Screen order (facility, province, municipality) written out in the
+        /// stored order (facility, municipality, province).</summary>
+        private object JoinPod()
+        {
+            return ComboJoin(new[] { _pod[0], _pod[2], _pod[1] });
+        }
+
+        /// <summary>The stored "facility, municipality, province" put back on screen, with
+        /// the municipality list loaded before the municipality is selected into it.</summary>
+        private void SetPod(string value)
+        {
+            string[] bits = (value ?? "").Split(new[] { "," }, StringSplitOptions.None);
+            string facility = bits.Length > 0 ? bits[0].Trim() : "";
+            string municipality = bits.Length > 1 ? bits[1].Trim() : "";
+            string province = bits.Length > 2 ? bits[2].Trim() : "";
+
+            SetLookup(_pod[0], facility);
+            GeoLookup.Select(_pod[1], province);
+            GeoLookup.LoadMunicipalities(_pod[2], province);
+            GeoLookup.Select(_pod[2], municipality);
+        }
+
+        /// <summary>A certification date the sheet may simply not carry: an unticked
+        /// picker writes NULL rather than inventing today.</summary>
+        private static object Picked(DateTimePicker dtp)
+        {
+            return dtp.Checked ? (object)dtp.Value.Date : DBNull.Value;
+        }
+
+        private static void SetPicked(DateTimePicker dtp, object v)
+        {
+            if (v != DBNull.Value && v != null) { dtp.Value = Convert.ToDateTime(v); dtp.Checked = true; }
+            else dtp.Checked = false;
+        }
+
+        private static object NullIfEmpty(string v)
+        {
+            return string.IsNullOrWhiteSpace(v) ? (object)DBNull.Value : v.Trim();
+        }
+
         private static void SplitToTriple(ComboBox[] parts, string value)
         {
             string[] bits = (value ?? "").Split(new[] { ", " }, StringSplitOptions.None);
@@ -223,39 +332,85 @@ namespace CROMS.Forms
         }
 
         // ---------- CREATE ----------
-        private void btnSave_Click(object sender, EventArgs e)
+        private void btnSave_Click(object sender, EventArgs e) { Register(); }
+
+        /// <summary>
+        /// Register the death on the form.
+        /// <para/>
+        /// <paramref name="keepOpen"/> changes what happens afterwards: normally the form
+        /// is cleared for the next entry, but a caller that has to act on the record it
+        /// just created - Print, which prints from the saved registry entry - reloads it
+        /// instead, so the form stays on that record and <c>_editingId</c> is set.
+        /// Returns the new id, or null if nothing was written.
+        /// </summary>
+        private long? Register(bool keepOpen = false)
         {
-            if (!ValidateName()) return;
+            if (!ValidateName()) return null;
             string registryNo = NextRegistryNo();
             try
             {
-                var ps = new List<MySqlParameter>(FieldParams())
+                long newId;
+                // registry_no is UNIQUE (migration 27), so if another workstation took this
+                // number between the MAX+1 read above and this write, the insert is refused
+                // rather than duplicating the record's legal key. Take the next and retry.
+                for (int attempt = 0; ; attempt++)
                 {
-                    new MySqlParameter("@reg", registryNo),
-                    new MySqlParameter("@status", "Registered")
-                };
-                long newId = Db.Insert(
-                    "INSERT INTO deaths (registry_no, status, " + Columns + ") " +
-                    "VALUES (@reg, @status, " + ValuePlaceholders + ")", ps.ToArray());
+                    var ps = new List<MySqlParameter>(FieldParams())
+                    {
+                        new MySqlParameter("@reg", registryNo),
+                        new MySqlParameter("@status", "Registered")
+                    };
+                    try
+                    {
+                        newId = Db.Insert(
+                            "INSERT INTO deaths (registry_no, status, " + Columns + ") " +
+                            "VALUES (@reg, @status, " + ValuePlaceholders + ")", ps.ToArray());
+                        break;
+                    }
+                    catch (MySqlException ex)
+                        when (RegistryNumber.WasTaken(ex, "deaths") && attempt < RegistryNumber.MaxRetries)
+                    {
+                        registryNo = NextRegistryNo();
+                    }
+                }
                 SaveScan(newId);
                 Audit.Write(Audit.Create, "deaths", registryNo, txtFullName.Text.Trim());
-                MessageBox.Show("Death registered.  Registry No: " + registryNo, "Saved",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                ClearForm();
+                if (!keepOpen)
+                {
+                    MessageBox.Show("Death registered.  Registry No: " + registryNo, "Saved",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearForm();
+                }
                 LoadDeaths();
+                // Reload from the row actually written, so what is shown - and printed -
+                // is the registry entry, registry number included.
+                if (keepOpen) LoadDeath((int)newId);
+                return newId;
             }
             catch (Exception ex) { Fail(ex); }
+            return null;
         }
 
         // ---------- READ (row -> form) ----------
         private void dgvDeaths_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            int id = Convert.ToInt32(dgvDeaths.Rows[e.RowIndex].Cells["id"].Value);
+            LoadDeath(Convert.ToInt32(dgvDeaths.Rows[e.RowIndex].Cells["id"].Value));
+        }
+
+        /// <summary>Load one death record into the form for editing or printing.</summary>
+        private void LoadDeath(int id)
+        {
             DataTable dt = Db.Pull("SELECT * FROM deaths WHERE id = " + id);
             if (dt.Rows.Count == 0) return;
             DataRow r = dt.Rows[0];
             _editingId = id;
+            // Keep the revision this record was registered on, rather than migrating it
+            // to today's when it is edited or reprinted.
+            if (dt.Columns.Contains("form_code") && r["form_code"] != DBNull.Value)
+                _formCode = r["form_code"].ToString();
+            if (dt.Columns.Contains("form_name") && r["form_name"] != DBNull.Value)
+                _formName = r["form_name"].ToString();
 
             txtFullName.Text = Str(r["full_name"]);
             SetCombo(cboSex, r["sex"]);
@@ -264,7 +419,21 @@ namespace CROMS.Forms
             SetLookup(_cboDCit, Str(r["citizenship"]));
             SetDate(dtpDod, r["date_of_death"]);
             SetTime(dtpTod, r["time_of_death"]);
-            SplitToTriple(_pod, Str(r["place_of_death"]));
+            SetPod(Str(r["place_of_death"]));
+            txtCInfName.Text = Str(r["informant_name"]);
+            OthersBox.Apply(_cboInfRel, txtCInfRelOther, lblCInfRelOther,
+                Str(r["informant_relationship"]), SetLookup);
+            txtCInfAddr.Text = Str(r["informant_address"]);
+            SetPicked(dtpCInfDate, r["informant_date"]);
+            txtCPrepBy.Text = Str(r["prepared_by"]);
+            txtCPrepTitle.Text = Str(r["prepared_by_title"]);
+            SetPicked(dtpCPrepDate, r["prepared_by_date"]);
+            txtCRecvBy.Text = Str(r["received_by"]);
+            txtCRecvTitle.Text = Str(r["received_by_title"]);
+            SetPicked(dtpCRecvDate, r["received_by_date"]);
+            txtCRegBy.Text = Str(r["registered_by"]);
+            txtCRegTitle.Text = Str(r["registered_by_title"]);
+            SetPicked(dtpCRegDate, r["registered_by_date"]);
             SetLookup(_cboDRel, Str(r["religion_name"]));
             SetLookup(_cboDImm, Str(r["immediate_cause"]));
             SetLookup(_cboDAnt, Str(r["antecedent_cause"]));
@@ -335,11 +504,27 @@ namespace CROMS.Forms
         // ---------- PRINT (Certificate of Death + Burial/Transfer Permit) ----------
         private void btnPrint_Click(object sender, EventArgs e)
         {
+            // A certificate is printed from the REGISTRY ENTRY, not from the boxes on
+            // screen: an unsaved form has no registry number, no audit row and no record
+            // anyone can look up. But the operator should not be sent hunting in the list
+            // — least of all straight after Intelligent Document Processing filled this
+            // form from a scan, where no record exists yet — so the missing step is
+            // offered here instead of merely reported.
             if (_editingId == null)
             {
-                MessageBox.Show("Click a registered death record in the list first, then print.",
-                    "Print", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                if (!ValidateName()) return;
+                if (MessageBox.Show(
+                        "This death has not been registered yet, and the certificate is " +
+                        "printed from the saved registry entry — not from the form on " +
+                        "screen.\n\nRegister it now and print the certificate?\n\n" +
+                        "A registry number will be assigned.",
+                        "Register and print certificate", MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+                long? created = Register(keepOpen: true);
+                // Register's reload sets _editingId; verify rather than assume, so a
+                // failed save cannot fall through into printing nothing.
+                if (!created.HasValue || _editingId == null) return;
             }
 
             DataTable dt = Db.Pull("SELECT * FROM deaths WHERE id = @id",
@@ -351,20 +536,28 @@ namespace CROMS.Forms
             }
             DataRow r = dt.Rows[0];
 
+            // The CERTIFICATE goes through the shared report path, so it gets the same
+            // treatment as every other form: Crystal when a .rpt exists for this
+            // revision, the logo and stamp, and the form identity in its header.
+            CertificateReport.Show(_formCode, _editingId.Value, this);
+
+            // The BURIAL / TRANSFER PERMIT is a different document, not a rendering of the
+            // Certificate of Death, so it stays a separate print rather than being folded
+            // into the certificate's report — and it is only offered when a permit was
+            // actually issued.
+            if (string.IsNullOrWhiteSpace(V(r, "permit_type"))) return;
+
+            if (MessageBox.Show(
+                    "Also print the " + V(r, "permit_type") + " permit for this record?",
+                    "Burial / Transfer Permit", MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question) != DialogResult.Yes) return;
+
             try
             {
                 using (var doc = new PrintDocument())
                 {
-                    bool hasPermit = !string.IsNullOrWhiteSpace(V(r, "permit_type"));
-                    int page = 0;
-                    doc.DocumentName = "Death " + V(r, "registry_no");
-                    doc.PrintPage += (s, ev) =>
-                    {
-                        if (page == 0) DrawCertificate(ev, r);
-                        else DrawPermit(ev, r);
-                        page++;
-                        ev.HasMorePages = hasPermit && page < 2;
-                    };
+                    doc.DocumentName = "Permit " + V(r, "registry_no");
+                    doc.PrintPage += (s, ev) => { DrawPermit(ev, r); ev.HasMorePages = false; };
                     using (var dlg = new PrintDialog { Document = doc, UseEXDialog = true })
                     {
                         if (dlg.ShowDialog() == DialogResult.OK) doc.Print();
@@ -501,16 +694,25 @@ namespace CROMS.Forms
 
         // ---------- shared SQL ----------
         private const string Columns =
-            "full_name, sex, civil_status, age, citizenship, date_of_death, time_of_death, place_of_death, " +
+            "informant_name, informant_relationship, informant_address, informant_date, " +
+            "prepared_by, prepared_by_title, prepared_by_date, " +
+            "received_by, received_by_title, received_by_date, " +
+            "registered_by, registered_by_title, registered_by_date, " +
+            "form_code, form_name, full_name, sex, civil_status, age, citizenship, date_of_death, time_of_death, place_of_death, " +
             "religion_name, immediate_cause, antecedent_cause, underlying_cause, medical_certifier, " +
             "certifier_license_no, disposal_method, place_of_disposal, date_of_disposal, permit_type";
 
         private const string ValuePlaceholders =
-            "@name, @sex, @civil, @age, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
+            "@form_code, @form_name, @name, @sex, @civil, @age, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
             "@lic, @disp, @dplace, @ddate, @permit";
 
         private const string SetClause =
-            "full_name=@name, sex=@sex, civil_status=@civil, age=@age, citizenship=@citizen, " +
+            "form_code=@form_code, form_name=@form_name, full_name=@name, sex=@sex, civil_status=@civil, age=@age, citizenship=@citizen, " +
+            "informant_name=@iname, informant_relationship=@irel, informant_address=@iaddr, " +
+            "informant_date=@idate, prepared_by=@prep, prepared_by_title=@preptitle, " +
+            "prepared_by_date=@prepdate, received_by=@recv, received_by_title=@recvtitle, " +
+            "received_by_date=@recvdate, registered_by=@regby, registered_by_title=@regbytitle, " +
+            "registered_by_date=@regbydate, " +
             "date_of_death=@dod, time_of_death=@tod, place_of_death=@place, religion_name=@religion, " +
             "immediate_cause=@imm, antecedent_cause=@ant, underlying_cause=@und, medical_certifier=@cert, " +
             "certifier_license_no=@lic, disposal_method=@disp, place_of_disposal=@dplace, " +
@@ -520,6 +722,8 @@ namespace CROMS.Forms
         {
             return new[]
             {
+                new MySqlParameter("@form_code", _formCode),
+                new MySqlParameter("@form_name", _formName),
                 new MySqlParameter("@name", txtFullName.Text.Trim()),
                 new MySqlParameter("@sex", Combo(cboSex)),
                 new MySqlParameter("@civil", Combo(cboCivil)),
@@ -527,7 +731,22 @@ namespace CROMS.Forms
                 new MySqlParameter("@citizen", ComboVal(_cboDCit)),
                 new MySqlParameter("@dod", dtpDod.Value.Date),
                 new MySqlParameter("@tod", dtpTod.Value.ToString("HH:mm")),
-                new MySqlParameter("@place", ComboJoin(_pod)),
+                new MySqlParameter("@place", JoinPod()),
+                // Items 26-29. The dates show their own check box, so "no date on this
+                // sheet" stays sayable instead of every record claiming today.
+                new MySqlParameter("@iname", S(txtCInfName)),
+                new MySqlParameter("@irel", NullIfEmpty(OthersBox.Compose(_cboInfRel, txtCInfRelOther))),
+                new MySqlParameter("@iaddr", S(txtCInfAddr)),
+                new MySqlParameter("@idate", Picked(dtpCInfDate)),
+                new MySqlParameter("@prep", S(txtCPrepBy)),
+                new MySqlParameter("@preptitle", S(txtCPrepTitle)),
+                new MySqlParameter("@prepdate", Picked(dtpCPrepDate)),
+                new MySqlParameter("@recv", S(txtCRecvBy)),
+                new MySqlParameter("@recvtitle", S(txtCRecvTitle)),
+                new MySqlParameter("@recvdate", Picked(dtpCRecvDate)),
+                new MySqlParameter("@regby", S(txtCRegBy)),
+                new MySqlParameter("@regbytitle", S(txtCRegTitle)),
+                new MySqlParameter("@regbydate", Picked(dtpCRegDate)),
                 new MySqlParameter("@religion", ComboVal(_cboDRel)),
                 new MySqlParameter("@imm", ComboVal(_cboDImm)),
                 new MySqlParameter("@ant", ComboVal(_cboDAnt)),
@@ -549,14 +768,7 @@ namespace CROMS.Forms
         /// </summary>
         private static string NextRegistryNo()
         {
-            int year = DateTime.Now.Year;
-            DataTable dt = Db.Pull(
-                "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(registry_no, '-', -1) AS UNSIGNED)), 0) + 1 AS n " +
-                "FROM deaths WHERE registry_no LIKE @p",
-                new MySqlParameter("@p", year + "-D-%"));
-            int next = (dt.Rows.Count > 0 && dt.Rows[0]["n"] != DBNull.Value)
-                ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
-            return string.Format("{0}-D-{1:D4}", year, next);
+            return RegistryNumber.Next("deaths", 'D');
         }
 
         private bool ValidateName()
@@ -575,6 +787,13 @@ namespace CROMS.Forms
         {
             ClearForm();
 
+            // The scan's own form revision, when one was identified. ClearForm has just
+            // reset this to today's, so it must be applied AFTER that call.
+            if (f.TryGetValue("FormCode", out string fcode) && !string.IsNullOrWhiteSpace(fcode))
+                _formCode = fcode.Trim();
+            if (f.TryGetValue("FormName", out string fname) && !string.IsNullOrWhiteSpace(fname))
+                _formName = fname.Trim();
+
             string Get(string key) => f.TryGetValue(key, out string v) && v != null ? v.Trim() : "";
 
             void SelectItem(ComboBox c, string val)
@@ -584,6 +803,34 @@ namespace CROMS.Forms
                     if (string.Equals(it.ToString(), val, StringComparison.OrdinalIgnoreCase))
                     { c.SelectedItem = it; return; }
             }
+
+            // Items 26-29, read off the scan like everything else. A date the extractor
+            // could not resolve to yyyy-MM-dd is AMBIGUOUS, not merely unread - "2-6-2018"
+            // is either 2 June or 6 February - so the picker stays unticked and the
+            // operator enters it rather than the form guessing.
+            void SetText(TextBox t, string key) { string v = Get(key); if (v.Length > 0) t.Text = v; }
+            void SetPick(DateTimePicker picker, string key)
+            {
+                if (DateTime.TryParseExact(Get(key), "yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out DateTime parsed))
+                { picker.Value = parsed; picker.Checked = true; }
+            }
+
+            SetText(txtCInfName, "Informant");
+            OthersBox.Apply(_cboInfRel, txtCInfRelOther, lblCInfRelOther,
+                Get("InformantRelationship"), SetLookup);
+            SetText(txtCInfAddr, "InformantAddress");
+            SetPick(dtpCInfDate, "InformantDate");
+            SetText(txtCPrepBy, "PreparedByName");
+            SetText(txtCPrepTitle, "PreparedByTitle");
+            SetPick(dtpCPrepDate, "PreparedByDate");
+            SetText(txtCRecvBy, "ReceivedByName");
+            SetText(txtCRecvTitle, "ReceivedByTitle");
+            SetPick(dtpCRecvDate, "ReceivedByDate");
+            SetText(txtCRegBy, "RegisteredByName");
+            SetText(txtCRegTitle, "RegisteredByTitle");
+            SetPick(dtpCRegDate, "RegisteredByDate");
 
             string full = Get("FullName");
             if (full.Length == 0)
@@ -595,7 +842,7 @@ namespace CROMS.Forms
             SelectItem(cboSex, Get("Sex"));
             SelectItem(cboCivil, Get("CivilStatus"));
             if (Get("Citizenship").Length > 0) SetLookup(_cboDCit, Get("Citizenship"));
-            if (Get("PlaceOfDeath").Length > 0) SplitToTriple(_pod, Get("PlaceOfDeath"));
+            if (Get("PlaceOfDeath").Length > 0) SetPod(Get("PlaceOfDeath"));
 
             if (Get("DateOfDeath").Length > 0 &&
                 DateTime.TryParse(Get("DateOfDeath"), System.Globalization.CultureInfo.InvariantCulture,
@@ -607,13 +854,18 @@ namespace CROMS.Forms
         {
             _editingId = null;
             _scanImage = null;
+            _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;
+            _formName = FormCatalog.Current(DocKind.Death)?.FormName;
             txtFullName.Clear();
             cboSex.SelectedIndex = -1;
             cboCivil.SelectedIndex = -1;
             txtAge.Clear();
             SetLookup(_cboDCit, "");
             dtpDod.Value = DateTime.Today;
-            SplitToTriple(_pod, "");
+            SetPod("");
+            OthersBox.Apply(_cboInfRel, txtCInfRelOther, lblCInfRelOther, "", SetLookup);
+            foreach (DateTimePicker d in new[] { dtpCInfDate, dtpCPrepDate, dtpCRecvDate, dtpCRegDate })
+                d.Checked = false;
             SetLookup(_cboDRel, "");
             SetLookup(_cboDImm, "");
             SetLookup(_cboDAnt, "");

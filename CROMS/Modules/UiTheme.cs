@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
@@ -15,14 +15,56 @@ namespace CROMS.Modules
     /// </summary>
     public static class UiTheme
     {
-        // Palette
-        private static readonly Color HeaderBack = Color.FromArgb(248, 249, 250);
-        private static readonly Color HeaderInk  = Color.FromArgb(73, 80, 87);
-        private static readonly Color Ink         = Color.FromArgb(33, 37, 41);
-        private static readonly Color GridLine    = Color.FromArgb(233, 236, 239);
-        private static readonly Color Zebra       = Color.FromArgb(250, 251, 252);
-        private static readonly Color SelBack     = Color.FromArgb(232, 240, 254);
-        private static readonly Color SelInk      = Color.FromArgb(13, 71, 161);
+        // ---------------------------------------------------------------- palette
+        // The Navy Blue (light) token set shared by the desktop Launcher/Login, this shell, and
+        // the kiosk. These are PUBLIC on purpose: module forms should reference UiTheme.Accent
+        // rather than re-declaring their own Color.FromArgb literals, which is how the app drifted
+        // into several palettes in the first place.
+        public static readonly Color PageBg      = Color.FromArgb(244, 246, 249);   // #F4F6F9
+        public static readonly Color Surface     = Color.White;
+        public static readonly Color CardLine    = Color.FromArgb(225, 229, 236);   // #E1E5EC
+        public static readonly Color Ink         = Color.FromArgb(23, 26, 36);      // #171B24
+        public static readonly Color Muted       = Color.FromArgb(91, 100, 114);    // #5B6472
+        public static readonly Color Faint       = Color.FromArgb(137, 145, 163);
+        public static readonly Color Accent      = Color.FromArgb(29, 78, 216);     // #1D4ED8
+        public static readonly Color AccentHover = Color.FromArgb(26, 68, 192);
+        public static readonly Color AccentTint  = Color.FromArgb(234, 241, 254);   // #EAF1FE
+        public static readonly Color Navy        = Color.FromArgb(19, 36, 65);      // #132441 sidebar
+        public static readonly Color NavyHover   = Color.FromArgb(28, 48, 82);
+        public static readonly Color Success     = Color.FromArgb(46, 148, 87);     // #2E9457
+        public static readonly Color Warning     = Color.FromArgb(180, 83, 9);      // #B45309
+        public static readonly Color Danger      = Color.FromArgb(198, 50, 63);     // #C6323F
+
+        // Tint backgrounds for status chips and pills, plus the two neutrals the cards need.
+        // A chip must read as "this is the success/warning/danger state" without shouting, so
+        // the tint carries the meaning and the saturated token above it carries the text.
+        public static readonly Color SuccessTint = Color.FromArgb(231, 244, 237);   // #E7F4ED
+        public static readonly Color WarningTint = Color.FromArgb(253, 241, 227);   // #FDF1E3
+        public static readonly Color DangerTint  = Color.FromArgb(251, 234, 236);   // #FBEAEC
+        public static readonly Color Chrome      = Color.FromArgb(238, 241, 246);   // #EEF1F6 secondary chip / ghost button
+        public static readonly Color RowLine     = Color.FromArgb(240, 242, 246);   // #F0F2F6 list row separator
+
+        /// <summary>
+        /// Linear blend of two palette colours, so a derived shade (a pill's border, a chip's
+        /// edge) is stated as a relationship to the tokens rather than as yet another literal.
+        /// <paramref name="t"/> = 0 returns <paramref name="a"/>, 1 returns <paramref name="b"/>.
+        /// </summary>
+        public static Color Mix(Color a, Color b, float t)
+        {
+            if (t < 0f) t = 0f; else if (t > 1f) t = 1f;
+            return Color.FromArgb(255,
+                Clamp((int)(a.R + (b.R - a.R) * t)),
+                Clamp((int)(a.G + (b.G - a.G) * t)),
+                Clamp((int)(a.B + (b.B - a.B) * t)));
+        }
+
+        // Grid tokens derived from the set above.
+        private static readonly Color HeaderBack = Color.FromArgb(248, 249, 251);
+        private static readonly Color HeaderInk  = Muted;
+        private static readonly Color GridLine   = Color.FromArgb(233, 236, 241);
+        private static readonly Color Zebra      = Color.FromArgb(250, 251, 253);
+        private static readonly Color SelBack    = AccentTint;
+        private static readonly Color SelInk     = Accent;
 
         // The one font family the whole app uses.
         private const string BaseFamily = "Segoe UI";
@@ -53,18 +95,53 @@ namespace CROMS.Modules
         {
             Font f = c.Font;
             string fam = f.FontFamily.Name;
-            if (fam == BaseFamily) return;
             if (fam.IndexOf("Emoji", System.StringComparison.OrdinalIgnoreCase) >= 0) return;
             if (fam == "Consolas") return;
-            c.Font = new Font(BaseFamily, f.Size, f.Style);
+
+            float size = BodySize(c, f.Size);
+            if (fam == BaseFamily && size == f.Size) return;
+            c.Font = new Font(BaseFamily, size, f.Style);
+        }
+
+        /// <summary>Every field label on every screen.</summary>
+        public const float LabelSize = 9F;
+        /// <summary>Every box the operator types or picks in.</summary>
+        public const float InputSize = 9.75F;
+
+        /// <summary>
+        /// BR-18. One size for labels and one for inputs, across every screen.
+        /// <para/>
+        /// The forms were built at different times and drifted: the death screen types at
+        /// 9.75pt, the marriage dialog at 10pt, the birth screen at the WinForms default of
+        /// 8.25pt, and their captions at 8.5, 9 and 9.75 between them. Side by side that
+        /// reads as three different applications.
+        /// <para/>
+        /// Snapping is deliberately NARROW - only a control already within a point of the
+        /// target moves. A heading set at 12pt, a queue number at 30pt or a deliberately
+        /// small hint stays exactly as designed; this pulls body text into line, it does not
+        /// flatten the type scale. Keeping the step under a point also keeps text metrics
+        /// close enough that nothing in a fixed-width box starts clipping.
+        /// </summary>
+        private static float BodySize(Control c, float current)
+        {
+            float target = (c is TextBox || c is ComboBox || c is DateTimePicker ||
+                            c is NumericUpDown || c is MaskedTextBox)
+                ? InputSize
+                : (c is Label || c is CheckBox || c is RadioButton) ? LabelSize : current;
+
+            return System.Math.Abs(target - current) <= 1f ? target : current;
         }
 
         // ---------------------------------------------------------------- buttons
         // Corner radius for the subtle rounded buttons (small = professional, not pill-shaped).
-        private const int CornerRadius = 6;
+        private const int CornerRadius = 8;
 
-        // Secondary ("white") button look — a clean light-grey chip instead of native chrome.
-        private static readonly Color SecondaryBack = Color.FromArgb(233, 236, 239);   // #E9ECEF
+        // Secondary ("white") button look — a clean light chip instead of native chrome.
+        private static readonly Color SecondaryBack = Color.FromArgb(238, 241, 246);
+
+        // Disabled look, shared by every owner-drawn button.
+        private static readonly Color DisabledBack = Color.FromArgb(217, 220, 227);
+        private static readonly Color DisabledInk  = Faint;
 
         /// <summary>
         /// Gives EVERY button one consistent flat style so nothing shows the native grey chrome:
@@ -124,6 +201,7 @@ namespace CROMS.Modules
             b.MouseDown  += (s, e) => { pressed = true; b.Invalidate(); };
             b.MouseUp    += (s, e) => { pressed = false; b.Invalidate(); };
             b.Resize     += (s, e) => b.Invalidate();
+            b.EnabledChanged += (s, e) => b.Invalidate();
             b.Paint      += (s, e) =>
             {
                 Color baseC = b.BackColor;
@@ -133,20 +211,45 @@ namespace CROMS.Modules
                         ? (b.FlatAppearance.MouseOverBackColor != Color.Empty ? b.FlatAppearance.MouseOverBackColor : Shade(baseC, 0.92f))
                         : baseC;
 
+                // A DISABLED button must look disabled. This owner-draw previously painted the
+                // button's own colours regardless of Enabled, so e.g. a greyed-out Back still
+                // looked fully clickable and simply did nothing when pressed — which reads as a
+                // broken button, not an unavailable one. Applies app-wide.
+                if (!b.Enabled)
+                {
+                    fill = DisabledBack;
+                    hover = pressed = false;
+                }
+
                 Graphics g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.Clear(b.Parent != null ? b.Parent.BackColor : SystemColors.Control);
+                g.Clear(Backdrop(b));
                 using (var path = RoundedRect(new Rectangle(0, 0, b.Width - 1, b.Height - 1), radius))
                 using (var brush = new SolidBrush(fill))
                     g.FillPath(brush, path);
 
                 // Respect the button's own TextAlign (nav buttons are left-aligned/indented).
                 var textRect = new Rectangle(10, 0, b.Width - 20, b.Height);
-                TextRenderer.DrawText(g, b.Text, b.Font, textRect, b.ForeColor,
+                TextRenderer.DrawText(g, b.Text, b.Font, textRect,
+                    b.Enabled ? b.ForeColor : DisabledInk,
                     AlignFlags(b.TextAlign) | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
             };
             b.Invalidate();
+        }
+
+        /// <summary>
+        /// The colour actually painted behind a button, used to blend its rounded corners.
+        /// <c>Parent.BackColor</c> alone is wrong whenever the parent is transparent (a container
+        /// that shows its own parent through, common on card panels) — clearing to Transparent
+        /// paints transparent-black and leaves a dark halo around the corners. Walk up until an
+        /// opaque colour is found. Same defect this codebase already hit in the kiosk.
+        /// </summary>
+        private static Color Backdrop(Control c)
+        {
+            for (Control p = c.Parent; p != null; p = p.Parent)
+                if (p.BackColor.A == 255) return p.BackColor;
+            return SystemColors.Control;
         }
 
         /// <summary>Horizontal part of a ContentAlignment as a TextFormatFlags value.</summary>

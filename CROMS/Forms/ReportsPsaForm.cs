@@ -60,8 +60,16 @@ namespace CROMS.Forms
             int births = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered'" + mf);
             int marriages = Scalar("SELECT COUNT(*) FROM marriages WHERE status = 'Registered'" + mf);
             int deaths = Scalar("SELECT COUNT(*) FROM deaths WHERE status = 'Registered'" + mf);
-            int timely = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND is_delayed = 0" + mf);
-            int delayed = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND is_delayed = 1" + mf);
+            // The timely/delayed split is counted ONLY over births whose registration date
+            // the database actually knows (`date_registered`, added in migration 27). A row
+            // without one was migrated from the old system or digitized from the paper
+            // books, so the office registered it at some unrecorded time — quite possibly
+            // on time. Counting those as timely, which is what reading `is_delayed` alone
+            // used to do, puts a figure in a statutory return that nothing supports.
+            string known = " AND date_registered IS NOT NULL";
+            int timely = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND is_delayed = 0" + known + mf);
+            int delayed = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND is_delayed = 1" + known + mf);
+            int undated = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND date_registered IS NULL" + mf);
 
             decimal collections = ScalarDec(
                 "SELECT COALESCE(SUM(net_amount), 0) FROM payments " +
@@ -72,7 +80,11 @@ namespace CROMS.Forms
             lblDeathVal.Text = deaths.ToString();
             lblCollectVal.Text = collections.ToString("N2");
             lblSplit.Text = "Births — Timely: " + timely + "   ·   Delayed: " + delayed +
-                "   (delayed = registered beyond the 30-day reglementary period, RA 3753)";
+                "   (delayed = registered beyond the 30-day reglementary period, RA 3753)" +
+                (undated > 0
+                    ? "   ·   " + undated + " not counted — no registration date on record " +
+                      "(registered before CROMS, or digitized from the registry books)"
+                    : "");
 
             LoadRoster();
         }
@@ -101,8 +113,9 @@ namespace CROMS.Forms
                 default: // Births
                     sql = "SELECT registry_no AS 'Registry No', " +
                           "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS 'Child', " +
-                          "sex AS Sex, date_of_birth AS 'Date of Birth', DATE(created_at) AS 'Date Registered', " +
-                          "IF(is_delayed, 'Delayed', 'Timely') AS 'Registration', status AS Status " +
+                          "sex AS Sex, date_of_birth AS 'Date of Birth', date_registered AS 'Date Registered', " +
+                          "IF(date_registered IS NULL, 'Not recorded', IF(is_delayed, 'Delayed', 'Timely')) AS 'Registration', " +
+                          "status AS Status " +
                           "FROM births WHERE status = 'Registered'" + mf + " ORDER BY created_at, id";
                     break;
             }

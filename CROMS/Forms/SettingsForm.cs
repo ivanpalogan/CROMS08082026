@@ -45,7 +45,134 @@ namespace CROMS.Forms
             LoadWindows();
             SetLocked(true);
             FilterManual("");
+            BuildFormsTab();
             BuildUpdatesTab();
+        }
+
+        // =====================================================================
+        //  Certificates & Forms tab — the office's logo and stamp, its own details,
+        //  and what CROMS knows about each certificate form: which report lays it
+        //  out and whether that report has been authored yet.
+        // =====================================================================
+
+        private void BuildFormsTab()
+        {
+            var tab = new TabPage("Certificates & Forms")
+            { BackColor = Color.White, Padding = new Padding(3) };
+
+            tab.Controls.Add(new Label
+            {
+                Text = "Certificates & Forms", AutoSize = true, Location = new Point(20, 18),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(33, 37, 41)
+            });
+            tab.Controls.Add(new Label
+            {
+                Text = "Branding and office details printed on every certificate, and the " +
+                       "report layout used for each form.",
+                AutoSize = true, Location = new Point(22, 50),
+                Font = new Font("Segoe UI", 9.5F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            tab.Controls.Add(Section("Logo, stamp and office details:", 22, 88));
+            var btnBrand = BigButton("Manage Logo, Stamp and Office Details", 22, 114,
+                                     Color.FromArgb(13, 110, 253));
+            btnBrand.Click += btnBrand_Click;
+            tab.Controls.Add(btnBrand);
+            tab.Controls.Add(new Label
+            {
+                Text = "The logo prints in the certificate header; the stamp prints in the " +
+                       "position each form reserves for it.\r\n" +
+                       "They are managed separately, and either can be set for one form only.",
+                AutoSize = true, Location = new Point(24, 166),
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            var btnAlign = BigButton("Align Printing on Pre-printed Forms", 322, 114,
+                                     Color.FromArgb(108, 117, 125));
+            btnAlign.Click += btnAlign_Click;
+            tab.Controls.Add(btnAlign);
+
+            tab.Controls.Add(Section("Forms CROMS can read, store and print:", 22, 214));
+
+            // A read-only picture of the form library. The point is the Report column:
+            // it is the only place that tells the office whether a .rpt has actually been
+            // authored for a form, or whether it is still printing on the built-in
+            // renderer — which is otherwise invisible until someone prints one.
+            var grid = new DataGridView
+            {
+                Location = new Point(22, 240),
+                Size = new Size(900, 250),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+                       | AnchorStyles.Bottom,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White
+            };
+            grid.Columns.Add("Form", "Form Name");
+            grid.Columns.Add("No", "Municipal Form No.");
+            grid.Columns.Add("Rev", "Revision");
+            grid.Columns.Add("Code", "Form Code");
+            grid.Columns.Add("View", "Report Datasource");
+            grid.Columns.Add("Report", "Report Layout");
+            grid.Columns["No"].FillWeight = 55;
+            grid.Columns["Code"].FillWeight = 60;
+
+            foreach (FormDefinition d in FormCatalog.All)
+            {
+                string report = CertificateReport.ReportPath(d) != null
+                    ? (CertificateReport.CrystalAvailable
+                        ? "Crystal — " + d.RptFile
+                        : d.RptFile + " (Crystal runtime not installed on this PC)")
+                    : d.HasBlankForm && d.HasOverlay
+                        ? "Built-in replica of the blank form"
+                        : d.HasOverlay
+                            ? "Positioned for the pre-printed form"
+                              + (PrintCalibration.IsCalibrated(d.FormCode)
+                                    ? " (aligned on this PC)" : " (not aligned yet)")
+                            : "Built-in structured layout";
+                grid.Rows.Add(d.FormName, "No. " + d.MunicipalFormNo, d.Revision,
+                              d.FormCode, d.ReportView, report);
+            }
+            tab.Controls.Add(grid);
+
+            tab.Controls.Add(new Label
+            {
+                Text = "To use a Crystal Reports layout for a form, put its .rpt file in the " +
+                       "Reports folder beside CROMS.exe using the Form Code as its name, and " +
+                       "bind it to that form's Report Datasource. Until then CROMS prints the " +
+                       "certificate itself.",
+                AutoSize = false, Location = new Point(24, 496), Size = new Size(898, 34),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            tabs.TabPages.Add(tab);
+        }
+
+        /// <summary>
+        /// Branding changes what every issued certificate looks like, so it is behind the
+        /// same admin re-verification as the window configuration on this screen.
+        /// </summary>
+        private void btnBrand_Click(object sender, EventArgs e)
+        {
+            if (!_verified) { RequestVerification(); if (!_verified) return; }
+            using (var dlg = new OfficeAssetsForm()) dlg.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// Where a form's values land on the office's own pre-printed stock. Behind the same
+        /// re-verification as branding: a bad alignment prints onto accountable forms.
+        /// </summary>
+        private void btnAlign_Click(object sender, EventArgs e)
+        {
+            if (!_verified) { RequestVerification(); if (!_verified) return; }
+            using (var dlg = new FormAlignForm()) dlg.ShowDialog(this);
+            LoadWindows();
         }
 
         public void RefreshData() => LoadWindows();
@@ -89,8 +216,9 @@ namespace CROMS.Forms
             tab.Controls.Add(btnPublish);
             tab.Controls.Add(new Label
             {
-                Text = "Rebuild the app in Visual Studio first, then click Publish (do this after every\r\n" +
-                       "rebuild). It copies the new build to the client share. (Needs an admin prompt.)",
+                Text = "Run this ONCE. It links the client share to your build folders, so every later\r\n" +
+                       "rebuild in Visual Studio reaches the clients on its own. Publish again only if\r\n" +
+                       "the build folders move. (Needs an admin prompt.)",
                 AutoSize = true, Location = new Point(24, 210), Font = new Font("Segoe UI", 8.75F),
                 ForeColor = Color.FromArgb(108, 117, 125)
             });

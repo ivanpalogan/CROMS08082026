@@ -1,0 +1,188 @@
+﻿
+==============================================================================
+nice.jpg   Birth — MF-102 (2007), PSA copy
+==============================================================================
+  classified   : Birth OK   layout MF-102 (2007) OK   class 99%
+  recognition  : 68%   field confidence 86%   rotation 0°   29.1s
+  template fit : 7 anchor(s), 0 ruling(s), scale 1.001x1.005, offset -0.001/+0.000
+  OK      Province                  78%  Cagayan
+  OK      CityMunicipality          68%  Tuguegarao City
+  OK      ChildFirst                99%  SHELLIAN CLEAR
+  OK      ChildMiddle               99%  BALOSO
+  OK      ChildLast                 99%  TALOSIG
+  OK      Sex                       80%  Female
+  OK      DateOfBirth               64%  2018-06-12
+  OK      PlaceHospital             90%  Cagayan Valley Medical Center
+  OK      PlaceMunicipality         99%  Tuguegarao City
+  OK      PlaceProvince             98%  Cagayan
+  OK      TypeOfBirth               63%  Single
+  OK      BirthOrder                67%  Third
+  OK      Weight                    70%  2722
+  OK      MotherFirst               73%  SHEILA
+  OK      MotherMiddle              99%  ARTICULO
+  OK      MotherLast                99%  BALOSO
+  OK      MotherCitizenship         99%  Filipino
+  OK      MotherReligion            97%  Roman Catholic
+  OK      MotherOccupation          97%  Housewife
+  OK      MotherAge                 73%  36
+  OK      FatherFirst               99%  GILBERT
+  OK      FatherMiddle              99%  CATAGGATAN
+  OK      FatherLast                99%  TALOSIG
+  OK      FatherCitizenship         99%  Filipino
+  OK      FatherReligion            99%  Roman Catholic
+  OK      FatherOccupation          96%  Driver
+  OK      FatherAge                 83%  35
+  OK      MarriageOfParentsDate     88%  2007-02-28
+  OK      Attendant                 54%  Physician
+  WRONG   TimeOfBirth               71%  got: 3:40   expected: 1:40 PM   (43% of chars)
+  ------------------------------------------------------------
+  ACCURACY     : 29/30 correct (96%),  1 wrong,  0 missing
+  also read    : DobDay=12 | DobMonth=june | DobYear=2018 | ChildrenBornAlive=3 | ChildrenLiving=3 | ChildrenDead=0 | MotherResidence=Zone 7 Bical | MotherResidenceCity=Penablanca | MotherResidenceProvince=Cagayan | FatherResidence=Zone 7 Bica | MarriageOfParentsPlace=Penablanca | PlaceOfBirth=Cagayan Valley Medical Center, Tuguegarao City, Cagayan | Religion=Roman Catholic | Nationality=Filipino
+
+==============================================================================
+gilvan birth.jpg   Birth — MF-102 (1993), NSO copy, faded
+==============================================================================
+  classified   : Birth OK   layout MF-102 (1993) OK   class 99%
+  recognition  : 48%   field confidence 64%   rotation 0°   42.0s
+  template fit : 5 anchor(s), 0 ruling(s), scale 1.000x0.988, offset +0.000/+0.006
+  HELD         : overall field confidence 64% is below 65%
+  WRONG   Province                  72%  got: etro rgnits   expected: Metro Manila   (58% of chars)
+  WRONG   CityMunicipality          45%  got: J ee   expected: Pasay City   (10% of chars)
+  WRONG   ChildFirst                52%  got: ilvan   expected: Gilvan   (83% of chars)
+  OK      ChildMiddle               70%  Baloso
+  OK      ChildLast                 76%  Talosig
+  OK      Sex                       51%  Male
+  OK      DateOfBirth               77%  2005-06-18
+  OK      TypeOfBirth               45%  Single
+  OK      BirthOrder                69%  First
+  WRONG   Weight                    46%  got: 2035   expected: 2835   (75% of chars)
+  WRONG   MotherFirst               96%  got: gheila   expected: Sheila   (83% of chars)
+  WRONG   MotherMiddle              90%  got: Ar tienlo   expected: Articulo   (62% of chars)
+  OK      MotherLast                65%  Baloso
+  OK      MotherCitizenship         86%  Filipino
+  WRONG   MotherOccupation          65%  got: salesladyl   expected: Saleslady   (89% of chars)
+  OK      MotherAge                 67%  22
+  OK      FatherFirst               90%  gilbert
+  WRONG   FatherMiddle              28%  got: Catagrataa   expected: Cataggatan   (80% of chars)
+  OK      FatherLast                71%  Talosig
+  OK      FatherCitizenship         50%  Filipino
+  OK      FatherOccupation          51%  Bagger
+  WRONG   FatherAge                 61%  got: 99   expected: 22   (0% of chars)
+  OK      Attendant                 53%  Others
+  ------------------------------------------------------------
+  ACCURACY     : 14/23 correct (60%),  9 wrong,  0 missing
+  also read    : PlaceOfBirth=B24 De Chena 3t.Bo. fLiinino Page | MotherReligion=N agm UL | ChildrenBornAlive=4 | ChildrenLiving=4 | MotherResidence=324 Chesa st,bO.Pilipino Pasay City Nia | FatherReligion=Catholic | MarriageOfParents=Oetober 26,2004, Pasay City | Religion=N agm UL | Nationality=Filipino
+
+==============================================================================
+palogan_n.jpg   Death — MF-103 (2016), PSA copy, 706 px
+==============================================================================
+  classified   : Death OK   layout MF-103 (2016) OK   class 99%
+  recognition  : 52%   field confidence 94%   rotation 0°   23.0s
+  template fit : 4 anchor(s), 0 ruling(s), scale 1.003x1.000, offset -0.001/+0.001
+  OK      Province                  88%  PAMPANGA
+  OK      CityMunicipality          99%  ANGELES
+  OK      RegistryNo                99%  1999-76251
+  OK      DeceasedFirst             99%  GEORGE
+  OK      DeceasedMiddle            99%  DE GUZMAN
+  OK      DeceasedLast              99%  ABAD
+  OK      Sex                       89%  Male
+  OK      DateOfDeath               89%  1999-08-29
+  OK      DateOfBirth               89%  1953-04-23
+  OK      Age                       89%  46
+  OK      PlaceOfDeath              98%  ANGELES, PAMPANGA
+  OK      CivilStatus               74%  Married
+  OK      Religion                  95%  Catholic
+  OK      Citizenship               99%  Filipino
+  OK      Residence                 98%  MABALACAT PAMPANGA
+  OK      Occupation                92%  CHECKER/ DISPATCHER
+  OK      FatherName                99%  FELIPE ABAD
+  OK      MotherMaidenName          99%  JUANITA ABAD
+  OK      CauseOfDeath              89%  CARDIOPULMONARY ARREST
+  OK      CorpseDisposal            89%  Burial
+  ------------------------------------------------------------
+  ACCURACY     : 20/20 correct (100%),  0 wrong,  0 missing
+  also read    : FullName=GEORGE DE GUZMAN ABAD
+
+==============================================================================
+marrage.jpg   Marriage — MF-97 (1993), PSA copy
+==============================================================================
+  classified   : Marriage OK   layout MF-97 (1993) OK   class 99%
+  recognition  : 45%   field confidence 58%   rotation 0°   25.8s
+  template fit : 5 anchor(s), 11 ruling(s), scale 1.001x0.999, offset -0.001/+0.000
+  HELD         : overall field confidence 58% is below 65%
+  WRONG   Province                  51%  got: lees F   expected: Cagayan   (0% of chars)
+  WRONG   CityMunicipality          13%  got: PISO Ate   expected: Peñablanca   (20% of chars)
+  WRONG   HusbandFirst              56%  got: OSLAENT   expected: GILBERT   (43% of chars)
+  WRONG   HusbandMiddle             42%  got: AN   expected: CATAGGATAN   (20% of chars)
+  WRONG   HusbandLast               48%  got: TALOST   expected: TALOSIG   (71% of chars)
+  WRONG   WifeFirst                 72%  got: HELLA   expected: SHEILA   (67% of chars)
+  WRONG   WifeMiddle                64%  got: ARTICTILO   expected: ARTICULO   (75% of chars)
+  WRONG   WifeLast                  72%  got: RALOSO   expected: BALOSO   (83% of chars)
+  MISSING HusbandDateOfBirth             expected: 1983-04-30
+  WRONG   HusbandAge                69%  got: 2   expected: 23   (50% of chars)
+  MISSING WifeAge                        expected: 25
+  WRONG   HusbandPlaceOfBirth       69%  got: Bteal, Penablanca, Cag   expected: Bical, Peñablanca, Cag.   (85% of chars)
+  WRONG   WifePlaceOfBirth          67%  got: Pabella Hoapitnl, Man le   expected: Fabella Hospital, Manila   (78% of chars)
+  OK      HusbandSex                57%  Male
+  OK      WifeSex                   32%  Female
+  WRONG   HusbandCitizenship        61%  got: FALL pare   expected: Filipino   (25% of chars)
+  OK      WifeCitizenship           69%  Filipino
+  WRONG   HusbandResidence          77%  got: Bical, Penablanca, Cagayan   expected: Bical, Peñablanca, Cagayan   (96% of chars)
+  WRONG   WifeResidence             78%  got: Bical, Cagays   expected: Bical, Peñablanca, Cagayan   (46% of chars)
+  OK      HusbandReligion           59%  Catholic
+  OK      WifeReligion              53%  Catholic
+  OK      HusbandCivilStatus        14%  Single
+  OK      WifeCivilStatus           81%  Single
+  WRONG   HusbandFatherName         63%  got: Albert Barega Talosig   expected: Alberto Buraga Talosig   (86% of chars)
+  WRONG   WifeFatherName            48%  got: Or   expected: Jesus Jr. Baloso   (6% of chars)
+  WRONG   HusbandMotherName         65%  got: Peps Catas   expected: Pepita Lenn Cataggatan   (36% of chars)
+  WRONG   WifeMotherName            43%  got: Diosits they Articulo Canty   expected: Diosity Articulo   (31% of chars)
+  OK      PlaceOfMarriage           82%  OFFICE OF THE MUNICIPAL MAYOR
+  MISSING DateOfMarriage                 expected: 2007-02-28
+  ------------------------------------------------------------
+  ACCURACY     : 8/29 correct (27%),  18 wrong,  3 missing
+  also read    : PlaceOfMarriageAddress=Cagayan | Solemnizer=foof | Nationality=FALL pare
+
+==============================================================================
+790238709_1053379053965181_1576431462900421972_n.jpg   Marriage — same record, second photograph (layout/fit check)
+==============================================================================
+  classified   : Marriage OK   layout MF-97 (1993) OK   class 92%
+  recognition  : 39%   field confidence 53%   rotation 0°   26.4s
+  template fit : 5 anchor(s), 0 ruling(s), scale 1.013x1.000, offset -0.005/+0.000
+  HELD         : overall field confidence 53% is below 65%
+  WRONG   Province                  37%  got: OE eee   expected: Cagayan   (0% of chars)
+  WRONG   CityMunicipality          41%  got: a EE eh   expected: Peñablanca   (10% of chars)
+  WRONG   HusbandFirst              25%  got: ee   expected: GILBERT   (14% of chars)
+  WRONG   HusbandMiddle             47%  got: weecw   expected: CATAGGATAN   (0% of chars)
+  WRONG   HusbandLast               39%  got: net   expected: TALOSIG   (0% of chars)
+  WRONG   WifeFirst                 69%  got: mata   expected: SHEILA   (17% of chars)
+  WRONG   WifeMiddle                47%  got: UU Lay   expected: ARTICULO   (0% of chars)
+  WRONG   WifeLast                  67%  got: BABS   expected: BALOSO   (50% of chars)
+  MISSING HusbandDateOfBirth             expected: 1983-04-30
+  WRONG   HusbandAge                39%  got: 4   expected: 23   (0% of chars)
+  MISSING WifeAge                        expected: 25
+  WRONG   HusbandPlaceOfBirth       67%  got: Meal, Podedlancs, Gag   expected: Bical, Peñablanca, Cag.   (55% of chars)
+  WRONG   WifePlaceOfBirth          38%  got: Prbella - Hoapital, ia   expected: Fabella Hospital, Manila   (61% of chars)
+  MISSING HusbandSex                     expected: Male
+  MISSING WifeSex                        expected: Female
+  WRONG   HusbandCitizenship        68%  got: veseyene   expected: Filipino   (12% of chars)
+  WRONG   WifeCitizenship           42%  got: gane   expected: Filipino   (12% of chars)
+  WRONG   HusbandResidence          48%  got: eons weeny or   expected: Bical, Peñablanca, Cagayan   (8% of chars)
+  WRONG   WifeResidence             47%  got: Bical, Penablanca, Cegeys   expected: Bical, Peñablanca, Cagayan   (79% of chars)
+  WRONG   HusbandReligion           45%  got: WS TEO136   expected: Catholic   (12% of chars)
+  OK      WifeReligion              72%  Catholic
+  OK      HusbandCivilStatus        48%  Single
+  OK      WifeCivilStatus           84%  Single
+  WRONG   HusbandFatherName         74%  got: Alvert Suraga Talosig   expected: Alberto Buraga Talosig   (86% of chars)
+  WRONG   WifeFatherName            70%  got: Jome   expected: Jesus Jr. Baloso   (12% of chars)
+  WRONG   HusbandMotherName         66%  got: Pepsae Catan   expected: Pepita Lenn Cataggatan   (50% of chars)
+  WRONG   WifeMotherName            52%  got: Nost FRE MEM iat   expected: Diosity Articulo   (12% of chars)
+  WRONG   PlaceOfMarriage           71%  got: OFFICE OF THE MUNICIPAL MATOR   expected: OFFICE OF THE MUNICIPAL MAYOR   (97% of chars)
+  MISSING DateOfMarriage                 expected: 2007-02-28
+  ------------------------------------------------------------
+  ACCURACY     : 3/29 correct (10%),  21 wrong,  5 missing
+  also read    : PlaceOfMarriageAddress=of the/i ouse of/Church of/ Mosque | Solemnizer=if | Nationality=veseyene
+
+==============================================================================
+TOTAL: 74/131 field values correct (56%),  49 wrong,  8 missing
+==============================================================================
