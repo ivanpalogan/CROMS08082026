@@ -61,3 +61,9 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# Documents that happen to contain ASCII must never get line-ending conversion.
+*.pdf binary
+*.rpt binary
+*.docx binary
+*.xlsx binary
