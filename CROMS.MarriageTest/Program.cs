@@ -194,6 +194,9 @@ namespace CROMS.MarriageTest
             Check("19 -> parental consent, human sentence", a19.Any(i => i.Code == "CONSENT_AGE" && i.Message.StartsWith("Parental consent is required for Rosalie because she is 19")), a19.FirstOrDefault()?.Message);
             var p23 = new Party("Husband") { First = "Danilo", Dob = new DateTime(2003, 1, 1) };
             Check("23 -> parental advice", MarriageRules.AgeFindings(p23, new DateTime(2026, 9, 10), s, "x").Any(i => i.Code == "ADVICE_AGE"));
+            // Boundary confirmed by the LCRO 2026-09-13: advice is 21-25, so 25 needs it and 26 does not.
+            var p25 = new Party("Husband") { First = "Danilo", Dob = new DateTime(2001, 1, 1) };
+            Check("25 -> parental advice (band 21-25, confirmed by the office)", MarriageRules.AgeFindings(p25, new DateTime(2026, 9, 10), s, "x").Any(i => i.Code == "ADVICE_AGE"));
             var p26 = new Party("Husband") { First = "Danilo", Dob = new DateTime(2000, 1, 1) };
             Check("26 -> nothing required", MarriageRules.AgeFindings(p26, new DateTime(2026, 9, 10), s, "x").Count == 0);
 

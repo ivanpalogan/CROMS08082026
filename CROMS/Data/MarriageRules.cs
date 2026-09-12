@@ -31,7 +31,7 @@ namespace CROMS.Data
         public int ValidityDays = 120;        // FC Art. 20
         public int ExpiringSoonDays = 30;
         public int ConsentAgeFrom = 18, ConsentAgeTo = 20;   // FC Art. 14
-        public int AdviceAgeFrom = 21, AdviceAgeTo = 24;     // FC Art. 15
+        public int AdviceAgeFrom = 21, AdviceAgeTo = 25;     // FC Art. 15 - 21-25 confirmed by the LCRO 2026-09-13
         public int DeferralMonths = 3;        // FC Arts. 15-16
         public int ReportDaysLicensed = 15;   // FC Art. 23
         public int ReportDaysExempt = 30;     // FC Art. 30

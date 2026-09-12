@@ -651,6 +651,7 @@
     <None Include="Database\36_license_sex.sql" />
     <None Include="Database\37_country_of_birth.sql" />
     <None Include="Database\38_form90_applicant_blocks.sql" />
+    <None Include="Database\39_confirm_marriage_age_bands.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>

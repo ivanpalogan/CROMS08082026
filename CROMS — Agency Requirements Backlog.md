@@ -286,6 +286,10 @@ advice at this office?**
 **Do not "fix" this from the interview note alone.** Silently widening the band makes CROMS demand
 a document the office does not demand, and an applicant is turned away for it.
 
+**ANSWERED 2026-09-13 (user, from the office): advice is 21–25.** A 25-year-old needs parental advice.
+Applied: `MARRIAGE_ADVICE_AGE_TO` = **25** (migration 39), code default and a boundary test (25 needs
+advice, 26 does not).
+
 **HALF-ANSWERED 2026-09-13 by the office's own consent form.** Municipal Form No. 06 describes the
 applicant as *"single and **less than (twenty one) years of age**"*. "Less than twenty-one" excludes
 21, so the **consent** band is **18–20** — exactly what `MARRIAGE_CONSENT_AGE_TO = 20` already says.
@@ -451,7 +455,14 @@ assesses from this table today:
 
 Ten more fee types on the card have no row in `fees` at all.
 
-**Two things to settle before changing a single amount:**
+> **ANSWERED 2026-09-13 by the user, from the office:** the "+ 30" is **part of the fee** — record
+> ONE amount (certified copy **80**, certification **130**), not a separate line. And the card itself
+> answers the petition question: the fee follows the **petition type** — CCE under RA 9048 **1,000**,
+> CCE under RA 10172 **3,000**, CFN under RA 9048 **3,000**, migrant petition **1,000**. So `PET-9048`
+> must split into CCE and CFN codes. Burial permit and transfer of cadaver still have **no amount on
+> the card** — those two stay unset until the office states them. *Scheduled after BREQS (§15).*
+
+**Two things to settle before changing a single amount** *(both answered above)*:
 
 1. **What is the "+ 30"?** Almost certainly the documentary stamp tax charged on top — but
    "almost certainly" is not a fact about a government fee. Does CROMS record 80 as one amount, or
@@ -489,6 +500,39 @@ documents previously issued by PSA, and **CENOMAR**. The interview's description
 was a local estimate; actual turnaround depends on the PSA/partner arrangement and backlog. Make
 it a setting. Also pending: accepted valid IDs, local fees, the internal status list, how the
 office records submission to PSA, and how it records receipt and release.
+
+**ANSWERED 2026-09-13 (user, from the office).** BREQS works like a CTC request, except the document
+comes from **PSA**, not from the LCRO's own register:
+
+1. The client logs a request: **name, valid ID type, ID number**, the **certificate wanted**
+   (birth / marriage / death) and the **details of that document**.
+2. CROMS stores it with a **status** so staff can see what is still pending.
+3. Staff collect the documents from the PSA office **in person**.
+4. On arrival, the PSA copy is **scanned through CROMS's OCR**, so the system records that this is
+   the document that person asked for, and **keeps a copy**.
+5. Intake: **kiosk AND staff window** (user's decision, 2026-09-13). Fee: BREQS fee **50** (card).
+
+**Status design** — the user asked CROMS to decide these (SUPPLEMENT; built on how PSA's own
+request tracking reads, adjust if the office uses other words). Stored statuses:
+
+| Status | Means | Set when |
+|---|---|---|
+| Requested | logged, not yet paid | kiosk or staff intake |
+| Paid | Treasury O.R. recorded | staff records the O.R. |
+| Submitted to PSA | request sent through BREQS | staff enters the BREQS reference and date |
+| Received from PSA | PSA copy collected, scanned and attached — ready to release | scan attached |
+| Released | handed to the client (or authorised representative) | release recorded |
+| No Record at PSA | PSA returned no record / a negative result | staff records it |
+| Cancelled | withdrawn | staff, with a reason |
+
+**Derived, never stored** (so they cannot go stale): *Overdue* = submitted and past the expected
+date (submitted + `BREQS_TURNAROUND_DAYS`, a setting, default 7); *Unclaimed* = received and not
+released after `BREQS_UNCLAIMED_DAYS` (setting, default 30).
+
+**SUPPLEMENT — who may request.** PSA restricts civil registry documents to the document owner or
+someone with a right to it (parent, spouse, child, guardian, or a representative with an
+authorisation letter and IDs). CROMS therefore records the requester's **relationship to the
+document owner**. Whether the office also demands an authorisation letter on file is **not** assumed.
 
 ---
 
@@ -648,6 +692,17 @@ issue** before it becomes the printed background on real certificates.
 > **Repo note.** `CROMS\Assets\Form102Blank.png` is a **1993-numbered** sheet registered as the
 > **2007** blank (found 2026-09-10). The overlay still lands correctly, but a 2007 certificate is
 > being drawn on a 1993 form. Add it to the same request.
+
+---
+
+### Consent and Advice blanks — received 2026-09-13 as Word documents
+
+`Blank_Consent_to_Marriage_of_a_Person_Underage.docx` and `Blank_Advice_Upon_Intended_Marriage.docx`
+(Downloads). **Re-typed Word documents on Letter paper (8.5 × 11), not scans of the office's stock.**
+The advice file holds both sheets, **(MALE)** and **(FEMALE)**, and carries "Municipal Form No. 68
+(Form No. 6)"; the consent file does **not** print "Municipal Form No. 06" and leaves Municipality /
+Province blank where the photographed original had Peñablanca, Cagayan pre-printed. Usable as the
+background for the printouts; worth one look from the office that the re-typing matches their sheets.
 
 ---
 
