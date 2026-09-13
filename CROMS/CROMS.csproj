@@ -430,6 +430,9 @@
     <Compile Include="Data\Mf90Form.cs" />
     <Compile Include="Data\ConsentForm.cs" />
     <Compile Include="Data\AdviceForm.cs" />
+    <Compile Include="Data\DelayedBirthRules.cs" />
+    <Compile Include="Data\DelayedBirthService.cs" />
+    <Compile Include="Forms\DelayedBirthCaseForm.cs" />
     <Compile Include="Data\BreqsService.cs" />
     <Compile Include="Data\PaymentService.cs" />
     <Compile Include="Data\GovIds.cs" />
@@ -665,6 +668,7 @@
     <None Include="Database\39_confirm_marriage_age_bands.sql" />
     <None Include="Database\40_breqs.sql" />
     <None Include="Database\41_fee_schedule_and_payment_log.sql" />
+    <None Include="Database\42_delayed_birth_registration.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>

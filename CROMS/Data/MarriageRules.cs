@@ -158,6 +158,11 @@ namespace CROMS.Data
         public string Code, Label, AppliesTo, RuleKey, Basis;
         public bool PerParty, Blocking, Active;
         public int Sort;
+        /// <summary>When set, this row is one of SEVERAL that together need only
+        /// <see cref="GroupMin"/> Verified - "any two of eight", not every row required. Null
+        /// for an ordinary row, which is unaffected and means exactly what it always meant.</summary>
+        public string GroupCode;
+        public int GroupMin = 1;
     }
 
     public sealed class ReqRow

@@ -4,6 +4,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Windows.Forms;
 using CROMS.Data;
 using MySql.Data.MySqlClient;
 
@@ -39,6 +40,14 @@ namespace CROMS.MarriageTest
                 catch (Exception ex) { BreqsTest.Fail++; Console.WriteLine("CRASH: " + ex); }
                 Console.WriteLine("PASSED " + BreqsTest.Pass + "   FAILED " + BreqsTest.Fail);
                 return BreqsTest.Fail;
+            }
+            if (args.Length > 1 && args[0] == "--delayedbirth")
+            {
+                try { LoginAs("Admin"); DelayedBirth(args[1]); }
+                catch (Exception ex) { _fail++; Console.WriteLine("CRASH: " + ex); }
+                finally { CleanupDelayedBirth(); int left = LeftoversDelayedBirth(); Check("zero strays after cleanup", left == 0, left + " left"); }
+                Console.WriteLine("PASSED " + _pass + "   FAILED " + _fail);
+                return _fail;
             }
             if (args.Length > 1 && args[0] == "--consentadvice")
             {
@@ -491,6 +500,127 @@ namespace CROMS.MarriageTest
             Check("PSA availability cannot be claimed without an authoritative reference", needRef);
             Check("full history kept for the registered marriage", MarriageService.HistoryOf("Marriage", m1).Rows.Count >= 5,
                 MarriageService.HistoryOf("Marriage", m1).Rows.Count + " events");
+        }
+
+        // ------------------------------------------------------------ Delayed birth registration
+        private const string BirthTag = "ZZD" ;
+
+        private static int NewDelayedBirth()
+        {
+            long id = Db.Insert(
+                "INSERT INTO births (first_name, last_name, sex, date_of_birth, status, is_delayed, parents_married) " +
+                "VALUES (@f, @l, 'Male', @dob, 'Registered', 1, 0)",
+                new MySqlParameter("@f", BirthTag), new MySqlParameter("@l", BirthTag + "Case"),
+                new MySqlParameter("@dob", Today.AddYears(-2)));
+            return (int)id;
+        }
+
+        /// <summary>
+        /// Phase 7: PSA MC 2024-17's checklist and posting, built on the SAME requirements engine
+        /// the marriage licence uses (owner_type='Birth', nothing new). One case exercises every
+        /// conditional row: parents unmarried (RA 9255) and mother unavailable are TRUE, so their
+        /// two rows must appear; registrant/parent deceased are FALSE, so theirs must not.
+        /// </summary>
+        private static void DelayedBirth(string dir)
+        {
+            Directory.CreateDirectory(dir);
+            int id = NewDelayedBirth();
+
+            DelayedBirthCase c = DelayedBirthService.Load(id);
+            Check("loaded case: over 30 days, parents_married read as false", c != null && c.ParentsMarried == false, c == null ? "null" : c.ParentsMarried.ToString());
+
+            c.MotherUnavailable = true; // the other conditional exercised alongside "parents unmarried"
+            DelayedBirthService.SaveCase(c, Session.User.Id);
+
+            List<ReqRow> rows = DelayedBirthService.Requirements(id);
+            Check("PARENTS_AFFIDAVIT_RA9255 present (parents not married)", rows.Any(r => r.Code == "PARENTS_AFFIDAVIT_RA9255"));
+            Check("MOTHER_WHEREABOUTS_AFFIDAVIT present (mother unavailable)", rows.Any(r => r.Code == "MOTHER_WHEREABOUTS_AFFIDAVIT"));
+            Check("PARENTS_MARRIAGE_CERT absent (parents are NOT married)", !rows.Any(r => r.Code == "PARENTS_MARRIAGE_CERT"));
+            Check("DEATH_CERT_REGISTRANT absent (registrant not deceased)", !rows.Any(r => r.Code == "DEATH_CERT_REGISTRANT"));
+            Check("PARENT_DEATH_CERT absent (no parent deceased)", !rows.Any(r => r.Code == "PARENT_DEATH_CERT"));
+            // 16 "Always" rows + the 2 conditionals that DO apply (parents unmarried, mother
+            // unavailable), out of 21 catalog rows - the other 3 conditionals do not apply here.
+            Check("exactly the rows that apply are present, no more, no less", rows.Count == 18, rows.Count + " rows");
+
+            List<ReqType> catalog = DelayedBirthService.Catalog();
+            bool satisfied = DelayedBirthRules.EvidenceGroupSatisfied(rows, catalog, DelayedBirthService.EvidenceGroup, out int have, out int need);
+            Check("evidence group not yet satisfied: 0 of 2", !satisfied && have == 0 && need == 2, have + "/" + need);
+
+            ReqRow baptismal = rows.First(r => r.Code == "EVID_BAPTISMAL");
+            baptismal.Status = "Verified"; MarriageService.SaveRequirement(baptismal);
+            rows = DelayedBirthService.Requirements(id);
+            satisfied = DelayedBirthRules.EvidenceGroupSatisfied(rows, catalog, DelayedBirthService.EvidenceGroup, out have, out need);
+            Check("one of two verified is still not enough (this is 'any TWO', not 'any one')", !satisfied && have == 1, have + "/" + need);
+
+            ReqRow school = rows.First(r => r.Code == "EVID_SCHOOL");
+            school.Status = "Verified"; MarriageService.SaveRequirement(school);
+            rows = DelayedBirthService.Requirements(id);
+            satisfied = DelayedBirthRules.EvidenceGroupSatisfied(rows, catalog, DelayedBirthService.EvidenceGroup, out have, out need);
+            Check("two of eight verified satisfies the evidence group", satisfied && have == 2, have + "/" + need);
+
+            bool refused = false;
+            try { DelayedBirthService.StartPosting(id, Today.AddDays(5), Session.User.Id); }
+            catch (InvalidOperationException) { refused = true; }
+            Check("posting cannot start in the future", refused);
+
+            DelayedBirthService.StartPosting(id, Today, Session.User.Id);
+            DataRow raw = Db.Pull("SELECT delayed_posting_start, delayed_posting_end FROM births WHERE id = @id", new MySqlParameter("@id", id)).Rows[0];
+            DateTime end = Convert.ToDateTime(raw["delayed_posting_end"]);
+            Check("posting end = start + posting-days setting (" + DelayedBirthService.PostingDays + ")",
+                Convert.ToDateTime(raw["delayed_posting_start"]).Date == Today && end.Date == Today.AddDays(DelayedBirthService.PostingDays),
+                Convert.ToDateTime(raw["delayed_posting_start"]).ToString("yyyy-MM-dd") + " - " + end.ToString("yyyy-MM-dd"));
+
+            DelayedBirthService.SetEvaluation(id, "Every checklist item verified; recommending approval.", Session.User.Id);
+            DataRow ev = Db.Pull("SELECT delayed_evaluation, delayed_evaluation_by, delayed_evaluation_at FROM births WHERE id = @id", new MySqlParameter("@id", id)).Rows[0];
+            Check("evaluation recorded with who and when", ev["delayed_evaluation_by"] != DBNull.Value && ev["delayed_evaluation_at"] != DBNull.Value &&
+                (string)ev["delayed_evaluation"] == "Every checklist item verified; recommending approval.");
+
+            bool allSatisfied = DelayedBirthRules.AllSatisfied(DelayedBirthRules.Needs(DelayedBirthService.Load(id), catalog), rows, catalog, DelayedBirthService.EvidenceGroup);
+            Check("NOT all satisfied yet - only the evidence group and one blocking row were verified, the rest are still Missing", !allSatisfied);
+
+            // Render the real dialog (internal class - constructed via reflection, same pattern
+            // this harness already uses for MarriageLicenseForm/BreqsForm).
+            Application.EnableVisualStyles();
+            Type formType = typeof(DelayedBirthCase).Assembly.GetType("CROMS.Forms.DelayedBirthCaseForm", true);
+            var form = (Form)Activator.CreateInstance(formType,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
+                null, new object[] { id }, null);
+            SnapDialog(form, 900, 760, Path.Combine(dir, "delayed_birth_case.png"));
+        }
+
+        private static void SnapDialog(Form f, int w, int h, string file)
+        {
+            try
+            {
+                f.StartPosition = FormStartPosition.Manual; f.Location = new Point(-4000, -4000); f.ShowInTaskbar = false;
+                f.Show();
+                f.Size = new Size(w + (f.Width - f.ClientSize.Width), h + (f.Height - f.ClientSize.Height));
+                for (int i = 0; i < 12; i++) { Application.DoEvents(); System.Threading.Thread.Sleep(30); }
+                using (var bmp = new Bitmap(f.Width, f.Height))
+                {
+                    f.DrawToBitmap(bmp, new Rectangle(0, 0, f.Width, f.Height));
+                    bmp.Save(file, System.Drawing.Imaging.ImageFormat.Png);
+                }
+                Console.WriteLine("  ok  " + Path.GetFileName(file));
+                f.Close(); f.Dispose();
+            }
+            catch (Exception ex) { Console.WriteLine("  FAIL render " + Path.GetFileName(file) + ": " + (ex.InnerException ?? ex).Message); _fail++; }
+        }
+
+        private static void CleanupDelayedBirth()
+        {
+            DataTable ids = Db.Pull("SELECT id FROM births WHERE first_name = '" + BirthTag + "'");
+            string list = string.Join(",", ids.AsEnumerable().Select(r => r[0].ToString()).DefaultIfEmpty("0"));
+            Db.Push("DELETE FROM audit_log WHERE table_name = 'births' AND record_id IN (" + list + ")");
+            Db.Push("DELETE FROM marriage_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
+            Db.Push("DELETE FROM births WHERE id IN (" + list + ")");
+        }
+
+        private static int LeftoversDelayedBirth()
+        {
+            return Convert.ToInt32(Db.Pull(
+                "SELECT (SELECT COUNT(*) FROM births WHERE first_name = '" + BirthTag + "') + " +
+                "(SELECT COUNT(*) FROM marriage_requirements WHERE owner_type = 'Birth' AND owner_id NOT IN (SELECT id FROM births))").Rows[0][0]);
         }
 
         // ------------------------------------------------------------ Consent (MF-06) / Advice (MF-68)

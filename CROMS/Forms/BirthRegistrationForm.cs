@@ -52,6 +52,7 @@ namespace CROMS.Forms
         private Button _btnBackStep;
         private Button _btnNextStep;
         private Button _btnAddAnotherBirth;
+        private Button _btnDelayedCase;
 
         // Cascading location lookup controls:
         // address = House/Street, Province, Municipality, Barangay
@@ -280,6 +281,8 @@ namespace CROMS.Forms
             OthersBox.Bind(_cboInfRel, txtInfRelOther, lblInfRelOther);
             InitializeStepNavigation();
             InitializeAddAnotherBirthButton();
+            InitializeDelayedCaseButton();
+            chkDelayed.CheckedChanged += (s, e) => RefreshDelayedCaseButton();
 
             this.Resize += new EventHandler(this.BirthRegistrationForm_Resize);
             CenterContent();
@@ -832,6 +835,7 @@ namespace CROMS.Forms
             // leaving the stored determination itself untouched.
             _suppressDelayedRecompute = false;
             UpdateDelayedLabel();
+            RefreshDelayedCaseButton();
         }
 
         // ---------- UPDATE ----------
@@ -1148,6 +1152,7 @@ namespace CROMS.Forms
         private void ClearForm()
         {
             _editingId = null;
+            RefreshDelayedCaseButton();
             _scanImage = null;
             // A new record is on the revision the office issues today. Without this reset
             // the form would keep the revision of the last scan it was primed from.
@@ -1451,6 +1456,31 @@ namespace CROMS.Forms
             };
             _btnAddAnotherBirth.Click += btnAddAnotherBirth_Click;
             _stepNavigation.Controls.Add(_btnAddAnotherBirth);
+        }
+
+        /// <summary>
+        /// Only relevant for a SAVED record that is actually over the reglementary period - a
+        /// blank form or a timely one has no delayed-registration case to open. Built in code
+        /// (not the Designer) so a future VS designer regeneration cannot silently drop it, the
+        /// same trap that repeatedly deleted hand-added controls in this form.
+        /// </summary>
+        private void InitializeDelayedCaseButton()
+        {
+            if (_btnDelayedCase != null || pnlRecordActions == null) return;
+            _btnDelayedCase = new Button { Width = 190, Height = 30, Text = "Delayed Registration...", Margin = btnNew.Margin };
+            _btnDelayedCase.Click += (s, e) =>
+            {
+                if (_editingId == null) return;
+                using (var f = new DelayedBirthCaseForm(_editingId.Value)) f.ShowDialog(this);
+            };
+            pnlRecordActions.Controls.Add(_btnDelayedCase);
+            RefreshDelayedCaseButton();
+        }
+
+        private void RefreshDelayedCaseButton()
+        {
+            if (_btnDelayedCase == null) return;
+            _btnDelayedCase.Enabled = _editingId != null && chkDelayed.Checked;
         }
 
         private void btnAddAnotherBirth_Click(object sender, EventArgs e)

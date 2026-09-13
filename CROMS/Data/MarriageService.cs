@@ -137,7 +137,11 @@ namespace CROMS.Data
                     Code = Str(r["code"]), Label = Str(r["label"]), AppliesTo = Str(r["applies_to"]),
                     RuleKey = Str(r["rule_key"]), Basis = Str(r["legal_basis"]),
                     PerParty = Convert.ToInt32(r["per_party"]) != 0, Blocking = Convert.ToInt32(r["blocking"]) != 0,
-                    Active = Convert.ToInt32(r["is_active"]) != 0, Sort = Convert.ToInt32(r["sort_order"])
+                    Active = Convert.ToInt32(r["is_active"]) != 0, Sort = Convert.ToInt32(r["sort_order"]),
+                    // Absent on a database from before migration 42 - Str/no-column reads as
+                    // null/1, which is exactly "not part of a group", the pre-42 meaning.
+                    GroupCode = r.Table.Columns.Contains("group_code") ? Str(r["group_code"]) : null,
+                    GroupMin = r.Table.Columns.Contains("group_min") ? Convert.ToInt32(r["group_min"]) : 1
                 });
             return list;
         }
@@ -219,7 +223,15 @@ namespace CROMS.Data
         /// "no longer required") - deleting evidence staff recorded would be worse than
         /// showing one extra line.
         /// </summary>
-        private static void SyncRequirements(string ownerType, int ownerId, List<Need> needs)
+        /// <summary>
+        /// Adds a row for every Need not already tracked, and drops a row that is no longer
+        /// needed AND was never touched (still Missing, no attachment/reference/date) - a
+        /// requirement staff already worked on is kept even if the conditions that produced it
+        /// change later, since it holds a record. Generic on ownerType, so any owner shaped like
+        /// License/Marriage/Birth can use the same requirements table and the same screen
+        /// control (RequirementsGrid) rather than a parallel implementation.
+        /// </summary>
+        public static void SyncRequirements(string ownerType, int ownerId, List<Need> needs)
         {
             List<ReqRow> rows = Requirements(ownerType, ownerId);
             foreach (Need n in needs)
