@@ -837,11 +837,18 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
     (the turnaround is the office's estimate, not PSA's commitment), and CENOMAR is not offered
     (the office named birth, marriage and death only).
 
-**Phase 7 — birth registration split — NOW UNBLOCKED**
-19. Timely vs delayed branch; reuse the licence posting mechanism; set `is_delayed` honestly
-20. The ten-item checklist from PSA MC 2024-17 (§10). **Design decision first:** item (c) is
-    "any two of eight", which the current one-row-per-requirement model cannot express — it needs a
-    group with a satisfy-count, or its own shape
+**Phase 7 — birth registration split — DONE 2026-09-13**
+19. ~~Timely vs delayed branch; reuse the licence posting mechanism; set `is_delayed` honestly~~ ✔
+    `is_delayed` was already honest (2026-09-08); the workflow reads it rather than duplicating it
+20. ~~The ten-item checklist from PSA MC 2024-17~~ ✔ built on the marriage licence's own
+    requirements engine (migration 42 adds `applies_to='Birth'` rows to the same two tables — no
+    new schema). Item (c)'s "any two of eight" got the group + satisfy-count decided above:
+    `ReqType.GroupCode`/`GroupMin`, every other row unaffected. Items (f)/(g)/(h) are conditional
+    rows using the same rule-key shape as ConsentAge/AdviceAge/PreviouslyMarried. New
+    `DelayedBirthCaseForm`, opened from Birth Registration, only when a saved record is actually
+    delayed. **Not done:** whether this office runs the 10-day posting in practice (§14, still
+    open) — the mechanism works either way; the affidavit's own seven fields (found on the back
+    of the MF-102 sheet, §13) are not yet their own data, only the generic affidavit requirement.
 
 **Phase 8 — three-stage workflow**
 18. Extend the existing status machine and role gates — after permissions are confirmed (§12)

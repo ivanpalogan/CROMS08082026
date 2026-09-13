@@ -3665,3 +3665,107 @@ no scanned artwork to embed and the direct-draw approach already delivers the sa
 was not worth the extra Crystal machinery for these two); the consent/advice-PERSON slot is still
 not age-gated to a particular relationship (the office said one slot is needed, not who may fill
 it - unchanged from Phase 3A); Degree of Relationship is still not captured (ask first, per §14).
+
+2026-09-13 (backlog Phase 7: delayed birth registration - PSA MC 2024-17) - Birth registration
+is now two workflows, not one, for the part that matters legally: a delayed registration carries
+the office's own ten-item checklist and a 10-day posting period, tracked on the record itself.
+
+REUSED THE MARRIAGE LICENCE'S ENGINE RATHER THAN BUILDING A SECOND ONE, per the backlog's own
+instruction. MarriageService.Requirements(ownerType, ownerId) / SaveRequirement(ReqRow) /
+SyncRequirements(ownerType, ownerId, needs) / Catalog() were already generic on owner type -
+nothing in them names "License" or "Marriage" as a literal - so migration 42 adds
+applies_to='Birth' rows to the SAME marriage_requirement_types / marriage_requirements tables
+rather than a parallel birth_requirements schema. The licence's own RequirementsGrid screen
+control binds to (ownerType, ownerId, needs) already, so it is reused UNMODIFIED for Birth.
+SyncRequirements was private; widened to public so Birth's own service class could call it -
+the only visibility change needed, no logic touched.
+
+THE ONE GENUINELY NEW SHAPE. Item (c) on the office's card is "ANY TWO of the following eight
+evidences of birth" - a group with a satisfy-count, which a flat per-row required/not-required
+flag cannot express (demanding all eight, or accepting any single one, are both wrong readings).
+ReqType gains GroupCode/GroupMin (both optional; every pre-existing row is GroupCode=null,
+GroupMin=1, meaning exactly what it always meant - Catalog() reads the two new columns
+defensively via DataTable.Columns.Contains, so a database still on migration 41 keeps working
+unmodified). New DelayedBirthRules.EvidenceGroupSatisfied counts Verified rows in the group
+against GroupMin - never against "all rows in the group" and never against "any one row".
+
+CONDITIONAL ITEMS, SAME PRECEDENT THE LICENCE ALREADY SET. Items (f)/(g)/(h) on the card are
+conditional - on the registrant being deceased, on the parents being married or not, on the
+mother being unavailable, on a parent being deceased. Encoded as their own catalog rows with a
+rule key (RegistrantDeceased / ParentsMarried / ParentsUnmarried / MotherUnavailable /
+ParentDeceased), exactly the shape ConsentAge/AdviceAge/PreviouslyMarried already use on the
+licence - not one row with a text caveat bolted on. births.parents_married (already on the table
+since 2026-09-10) is READ to decide ParentsMarried/ParentsUnmarried; nothing new is added for it.
+
+births.is_delayed IS NOT DUPLICATED. It already exists and is computed honestly from the dates
+(fixed 2026-09-08); this workflow reads that flag to decide whether the case even applies, and
+adds only what the workflow itself produces - delayed_posting_start/end, three conditional
+booleans (registrant/mother/parent), and the registrar's own evaluation text + who + when.
+Nothing is backfilled on existing rows: a posting that never happened must not be invented for
+a record already on file.
+
+THE POSTING PERIOD IS A SETTING, NOT A CONSTANT - app_settings.BIRTH_DELAYED_POSTING_DAYS,
+default 10 per PSA MC 2024-17, explicitly flagged CONFIRM WITH LCRO (whether this office
+actually runs the posting step for a delayed birth, versus just collecting the checklist, is
+still an open backlog §14 question - the code does not assume an answer, it exposes a number
+the office can change without a rebuild, same reasoning as the marriage licence and BREQS
+settings). StartPosting refuses a future start date (the posting is the notice going up TODAY,
+not a date not yet reached) - the exact rule the marriage licence's own StartPosting enforces.
+
+THE REGISTRAR'S EVALUATION IS ALWAYS THEIR OWN WORDS, NEVER A COMPUTED VERDICT.
+DelayedBirthRules.AllSatisfied tells the SCREEN whether the checklist looks complete (every
+blocking item Verified, the evidence group satisfied) - it is shown to the registrar as
+information, never written to the record and never used to gate anything. What gets recorded
+is the free-text finding they type and Save, stamped with who and when. A "looks complete"
+computation standing in for a registrar's actual sign-off is exactly the kind of fabricated
+certainty this project keeps refusing.
+
+NEW Forms/DelayedBirthCaseForm.cs - a modal opened from a new "Delayed Registration..." button
+on Birth Registration, enabled only for a SAVED record whose is_delayed is actually set (a blank
+form or a timely one has nothing to open). Built in CODE, not the Designer - this project's own
+history records Visual Studio silently deleting hand-added Designer controls on regeneration
+more than once, and a button added purely in code cannot be lost that way. Reuses MUi/UiTheme/
+Banner/RequirementsGrid/ToggleSwitch from the existing marriage-workflow toolkit wholesale.
+
+TWO DEFECTS FOUND BY RENDERING THE REAL DIALOG, neither visible from the code:
+  1. THE WINDOW OPENED SCROLLED PAST THE TOP. The Dock=Top children were added in REVERSE array
+     order (the established rule in this codebase: last Controls.Add = topmost in a Dock=Top
+     stack), which as a side effect also reversed the DEFAULT TAB ORDER - so WinForms focused a
+     control near the visual BOTTOM on Show, and the AutoScroll panel followed it there,
+     opening the case facts/posting/evidence line/most of the grid off-screen above the fold.
+     Same trap already recorded for the MF-90 screen on 2026-09-13 (root cause identical: two
+     independent behaviours - stacking order and tab order - both driven by one Controls.Add
+     sequence, and getting one right can silently break the other). Fixed by stating TabIndex
+     explicitly in visual reading order instead of leaving it to fall out of the Add order,
+     plus a defensive AutoScrollPosition reset to (0,0) after load.
+  2. DISABLED BUTTONS RENDERED AS BLANK GREY BOXES WITH NO CAPTION VISIBLE. Missing
+     UiTheme.Polish(this) - this is a stand-alone modal dialog, never passed through
+     MainForm.ShowModule's own polish pass, and every other dialog in Forms/ (MarriageLicenseForm,
+     BreqsForm) explicitly self-polishes for exactly this reason. One line fixed it; the grid
+     header, zebra striping and button styling all came in immediately after.
+
+VERIFIED BY RUNNING, not by compiling. New CROMS.MarriageTest --delayedbirth (15 checks, live
+croms): a case with parents-unmarried and mother-unavailable both true, registrant/parent-
+deceased both false - proves the two applicable conditional rows appear and the three
+inapplicable ones (marriage certificate, registrant's own death certificate, parent's death
+certificate) do not, out of exactly 18 of the 21 catalog rows; the evidence group is proven
+to need genuinely TWO verified rows (one verified is asserted insufficient, then two is
+asserted sufficient - not "any one" and not "all eight"); posting refuses a future date and
+computes the correct end date from the live setting; the evaluation is confirmed recorded with
+its author and timestamp. The real dialog was rendered to PNG and inspected - correct toggle
+states, correct banner wording and colour, the grid's own "Why it applies" column matching each
+row's actual reason, evidence-group status line reading "2 of 2 required verified - satisfied"
+in green. Full regression re-run across every existing suite: marriage 77/77, Form 90 17/17,
+MF-90 15/15, BREQS 44/44, fees 57/57, consent/advice 8/8, delayed birth 15/15 - 233/233, zero
+leftovers. MSBuild clean, 0 warnings 0 errors.
+
+NOT DONE, stated plainly per this backlog item's own "explicitly not decided" list: whether
+THIS office actually runs the 10-day posting step for a delayed birth, or only collects the
+checklist, is still open (§14) - the posting UI is built and works, but using it is the
+registrar's choice per the setting, not assumed. The delayed-affidavit's own specific fields
+(the seven numbered clauses on the back of the MF-102 sheet, found 2026-09-13 earlier the same
+day) are not yet captured as their own data - the affidavit is covered by the generic
+REGISTRANT_AFFIDAVIT requirement row today, not by dedicated fields for whose birth, who
+attended, the reason for the delay, etc. Attaching a scanned document to a requirement row
+(the "Attach" button already in RequirementsGrid) works exactly as it does for the licence -
+untested against a real delayed-birth scan specifically, since none was on hand.
