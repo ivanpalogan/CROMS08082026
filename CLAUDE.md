@@ -3595,3 +3595,8 @@ NOT DONE. Burial permit and transfer of cadaver amounts (office to state). Petit
 nothing - which filing fee a petition takes is now expressible but not wired. The Awaiting-payment
 path (transaction -> ForRelease) is exercised only by rendering, since it raises MessageBoxes.
 Consent/Advice printouts are next.
+
+2026-09-13 (audit rows restored) - tmp/restore_audit_rows_2026-09-13.sql was run by the user.
+Verified from this side: all 8 rows (441, 551, 719, 755, 811, 851, 993, 995) are back in audit_log
+with their original ids, users, actions (Create) and timestamps. The loss recorded in the fee-schedule
+entry above is fully repaired.
