@@ -808,8 +808,13 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
 9. ~~Printed Marriage Application (MF-90)~~ ✔ **3B DONE 2026-09-13** — a real **Crystal report**
    (`CROMS/Reports/MF-90-1993.rpt`, generated from measured cells), previewed in the Crystal
    viewer with **Ctrl + mouse wheel** zoom, printable and exportable; identical fallback page on a
-   PC without the Crystal runtime. Parental Consent (MF 06) and Advice (MF 68, **two sheets**) are
-   next — but they arrived as PHOTOGRAPHS, so a clean blank scan of each is needed first
+   PC without the Crystal runtime.
+9a. ~~Parental Consent (MF 06) and Advice (MF 68)~~ ✔ **3C DONE 2026-09-13** — printed directly
+   from measured coordinates (no scanned blank exists for either — both were re-typed Word docs —
+   so a direct-draw page gives the same fidelity an overlay would). Consent prints per qualifying
+   party (18–20); Advice prints one page carrying **both** halves (the real document is one page,
+   not two sheets — corrects the "two sheets" assumption above). Every signature line is drawn
+   blank; nothing is ever written into it.
 10. *(new)* Degree of Relationship of Contracting Parties — **ask first** (§14)
 
 **Phase 4 — tracking case types**

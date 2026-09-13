@@ -3600,3 +3600,68 @@ Consent/Advice printouts are next.
 Verified from this side: all 8 rows (441, 551, 719, 755, 811, 851, 993, 995) are back in audit_log
 with their original ids, users, actions (Create) and timestamps. The loss recorded in the fee-schedule
 entry above is fully repaired.
+
+2026-09-13 (backlog Phase 3C: Consent MF-06 and Advice MF-68 printed) - The two forms named in
+§11/§13 as still needing printouts are done. Neither has a scanned blank of the office's own
+stock - both arrived as re-typed Word documents - so an image overlay was never going to be a
+true replica anyway. Instead every printed line was measured (static text and field position, in
+points, top-down) and CROMS draws the whole page directly: same fidelity as an overlay, no PNG
+to source, no Crystal .rpt to author.
+
+New Data/ConsentForm.cs, Data/AdviceForm.cs. Consent (MF-06) prints ONCE PER PARTY - whichever is
+18-20 on the filing date (FC Art. 14) - naming the other as the intended spouse; a couple where
+both are underage gets both forms shown in turn, not merged onto one, matching what the paper
+itself is (one affidavit per underage applicant). Advice (MF-68) prints as ONE page carrying both
+the MALE and FEMALE halves, because that is what the office's actual document is - not two
+separate sheets, as an earlier entry (2026-09-13, morning) had assumed before the real form was
+measured. Offered whenever either party is 21-25 (FC Art. 15).
+
+NOTHING IS EVER WRITTEN INTO A SIGNATURE LINE. Every signature/oath-administering field draws a
+blank horizontal rule, never text - CROMS does not capture a signature image for these forms, and
+a filled-looking signature line would be exactly the "looks complete, nothing behind it" failure
+this project keeps refusing. The oath-administering officer's title is likewise left blank: whoever
+administers the oath is decided at signing, not something CROMS has on file in advance.
+
+A FABRICATION-SHAPED BUG CAUGHT BY RENDERING THE REAL PAGE, not by reading the code. Both forms
+print ", 20__" as STATIC text - the "20" is part of the paper, only the last two digits are a
+blank - and the first cut wrote the FULL 4-digit year into that blank, producing "202026" on the
+rendered page. Same family as the CorrectDate fabrication fixed 2026-09-04 and the marriage-licence
+date fabrication fixed 2026-09-10: a date-shaped field silently grew digits nobody asked for. Fixed
+by writing only `year % 100`, comment left at both call sites pointing at the static text so the
+convention isn't rediscovered as a bug next time either form is touched.
+
+VERIFIED against the real blank PDFs, not against my own transcription. The office's blank MF-06
+and MF-68 were converted to page images (a rendering pass unrelated to this one, found already on
+disk) and compared line for line against the built ConsentForm/AdviceForm output: every static
+sentence, every blank's position relative to its label, the WITNESSES parenthetical, the two
+signature blocks on Advice (Father/Mother side-by-side, Guardian centered below), and both forms'
+footer form numbers all match.
+
+New CROMS.MarriageTest --consentadvice (8 checks, live DB): a licence saved with a 19-year-old
+husband (consent band) and 23-year-old wife (advice band) in one couple, so one save exercises
+both forms; band membership asserted both ways (qualifying party true, non-qualifying false);
+ConsentForm.BuildTable maps applicant/spouse/consent-person correctly in each direction;
+AdviceForm.BuildTable's male_/female_ halves match husband/wife; every signature/oath column
+confirmed blank; Overflows() confirmed clean (after widening one field - see below); both pages
+drawn to PNG and inspected; a 30/30 couple confirmed to need neither form. A harness-only DPI trap
+was hit and fixed while building the test (recorded before, on 2026-09-07, for a different
+renderer): a Graphics takes its bitmap's 96 DPI at creation, and PageUnit=Point then scales
+everything by 96/72 - SetResolution(72,72) must run before Graphics.FromImage, not after.
+
+One field widened after measuring the actual overflow: date_signed_year on the Consent form was
+18.91pt, enough for the two digits it now holds many times over but originally sized for content
+before the year-format fix — left at the wider 30pt since there was unused slack before the next
+label and no reason to re-narrow it.
+
+Regression: full suite re-run after these changes - marriage 77/77, Form 90 17/17, MF-90 15/15,
+BREQS 44/44, fees 57/57, consent/advice 8/8 - 218/218, no leftovers. MSBuild clean, 0 warnings 0
+errors.
+
+NOT DONE, stated plainly: neither form is wired into Settings -> Certificates & Forms (that list
+reads FormCatalog, which is registry certificates only - Consent/Advice are licence-workflow
+documents, a different catalog entirely, matching how MF-90 already sits outside that list); no
+Crystal .rpt was authored for either (a real one COULD be built the way MF-90's was, but there is
+no scanned artwork to embed and the direct-draw approach already delivers the same fidelity, so it
+was not worth the extra Crystal machinery for these two); the consent/advice-PERSON slot is still
+not age-gated to a particular relationship (the office said one slot is needed, not who may fill
+it - unchanged from Phase 3A); Degree of Relationship is still not captured (ask first, per §14).
