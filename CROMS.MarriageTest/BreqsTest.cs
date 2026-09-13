@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -318,6 +318,9 @@ namespace CROMS.MarriageTest
         {
             DataTable ids = Db.Pull("SELECT id FROM breqs_requests WHERE requester_last LIKE 'ZZB%' OR owner_last LIKE 'ZZB%'");
             string list = string.Join(",", ids.AsEnumerable().Select(r => r[0].ToString()).DefaultIfEmpty("0"));
+            // matched on the O.R. in the details, not the bare id: payment ids are reused and older audit rows can carry one
+            Db.Push("DELETE a FROM audit_log a JOIN payments p ON a.table_name = 'payments' AND a.record_id = CAST(p.id AS CHAR) AND a.details LIKE CONCAT('%O.R. ', p.or_number, '%') WHERE p.source_table = 'breqs_requests' AND p.source_id IN (" + list + ")");
+            Db.Push("DELETE FROM payments WHERE source_table = 'breqs_requests' AND source_id IN (" + list + ")");   // items cascade
             Db.Push("DELETE FROM ocr_batch WHERE record_table = 'breqs_requests' AND record_id IN (" + list + ")");
             Db.Push("DELETE FROM audit_log WHERE table_name = 'breqs_requests' AND record_id IN (" + list + ")");
             Db.Push("DELETE FROM breqs_requests WHERE id IN (" + list + ")");   // history cascades

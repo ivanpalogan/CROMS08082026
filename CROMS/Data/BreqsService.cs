@@ -196,6 +196,15 @@ namespace CROMS.Data
                     }
                 }
                 catch { /* migration 40 not applied: defaults */ }
+                // The fee schedule is the one place a fee is changed (Fees & Payments -> Fee schedule, audited).
+                // The app_settings value above is only the fallback for a database without migration 41, so
+                // an office that edits BREQS on the schedule is not quietly still charged the old amount here.
+                try
+                {
+                    FeeItem f = PaymentService.Fee("BREQS");
+                    if (f != null && f.Active && f.Amount.HasValue) s.FeePerCopy = f.Amount.Value;
+                }
+                catch { /* fees table without migration 41 columns: keep the setting */ }
                 return s;
             }
         }
@@ -354,8 +363,21 @@ namespace CROMS.Data
         public static void RecordPayment(int id, string orNo, DateTime orDate, decimal amount, int? userId)
         {
             if (string.IsNullOrWhiteSpace(orNo)) throw new InvalidOperationException("Enter the Treasury official receipt number.");
+            // The O.R. is checked against the payment log BEFORE the status moves, so a receipt already
+            // recorded for someone else refuses the payment instead of leaving a Paid request with no log row.
+            PaymentService.EnsureOrFree(orNo, "breqs_requests", id);
             Move(id, Paid, "Payment recorded", "O.R. " + orNo.Trim() + ", PHP " + amount.ToString("0.00", CultureInfo.InvariantCulture), userId,
                  "or_no = @or, or_date = @ord, fee_amount = @amt", P("@or", orNo.Trim()), P("@ord", orDate.Date), P("@amt", amount));
+
+            BreqsRequest r = Load(id);
+            int copies = r == null ? 1 : Math.Max(1, r.Copies);
+            PaymentService.RecordForModule(new PaymentEntry
+            {
+                Source = PaymentService.SourceBreqs, SourceTable = "breqs_requests", SourceId = id,
+                PayerName = r == null ? null : r.RequesterName, Purpose = "BREQS " + (r == null ? "" : r.RequestNo + " ").Trim() + " (PSA copy)",
+                OrNumber = orNo, PaidAt = orDate.Date,
+                Lines = { new PaymentLine { FeeCode = "BREQS", Description = "BREQS fee (PSA copy), per copy", Quantity = copies, UnitAmount = amount / copies } }
+            }, userId);
         }
 
         public static void SubmitToPsa(int id, string psaReference, DateTime submittedOn, int? userId)

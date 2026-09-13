@@ -500,9 +500,27 @@ namespace CROMS.Data
 
         public static void RecordPayment(int id, string orNo, decimal? amount, DateTime? date)
         {
+            if (!string.IsNullOrWhiteSpace(orNo)) PaymentService.EnsureOrFree(orNo, "marriage_licenses", id);
             Db.Push("UPDATE marriage_licenses SET payment_or_no=@o, payment_amount=@a, payment_date=@d WHERE id=@id",
                 P("@o", orNo), P("@a", amount), P("@d", date), P("@id", id));
             History("License", id, "Payment recorded", null, null, "O.R. " + orNo + (amount.HasValue ? " PHP " + amount.Value.ToString("0.00") : ""));
+
+            // Into the shared payment log, so the monthly collection report sees it. ONE unitemised line:
+            // the licence O.R. may cover the application, licence and solemnization fees together, and
+            // which of them it covered is not recorded here - splitting it would invent the breakdown.
+            // No amount means nothing to count, so nothing is logged.
+            if (!string.IsNullOrWhiteSpace(orNo) && amount.HasValue && amount.Value > 0)
+            {
+                LicenseFacts l = LoadLicense(id);
+                PaymentService.RecordForModule(new PaymentEntry
+                {
+                    Source = PaymentService.SourceMarriage, SourceTable = "marriage_licenses", SourceId = id,
+                    PayerName = l == null ? null : MarriageRules.JoinName(l.Husband.First, null, l.Husband.Last) + " & " + MarriageRules.JoinName(l.Wife.First, null, l.Wife.Last),
+                    Purpose = "Marriage licence" + (l == null ? "" : " - application " + l.ApplicationNo),
+                    OrNumber = orNo, PaidAt = date ?? DateTime.Today,
+                    Lines = { new PaymentLine { Description = "Marriage licence fees (one O.R.)", Quantity = 1, UnitAmount = amount.Value } }
+                }, Session.User == null ? (int?)null : Session.User.Id);
+            }
         }
 
         /// <summary>Registrar's recorded finding on a possible impediment (Art. 18).</summary>

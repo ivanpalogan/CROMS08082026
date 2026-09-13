@@ -43,6 +43,7 @@
     <None Include="App.config" />
     <Compile Include="Program.cs" />
     <Compile Include="BreqsTest.cs" />
+    <Compile Include="FeesTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CROMS\CROMS.csproj">

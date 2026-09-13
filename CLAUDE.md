@@ -3521,3 +3521,77 @@ offered - the office named birth, marriage and death; (4) the Select Services st
 2-step indicator even when BREQS is picked (the later steps show 3); (5) the kiosk certificate cards
 clip their small "TAP TO SELECT" line at 1366x768; (6) the fee schedule changes, Consent/Advice
 printouts and the Personal Info scaling fix are the next items.
+
+2026-09-13 (fee schedule + one payment log + monthly collection) - Backlog section 8 built. The
+schedule now matches the office's fee card, every payment from every source goes into one itemised
+log, and the month's collections report from it. Migration 41 was applied during the previous
+session; re-run this pass to prove idempotent (21 fees unchanged, no leftover procedure, ASCII only).
+
+FEE SCHEDULE (migration 41). Seeded placeholders corrected ONLY where the seed value was still
+there, so re-running never overwrites an amount the office edited: certified copy 155 -> 80,
+certification 210 -> 130 (the "+ 30" is part of the fee, per the office), PET-10172 -> 3,000. The
+single PET-9048 code could not carry both fees the card lists, so it is retired and replaced by
+PET-9048-CCE 1,000 and PET-9048-CFN 3,000. Ten fees on the card that had no row were added. The
+REG-BIRTH/MARRIAGE/DEATH rows (0.00, not on the card) are deactivated rather than kept at a "free"
+nobody stated. fees.amount became NULL-able: burial permit and transfer of cadaver have NO amount on
+the card, and 0.00 would print "free" on a slip - NULL means "not stated, the cashier types it".
+
+ONE PAYMENT LOG. payments.transaction_id is now NULL-able and gained payer_name, purpose (the
+"purpose of transaction" the office asked for), source and source_table/source_id; new
+payment_items holds which fees one O.R. covered. Payments recorded before this are NOT itemised
+after the fact - what they covered was never recorded - and report as "not itemised".
+New Data/PaymentService.cs owns every write:
+  - An Official Receipt is an accountable form issued once, so an O.R. already in the log is
+    refused. One O.R. covering several fees is ONE payment with several lines.
+  - A module recording its O.R. (BREQS, marriage licence) ADOPTS a matching unlinked walk-in row
+    instead of counting the collection twice; an O.R. linked to anything else is refused.
+  - EnsureOrFree runs BEFORE BREQS or the licence changes its own status, so a refused receipt
+    cannot leave a Paid request with no log row.
+  - BreqsService.RecordPayment now logs a BREQS line (copies x per-copy fee).
+    MarriageService.RecordPayment logs ONE UNITEMISED line: the licence O.R. may cover application,
+    licence and solemnization together and which of them it covered is not captured, so splitting
+    it would invent the breakdown. No amount means nothing is logged.
+  - BREQS's per-copy fee now reads the fee schedule first; app_settings BREQS_FEE_PER_COPY is only
+    the fallback. Otherwise editing BREQS on the schedule would silently not change what BREQS charges.
+  - Fee changes (Admin/Registrar) are audited with old and new amount; an unchanged save writes nothing.
+
+SCREEN. Fees & Payments is now five tabs: Awaiting payment (the original transaction flow, now
+charging copies x fee - it charged one copy whatever was requested), Walk-in / other payment
+(payer, purpose, several fee lines, a scheduled amount is locked while an unpriced one is typed),
+Payment log (date range + search, CSV), Monthly collection (NEW: by fee, by source, by method - each
+table adds up to the month's total, with "additional charges" and "not itemised" as their own fee
+rows for exactly that reason), and Fee schedule. The printed slip lists every fee line and still
+says "not an Official Receipt".
+  Monthly by-fee groups by FEE CODE, named from the schedule. The first cut grouped by code AND
+description and split BREQS into two rows because two modules worded the line differently - a fee
+reworded next year would have split the month the same way.
+  Two pre-existing defects on the Awaiting tab, found by rendering: "Total Amount" ran under the bold
+total beside it ("Total Amou"), and "Date & Time Paid" lost its '&' to the Label mnemonic trap -
+the fourth time that trap has appeared in this codebase.
+
+TESTS. New CROMS.MarriageTest --fees (57 checks, live DB): every card amount, assessment x copies,
+all validation rules, itemised walk-in, duplicate O.R. refused, walk-in adopted by a module, BREQS
+logging and refusal leaving the request Requested, a January-2099 month whose three breakdowns
+reconcile to PHP 535, an audited fee change restored, and all five tabs rendered and looked at.
+Marriage suite gained two checks (licence payment in the log; same O.R. on another licence
+refused). Results: fees 57/57, BREQS 44/44, marriage 77/77, Form 90 17/17, MF-90 15/15. MSBuild
+clean, 0 warnings 0 errors.
+
+MISTAKE MADE AND CAUGHT, and it touched real data. The test cleanups deleted audit_log rows "by
+payment id". Test payments reused ids 22-46, and eight OLDER audit rows still named those ids
+(their payments had been deleted before today - the rows were orphaned trail, not live payments).
+Those eight rows were deleted at 15:12-15:20. Found because one assertion counted two audit rows for
+one payment. Confirmed from the MySQL binary log (MSI-bin.000524, read with mysqlbinlog
+--read-from-remote-server) that ONLY those eight audit rows were real - all 32 deleted payment rows
+were ZZT/ZZB/ZZF test rows. The exact row images were recovered into
+tmp/restore_audit_rows_2026-09-13.sql (INSERT IGNORE, same ids/users/timestamps); applying it was
+blocked by the session's permission rules, so IT STILL HAS TO BE RUN BY HAND. All three cleanups now
+delete a payment audit row only when its details name that test payment's O.R., and a before/after
+check across all suites showed pre-existing audit rows unchanged (1138 rows, same id sum).
+  Shape worth keeping: an id is not an identity once rows are deleted. Deleting "everything that
+references id N" in a table that outlives the rows it references deletes history.
+
+NOT DONE. Burial permit and transfer of cadaver amounts (office to state). Petitions still charge
+nothing - which filing fee a petition takes is now expressible but not wired. The Awaiting-payment
+path (transaction -> ForRelease) is exercised only by rendering, since it raises MessageBoxes.
+Consent/Advice printouts are next.

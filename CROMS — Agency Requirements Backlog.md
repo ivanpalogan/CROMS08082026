@@ -439,7 +439,16 @@ the stages arrive, not before. The Petition module is the pattern to follow eith
 The card's own heading **confirms the 2026-07-23 decision**: collection belongs to the Treasury and
 CROMS records the O.R., it is not a cash drawer.
 
-### 🔴 The seeded fee amounts are wrong, and the cashier screen is using them
+> **BUILT 2026-09-13** (migration 41, `Data/PaymentService.cs`, Fees & Payments screen). The
+> schedule now matches the card above; `PET-9048` is split into `PET-9048-CCE` / `PET-9048-CFN`;
+> burial permit and transfer of cadaver hold **no amount** (the cashier types it) rather than a
+> fake 0.00. Every payment — cashier window, walk-in with purpose, BREQS, marriage licence — goes
+> into one log, itemised by fee, with an O.R. recorded once. A **Monthly collection** tab reports
+> the month by fee, by source and by method, each adding up to the total. Still open: amounts for
+> burial permit and transfer of cadaver, and which petition filing fee a petition takes (the
+> Petitions module does not charge yet). The section below is kept as the record of why.
+
+### 🔴 The seeded fee amounts are wrong, and the cashier screen is using them *(fixed 2026-09-13 — see above)*
 
 `fees` still holds the placeholders seeded on 2026-07-14 and flagged then as "realistic but
 unverified". Against the office's actual card they are wrong, and the Fees & Payments screen

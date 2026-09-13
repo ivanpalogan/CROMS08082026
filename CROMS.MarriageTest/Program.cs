@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -37,6 +37,13 @@ namespace CROMS.MarriageTest
                 catch (Exception ex) { BreqsTest.Fail++; Console.WriteLine("CRASH: " + ex); }
                 Console.WriteLine("PASSED " + BreqsTest.Pass + "   FAILED " + BreqsTest.Fail);
                 return BreqsTest.Fail;
+            }
+            if (args.Length > 1 && args[0] == "--fees")
+            {
+                try { LoginAs("Admin"); FeesTest.Run(args[1], Session.User.Id); }
+                catch (Exception ex) { FeesTest.Fail++; Console.WriteLine("CRASH: " + ex); }
+                Console.WriteLine("PASSED " + FeesTest.Pass + "   FAILED " + FeesTest.Fail);
+                return FeesTest.Fail;
             }
             if (args.Length > 1 && args[0] == "--mf90")
             {
@@ -147,7 +154,7 @@ namespace CROMS.MarriageTest
             MarriageService.StartPosting(id, Today);
             BackdatePosting(id, 20);
             VerifyAll(id);
-            MarriageService.RecordPayment(id, "OR-" + Tag, 300m, Today);
+            MarriageService.RecordPayment(id, "OR-" + Tag + "-" + id, 300m, Today);
             string no;
             List<RuleIssue> iss = MarriageService.IssueLicense(id, Today, out no);
             if (iss.Count > 0) throw new Exception("could not issue test licence: " + Codes(iss));
@@ -300,10 +307,19 @@ namespace CROMS.MarriageTest
 
             // success
             BackdatePosting(id, 20); VerifyAll(id);
-            MarriageService.RecordPayment(id, "OR-" + Tag, 300m, Today);
+            MarriageService.RecordPayment(id, "OR-" + Tag + "-" + id, 300m, Today);
             iss = MarriageService.IssueLicense(id, Today, out no);
             LicenseFacts ok = MarriageService.LoadLicense(id);
             Check("successful issue: number " + no, iss.Count == 0 && ok.StoredStatus == "Issued" && no != null && no.Contains("-L-"), Codes(iss));
+            DataTable paid = Db.Pull("SELECT p.net_amount, p.source, COUNT(i.id) n, MAX(i.fee_code) code FROM payments p LEFT JOIN payment_items i ON i.payment_id = p.id " +
+                                     "WHERE p.source_table = 'marriage_licenses' AND p.source_id = " + id + " GROUP BY p.id");
+            Check("licence payment in the payment log: PHP 300, one unitemised line",
+                  paid.Rows.Count == 1 && Convert.ToDecimal(paid.Rows[0]["net_amount"]) == 300m && (string)paid.Rows[0]["source"] == "Marriage License" &&
+                  Convert.ToInt32(paid.Rows[0]["n"]) == 1 && paid.Rows[0]["code"] == DBNull.Value, paid.Rows.Count + " rows");
+            bool orRefused = false;
+            try { MarriageService.RecordPayment(MarriageService.SaveLicense(Couple(30, 28)), "OR-" + Tag + "-" + id, 300m, Today); }
+            catch (InvalidOperationException ex) { orRefused = ex.Message.Contains("recorded once"); }
+            Check("the same O.R. on a different licence is refused", orRefused);
             Check("issue date = actual date (today), not posting end", ok.IssueDate == Today && ok.PostingEnd != Today);
             Check("expiry = issue + 120 days", ok.ExpiryDate == Today.AddDays(120));
             Check("valid licence shows Valid", MarriageRules.LicenseDisplayStatus(ok, Today, s, 0) == "Valid");
@@ -874,6 +890,10 @@ namespace CROMS.MarriageTest
             DataTable ls = Db.Pull("SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZT%'");
             string mids = string.Join(",", ms.AsEnumerable().Select(x => x[0].ToString()).DefaultIfEmpty("0"));
             string lids = string.Join(",", ls.AsEnumerable().Select(x => x[0].ToString()).DefaultIfEmpty("0"));
+            // payments logged from these licences (payment_items cascade)
+            // matched on the O.R. in the details, not the bare id: payment ids are reused and older audit rows can carry one
+            Db.Push("DELETE a FROM audit_log a JOIN payments p ON a.table_name = 'payments' AND a.record_id = CAST(p.id AS CHAR) AND a.details LIKE CONCAT('%O.R. ', p.or_number, '%') WHERE p.source_table='marriage_licenses' AND p.source_id IN (" + lids + ")");
+            Db.Push("DELETE FROM payments WHERE source_table='marriage_licenses' AND source_id IN (" + lids + ")");
             DataTable bs = Db.Pull("SELECT DISTINCT batch_id FROM psa_transmittal_items WHERE record_table='marriages' AND record_id IN (" + mids + ")");
             var bids = bs.AsEnumerable().Select(x => Convert.ToInt32(x[0])).Concat(Batches).Distinct().ToList();
             string bl = string.Join(",", bids.Select(x => x.ToString()).DefaultIfEmpty("0"));
