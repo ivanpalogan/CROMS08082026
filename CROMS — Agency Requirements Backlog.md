@@ -615,6 +615,10 @@ those documents are in hand.
 
 The office named **Crystal Reports** as the intended output.
 
+> **CORRECTED 2026-09-13.** The note below is out of date: a real `.rpt` CAN be built here (VS 2019
+> ships the designer and a seed report that the in-process RAS can edit), and **MF-90 now prints
+> through Crystal** (`CROMS/Reports/MF-90-1993.rpt`, Phase 3B). Kept for the record.
+>
 > **Repo note — state this plainly to the office.** There are **no `.rpt` files in this project and
 > none can be authored on this machine**: no Crystal designer is installed, and programmatic
 > creation was measured impossible on the free CR-for-VS runtime (in-process RAS returns "Failed to
@@ -733,8 +737,8 @@ Grouped as they should be asked. **Nothing here is to be implemented from a gues
 - How the office records a marriage registration after receiving the Certificate of Marriage
 - Which registry number, dates, signatures or details the staff add at registration
 - The CROMS ↔ PhilCRIS division of responsibility
-- **Does a 25-year-old need parental advice here?** (§3 — settles 21–24 vs 21–25). The consent
-  side is now settled by the form's own "less than twenty-one" wording; only advice is open.
+- ~~**Does a 25-year-old need parental advice here?**~~ — **answered 2026-09-13: yes, advice band is
+  21–25** (migration 39); consent 18–20 settled by the form's own "less than twenty-one" wording.
 - Is a counselling certificate required for the whole 18–25 band in practice? Is CENOMAR required?
 - Is any RA 10354 §15 family-planning certificate enforced locally?
 - **New, from MF-90:** the form asks for **Degree of Relationship of Contracting Parties** (Arts.
@@ -752,15 +756,15 @@ Grouped as they should be asked. **Nothing here is to be implemented from a gues
 Instruments · Court Order. *(The Filed → Endorsed to PSA → Released to Client example is not a
 workflow yet.)*
 
-**BREQS** — local turnaround · accepted valid IDs · local fees · internal statuses · how
-submission to PSA is recorded · how receipt and release are recorded
+**BREQS** — ~~local turnaround · fees · internal statuses · how submission / receipt / release are
+recorded~~ (specified by the user and built 2026-09-13, §9; turnaround kept as a setting) · still:
+the office's accepted valid-ID list for BREQS, and whether CENOMAR is ever requested
 
-**Fee collection** — ~~complete list of transaction purposes · fees~~ (received, §8) · but still:
-**what is the "+ 30"** on certified copy and certification (documentary stamp? recorded as one
-amount or two?) · **which fee does a petition take** — CCE-9048 is 1,000 while CFN-9048 is 3,000 and
-CROMS has one `PET-9048` code · the burial permit and transfer-of-cadaver amounts, which the card
-leaves blank · exemptions and special cases (Senior/PWD under RA 11261?) · exactly what the monthly
-collection report must contain
+**Fee collection** — ~~complete list of fees · the "+ 30" (part of the fee) · which fee a petition
+takes (split by petition type)~~ (answered and built 2026-09-13, §8) · still: the **burial permit**
+and **transfer-of-cadaver** amounts, which the card leaves blank · exemptions and special cases
+(Senior/PWD under RA 11261 — does the Treasury discount, and should CROMS show it?) · whether the
+built monthly collection report (by fee / source / method) matches the format the office submits
 
 **Delayed birth registration** — ~~review the office's own requirement copies~~ (received, §10) ·
 but still: is item (c) really **"any two of the eight"** as the card reads, or are some of the eight
@@ -783,7 +787,7 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
 
 *(The 21–24 vs 21–25 band is a question for the office, not Phase 1 work — see §3.)*
 
-**Phase 2 — chase documents — ✔ 5 of 6 DONE 2026-09-13**
+**Phase 2 — chase documents — ✔ ALL 6 IN HAND 2026-09-13** (MF-102 2007 as an online draft)
 4. ~~Collect everything in §13~~ — only the blank MF-102 (2007) is still owed. The blank MF-90 is
    preserved in the repo at `Docs/AgencyForms/`; the other three arrived as photographs and are
    transcribed into §3, §8 and §10 of this file.
@@ -812,12 +816,13 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
 10. Decide one generic case-tracking table vs four — *after* stages arrive
 11. Legitimation · Supplemental Report · Legal Instruments · Court Order
 
-**Phase 5 — fee collection — NOW MOSTLY UNBLOCKED**
-12. **Correct the fee schedule first** (§8) — the seeded amounts are wrong and the cashier screen
-    assesses from them today. Needs the "+ 30" and the CCE-vs-CFN answers before touching them.
-13. Add the ten fee types the card lists and `fees` does not have
-14. Standalone payment entry + purpose of transaction + payment log
-15. Monthly collection report into Reports & Analytics
+**Phase 5 — fee collection — DONE 2026-09-13**
+12. ~~Correct the fee schedule~~ ✔ migration 41, matches the card
+13. ~~Add the ten missing fee types~~ ✔ (PET-9048 split into CCE / CFN)
+14. ~~Standalone payment entry + purpose of transaction + payment log~~ ✔ BREQS and marriage licence
+    O.R.s land in the same log; one O.R. recorded once
+15. ~~Monthly collection report~~ ✔ as a tab in Fees & Payments (by fee / source / method), not in
+    Reports & Analytics. *Not done:* burial / cadaver amounts (office), petitions do not charge yet
 
 **Phase 6 — BREQS — DONE 2026-09-13**
 14. ~~Kiosk request flow (document type, valid ID)~~ ✔ new "PSA Document" kiosk step
