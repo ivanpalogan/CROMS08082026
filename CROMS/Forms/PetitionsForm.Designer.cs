@@ -57,7 +57,7 @@ namespace CROMS.Forms
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Size = new System.Drawing.Size(200, 37);
             this.titleLabel.TabIndex = 0;
-            this.titleLabel.Text = "Petitions (RA 9048 / 10172)";
+            this.titleLabel.Text = "Petitions & Case Tracking";
             this.titleLabel.UseMnemonic = false;
             //
             // lblSubtitle
@@ -69,7 +69,8 @@ namespace CROMS.Forms
             this.lblSubtitle.Name = "lblSubtitle";
             this.lblSubtitle.Size = new System.Drawing.Size(360, 19);
             this.lblSubtitle.TabIndex = 1;
-            this.lblSubtitle.Text = "Track RA 9048 / RA 10172 petitions through their legal stages";
+            this.lblSubtitle.Text = "Correction petitions plus track-only cases: legitimation, supplemental reports, legal " +
+    "instruments, court orders";
             //
             // grid
             //
@@ -138,7 +139,7 @@ namespace CROMS.Forms
             this.lblType.Name = "lblType";
             this.lblType.Size = new System.Drawing.Size(78, 15);
             this.lblType.TabIndex = 1;
-            this.lblType.Text = "Petition Type";
+            this.lblType.Text = "Case Type";
             //
             // cboType
             //
@@ -147,11 +148,16 @@ namespace CROMS.Forms
             this.cboType.FormattingEnabled = true;
             this.cboType.Items.AddRange(new object[] {
             "RA 9048 — Clerical Error / Change of First Name",
-            "RA 10172 — Day / Month / Sex Correction"});
+            "RA 10172 — Day / Month / Sex Correction",
+            "RA 9858 — Legitimation (parents married after birth)",
+            "Supplemental Report — up to 2 missing entries",
+            "Legal Instrument — Acknowledgment / AUSF",
+            "Court Order — annotate per final decision"});
             this.cboType.Location = new System.Drawing.Point(16, 74);
             this.cboType.Name = "cboType";
             this.cboType.Size = new System.Drawing.Size(260, 25);
             this.cboType.TabIndex = 2;
+            this.cboType.SelectedIndexChanged += new System.EventHandler(this.cboType_SelectedIndexChanged);
             //
             // lblRecordType
             //
@@ -333,7 +339,7 @@ namespace CROMS.Forms
             this.Controls.Add(this.titleLabel);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "PetitionsForm";
-            this.Text = "Petitions (RA 9048 / 10172)";
+            this.Text = "Petitions & Case Tracking";
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
             this.pnlEdit.ResumeLayout(false);
             this.pnlEdit.PerformLayout();

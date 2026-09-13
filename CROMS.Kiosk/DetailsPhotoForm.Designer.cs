@@ -42,6 +42,9 @@ namespace CROMS.Kiosk
         private Label lblIdType;
         private RoundPanel hostIdType;
         private ComboBox _cboIdType;
+        private Label lblIdNo;
+        private RoundPanel hostIdNo;
+        private TextBox _txtIdNo;
         private Label _lblIdHint;
         private Panel _claimPanel;
         private Label lblClaimField, lblClaimHelp;
@@ -107,6 +110,9 @@ namespace CROMS.Kiosk
             this.lblIdType = new Label();
             this.hostIdType = new RoundPanel();
             this._cboIdType = new ComboBox();
+            this.lblIdNo = new Label();
+            this.hostIdNo = new RoundPanel();
+            this._txtIdNo = new TextBox();
             this._lblIdHint = new Label();
             this._claimPanel = new Panel();
             this.lblClaimField = new Label();
@@ -220,7 +226,7 @@ namespace CROMS.Kiosk
             //
             this._detailsBox.BackColor = Color.FromArgb(244, 246, 249);
             this._detailsBox.Location = new Point(20, 16);
-            this._detailsBox.Size = new Size(1200, 912);
+            this._detailsBox.Size = new Size(1200, 988);
             this._detailsBox.Controls.Add(this.leftCard);
             this._detailsBox.Controls.Add(this.rightCard);
             //
@@ -230,7 +236,7 @@ namespace CROMS.Kiosk
             this.leftCard.Location = new Point(6, 6);
             this.leftCard.Radius = 14;
             this.leftCard.Shadow = 8;
-            this.leftCard.Size = new Size(600, 900);
+            this.leftCard.Size = new Size(600, 976);
             this.leftCard.Controls.Add(this.lblPersonalInfo);
             this.leftCard.Controls.Add(this.lblFirst);
             this.leftCard.Controls.Add(this.lblFirstReq);
@@ -260,6 +266,8 @@ namespace CROMS.Kiosk
             this.leftCard.Controls.Add(this.lblValidId);
             this.leftCard.Controls.Add(this.lblIdType);
             this.leftCard.Controls.Add(this.hostIdType);
+            this.leftCard.Controls.Add(this.lblIdNo);
+            this.leftCard.Controls.Add(this.hostIdNo);
             this.leftCard.Controls.Add(this._lblIdHint);
             this.leftCard.Controls.Add(this._claimPanel);
             //
@@ -526,18 +534,42 @@ namespace CROMS.Kiosk
             this._cboIdType.Enter += new System.EventHandler(this.Field_Enter);
             this._cboIdType.Leave += new System.EventHandler(this.Field_Leave);
             //
+            // lblIdNo / hostIdNo / _txtIdNo — typed ID number, alongside (not instead of) the
+            // QR upload on the right card. Some offices still want the number on file even
+            // when a photo was also uploaded.
+            //
+            this.lblIdNo.AutoSize = true;
+            this.lblIdNo.Font = new Font("Segoe UI", 9.5F);
+            this.lblIdNo.ForeColor = Color.FromArgb(91, 100, 114);
+            this.lblIdNo.Location = new Point(30, 674);
+            this.lblIdNo.Text = "ID Number";
+            this.hostIdNo.BorderColor = Color.FromArgb(225, 229, 236);
+            this.hostIdNo.BorderWidth = 1.5F;
+            this.hostIdNo.Fill = Color.White;
+            this.hostIdNo.Location = new Point(30, 698);
+            this.hostIdNo.Radius = 8;
+            this.hostIdNo.Size = new Size(536, 46);
+            this.hostIdNo.Controls.Add(this._txtIdNo);
+            this._txtIdNo.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            this._txtIdNo.BorderStyle = BorderStyle.None;
+            this._txtIdNo.Font = new Font("Segoe UI", 13F);
+            this._txtIdNo.Location = new Point(14, 12);
+            this._txtIdNo.Size = new Size(508, 25);
+            this._txtIdNo.Enter += new System.EventHandler(this.Field_Enter);
+            this._txtIdNo.Leave += new System.EventHandler(this.Field_Leave);
+            //
             // _lblIdHint
             //
             this._lblIdHint.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
             this._lblIdHint.ForeColor = Color.FromArgb(137, 145, 163);
-            this._lblIdHint.Location = new Point(30, 674);
+            this._lblIdHint.Location = new Point(30, 750);
             this._lblIdHint.Size = new Size(536, 40);
-            this._lblIdHint.Text = "Scan the QR code on the right to upload a photo of this ID from your phone.";
+            this._lblIdHint.Text = "Or scan the QR code on the right to upload a photo of this ID from your phone.";
             //
             // _claimPanel
             //
             this._claimPanel.BackColor = Color.White;
-            this._claimPanel.Location = new Point(30, 736);
+            this._claimPanel.Location = new Point(30, 812);
             this._claimPanel.Size = new Size(536, 110);
             this._claimPanel.Visible = false;
             this._claimPanel.Controls.Add(this.lblClaimField);
@@ -574,7 +606,7 @@ namespace CROMS.Kiosk
             this.rightCard.Location = new Point(624, 6);
             this.rightCard.Radius = 14;
             this.rightCard.Shadow = 8;
-            this.rightCard.Size = new Size(570, 900);
+            this.rightCard.Size = new Size(570, 976);
             this.rightCard.Controls.Add(this._rightTitle);
             this.rightCard.Controls.Add(this._rightHint);
             this.rightCard.Controls.Add(this._camFrame);

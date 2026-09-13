@@ -170,6 +170,39 @@ namespace CROMS.Data
             };
         }
 
+        /// <summary>
+        /// Same as <see cref="Attach(TextBox,string)"/>, for an editable (DropDown-style)
+        /// ComboBox — e.g. the Place of Birth hospital cell, which is a lookup ComboBox, not
+        /// a TextBox. Merges the library's own ranked suggestions with whatever the combo
+        /// already lists from its bound lookup table, so the operator still sees every known
+        /// hospital even before the library has learned a usage count for it.
+        /// </summary>
+        public static void Attach(ComboBox box, string category)
+        {
+            if (box == null) return;
+            EnsureSeeded();
+            var src = Source(category);
+            foreach (object item in box.Items)
+            {
+                string s = item?.ToString();
+                if (!string.IsNullOrWhiteSpace(s) && !src.Contains(s)) src.Add(s);
+            }
+            box.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            box.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            box.AutoCompleteCustomSource = src;
+
+            box.Leave += (s, e) =>
+            {
+                string v = box.Text;
+                if (IsLearnable(v))
+                {
+                    Learn(category, v);
+                    if (!box.AutoCompleteCustomSource.Contains(v.Trim()))
+                        box.AutoCompleteCustomSource.Add(v.Trim());
+                }
+            };
+        }
+
         // ---- one-time seed from existing data ------------------------------
 
         /// <summary>

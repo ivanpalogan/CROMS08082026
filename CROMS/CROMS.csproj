@@ -432,7 +432,9 @@
     <Compile Include="Data\AdviceForm.cs" />
     <Compile Include="Data\DelayedBirthRules.cs" />
     <Compile Include="Data\DelayedBirthService.cs" />
-    <Compile Include="Forms\DelayedBirthCaseForm.cs" />
+    <Compile Include="Forms\DelayedBirthCaseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Data\BreqsService.cs" />
     <Compile Include="Data\PaymentService.cs" />
     <Compile Include="Data\GovIds.cs" />
@@ -669,6 +671,8 @@
     <None Include="Database\40_breqs.sql" />
     <None Include="Database\41_fee_schedule_and_payment_log.sql" />
     <None Include="Database\42_delayed_birth_registration.sql" />
+    <None Include="Database\43_birth_country_in_view.sql" />
+    <None Include="Database\44_case_tracking_types.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>

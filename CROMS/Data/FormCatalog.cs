@@ -521,6 +521,7 @@ namespace CROMS.Data
                 new ReportField("date_of_birth",     "3. Date of Birth", true),
                 new ReportField("time_of_birth",     "    Time of Birth"),
                 new ReportField("place_of_birth",    "4. Place of Birth"),
+                new ReportField("birth_country",     "    Country of Birth"),
                 new ReportField("type_of_birth",     "5a. Type of Birth"),
                 new ReportField("birth_order",       "5c. Birth Order"),
                 new ReportField("weight_grams",      "5d. Weight at Birth (grams)")),

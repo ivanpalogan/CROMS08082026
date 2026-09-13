@@ -21,14 +21,15 @@ namespace CROMS.Kiosk
         // Set by every DELIBERATE close so OnFormClosing can tell navigation from a real quit
         // (a programmatic Close() also reports UserClosing - the trap recorded 2026-08-29).
         private bool _navigating;
-        private bool _fitApplied;
-        private float _scale = 1f;      // set by FitToScreen
+        private float _scale = 1f;      // cumulative scale factor applied, relative to _designSize
+        private Size _designSize;        // _box's designed size, cached before any Scale() ever runs
         private int _appliedShift;       // the wife-block gap currently applied, in design pixels
 
         public BreqsDetailsForm(KioskSession session)
         {
             _session = session;
             InitializeComponent();
+            _designSize = _box.Size;
 
             _btnBack.BringToFront();
             _btnNext.BringToFront();
@@ -47,7 +48,7 @@ namespace CROMS.Kiosk
             _pillMarriage.CheckedChanged += (s, e) => { if (_pillMarriage.Checked) { _pillBirth.SetChecked(false); _pillDeath.SetChecked(false); } ApplyDocType(); };
             _pillDeath.CheckedChanged += (s, e) => { if (_pillDeath.Checked) { _pillBirth.SetChecked(false); _pillMarriage.SetChecked(false); } ApplyDocType(); };
 
-            Load += (s, e) => { LoadFromSession(); ApplyDocType(); };
+            Load += (s, e) => { LoadFromSession(); ApplyDocType(); EnsureClaimQr(); };
             Shown += (s, e) => { FitToScreen(); CenterBox(); };
             panelStep.Resize += (s, e) => { FitToScreen(); CenterBox(); };
 
@@ -137,6 +138,37 @@ namespace CROMS.Kiosk
 
         private static string Blank(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
 
+        /// <summary>
+        /// Same claimapp QR as Personal Info & Photo (DetailsPhotoForm.EnsureClaimQr) — the ID
+        /// number field on THIS step is still typed and required (KioskCore.BreqsProblem), but
+        /// a client who would rather not type it out can scan here to upload a photo of it
+        /// instead of only typing the number. EnsureClaimRequest is idempotent (a token already
+        /// created here is reused, not duplicated, when Personal Info later calls it too).
+        /// </summary>
+        private void EnsureClaimQr()
+        {
+            KioskCore.EnsureClaimRequest(_session);
+            if (_session.ClaimQrToken == null)
+            {
+                picBreqsQr.Image = null;
+                lblQrTicketNo.Text = "";
+                lblQrNote.Text = "QR unavailable — the staff will assist you at the window.";
+                return;
+            }
+            try
+            {
+                var old = picBreqsQr.Image;
+                picBreqsQr.Image = QrHelper.TryCreate(ClaimLink.Build(_session.ClaimQrToken), 6);
+                old?.Dispose();
+            }
+            catch { /* QR lib missing → text only */ }
+
+            lblQrTicketNo.Text = _session.ClaimQrNo ?? "";
+            lblQrNote.Text = "Scan with your phone camera to upload a photo of the ID you will present.\n" +
+                "No phone camera? On your phone open " + ClaimLink.BaseUrl() +
+                " and enter the ticket number above.";
+        }
+
         // ------------------------------------------------ the fields follow the certificate
         private void ApplyDocType()
         {
@@ -216,45 +248,28 @@ namespace CROMS.Kiosk
             _box.Top = Math.Max(16, (panelStep.ClientSize.Height - _box.Height) / 2);
         }
 
+        // Recomputed on EVERY resize, ratio-ed against the fixed _designSize (never against
+        // _box's current, possibly already-scaled size) — a one-shot fit baked in whatever
+        // ClientSize the form reported on its FIRST Shown/Resize, which can be a transient
+        // size before WindowState=Maximized settles, permanently mis-scaling the box (same
+        // bug found and fixed on the Personal Info & Photo step, 2026-09-13).
         private void FitToScreen()
         {
-            if (_fitApplied || _box == null) return;
+            if (_box == null) return;
             int hw = panelStep.ClientSize.Width, hh = panelStep.ClientSize.Height;
             if (hw < 100 || hh < 100) return;
             const float MaxGrow = 1.6f;
-            float f = Math.Min(MaxGrow, Math.Min((hw - 24) / (float)_box.Width, (hh - 24) / (float)_box.Height));
-            _fitApplied = true;
-            if (Math.Abs(f - 1f) > 0.01f)
-            {
-                _box.Scale(new SizeF(f, f));
-                _scale = f;
-                // Control.Scale moves and resizes but does NOT touch fonts (AutoScaleMode.None), so on a
-                // short screen the boxes shrank under full-size text and captions ran into each other -
-                // measured on a 1366x768 render. Fonts follow the box when it shrinks.
-                if (f < 1f) ScaleFonts(_box, f);
-                PlaceStars();   // captions changed width
-            }
-        }
+            float f = Math.Min(MaxGrow, Math.Min((hw - 24) / (float)_designSize.Width, (hh - 24) / (float)_designSize.Height));
+            if (Math.Abs(f - _scale) < 0.01f) return;
 
-        /// <summary>
-        /// Scale every EXPLICITLY set font under <paramref name="root"/>. A control that inherits its
-        /// parent's font (same Font instance) is skipped, or it would be scaled twice.
-        /// </summary>
-        private static void ScaleFonts(Control root, float f)
-        {
-            var explicitFonts = new System.Collections.Generic.List<Tuple<Control, Font>>();
-            Action<Control> walk = null;
-            walk = c =>
-            {
-                foreach (Control child in c.Controls)
-                {
-                    if (!ReferenceEquals(child.Font, c.Font)) explicitFonts.Add(Tuple.Create(child, child.Font));
-                    walk(child);
-                }
-            };
-            walk(root);
-            foreach (var cf in explicitFonts)
-                cf.Item1.Font = new Font(cf.Item2.FontFamily, Math.Max(7f, cf.Item2.Size * f), cf.Item2.Style);
+            float delta = f / _scale;
+            _box.Scale(new SizeF(delta, delta));
+            // Control.Scale moves and resizes but does NOT touch fonts (AutoScaleMode.None), so on a
+            // short screen the boxes shrank under full-size text and captions ran into each other -
+            // measured on a 1366x768 render. Fonts follow the box when it shrinks.
+            if (f < 1f) FontScaler.Scale(_box, delta);
+            _scale = f;
+            PlaceStars();   // captions changed width
         }
 
         private void Field_Enter(object sender, EventArgs e)

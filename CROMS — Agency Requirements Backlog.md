@@ -209,6 +209,15 @@ raise it in the interview. The repo already implements this (`MarriageRules.cs`,
 is the only requirement CROMS lets be waived) — so CROMS is currently *stricter than the
 interview*, correctly so. **Confirm it is the office's actual practice.**
 
+**ATTEMPTED ANSWER 2026-09-13, still not conclusive.** User restated the existing mechanic rather
+than confirming counselling/CENOMAR/RA 10354 as separate practices: *"18 [and] below need a
+consent of the parent or guardian, [19]/21 to 24[/25] need a [consent/advice] letter, but if no
+[advice obtained], it's okay if extended [by] 3 months."* That is the consent (18–20) / advice
+(21–25, deferred 3 months if unfavourable or unobtained) rule already CONFIRMED above — it does
+not say whether counselling is demanded across the whole band, whether CENOMAR is required, or
+whether an RA 10354 §15 family-planning certificate is enforced here. **All three stay open —
+ask directly, not "is the consent/advice rule right" (that part is already settled).**
+
 **SUPPLEMENT — RA 6809.** Age of majority is 18. Someone will eventually reason "18 is an adult,
 so drop the consent rule". The Family Code marriage provisions survive RA 6809 as a special rule
 for marriage. Do not delete consent/advice logic on majority-age grounds.
@@ -304,9 +313,15 @@ all, so nothing on paper settles whether a 25-year-old needs it. **Still one que
 
 ### 4.1 Applicant from another province
 **CONFIRMED:** an extra supporting document / attachment must be possible.
-**PENDING:** *what* document, *when* it is required, and whether the trigger is residence, place
-of birth, previous registration, or something else. Do not assume — record the attachment slot,
-not the rule.
+
+**TRIGGER ANSWERED 2026-09-13 (user, from the office):** it is not about the applicant's
+residence or place of birth — it is when the **marriage licence/application was obtained in
+another province but the wedding is solemnized in this province (Peñablanca)**. A licence filed
+elsewhere and used here is the trigger.
+
+**PENDING, still:** *which document* proves this (most likely the licence itself or a certified
+copy from the issuing LCRO, but that has not been stated — do not assume). Record the attachment
+slot against this trigger once the document is named; do not build the rule from the trigger alone.
 
 ### 4.2 Widowed applicant — **ANSWERED 2026-09-13**
 **CONFIRMED:** previous-marriage information must be capturable.
@@ -344,6 +359,12 @@ Candidates mentioned: dates, registry information, signatures. Needs confirming.
 
 **PENDING:** the CROMS ↔ **PhilCRIS** boundary. The office already uses PhilCRIS for the PSA
 side. CROMS should not duplicate what PhilCRIS already does.
+
+**CLARIFIED 2026-09-13 (user), conceptual only — does not settle either PENDING above:**
+"marriage application is like applying, marriage registration is like the wedding is done." That
+confirms the *concept* already stated at the top of this section (Application = licensing;
+Registration = recording that solemnization happened) but names no field, no registry-number
+rule, and no PhilCRIS boundary. Both PENDING items stand as written.
 
 **SUPPLEMENT — do not under-build this on the interview alone.** "The office just stores the
 document" is too strong a reading. PSA guidance: the solemnising officer reports the marriage to
@@ -730,7 +751,8 @@ Grouped as they should be asked. **Nothing here is to be implemented from a gues
 *(Struck-through items were answered by the documents received 2026-09-13.)*
 
 **Marriage**
-- Exact supporting document for an applicant from another province — and what triggers it
+- ~~What triggers the another-province attachment~~ — answered 2026-09-13, §4.1: licence obtained
+  in another province, wedding solemnized here. Still open: **which document** proves it.
 - ~~Exact previous-marriage information for a widowed applicant~~ — answered, §4.2
 - ~~Exact contents and signature blocks of the Parental Consent form~~ — answered, §3
 - ~~Exact contents and signature blocks of the Parental Advice form~~ — answered, §3
@@ -817,9 +839,21 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
    blank; nothing is ever written into it.
 10. *(new)* Degree of Relationship of Contracting Parties — **ask first** (§14)
 
-**Phase 4 — tracking case types**
-10. Decide one generic case-tracking table vs four — *after* stages arrive
-11. Legitimation · Supplemental Report · Legal Instruments · Court Order
+**Phase 4 — tracking case types — DONE 2026-09-13, unblocked by research instead of waiting**
+10. ~~Decide one generic case-tracking table vs four~~ ✔ **one table** — researched the statutory
+    stage shape for all four (RA 9858 legitimation, PSA's supplemental-report rule, RA 9255 legal
+    instruments, Rule 108/court-order annotation) rather than wait on the office to state it; all
+    four are Filed → LCR review → registered/annotated → PSA endorsement, the same shape Petitions
+    already tracked minus the RA petitions' statutory 15-day posting step
+11. ~~Legitimation · Supplemental Report · Legal Instruments · Court Order~~ ✔ migration
+    `44_case_tracking_types.sql` widens the existing `petitions` table (petition_type + a new
+    `UnderReview` stage in place of `Posted`, since none of the four carries a posting period);
+    `PetitionsForm` (now "Petitions & Case Tracking" on screen) picks the right stage sequence per
+    type. **Deliberately track-only, matching the office's own tier split** — no requirements
+    checklist, no posting-clock engine, no per-type extra fields; a case's paperwork/basis goes in
+    the existing free-text Remarks. The Supplemental Report "max two entries, else escalate to
+    OCRG" rule and the legal-instrument 20-day registration window are NOT enforced in code — this
+    tracks stage, it does not adjudicate compliance with either rule.
 
 **Phase 5 — fee collection — DONE 2026-09-13**
 12. ~~Correct the fee schedule~~ ✔ migration 41, matches the card

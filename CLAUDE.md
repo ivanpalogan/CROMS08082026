@@ -3769,3 +3769,103 @@ REGISTRANT_AFFIDAVIT requirement row today, not by dedicated fields for whose bi
 attended, the reason for the delay, etc. Attaching a scanned document to a requirement row
 (the "Attach" button already in RequirementsGrid) works exactly as it does for the licence -
 untested against a real delayed-birth scan specifically, since none was on hand.
+
+2026-09-13 (later still - three §14 answers recorded, no code) - User answered part of §3, §4.1
+and §5 of the backlog from the office. No code changed; the backlog file and this log are the
+only edits.
+
+§4.1 (another-province attachment) got a real answer: the trigger is not the applicant's
+residence or birthplace, it is a marriage licence obtained in ANOTHER province being used for a
+wedding solemnized HERE. Recorded as CONFIRMED trigger in the backlog. Which document proves it
+is still not stated (probably the licence itself or a certified copy from the issuing LCRO, but
+"probably" is not a fact about a government requirement) - stays PENDING.
+
+§3 (counselling / CENOMAR / RA 10354 family-planning certificate) did NOT get a real answer. The
+reply restated the consent (18-20) / advice (21-25, deferred three months if unfavourable or
+unobtained) mechanic that is already CONFIRMED in this file - it does not say whether counselling
+is demanded across the band, whether CENOMAR is required, or whether RA 10354 §15 is enforced
+locally. Recorded as an attempted-but-inconclusive answer so nobody later reads it as "asked and
+answered" when it only re-described a rule already settled.
+
+§5 (Marriage Application vs Registration) similarly got a conceptual restatement - "application is
+applying, registration is the wedding being done" - which confirms the split this section already
+states but names no field, no registry-number rule and no PhilCRIS boundary. Both PENDING items
+(what staff actually add at registration; the CROMS/PhilCRIS division) stand unchanged.
+
+Backlog's own standing rule (§16): update the file when an item is answered, note it here. Done.
+
+2026-09-13 (uncommitted work found + logged, not authored this session) — Five small fixes were
+sitting uncommitted with no log entry: (1) kiosk `FontScaler`/card-geometry rework so the BREQS
+step and the camera/details step scale their captions WITH the box instead of clipping/overlapping
+on a shrunk screen (the same font-doesn't-scale-with-Control.Scale gap recorded for Personal
+Info & Photo on 2026-09-13 earlier); (2) new `LearningLibrary.Attach(ComboBox, category)` overload
+— the existing autocomplete/learn-on-Leave attach only worked on a TextBox, so an editable lookup
+ComboBox (the Place of Birth hospital cell) had no autocomplete path; (3) Birth Registration's
+`WireLearningAutocomplete` was attaching to `txtPlace`, the HIDDEN placeholder `CreateLookupCells`
+leaves behind once the 3 Place-of-Birth comboboxes replace it — so the attach could neither
+suggest nor learn anything; now attaches to `_pob[0]`, the real hospital combo; (4) the printed
+marriage licence (`LicensePrinter`) showed only the joined father/mother name line — migration 38
+(2026-09-13) added structured first/middle/last + citizenship + residence per parent and the print
+path never picked it up; now prints both structured names (falling back to the pre-38 joined value
+when a legacy licence has no separate cells) plus citizenship/residence for each parent; (5) new
+migration `43_birth_country_in_view.sql` restates `v_birth_certificate` to expose
+`births.birth_country` — the column has existed since migration 37 (2026-09-12) but the view was
+never restated, so a foreign birth's country was stored and shown on screen yet invisible to
+anything reading the view (a printed certificate, FormCatalog's structured section). No schema
+change, copied verbatim from 31_parents_married.sql's definition plus the one column.
+MSBuild clean, 0 errors (temp OutputPath).
+
+2026-09-13 (Phase 4: Legitimation / Supplemental Report / Legal Instrument / Court Order —
+tracking-only, unblocked by research instead of waiting on the office) — Backlog Phase 4 was
+blocked on "stages arrive" from the office. Asked instead to research the statutory stage shape
+for each and build tracking directly, the same tier as the existing Petitions module (CROMS
+RECORDS AND TRACKS; it does not run the legal procedure) — matching the backlog's own build-order
+note that a single generic case-tracking table beats four near-copies "IF the stages turn out
+similar," which the research confirmed.
+
+RESEARCHED (web): RA 9858 legitimation (parents marry after the child's birth; Affidavit of
+Legitimation registered at the LCRO of the place of birth; LCRO annotates the record and registry
+book; forwarded to PSA); PSA's own Supplemental Report rule (up to TWO missing entries per report;
+more than two must go to the Office of the Civil Registrar General, not be forced through this
+one); RA 9255 legal instruments (Affidavit of Admission of Paternity / Affidavit of Acknowledgment
+/ private handwritten instrument / AUSF, registered within 20 days of execution, LCR examines
+authenticity then annotates); and Rule 108 / final-decision court-order annotation (winning party
+files the decision + Certificate of Finality + Entry of Judgment at the LCRO, which annotates then
+endorses to PSA). All four share one shape: Filed -> reviewed by the LCR -> registered/annotated
+-> endorsed to PSA — the same shape Petitions already tracks, minus RA 9048/10172's statutory
+15-day public-POSTING step, which none of the four new types carry.
+
+`petitions` (already the generic tracker) widened rather than duplicated. Migration
+`44_case_tracking_types.sql` (applied to the live croms database, idempotent — re-run confirmed
+a no-op) widens `petition_type` to add Legitimation/SupplementalReport/LegalInstrument/CourtOrder,
+and `stage` to add `UnderReview` — used by the four new types in place of `Posted`, since none of
+them has a posting period. RA9048/RA10172 keep Filed -> Posted -> Decision -> PSA_Endorsement
+unchanged; the four new types run Filed -> Under Review -> Decision -> PSA_Endorsement.
+`01_schema.sql` updated to match for fresh installs.
+
+`PetitionsForm` (renamed on screen "Petitions & Case Tracking", `petitions` table unchanged)
+now carries two stage sequences instead of one fixed array (`StageCodesFor`/`StageLabelsFor`,
+keyed on whether the chosen type is RA9048/RA10172). Choosing a case type repopulates the Stage
+dropdown with the sequence that actually applies to it (`cboType_SelectedIndexChanged` ->
+`RepopulateStage`), so a Legitimation case is never offered "Posted" and a correction petition
+is never offered "Under Review". `AdvanceStage`/`Save`/`LoadPetition`/`ClearForm` all read the
+sequence for the CURRENT type rather than a single hardcoded array. Grid query gained the four
+new type labels and an explicit stage-label CASE (the old bare `REPLACE(stage,'_',' ')` would
+have printed "UnderReview" with no space, since there is no underscore to replace).
+
+DELIBERATELY NOT BUILT, matching the tracking-only tier: no requirements checklist, no posting-
+clock engine, no per-type extra fields (legal basis, due-by date) — those belong to Tier-1
+"CROMS ASSISTS" work like the marriage licence or delayed-birth registration, and this backlog
+item was explicitly the other tier. A case's own paperwork/basis goes in the existing free-text
+Remarks field. The Supplemental Report "max two missing entries, else escalate to OCRG" rule
+and the legal-instrument 20-day registration window are NOT enforced in code — this module
+tracks stage, it does not adjudicate the office's compliance with either rule.
+
+VERIFIED against the live database: migration applied and re-applied idempotently; a Legitimation
+case inserted with stage UnderReview, read back, rolled back (0 leftover). MSBuild clean, 0
+warnings 0 errors (temp OutputPath — CROMS.exe running elsewhere holds bin\Debug on this machine
+at times; REBUILD IN VS to pick this up if so).
+
+NOT DONE: Legal Instruments/Court Order/Legitimation/Supplemental Report all still route to the
+SAME `petitions` table and record/type picker Petitions already had — no per-type extra screen.
+The backlog's Phase 4 items 10-11 (decide one table vs four) is now answered: one table, done.

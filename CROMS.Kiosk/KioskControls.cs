@@ -10,6 +10,36 @@ namespace CROMS.Kiosk
     // Shared custom controls used by the kiosk's step forms. All are parameterless-
     // constructible with public properties so the Visual Studio designer can drop them.
 
+    /// <summary>
+    /// Shared with every kiosk step form that scales a fixed-size box to fit the screen
+    /// (<c>Control.Scale</c>). Scale moves and resizes controls but does NOT touch fonts
+    /// (AutoScaleMode.None), so on a short screen (e.g. 1366x768) the boxes shrink around
+    /// full-size text and captions clip/overlap — first found and fixed on the BREQS step,
+    /// generalised here so Personal Info & Photo gets the same fix instead of drifting.
+    /// </summary>
+    internal static class FontScaler
+    {
+        /// <summary>Scales every EXPLICITLY set font under <paramref name="root"/>. A control
+        /// that inherits its parent's font (same Font instance) is skipped, or it would be
+        /// scaled twice.</summary>
+        public static void Scale(Control root, float f)
+        {
+            var explicitFonts = new System.Collections.Generic.List<Tuple<Control, Font>>();
+            Action<Control> walk = null;
+            walk = c =>
+            {
+                foreach (Control child in c.Controls)
+                {
+                    if (!ReferenceEquals(child.Font, c.Font)) explicitFonts.Add(Tuple.Create(child, child.Font));
+                    walk(child);
+                }
+            };
+            walk(root);
+            foreach (var cf in explicitFonts)
+                cf.Item1.Font = new Font(cf.Item2.FontFamily, Math.Max(7f, cf.Item2.Size * f), cf.Item2.Style);
+        }
+    }
+
     /// <summary>A panel with rounded corners, an optional soft shadow, and a border.</summary>
     public class RoundPanel : Panel
     {
@@ -142,9 +172,23 @@ namespace CROMS.Kiosk
                 using (var pen = new Pen(border, borderW)) g.DrawPath(pen, path);
             }
 
-            // Icon centred near the top, label under it, hint under that.
-            const float iconPx = 30f;
+            // Icon centred near the top, label under it, hint under that — every offset is a
+            // FRACTION of the card's own Height (derived from the 170x112 design size), not a
+            // fixed pixel count. A fixed iconPx/gap left the label and hint fixed in place while
+            // FitToScreen shrank the card around them (a small-screen render), so the hint line
+            // was drawn below the card's actual bottom edge and never appeared at 1366x768.
+            const float DesignH = 112f;
             float iconY = Height * 0.16f;
+            float iconPx = Height * (30f / DesignH);
+            float labelTop = iconY + iconPx + Height * (6f / DesignH);
+            float labelH = Height * (22f / DesignH);
+            float hintTop = iconY + iconPx + Height * (28f / DesignH);
+            float hintH = Height * (16f / DesignH);
+            // Fonts shrink with the card too (clamped so text never vanishes on a tiny card).
+            float fontScale = Math.Min(1f, Height / DesignH);
+            float labelPt = Math.Max(6.5f, 10F * fontScale);
+            float hintPt = Math.Max(5.5f, 7.5F * fontScale);
+
             if (GlyphCode != 0 && IconFont.IsAvailable)
                 IconFont.Draw(g, new RectangleF(0, iconY, Width, iconPx),
                     char.ConvertFromUtf32(GlyphCode), content, iconPx);
@@ -161,15 +205,15 @@ namespace CROMS.Kiosk
                 Trimming = StringTrimming.EllipsisCharacter
             })
             {
-                using (var ft = new Font("Segoe UI", 10F, FontStyle.Bold))
+                using (var ft = new Font("Segoe UI", labelPt, FontStyle.Bold))
                 using (var tb = new SolidBrush(content))
                     g.DrawString(LabelText, ft, tb,
-                        new RectangleF(4, iconY + iconPx + 6, Width - 8, 22), fmt);
+                        new RectangleF(4, labelTop, Width - 8, labelH), fmt);
 
-                using (var fh = new Font("Segoe UI", 7.5F))
+                using (var fh = new Font("Segoe UI", hintPt))
                 using (var hb = new SolidBrush(Checked ? Accent : Color.FromArgb(137, 145, 163)))
                     g.DrawString(Checked ? "SELECTED" : "TAP TO SELECT", fh, hb,
-                        new RectangleF(4, iconY + iconPx + 28, Width - 8, 16), fmt);
+                        new RectangleF(4, hintTop, Width - 8, hintH), fmt);
             }
 
             // Check badge, top-right — same language as the Step 1 service cards.

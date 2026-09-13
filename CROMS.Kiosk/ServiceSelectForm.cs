@@ -93,7 +93,7 @@ namespace CROMS.Kiosk
             _offlineOverlay.Bounds = ClientRectangle;
             _offlineOverlay.BringToFront();
 
-            _stepInd.SetStep(0);
+            UpdateStepIndicator();
 
             Load += (s, e) => { RepaintAll(); UpdateAvailability(); };
             Shown += (s, e) => CenterServiceStep(panelStep1);
@@ -315,12 +315,26 @@ namespace CROMS.Kiosk
             else _session.Selected.Add(code);
             PaintCard(code);
             UpdateNextButtonState();
+            UpdateStepIndicator();
         }
 
         private void RepaintAll()
         {
             foreach (string code in _cards.Keys) PaintCard(code);
             UpdateNextButtonState();
+            UpdateStepIndicator();
+        }
+
+        /// <summary>A PSA copy request (BREQS) inserts a third "PSA Document" step between this
+        /// screen and Personal Info & Photo — see DetailsPhotoForm's ctor, which does the same
+        /// check. Re-evaluated on every selection change since BREQS can be ticked/unticked
+        /// before Next is pressed.</summary>
+        private void UpdateStepIndicator()
+        {
+            _stepInd.Steps = _session.HasBreqs
+                ? new[] { "Select Services", "PSA Document", "Personal Info & Photo" }
+                : new[] { "Select Services", "Personal Info & Photo" };
+            _stepInd.SetStep(0);
         }
 
         private void PaintCard(string code)

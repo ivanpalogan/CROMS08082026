@@ -47,6 +47,7 @@ namespace CROMS.Kiosk
         {
             _session = session;
             InitializeComponent();
+            _designSize = _detailsBox.Size;   // cache BEFORE any Scale() call, ever
 
             _btnBack.BringToFront();
             _btnPrint.BringToFront();
@@ -86,6 +87,11 @@ namespace CROMS.Kiosk
             {
                 LoadFromSession();
                 ApplyIdentityStep(_session.HasClaim);
+                // Everything above (LoadFromSession -> ApplyMarriagePersons,
+                // ApplyIdentityStep -> LayoutIdentityStep) just wrote the per-session
+                // baseline layout in raw, design-scale coordinates. Only NOW is it safe to
+                // let FitToScreen scale the tree — see _baselineReady.
+                _baselineReady = true;
                 StartCamera();
                 UpdateAvailability();
                 Cue(_txtContact, "09XX XXX XXXX");
@@ -137,6 +143,7 @@ namespace CROMS.Kiosk
             _priPregnant.SetChecked(_session.Pregnant);
             _txtClaimTicket.Text = _session.ClaimTicketEntry ?? "";
             _cboIdType.Text = _session.IdType ?? "";
+            _txtIdNo.Text = _session.IdNo ?? "";
 
             if (_session.HasMarriage)
             {
@@ -162,6 +169,7 @@ namespace CROMS.Kiosk
             _session.Pregnant = _priPregnant.Checked;
             _session.ClaimTicketEntry = _txtClaimTicket.Text.Trim();
             _session.IdType = _cboIdType.Text.Trim();
+            _session.IdNo = _txtIdNo.Text.Trim();
         }
 
         // -------------------------------------------------- marriage (two people)
@@ -217,8 +225,10 @@ namespace CROMS.Kiosk
             lblValidId.Location = new Point(30, 566 + shift);
             lblIdType.Location = new Point(30, 598 + shift);
             hostIdType.Location = new Point(30, 622 + shift);
-            _lblIdHint.Location = new Point(30, 674 + shift);
-            _claimPanel.Location = new Point(30, 736 + shift);
+            lblIdNo.Location = new Point(30, 674 + shift);
+            hostIdNo.Location = new Point(30, 698 + shift);
+            _lblIdHint.Location = new Point(30, 750 + shift);
+            _claimPanel.Location = new Point(30, 812 + shift);
         }
 
         /// <summary>Which slot (husband/wife) the next Capture writes into, and its label text.</summary>
@@ -421,26 +431,75 @@ namespace CROMS.Kiosk
             _detailsBox.Top = Math.Max(16, (wrap.ClientSize.Height - _detailsBox.Height) / 2);
         }
 
-        private bool _fitApplied;
+        // Fixed design size of _detailsBox, cached before any Scale() ever runs — every
+        // FitToScreen call computes its ratio against THIS, never against the box's current
+        // (possibly already-scaled) size, or repeated calls would compound/drift.
+        private readonly Size _designSize;
+        // The scale factor already applied, relative to _designSize (1f = none yet).
+        private float _appliedScale = 1f;
+        // True once Load has finished writing the per-session baseline layout (single vs.
+        // marriage/couple fields, identity-step geometry) in raw design-scale coordinates.
+        // panelStep2 can receive its real (maximized) size and fire Resize BEFORE Load runs —
+        // if FitToScreen scaled the tree on that early event, it would shrink rightCard itself
+        // using the stock Designer positions, and _appliedScale would then read as "already
+        // correct" for the final size. Load's ApplyMarriagePersons/LayoutIdentityStep would
+        // then overwrite rightCard's (and, in marriage mode, leftCard's) CHILDREN back to raw,
+        // unscaled coordinates without rightCard's own (already-shrunk) size being touched —
+        // an inconsistent tree where the children overflow their own container, and the later
+        // Shown-time FitToScreen call would see f == _appliedScale and skip the correction
+        // entirely. Blocking every FitToScreen call until the baseline is in place guarantees
+        // the first real scale always applies to a fully consistent, un-scaled tree.
+        private bool _baselineReady;
 
         /// <summary>
         /// Fits the fixed-size details box (and all its children — cards, camera, QR,
-        /// buttons) to the available screen ONCE, so the same layout adapts to a small
-        /// laptop or a big monitor. It scales DOWN on small screens (no overflow) and UP
-        /// on large / high-DPI screens (fills the space) — uniform scale, so nothing
-        /// distorts — capped so it never grows absurdly large.
+        /// buttons) to the available screen, so the same layout adapts to a small laptop or
+        /// a big monitor. It scales DOWN on small screens (no overflow) and UP on large /
+        /// high-DPI screens (fills the space) — uniform scale, so nothing distorts — capped
+        /// so it never grows absurdly large.
+        ///
+        /// Recomputed on EVERY resize, not once: the kiosk form's first Shown/Resize can fire
+        /// before WindowState=Maximized has settled into its final ClientSize (reporting a
+        /// smaller, transient size), which used to bake in a wrong scale permanently — the
+        /// details box came out wider than the real screen, got left-clamped to X=0 by
+        /// CenterDetailsStep, and its right edge (the QR panel) ran off the visible screen.
+        /// Always ratio-ing against the fixed <see cref="_designSize"/> makes every call
+        /// self-correcting regardless of what an earlier call computed.
         /// </summary>
+        // Guards against re-entrancy: Control.Scale() lays out and paints its subtree, which
+        // can pump the message queue and deliver an already-queued Resize for panelStep2
+        // WHILE this method is still running. A nested call would then read the stale
+        // (pre-Scale) _appliedScale and Bounds captured by the OUTER call's now-stale
+        // locals, and the outer call would resume and apply its own already-computed delta
+        // on top of what the nested call just corrected — scaling the tree twice. Skipping
+        // any call that arrives while one is already in flight avoids that; the outer call
+        // still lands on the correct target, and if the real available size did change in
+        // the meantime, the next natural Resize event (after this one returns) reruns it.
+        private bool _scaling;
+
         private void FitToScreen()
         {
-            if (_fitApplied || _detailsBox == null) return;
+            if (_detailsBox == null || !_baselineReady || _scaling) return;
             int hw = panelStep2.ClientSize.Width, hh = panelStep2.ClientSize.Height;
             if (hw < 100 || hh < 100) return;   // not laid out yet
 
             const float MaxGrow = 1.6f;   // cap so it fills without becoming oversized
-            float f = Math.Min(MaxGrow, Math.Min((hw - 24) / (float)_detailsBox.Width,
-                                                 (hh - 24) / (float)_detailsBox.Height));
-            _fitApplied = true;
-            if (Math.Abs(f - 1f) > 0.01f) _detailsBox.Scale(new SizeF(f, f));
+            float f = Math.Min(MaxGrow, Math.Min((hw - 24) / (float)_designSize.Width,
+                                                 (hh - 24) / (float)_designSize.Height));
+            if (Math.Abs(f - _appliedScale) < 0.01f) return;   // no meaningful change
+
+            _scaling = true;
+            try
+            {
+                float delta = f / _appliedScale;
+                _detailsBox.Scale(new SizeF(delta, delta));
+                // Fonts don't follow Scale() on their own — on a short screen (1366x768) that
+                // left full-size captions clipping/overlapping inside the shrunk fields. Only
+                // on the shrink path: growth intentionally keeps fonts at design size.
+                if (f < 1f) FontScaler.Scale(_detailsBox, delta);
+                _appliedScale = f;
+            }
+            finally { _scaling = false; }
         }
 
         private void Field_Enter(object sender, EventArgs e)

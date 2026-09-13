@@ -1410,8 +1410,17 @@ namespace CROMS.Forms
             L("Citizenship", p.Citizenship);
             L("Civil status", p.CivilStatus);
             L("Residence", p.Residence);
-            L("Father", p.Father);
-            L("Mother", p.Mother);
+            // Print the structured first/middle/last blocks (migration 38) rather than the
+            // single joined line - falls back to p.Father/p.Mother only for a pre-38 licence
+            // that has no separate cells (see MarriageRules.Party.Father/Mother comment).
+            string fatherName = MarriageRules.JoinName(p.FatherFirst, p.FatherMiddle, p.FatherLast) ?? p.Father;
+            string motherName = MarriageRules.JoinName(p.MotherFirst, p.MotherMiddle, p.MotherLast) ?? p.Mother;
+            L("Father's Name", fatherName);
+            L("Father's Citizenship", p.FatherCitizenship);
+            L("Father's Residence", p.FatherResidence);
+            L("Mother's Name", motherName);
+            L("Mother's Citizenship", p.MotherCitizenship);
+            L("Mother's Residence", p.MotherResidence);
             return y;
         }
     }

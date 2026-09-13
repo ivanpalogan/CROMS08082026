@@ -360,10 +360,10 @@ CREATE TABLE IF NOT EXISTS `releases` (
 CREATE TABLE IF NOT EXISTS `petitions` (
   `id`             INT NOT NULL AUTO_INCREMENT,
   `transaction_id` INT NULL,
-  `petition_type`  ENUM('RA9048','RA10172') NOT NULL,
+  `petition_type`  ENUM('RA9048','RA10172','Legitimation','SupplementalReport','LegalInstrument','CourtOrder') NOT NULL,
   `record_type`    ENUM('Birth','Marriage','Death') NULL,
   `record_id`      INT NULL,
-  `stage`          ENUM('Filed','Posted','Decision','PSA_Endorsement') NOT NULL DEFAULT 'Filed',
+  `stage`          ENUM('Filed','Posted','UnderReview','Decision','PSA_Endorsement') NOT NULL DEFAULT 'Filed',
   `filed_date`     DATE NULL,
   `remarks`        VARCHAR(255) NULL,
   `created_at`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -428,7 +428,10 @@ namespace CROMS.Forms
         /// Learning Library, and learn whatever the registrar types.</summary>
         private void WireLearningAutocomplete()
         {
-            CROMS.Data.LearningLibrary.Attach(txtPlace, CROMS.Data.LearningLibrary.PlaceOfBirth);
+            // txtPlace is the hidden placeholder CreateLookupCells left behind — it is
+            // replaced on screen by the 3 Place of Birth comboboxes (_pob), so attaching here
+            // could neither suggest nor learn anything. The real input is the hospital cell.
+            CROMS.Data.LearningLibrary.Attach(_pob[0], CROMS.Data.LearningLibrary.PlaceOfBirth);
             CROMS.Data.LearningLibrary.Attach(txtFirstName, CROMS.Data.LearningLibrary.GivenName);
             CROMS.Data.LearningLibrary.Attach(txtLastName, CROMS.Data.LearningLibrary.Surname);
             CROMS.Data.LearningLibrary.Attach(txtFFirst, CROMS.Data.LearningLibrary.GivenName);
