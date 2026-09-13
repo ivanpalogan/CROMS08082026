@@ -428,6 +428,8 @@
     <Compile Include="Data\CertificateReport.cs" />
     <Compile Include="Data\CrystalRunner.cs" />
     <Compile Include="Data\Mf90Form.cs" />
+    <Compile Include="Data\ConsentForm.cs" />
+    <Compile Include="Data\AdviceForm.cs" />
     <Compile Include="Data\BreqsService.cs" />
     <Compile Include="Data\PaymentService.cs" />
     <Compile Include="Data\GovIds.cs" />

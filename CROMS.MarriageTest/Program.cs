@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
+using System.IO;
 using System.Linq;
 using CROMS.Data;
 using MySql.Data.MySqlClient;
@@ -37,6 +39,14 @@ namespace CROMS.MarriageTest
                 catch (Exception ex) { BreqsTest.Fail++; Console.WriteLine("CRASH: " + ex); }
                 Console.WriteLine("PASSED " + BreqsTest.Pass + "   FAILED " + BreqsTest.Fail);
                 return BreqsTest.Fail;
+            }
+            if (args.Length > 1 && args[0] == "--consentadvice")
+            {
+                try { Cleanup(); LoginAs("Admin"); ConsentAdvice(args[1]); }
+                catch (Exception ex) { _fail++; Console.WriteLine("CRASH: " + ex); }
+                finally { Cleanup(); int left = Leftovers(); Check("zero strays after cleanup", left == 0, left + " left"); }
+                Console.WriteLine("PASSED " + _pass + "   FAILED " + _fail);
+                return _fail;
             }
             if (args.Length > 1 && args[0] == "--fees")
             {
@@ -481,6 +491,69 @@ namespace CROMS.MarriageTest
             Check("PSA availability cannot be claimed without an authoritative reference", needRef);
             Check("full history kept for the registered marriage", MarriageService.HistoryOf("Marriage", m1).Rows.Count >= 5,
                 MarriageService.HistoryOf("Marriage", m1).Rows.Count + " events");
+        }
+
+        // ------------------------------------------------------------ Consent (MF-06) / Advice (MF-68)
+        /// <summary>
+        /// Husband 19 (consent band 18-20), wife 23 (advice band 21-25) - so ONE couple exercises
+        /// both new forms in one save. Renders both, and confirms the age-gate in the print
+        /// buttons refuses when neither party qualifies.
+        /// </summary>
+        private static void ConsentAdvice(string dir)
+        {
+            Directory.CreateDirectory(dir);
+            LicenseFacts l = Couple(19, 23);
+            Party h = l.Husband, w = l.Wife;
+            h.Residence = "Bical, Penablanca, Cagayan";
+            h.ConsentFirst = "Ramon"; h.ConsentMiddle = "Lim"; h.ConsentLast = "Pascua"; h.ConsentRelationship = "Father"; h.ConsentResidence = "Bical, Penablanca, Cagayan";
+            w.Residence = "Callao, Penablanca, Cagayan";
+            w.ConsentFirst = "Luz"; w.ConsentMiddle = "Articulo"; w.ConsentLast = "Baloso"; w.ConsentRelationship = "Mother"; w.ConsentResidence = "Callao, Penablanca, Cagayan";
+
+            int id = MarriageService.SaveLicense(l);
+            LicenseFacts saved = MarriageService.LoadLicense(id);
+            MarriageSettings s = MarriageService.Settings;
+            DateTime on = saved.FiledDate ?? Today;
+
+            Check("husband (19) is in the consent band, wife is not", MarriageRules.InConsentBand(saved.Husband, on, s) && !MarriageRules.InConsentBand(saved.Wife, on, s));
+            Check("wife (23) is in the advice band, husband is not", MarriageRules.InAdviceBand(saved.Wife, on, s) && !MarriageRules.InAdviceBand(saved.Husband, on, s));
+
+            DataTable ct = ConsentForm.BuildTable(saved, "Husband");
+            Check("consent table: applicant is the husband, spouse is the wife, consent person joined",
+                (string)ct.Rows[0]["applicant_full_name"] == saved.Husband.FullName &&
+                (string)ct.Rows[0]["intended_spouse_full_name"] == saved.Wife.FullName &&
+                (string)ct.Rows[0]["consent_person_full_name"] == "Ramon Lim Pascua");
+            Check("consent table: no overflow on this data", ConsentForm.Overflows(ct).Count == 0, string.Join("; ", ConsentForm.Overflows(ct)));
+
+            DataTable at = AdviceForm.BuildTable(saved);
+            Check("advice table: male half is the husband, female half is the wife",
+                (string)at.Rows[0]["male_applicant_full_name"] == saved.Husband.FullName &&
+                (string)at.Rows[0]["female_applicant_full_name"] == saved.Wife.FullName);
+            Check("advice table: signature/oath columns stay blank - nothing invented",
+                string.IsNullOrEmpty((string)at.Rows[0]["male_father_signature"]) && string.IsNullOrEmpty((string)at.Rows[0]["female_oath_administering_person_signature"]));
+
+            // SetResolution BEFORE Graphics.FromImage - a Graphics takes the bitmap's DPI at
+            // creation, and a default 96 DPI bitmap with PageUnit=Point draws everything 33% too
+            // far down/right (the same trap recorded for DrawOverlay on 2026-09-07).
+            using (var bmp = new Bitmap((int)ConsentForm.PageWidth, (int)ConsentForm.PageHeight))
+            {
+                bmp.SetResolution(72f, 72f);
+                using (Graphics g = Graphics.FromImage(bmp)) { g.Clear(Color.White); ConsentForm.Draw(g, ct); }
+                bmp.Save(Path.Combine(dir, "consent_mf06.png"), System.Drawing.Imaging.ImageFormat.Png);
+            }
+            using (var bmp = new Bitmap((int)AdviceForm.PageWidth, (int)AdviceForm.PageHeight))
+            {
+                bmp.SetResolution(72f, 72f);
+                using (Graphics g = Graphics.FromImage(bmp)) { g.Clear(Color.White); AdviceForm.Draw(g, at); }
+                bmp.Save(Path.Combine(dir, "advice_mf68.png"), System.Drawing.Imaging.ImageFormat.Png);
+            }
+            Console.WriteLine("  ok  consent_mf06.png, advice_mf68.png");
+
+            // A couple where NEITHER party qualifies for either form - the age-gate must refuse.
+            LicenseFacts none = MarriageService.LoadLicense(MarriageService.SaveLicense(Couple(30, 30)));
+            DateTime on2 = none.FiledDate ?? Today;
+            Check("a 30/30 couple needs neither consent nor advice",
+                !MarriageRules.InConsentBand(none.Husband, on2, s) && !MarriageRules.InConsentBand(none.Wife, on2, s) &&
+                !MarriageRules.InAdviceBand(none.Husband, on2, s) && !MarriageRules.InAdviceBand(none.Wife, on2, s));
         }
 
         // ------------------------------------------------------------ Form 90 blocks (migration 38)

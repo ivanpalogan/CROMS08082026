@@ -73,6 +73,9 @@ namespace CROMS.Forms
                                 _next = MUi.Btn("Next >", MUi.Kind.Primary, 110), _issue = MUi.Btn("Issue license", MUi.Kind.Success, 130);
         // Municipal Form 90 itself, filled in - the paper the applicants sign.
         private readonly Button _printApp = MUi.Btn("Print application (MF-90)", MUi.Kind.Secondary, 200);
+        // Consent (MF-06) / Advice (MF-68) - printed only for whichever party the age band applies to.
+        private readonly Button _printConsent = MUi.Btn("Consent (MF-06)", MUi.Kind.Secondary, 150);
+        private readonly Button _printAdvice = MUi.Btn("Advice (MF-68)", MUi.Kind.Secondary, 150);
         private readonly Label _footReason = MUi.Txt("", 9F, FontStyle.Regular, UiTheme.Muted);
 
         // page 1
@@ -167,6 +170,7 @@ namespace CROMS.Forms
             footer.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, 0, footer.Width, 0); };
             var left = new FlowLayoutPanel { Dock = DockStyle.Left, Width = 440, BackColor = Color.Transparent };
             left.Controls.Add(_back); left.Controls.Add(_save); left.Controls.Add(_printApp);
+            left.Controls.Add(_printConsent); left.Controls.Add(_printAdvice);
             var right = new FlowLayoutPanel { Dock = DockStyle.Right, Width = 270, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.Transparent };
             right.Controls.Add(_next); right.Controls.Add(_issue);
             _footReason.AutoSize = false; _footReason.Dock = DockStyle.Fill; _footReason.TextAlign = ContentAlignment.MiddleRight; _footReason.AutoEllipsis = true;
@@ -175,6 +179,8 @@ namespace CROMS.Forms
             _next.Click += (s, e) => GoTo(_step + 1);
             _save.Click += (s, e) => SaveDraft(true);
             _printApp.Click += (s, e) => PrintApplication();
+            _printConsent.Click += (s, e) => PrintConsent();
+            _printAdvice.Click += (s, e) => PrintAdvice();
             _issue.Click += (s, e) => OpenIssue();
 
             var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = UiTheme.Surface, Margin = new Padding(0) };
@@ -1023,6 +1029,56 @@ namespace CROMS.Forms
             if (!_readOnly && (_dirty || _l.Id <= 0) && !SaveDraft(true)) return;
             if (_l.Id <= 0) return;
             try { Mf90Form.Show(MarriageService.LoadLicense(_l.Id), this); }
+            catch (Exception ex) { MUi.Fail(this, ex); }
+        }
+
+        /// <summary>
+        /// Preview MF-06 for whichever party is 18-20 on the filing date (FC Art. 14). Prints
+        /// once per qualifying party - a couple where both are underage gets both forms shown
+        /// in turn, not merged onto one.
+        /// </summary>
+        private void PrintConsent()
+        {
+            if (!_readOnly && (_dirty || _l.Id <= 0) && !SaveDraft(true)) return;
+            if (_l.Id <= 0) return;
+            try
+            {
+                LicenseFacts l = MarriageService.LoadLicense(_l.Id);
+                DateTime on = l.FiledDate ?? DateTime.Today;
+                MarriageSettings s = MarriageService.Settings;
+                var need = new List<string>();
+                if (MarriageRules.InConsentBand(l.Husband, on, s)) need.Add("Husband");
+                if (MarriageRules.InConsentBand(l.Wife, on, s)) need.Add("Wife");
+                if (need.Count == 0)
+                {
+                    MessageBox.Show(this, "Neither applicant is in the consent age band (" + s.ConsentAgeFrom + "-" + s.ConsentAgeTo +
+                        ") on the filing date, so this form does not apply.", "Consent (MF-06)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                foreach (string role in need) ConsentForm.Show(l, role, this);
+            }
+            catch (Exception ex) { MUi.Fail(this, ex); }
+        }
+
+        /// <summary>Preview MF-68: one page carrying both the husband's and the wife's half.
+        /// Offered whenever EITHER is in the 21-25 advice band (FC Art. 15).</summary>
+        private void PrintAdvice()
+        {
+            if (!_readOnly && (_dirty || _l.Id <= 0) && !SaveDraft(true)) return;
+            if (_l.Id <= 0) return;
+            try
+            {
+                LicenseFacts l = MarriageService.LoadLicense(_l.Id);
+                DateTime on = l.FiledDate ?? DateTime.Today;
+                MarriageSettings s = MarriageService.Settings;
+                if (!MarriageRules.InAdviceBand(l.Husband, on, s) && !MarriageRules.InAdviceBand(l.Wife, on, s))
+                {
+                    MessageBox.Show(this, "Neither applicant is in the advice age band (" + s.AdviceAgeFrom + "-" + s.AdviceAgeTo +
+                        ") on the filing date, so this form does not apply.", "Advice (MF-68)", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                AdviceForm.Show(l, this);
+            }
             catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
