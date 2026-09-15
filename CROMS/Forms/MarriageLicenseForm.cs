@@ -408,6 +408,8 @@ namespace CROMS.Forms
         {
             Panel pg = _pages[1];
             _docs.Height = 300;
+            _docs.AllowAddCustom = true; // a particular application may need a document beyond the standard set
+            _docs.PartyOptions = new[] { "Both", "Husband", "Wife" };
             _docs.Changed += () => RefreshAll();
             TableLayoutPanel pay = MUi.Grid(4, 1, 58);
             pay.Controls.Add(MUi.Field("Official receipt no. (Treasury)", _orNo), 0, 0);

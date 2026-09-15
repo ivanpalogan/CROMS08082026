@@ -757,8 +757,32 @@ namespace CROMS.Forms
         public event Action Changed;
         public bool ReadOnlyGrid { get; set; }
 
+        private readonly Panel _addBar = new Panel { Dock = DockStyle.Top, Height = 0, Visible = false };
+        private readonly Button _btnAdd = new Button { Text = "+ Add Requirement", Width = 160, Height = 28, FlatStyle = FlatStyle.Flat };
+        private bool _allowAddCustom;
+        /// <summary>
+        /// Shows a "+ Add Requirement" bar above the grid so staff/admin can attach an ad hoc
+        /// document the office's catalogue doesn't list (this case turned out to need one) -
+        /// e.g. an extra piece of evidence on a delayed birth, or an extra document a marriage
+        /// application needs beyond the standard set. Off by default; a screen opts in.
+        /// </summary>
+        public bool AllowAddCustom
+        {
+            get { return _allowAddCustom; }
+            set { _allowAddCustom = value; _addBar.Visible = value; _addBar.Height = value ? 40 : 0; }
+        }
+        /// <summary>Party choices offered when adding a custom requirement. Default is the single
+        /// "Both" a one-party owner (a delayed birth case) has; a two-party owner (a marriage
+        /// licence/registration) sets {"Both","Husband","Wife"}.</summary>
+        public string[] PartyOptions { get; set; } = { "Both" };
+
         public RequirementsGrid()
         {
+            _btnAdd.Margin = new Padding(6);
+            _btnAdd.Location = new Point(6, 5);
+            _btnAdd.Click += (s, e) => AddCustom();
+            _addBar.Controls.Add(_btnAdd);
+            Controls.Add(_addBar);
             _g.Dock = DockStyle.Fill; _g.AllowUserToAddRows = false; _g.AllowUserToDeleteRows = false;
             _g.RowHeadersVisible = false; _g.SelectionMode = DataGridViewSelectionMode.CellSelect;
             _g.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill; _g.EditMode = DataGridViewEditMode.EditOnEnter;
@@ -818,8 +842,10 @@ namespace CROMS.Forms
             {
                 Need n;
                 _needs.TryGetValue(r.Code + "|" + r.Party, out n);
-                int i = _g.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code,
-                    n != null ? n.Reason : "No longer required - kept because it holds a record",
+                string why = n != null ? n.Reason
+                           : MarriageService.IsCustomCode(r.Code) ? "Added manually - not part of the standard checklist"
+                           : "No longer required - kept because it holds a record";
+                int i = _g.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code, why,
                     r.Status, r.Outcome ?? "", r.GivenBy, r.ReferenceNo, r.DocDate.HasValue ? MUi.D(r.DocDate) : "",
                     r.HasAttachment ? "View" : "Attach", r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : "");
                 DataGridViewRow row = _g.Rows[i];
@@ -829,7 +855,7 @@ namespace CROMS.Forms
                 row.Cells["Outcome"].ReadOnly = !isAdvice || ReadOnlyGrid;
                 row.Cells["Given"].ReadOnly = !isConsent || ReadOnlyGrid;
                 if (ReadOnlyGrid) foreach (DataGridViewCell c in row.Cells) if (!(c is DataGridViewButtonCell)) c.ReadOnly = true;
-                if (n == null) row.DefaultCellStyle.ForeColor = UiTheme.Faint;
+                if (n == null && !MarriageService.IsCustomCode(r.Code)) row.DefaultCellStyle.ForeColor = UiTheme.Faint;
             }
             _loading = false;
             // Advice / Given-by only mean something on consent rows; hidden elsewhere they
@@ -840,7 +866,7 @@ namespace CROMS.Forms
             // Height is sized on the CONTROL from a row estimate. Measuring rows here is wrong
             // twice over: the grid is Dock=Fill (its own Height is overwritten by layout) and
             // the page is often hidden, so rows are measured at a stale width.
-            PreferredHeight = Math.Min(460, 44 + Math.Max(1, _g.Rows.Count) * 46);
+            PreferredHeight = (AllowAddCustom ? _addBar.Height : 0) + Math.Min(460, 44 + Math.Max(1, _g.Rows.Count) * 46);
             Height = PreferredHeight;
         }
 
@@ -936,6 +962,70 @@ namespace CROMS.Forms
                 }
                 catch (Exception ex) { MUi.Fail(this, ex); }
             }
+        }
+
+        private void AddCustom()
+        {
+            if (ReadOnlyGrid) return;
+            if (_ownerId <= 0) { MessageBox.Show(this, "Save the record first, then add an extra requirement.", "Not saved yet", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            using (var dlg = new AddRequirementDialog(PartyOptions))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                try
+                {
+                    MarriageService.AddCustomRequirement(_owner, _ownerId, dlg.Party, dlg.Label);
+                    Bind(_owner, _ownerId, _needs.Values, _filter);
+                    var h = Changed; if (h != null) h();
+                }
+                catch (Exception ex) { MUi.Fail(this, ex); }
+            }
+        }
+    }
+
+    /// <summary>Small modal for "+ Add Requirement": a label the office needs for this case that
+    /// isn't in the catalogue, plus which party it belongs to (hidden entirely when the owner
+    /// only ever has one, e.g. a delayed birth case).</summary>
+    internal sealed class AddRequirementDialog : Form
+    {
+        private readonly TextBox _txtLabel = new TextBox { Left = 16, Top = 40, Width = 340 };
+        private readonly ComboBox _cboParty = new ComboBox { Left = 16, Top = 96, Width = 160, DropDownStyle = ComboBoxStyle.DropDownList };
+        public string Label { get { return _txtLabel.Text.Trim(); } }
+        public string Party { get { return _cboParty.Visible ? Convert.ToString(_cboParty.SelectedItem) : "Both"; } }
+
+        public AddRequirementDialog(string[] partyOptions)
+        {
+            Text = "Add Requirement"; FormBorderStyle = FormBorderStyle.FixedDialog; StartPosition = FormStartPosition.CenterParent;
+            MaximizeBox = false; MinimizeBox = false; ClientSize = new Size(372, partyOptions != null && partyOptions.Length > 1 ? 190 : 130);
+            BackColor = UiTheme.Surface;
+
+            var lbl1 = new Label { Text = "What document or requirement?", Left = 16, Top = 16, Width = 340, ForeColor = UiTheme.Ink };
+            Controls.Add(lbl1); Controls.Add(_txtLabel);
+
+            bool showParty = partyOptions != null && partyOptions.Length > 1;
+            if (showParty)
+            {
+                var lbl2 = new Label { Text = "For", Left = 16, Top = 76, Width = 100, ForeColor = UiTheme.Ink };
+                Controls.Add(lbl2);
+                _cboParty.Items.AddRange(partyOptions);
+                _cboParty.SelectedIndex = 0;
+                Controls.Add(_cboParty);
+            }
+            else _cboParty.Visible = false;
+
+            int btnTop = showParty ? 136 : 76;
+            var ok = new Button { Text = "Add", Left = 196, Top = btnTop, Width = 80, Height = 30, DialogResult = DialogResult.OK, FlatStyle = FlatStyle.Flat };
+            var cancel = new Button { Text = "Cancel", Left = 284, Top = btnTop, Width = 80, Height = 30, DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat };
+            ok.Click += (s, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(_txtLabel.Text))
+                {
+                    MessageBox.Show(this, "Type what the requirement is.", "Required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.None;
+                }
+            };
+            Controls.Add(ok); Controls.Add(cancel);
+            AcceptButton = ok; CancelButton = cancel;
+            _txtLabel.Focus();
         }
     }
 }

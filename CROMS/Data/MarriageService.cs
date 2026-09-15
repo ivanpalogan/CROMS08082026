@@ -251,9 +251,36 @@ namespace CROMS.Data
                             "VALUES (@t, @id, @p, @c, @l)",
                         P("@t", ownerType), P("@id", ownerId), P("@p", n.Party), P("@c", n.Code), P("@l", n.Label));
             foreach (ReqRow r in rows)
-                if (!needs.Any(n => n.Code == r.Code && n.Party == r.Party) && r.Status == "Missing" &&
+                // A custom row (added by staff via "+ Add Requirement", never produced by the
+                // rules engine) is never swept here - it isn't in `needs` by definition, and the
+                // Missing/no-attachment guard below would otherwise delete it the moment it's
+                // created, on the very next save that calls SyncRequirements.
+                if (!IsCustomCode(r.Code) &&
+                    !needs.Any(n => n.Code == r.Code && n.Party == r.Party) && r.Status == "Missing" &&
                     !r.HasAttachment && string.IsNullOrWhiteSpace(r.ReferenceNo) && string.IsNullOrWhiteSpace(r.GivenBy) && !r.DocDate.HasValue)
                     Db.Push("DELETE FROM marriage_requirements WHERE id = @id", P("@id", r.Id));
+        }
+
+        private const string CustomCodePrefix = "CUSTOM-";
+        public static bool IsCustomCode(string code) { return code != null && code.StartsWith(CustomCodePrefix, StringComparison.Ordinal); }
+
+        /// <summary>
+        /// Adds an ad hoc requirement the office's own catalogue doesn't list (a document a
+        /// particular case turns out to need that PSA MC 2024-17 / the licence rules don't name).
+        /// Staff type the label themselves, so it carries no legal_basis/rule_key and is never
+        /// Blocking - it is a record-keeping convenience, not a new statutory requirement CROMS
+        /// invented. `IsCustomCode` is what keeps SyncRequirements from deleting it again.
+        /// </summary>
+        public static ReqRow AddCustomRequirement(string ownerType, int ownerId, string party, string label)
+        {
+            if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Requirement name is required.");
+            string code = CustomCodePrefix + Guid.NewGuid().ToString("N").Substring(0, 10).ToUpperInvariant();
+            long id = Db.Insert(
+                "INSERT INTO marriage_requirements (owner_type, owner_id, party, req_code, req_label) VALUES (@t, @id, @p, @c, @l)",
+                P("@t", ownerType), P("@id", ownerId), P("@p", string.IsNullOrWhiteSpace(party) ? "Both" : party),
+                P("@c", code), P("@l", label.Trim()));
+            History(ownerType, ownerId, "Requirement", null, "Missing", code + " added (custom: " + label.Trim() + ")");
+            return Requirements(ownerType, ownerId).First(r => r.Id == (int)id);
         }
 
         // ================================================================ licences

@@ -86,6 +86,7 @@ namespace CROMS.Forms
             var reqHead = MUi.Txt("REQUIREMENTS CHECKLIST", 9F, FontStyle.Bold, UiTheme.Muted);
             reqHead.Dock = DockStyle.Top; reqHead.Height = 22; reqHead.BackColor = Color.Transparent;
             _grid.Dock = DockStyle.Top; _grid.Margin = new Padding(0, 0, 0, 10);
+            _grid.AllowAddCustom = true; // this case may need a document PSA MC 2024-17's own checklist doesn't name
             _grid.Changed += () => Refresh_();
 
             var evalCard = MUi.Card(new Padding(16, 12, 16, 12));
