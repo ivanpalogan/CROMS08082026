@@ -71,6 +71,9 @@ namespace CROMS.Forms
         private readonly Panel _rail = new Panel();
         private readonly Button _back = MUi.Btn("< Back", MUi.Kind.Ghost, 90), _save = MUi.Btn("Save draft", MUi.Kind.Secondary, 110),
                                 _next = MUi.Btn("Next >", MUi.Kind.Primary, 110), _issue = MUi.Btn("Issue license", MUi.Kind.Success, 130);
+        // Admin-only: bypass missing/unverified requirement attachments so the licence can still
+        // issue (backlog request 2026-09-16). Never bypasses posting/payment/impediment/under-18.
+        private readonly Button _adminOverride = MUi.Btn("Admin Override", MUi.Kind.Secondary, 140);
         // Municipal Form 90 itself, filled in - the paper the applicants sign.
         private readonly Button _printApp = MUi.Btn("Print application (MF-90)", MUi.Kind.Secondary, 200);
         // Consent (MF-06) / Advice (MF-68) - printed only for whichever party the age band applies to.
@@ -171,8 +174,8 @@ namespace CROMS.Forms
             var left = new FlowLayoutPanel { Dock = DockStyle.Left, Width = 440, BackColor = Color.Transparent };
             left.Controls.Add(_back); left.Controls.Add(_save); left.Controls.Add(_printApp);
             left.Controls.Add(_printConsent); left.Controls.Add(_printAdvice);
-            var right = new FlowLayoutPanel { Dock = DockStyle.Right, Width = 270, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.Transparent };
-            right.Controls.Add(_next); right.Controls.Add(_issue);
+            var right = new FlowLayoutPanel { Dock = DockStyle.Right, Width = 420, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.Transparent };
+            right.Controls.Add(_next); right.Controls.Add(_issue); right.Controls.Add(_adminOverride);
             _footReason.AutoSize = false; _footReason.Dock = DockStyle.Fill; _footReason.TextAlign = ContentAlignment.MiddleRight; _footReason.AutoEllipsis = true;
             footer.Controls.Add(_footReason); footer.Controls.Add(right); footer.Controls.Add(left);
             _back.Click += (s, e) => GoTo(_step - 1);
@@ -182,6 +185,7 @@ namespace CROMS.Forms
             _printConsent.Click += (s, e) => PrintConsent();
             _printAdvice.Click += (s, e) => PrintAdvice();
             _issue.Click += (s, e) => OpenIssue();
+            _adminOverride.Click += (s, e) => DoAdminOverride();
 
             var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = UiTheme.Surface, Margin = new Padding(0) };
             body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -794,10 +798,40 @@ namespace CROMS.Forms
             _saveFinding.Enabled = MarriageService.IsRegistrar && !_readOnly;
         }
 
+        /// <summary>Every blocking issue, minus requirement/attachment issues an Admin has overridden.</summary>
         private List<RuleIssue> IssueIssues()
         {
             if (_l.Id <= 0) return new List<RuleIssue> { new RuleIssue(RuleSeverity.Blocking, "UNSAVED", "Save the application first.", "Applicants") };
-            return MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s).Where(i => i.Blocks).ToList();
+            List<RuleIssue> issues = MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s).Where(i => i.Blocks).ToList();
+            return MarriageRules.ApplyOverride(issues, _l);
+        }
+
+        /// <summary>The same issues, WITHOUT the override applied - used only to decide whether
+        /// the Admin Override button has anything to offer (there is no point overriding when
+        /// nothing is actually missing).</summary>
+        private bool HasOverridableIssues()
+        {
+            if (_l.Id <= 0) return false;
+            return MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s).Where(i => i.Blocks).Any(i => i.Code.StartsWith("REQ_"));
+        }
+
+        private void DoAdminOverride()
+        {
+            if (_l.RequirementsOverrideBy.HasValue)
+            {
+                if (!MUi.Confirm(this, "Withdraw override", "Withdraw the requirements override on this application?",
+                        "Reason on file|" + _l.RequirementsOverrideReason)) return;
+                try { MarriageService.ClearRequirementsOverride(_l.Id); Reload(); }
+                catch (Exception ex) { MUi.Fail(this, ex); }
+                return;
+            }
+            string reason = MUi.Ask(this, "Admin Override",
+                "This application has missing or unverified requirement attachments (birth certificate, valid ID, CENOMAR, parental consent/advice, etc.). " +
+                "Issuing it anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\n" +
+                "This does NOT bypass posting, payment, an unresolved impediment, or the under-18 rule.\n\nReason for overriding:", "");
+            if (reason == null) return;
+            try { MarriageService.OverrideRequirements(_l.Id, reason); Reload(); }
+            catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
         private void RefreshIssue()
@@ -840,7 +874,13 @@ namespace CROMS.Forms
             };
             _checklist.Controls.Add(line(i => new[] { "NAME", "CITIZENSHIP", "CIVIL", "DOB_MISSING", "DOB_FUTURE", "UNDER_18", "IMPEDIMENT", "UNSAVED" }.Contains(i.Code), "", "Application complete"));
             _checklist.Controls.Add(line(i => new[] { "NOT_POSTED", "POSTING", "ON_HOLD", "STATE" }.Contains(i.Code), "", "Posting complete"));
-            _checklist.Controls.Add(line(i => i.Code.StartsWith("REQ_") && !i.Code.Contains("PARENTAL") && !i.Code.Contains("COUNSELING"), "", "Requirements complete"));
+            if (_l.RequirementsOverrideBy.HasValue)
+            {
+                var ovLine = MUi.Txt("⚠  Requirements complete - OVERRIDDEN BY ADMIN: " + _l.RequirementsOverrideReason, 9.5F, FontStyle.Bold, UiTheme.Warning);
+                ovLine.MaximumSize = new Size(PageWidth, 0); ovLine.Margin = new Padding(0, 3, 0, 3);
+                _checklist.Controls.Add(ovLine);
+            }
+            else _checklist.Controls.Add(line(i => i.Code.StartsWith("REQ_") && !i.Code.Contains("PARENTAL") && !i.Code.Contains("COUNSELING"), "", "Requirements complete"));
             _checklist.Controls.Add(line(i => i.Code.Contains("PARENTAL") || i.Code.Contains("COUNSELING"), "", "Consent & advice complete"));
             _checklist.Controls.Add(line(i => i.Code == "PAYMENT", "", "Payment recorded"));
             _checklist.ResumeLayout();
@@ -872,13 +912,17 @@ namespace CROMS.Forms
             items.Add(stage);
 
             items.Add(MUi.Cap("Outstanding"));
+            bool overridden = _l.RequirementsOverrideBy.HasValue;
             int missing = 0;
             LicenseFacts cur = Current();
             foreach (Need n in needs)
             {
                 ReqRow r = MarriageRules.RowFor(_l.Requirements, n);
                 bool ok = MarriageRules.Satisfied(r);
-                if (!ok && n.Blocking) missing++;
+                // An override lifts these off the gating count (see MarriageRules.ApplyOverride)
+                // but the item still shows unresolved - the office still needs it, an Admin only
+                // decided not to wait for it.
+                if (!ok && n.Blocking && !overridden) missing++;
                 string who = n.Party == "Both" ? "" : " - " + (n.Party == "Wife" ? cur.Wife.Called : cur.Husband.Called);
                 string label = ShortLabel(n.Code) + who;
                 var l = MUi.Txt((ok ? "✓ " : "✕ ") + label + (r != null && !ok && r.Status != "Missing" ? " (" + r.Status.ToLowerInvariant() + ")" : ""),
@@ -893,8 +937,15 @@ namespace CROMS.Forms
                 var l = MUi.Txt((paid ? "✓ " : "✕ ") + "Payment (Treasury O.R.)", 9F, FontStyle.Regular, paid ? UiTheme.Success : UiTheme.Danger);
                 l.AutoSize = false; l.Height = 22; items.Add(l);
             }
+            if (overridden)
+            {
+                var ov = MUi.Txt("⚠ Requirements overridden by Admin: " + _l.RequirementsOverrideReason, 9F, FontStyle.Bold, UiTheme.Warning);
+                ov.AutoSize = false; ov.Height = 34; ov.MaximumSize = new Size(PageWidth, 0);
+                items.Add(ov);
+            }
             var sum = new Banner();
             if (_l.IssueDate.HasValue) sum.Set(RuleSeverity.Info, "Licence issued.", null, true);
+            else if (overridden && missing == 0 && IssueIssues().Count == 0) sum.Set(RuleSeverity.Warning, "Ready to issue - requirements overridden.", _l.RequirementsOverrideReason, true);
             else if (missing == 0 && IssueIssues().Count == 0) sum.Set(RuleSeverity.Info, "Ready to issue.", "All checks pass.", true);
             else if (missing == 0) sum.Set(RuleSeverity.Warning, "Documents complete.", "Issue License waits for posting to complete.");
             else sum.Set(RuleSeverity.Blocking, missing + " ITEM" + (missing == 1 ? "" : "S") + " OUTSTANDING", "Issue License remains unavailable.");
@@ -946,11 +997,17 @@ namespace CROMS.Forms
             _next.Enabled = _step < StepNames.Length - 1;
             _save.Enabled = !_readOnly;
             _save.Text = _dirty ? "Save draft *" : "Save draft";
-            if (_l.IssueDate.HasValue) { _issue.Enabled = false; _footReason.Text = "Licence " + _l.LicenseNo + " issued " + MUi.D(_l.IssueDate) + "."; return; }
+            if (_l.IssueDate.HasValue) { _issue.Enabled = false; _adminOverride.Visible = false; _footReason.Text = "Licence " + _l.LicenseNo + " issued " + MUi.D(_l.IssueDate) + "."; return; }
+
+            bool overridden = _l.RequirementsOverrideBy.HasValue;
+            _adminOverride.Visible = MarriageService.IsAdmin && !_dirty && (overridden || HasOverridableIssues());
+            _adminOverride.Text = overridden ? "Withdraw Override" : "Admin Override";
+
             List<RuleIssue> issues = IssueIssues();
             _issue.Enabled = issues.Count == 0 && !_dirty;
             _footReason.ForeColor = issues.Count == 0 ? UiTheme.Success : UiTheme.Muted;
             _footReason.Text = _dirty ? "Unsaved changes - save the draft first."
+                : overridden && issues.Count == 0 ? "Requirements overridden by Admin - ready to issue."
                 : issues.Count == 0 ? "All checks pass - ready to issue."
                 : "Issue unavailable: " + issues[0].Message + (issues.Count > 1 ? "  (+" + (issues.Count - 1) + " more)" : "");
         }
