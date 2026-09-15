@@ -1182,6 +1182,10 @@ namespace CROMS.Forms
         // "&&": UiTheme owner-draws buttons with TextRenderer, which eats a single '&' as a
         // mnemonic - the render showed "ISSUE _PRINT LICENSE". Same convention as the sidebar.
         private readonly Button _go = MUi.Btn("ISSUE && PRINT LICENSE", MUi.Kind.Success, 210);
+        // No emoji glyph - UiTheme owner-draws buttons via TextRenderer, which cannot render a
+        // colour emoji (same trap fixed on the Login eye button 2026-08-29). Plain text only.
+        private readonly Button _override = MUi.Btn("Admin Override - Missing Requirements", MUi.Kind.Secondary, 300);
+        private readonly Label _overrideStatus = MUi.Txt("", 9F, FontStyle.Regular, UiTheme.Warning);
 
         public IssueLicenseForm(LicenseFacts l)
         {
@@ -1213,6 +1217,7 @@ namespace CROMS.Forms
                 Check("Posting complete (" + MUi.Short(l.PostingStart) + " - " + MUi.D(l.PostingEnd) + ")", !all.Any(i => i.Code == "POSTING" || i.Code == "NOT_POSTED")),
                 Check("Requirements complete", !all.Any(i => i.Code.StartsWith("REQ_") && !i.Code.Contains("PARENTAL") && !i.Code.Contains("COUNSELING"))),
                 Check("Consent / advice complete", !all.Any(i => i.Code.Contains("PARENTAL") || i.Code.Contains("COUNSELING"))),
+                OverrideRow(),
                 Check("Payment recorded" + (string.IsNullOrEmpty(l.PaymentOr) ? "" : " - O.R. " + l.PaymentOr), !all.Any(i => i.Code == "PAYMENT")),
                 MUi.Cap("License"),
             };
@@ -1239,8 +1244,48 @@ namespace CROMS.Forms
             _date.ValueChanged += (s, e) => Recompute();
             preview.Click += (s, e) => LicensePrinter.Show(this, Hypothetical(), true);
             _go.Click += (s, e) => DoIssue();
+            _override.Click += (s, e) => DoOverride();
             UiTheme.Polish(this);
             Recompute();
+        }
+
+        /// <summary>
+        /// Admin-only row: lets an Admin record (or withdraw) a requirements override on this
+        /// application. Hidden for a Registrar - the power is intentionally narrower than the
+        /// usual Registrar-or-Admin gate elsewhere on this table (see MarriageService.OverrideRequirements).
+        /// </summary>
+        private Control OverrideRow()
+        {
+            var p = new Panel { Height = 66, BackColor = Color.Transparent, Visible = MarriageService.IsAdmin };
+            _override.Location = new Point(0, 0);
+            _overrideStatus.AutoSize = false; _overrideStatus.Location = new Point(0, 38); _overrideStatus.Size = new Size(560, 26);
+            p.Controls.Add(_override); p.Controls.Add(_overrideStatus);
+            return p;
+        }
+
+        private void DoOverride()
+        {
+            if (_l.RequirementsOverrideBy.HasValue)
+            {
+                if (!MUi.Confirm(this, "Withdraw override", "Withdraw the requirements override on this application?",
+                        "Reason on file|" + _l.RequirementsOverrideReason)) return;
+                try { MarriageService.ClearRequirementsOverride(_l.Id); _l.RequirementsOverrideBy = null; _l.RequirementsOverrideReason = null; Recompute(); }
+                catch (Exception ex) { MUi.Fail(this, ex); }
+                return;
+            }
+            string reason = MUi.Ask(this, "Admin Override",
+                "This application is missing or has unverified requirement attachments. Issuing it anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\nReason for overriding:", "");
+            if (reason == null) return;
+            try
+            {
+                MarriageService.OverrideRequirements(_l.Id, reason);
+                LicenseFacts fresh = MarriageService.LoadLicense(_l.Id);
+                _l.RequirementsOverrideBy = fresh.RequirementsOverrideBy;
+                _l.RequirementsOverrideAt = fresh.RequirementsOverrideAt;
+                _l.RequirementsOverrideReason = fresh.RequirementsOverrideReason;
+                Recompute();
+            }
+            catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
         private static Control Check(string text, bool ok)
@@ -1255,10 +1300,19 @@ namespace CROMS.Forms
             DateTime d = _date.Value.Date;
             _no.Text = MarriageService.PeekNextLicenseNo(d) + "   (assigned on issue)";
             _valid.Text = "Valid until  " + MUi.D(MarriageRules.Expiry(d, _s));
-            List<RuleIssue> issues = MarriageRules.ValidateForIssue(_l, MarriageService.Catalog(), d, _s).Where(i => i.Blocks).ToList();
+            List<RuleIssue> rawIssues = MarriageRules.ValidateForIssue(_l, MarriageService.Catalog(), d, _s).Where(i => i.Blocks).ToList();
+            List<RuleIssue> issues = MarriageRules.ApplyOverride(rawIssues, _l);
             _issues.SetIssues(issues, "Every check passes for this issue date.");
             _go.Enabled = issues.Count == 0 && MarriageService.IsRegistrar;
             if (!MarriageService.IsRegistrar) _issues.SetIssues(new[] { new RuleIssue(RuleSeverity.Blocking, "ROLE", "Only a Registrar or Admin can issue a licence.", null) });
+
+            bool hasReqIssues = rawIssues.Any(i => i.Code.StartsWith("REQ_"));
+            bool active = _l.RequirementsOverrideBy.HasValue;
+            _override.Text = active ? "Withdraw Requirements Override" : "Admin Override - Missing Requirements";
+            _override.Visible = MarriageService.IsAdmin && (hasReqIssues || active);
+            _overrideStatus.Text = active
+                ? "OVERRIDDEN: " + _l.RequirementsOverrideReason
+                : (hasReqIssues ? "Missing/unverified requirement attachments are blocking this licence." : "");
         }
 
         private LicenseFacts Hypothetical()

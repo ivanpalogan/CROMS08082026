@@ -193,6 +193,15 @@ namespace CROMS.Data
         public decimal? PaymentAmount;
         public DateTime? PaymentDate;
         public int? OverrideBy;
+        /// <summary>
+        /// An Admin's decision to issue despite missing/unverified requirements (attachments the
+        /// client could not supply). Set only by <see cref="MarriageService.OverrideRequirements"/>,
+        /// which requires the Admin role and a written reason - never silently, never by a
+        /// Registrar. See <see cref="ApplyOverride"/> for what it does and does not bypass.
+        /// </summary>
+        public int? RequirementsOverrideBy;
+        public DateTime? RequirementsOverrideAt;
+        public string RequirementsOverrideReason;
         public List<ReqRow> Requirements = new List<ReqRow>();
         public int? UsedByMarriageId;
         public string UsedByRegistryNo, UsedByStatus;
@@ -586,6 +595,20 @@ namespace CROMS.Data
                 list.Add(new RuleIssue(RuleSeverity.Blocking, "REQ_" + n.Code, NotSatisfiedText(n, r, h, w), where));
             }
             return list;
+        }
+
+        /// <summary>
+        /// Drops requirement-shaped issues (Code starting "REQ_" - missing/unverified attachments)
+        /// from a blocking-issue list when an Admin has recorded a requirements override on this
+        /// licence. Everything else - under-18 (HardStop, never in this list to begin with),
+        /// posting not complete, an unresolved impediment, no payment recorded, wrong status -
+        /// stays blocking regardless: those are legal/workflow gates, not paperwork the client
+        /// could not supply, and an Admin override is not a licence to skip them.
+        /// </summary>
+        public static List<RuleIssue> ApplyOverride(List<RuleIssue> issues, LicenseFacts l)
+        {
+            if (l == null || !l.RequirementsOverrideBy.HasValue) return issues;
+            return issues.Where(i => !i.Code.StartsWith("REQ_")).ToList();
         }
 
         // ---------------------------------------------------- applicant data

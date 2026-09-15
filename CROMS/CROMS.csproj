@@ -688,6 +688,7 @@
     <None Include="Database\45_out_of_province_license.sql" />
     <None Include="Database\46_marriage_registration_birthplace.sql" />
     <None Include="Database\47_staff_biodata.sql" />
+    <None Include="Database\48_marriage_requirements_override.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>

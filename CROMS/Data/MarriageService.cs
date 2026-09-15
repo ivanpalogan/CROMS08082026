@@ -93,6 +93,17 @@ namespace CROMS.Data
                 throw new UnauthorizedAccessException("Only a Registrar or Admin can " + action + ".");
         }
 
+        public static bool IsAdmin
+        {
+            get { return Session.User != null && Session.User.Role == "Admin"; }
+        }
+
+        private static void RequireAdmin(string action)
+        {
+            if (!IsAdmin)
+                throw new UnauthorizedAccessException("Only an Admin can " + action + ".");
+        }
+
         private static bool DuplicateOn(MySqlException ex, string index)
         {
             return ex != null && ex.Number == 1062 && ex.Message != null &&
@@ -274,7 +285,10 @@ namespace CROMS.Data
                 PaymentOr = Col(r, "payment_or_no"), PaymentDate = ColD(r, "payment_date"),
                 ImpedimentNote = Col(r, "impediment_note"), HoldReason = Col(r, "hold_reason"),
                 CancelReason = Col(r, "cancel_reason"), Remarks = Col(r, "remarks"),
-                OverrideBy = r.Table.Columns.Contains("registrar_override_by") ? Int(r["registrar_override_by"]) : null
+                OverrideBy = r.Table.Columns.Contains("registrar_override_by") ? Int(r["registrar_override_by"]) : null,
+                RequirementsOverrideBy = r.Table.Columns.Contains("requirements_override_by") ? Int(r["requirements_override_by"]) : null,
+                RequirementsOverrideAt = ColD(r, "requirements_override_at"),
+                RequirementsOverrideReason = Col(r, "requirements_override_reason")
             };
             if (r.Table.Columns.Contains("payment_amount") && r["payment_amount"] != DBNull.Value)
                 l.PaymentAmount = Convert.ToDecimal(r["payment_amount"]);
@@ -544,6 +558,35 @@ namespace CROMS.Data
             History("License", id, "Registrar finding", null, null, note);
         }
 
+        /// <summary>
+        /// Admin-only power: let a licence issue despite missing/unverified requirement
+        /// attachments (a client cannot supply every document, but the office still needs to
+        /// issue). Requires a written reason, is Admin-only (narrower than the usual
+        /// Registrar-or-Admin gate on this table), and only lifts the requirement checks -
+        /// posting, payment, an unresolved impediment and the under-18 hard stop are untouched;
+        /// see <see cref="MarriageRules.ApplyOverride"/>. Always audited, on this table and in
+        /// audit_log, and the licence itself carries who/when/why permanently.
+        /// </summary>
+        public static void OverrideRequirements(int id, string reason)
+        {
+            RequireAdmin("override missing marriage licence requirements");
+            if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A reason is required to override missing requirements.");
+            Db.Push("UPDATE marriage_licenses SET requirements_override_by=@u, requirements_override_at=NOW(), requirements_override_reason=@r WHERE id=@id",
+                P("@u", UserId), P("@r", reason), P("@id", id));
+            History("License", id, "Requirements overridden by Admin", null, null, reason);
+            Audit.Write(Audit.Update, "marriage_licenses", id, "Requirements override recorded: " + reason);
+        }
+
+        /// <summary>Withdraws a requirements override (e.g. entered by mistake) before the licence is issued.</summary>
+        public static void ClearRequirementsOverride(int id)
+        {
+            RequireAdmin("withdraw a marriage licence requirements override");
+            Db.Push("UPDATE marriage_licenses SET requirements_override_by=NULL, requirements_override_at=NULL, requirements_override_reason=NULL WHERE id=@id",
+                P("@id", id));
+            History("License", id, "Requirements override withdrawn", null, null, null);
+            Audit.Write(Audit.Update, "marriage_licenses", id, "Requirements override withdrawn");
+        }
+
         public static void Hold(int id, string reason)
         {
             LicenseFacts l = LoadLicense(id);
@@ -586,6 +629,7 @@ namespace CROMS.Data
             LicenseFacts l = LoadLicense(id);
             if (l == null) throw new InvalidOperationException("Application not found.");
             List<RuleIssue> issues = MarriageRules.ValidateForIssue(l, Catalog(), issueDate, Settings).Where(i => i.Blocks).ToList();
+            issues = MarriageRules.ApplyOverride(issues, l);
             if (issueDate.Date > DateTime.Today)
                 issues.Add(new RuleIssue(RuleSeverity.Blocking, "FUTURE", "Issue date cannot be in the future.", "Issue License"));
             if (issues.Count > 0) return issues;
@@ -603,8 +647,10 @@ namespace CROMS.Data
                             "issued_by=@u, issued_at=NOW() WHERE id=@id AND status='Posting'",
                             P("@no", no), P("@i", issueDate.Date), P("@x", expiry), P("@u", UserId), P("@id", id));
                         if (n != 1) throw new InvalidOperationException("The application changed while it was being issued - reload it.");
-                        History("License", id, "Licence issued", "Posting", "Issued",
-                            no + " issued " + MarriageRules.D(issueDate) + ", valid until " + MarriageRules.D(expiry), c, t);
+                        string note = no + " issued " + MarriageRules.D(issueDate) + ", valid until " + MarriageRules.D(expiry);
+                        if (l.RequirementsOverrideBy.HasValue)
+                            note += " [ISSUED WITH REQUIREMENTS OVERRIDDEN: " + l.RequirementsOverrideReason + "]";
+                        History("License", id, "Licence issued", "Posting", "Issued", note, c, t);
                     });
                     licenseNo = no;
                     break;
