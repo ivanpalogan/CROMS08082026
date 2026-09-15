@@ -1295,3 +1295,41 @@ husband/wife fields already, filled by staff or by Document AI's `PrimeFromExtra
 kiosk data was not connected to it). The two names + two photos are captured on the ticket for
 whoever serves it to see (front-desk / a future Release & Claim style viewer), not auto-piped
 into the registration record.
+
+### 2026-09-16 — Fresh-machine build fix: Crystal Reports, WinRT SDK path, native Tesseract DLLs
+Opening the solution on a NEW machine (this one) failed to build with `CertificateViewerForm.cs`
+unable to resolve `ReportDocument`/`CrystalReportViewer` (CS0246). Root cause, confirmed by
+checking the GAC directly: the four `CrystalDecisions.*` references were GAC-only (no HintPath),
+resolved against "SAP Crystal Reports for .NET Framework 13.0.4000.0 installed per-machine" per
+the 2026-09-06 assumption — which is true on the original dev machine and false here. That
+assumption breaks the whole COMPILE (not just the Crystal code paths) on any machine that hasn't
+separately installed the Crystal runtime, which is a much bigger blast radius than intended: the
+design goal ("a PC without the runtime still runs CROMS") is about runtime assembly LOADING via
+`CertificateReport.CrystalAvailable`, not about compiling without the DLLs being findable at all.
+
+Fixed the same way this project already handles Tesseract and QRCoder: found the real
+`CrystalDecisions.*.dll` set (16 files) inside a previously-published client bundle in Downloads,
+copied them into a new `CROMS/Libs/CrystalReports/` folder checked into the repo, and pointed the
+four existing References at them via `HintPath` (kept `Private=False`, unchanged — they still do
+NOT get copied to `bin\Debug` or a client bundle, so the "PC without the runtime" fallback is
+unaffected; `HintPath` only helps the COMPILER find them). No version/PublicKeyToken changed.
+
+Two more machine-specific breaks surfaced once that was fixed, both pre-existing hardcoded paths
+that just happened to differ from what's installed here — fixed the same pragmatic way:
+  - `Reference Include="Windows"` pointed at
+    `...\Windows Kits\10\UnionMetadata\10.0.26100.0\Windows.winmd` (used only by
+    `Data/HotspotInfo.cs`'s WinRT mobile-hotspot read); this machine has SDK 10.0.19041.0
+    installed, not 26100. Repointed the HintPath at the installed version. This is a per-machine
+    path like the old Crystal reference was — if a future machine has yet another SDK version,
+    the fix is the same (check `...\UnionMetadata\` for what's actually installed).
+  - `CROMS/Tesseract/x64/` and `x86/` (the native `leptonica-1.80.0.dll` + `tesseract41.dll`)
+    are `.gitignore`d outright (lines 24-25: `x64/`, `x86/`) — deliberately never tracked, so
+    every dev machine needs its own copy supplied out-of-band. Copied them from the vendored
+    NuGet package cache still sitting in `Downloads\itobago\...\packages\Tesseract.4.1.1\` (the
+    same package this project's `packages.config` names). Untracked/gitignored as before — this
+    is a local-machine fix only, nothing to commit for it.
+
+VERIFIED: `MSBuild CROMS.sln /p:Configuration=Debug` — all three projects build clean (CROMS,
+CROMS.Display, CROMS.Kiosk), 0 errors, via VS2019 Community's MSBuild (this machine has no
+VS2022). Only `CROMS.csproj` + the new `CROMS/Libs/CrystalReports/` folder are new to git; the
+Tesseract native DLLs are correctly gitignored and were not staged.
