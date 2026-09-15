@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Modules;
@@ -47,6 +49,7 @@ namespace CROMS.Forms
             FilterManual("");
             BuildFormsTab();
             BuildUpdatesTab();
+            BuildMonitoringTab();
         }
 
         // =====================================================================
@@ -175,7 +178,7 @@ namespace CROMS.Forms
             LoadWindows();
         }
 
-        public void RefreshData() => LoadWindows();
+        public void RefreshData() { LoadWindows(); LoadMonitoring(); }
 
         // =====================================================================
         //  App Updates tab — publish a new release to clients (server) + one-click
@@ -285,6 +288,309 @@ namespace CROMS.Forms
             else
                 MessageBox.Show("Update failed: " + err, "Update", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+
+        // =====================================================================
+        //  Activity Monitoring tab — VIEW ONLY, nothing here can be edited or
+        //  deleted from the screen. Answers, for any date range: who signed in,
+        //  what they did (create/update/delete/login/logout), which record/client
+        //  it touched, and — separately flagged — any requirement that was
+        //  OVERRIDDEN or WAIVED instead of actually satisfied (marriage licence
+        //  requirements and delayed-birth-registration requirements share the same
+        //  marriage_requirements/marriage_history tables, so one query covers both).
+        //  Source data: `audit_log` (every Create/Update/Delete/Login/Logout the app
+        //  writes — see Data/Audit.cs) plus `marriage_history` rows where a
+        //  requirement's status was set to Waived, or an admin override was recorded
+        //  (MarriageService.RecordOverride/WithdrawOverride). Nothing is aggregated
+        //  or summarized away — every row is a real, individually-attributed event.
+        // =====================================================================
+        private DataGridView dgvMonitor;
+        private DateTimePicker dtpMonFrom, dtpMonTo;
+        private ComboBox cboMonUser;
+        private CheckBox chkMonFlaggedOnly;
+        private TextBox txtMonSearch;
+        private Label lblMonCount;
+
+        private void BuildMonitoringTab()
+        {
+            var tab = new TabPage("Activity Monitoring") { BackColor = Color.White, Padding = new Padding(3) };
+
+            tab.Controls.Add(new Label
+            {
+                Text = "Activity Monitoring", AutoSize = true, Location = new Point(20, 18),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold), ForeColor = Color.FromArgb(33, 37, 41)
+            });
+            tab.Controls.Add(new Label
+            {
+                Text = "Who signed in and what they did, by date. VIEW ONLY — nothing on this " +
+                       "screen can be changed. Rows marked ⚠ Bypass are a requirement that was " +
+                       "overridden or waived instead of satisfied.",
+                AutoSize = true, Location = new Point(22, 50), Font = new Font("Segoe UI", 9.5F),
+                ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            // --- filter bar ---
+            int fy = 86;
+            tab.Controls.Add(Cap2("From", 22, fy));
+            dtpMonFrom = new DateTimePicker
+            {
+                Location = new Point(22, fy + 20), Size = new Size(130, 26),
+                Format = DateTimePickerFormat.Short, Value = DateTime.Today
+            };
+            tab.Controls.Add(dtpMonFrom);
+
+            tab.Controls.Add(Cap2("To", 164, fy));
+            dtpMonTo = new DateTimePicker
+            {
+                Location = new Point(164, fy + 20), Size = new Size(130, 26),
+                Format = DateTimePickerFormat.Short, Value = DateTime.Today
+            };
+            tab.Controls.Add(dtpMonTo);
+
+            var btnToday = new Button
+            {
+                Text = "Today", Location = new Point(304, fy + 20), Size = new Size(70, 26),
+                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9F)
+            };
+            btnToday.Click += (s, e) => { dtpMonFrom.Value = DateTime.Today; dtpMonTo.Value = DateTime.Today; LoadMonitoring(); };
+            tab.Controls.Add(btnToday);
+
+            tab.Controls.Add(Cap2("User", 388, fy));
+            cboMonUser = new ComboBox
+            {
+                Location = new Point(388, fy + 20), Size = new Size(170, 26),
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            tab.Controls.Add(cboMonUser);
+
+            tab.Controls.Add(Cap2("Search (client, transaction, record...)", 572, fy));
+            txtMonSearch = new TextBox { Location = new Point(572, fy + 20), Size = new Size(260, 26) };
+            tab.Controls.Add(txtMonSearch);
+
+            chkMonFlaggedOnly = new CheckBox
+            {
+                Text = "⚠ Flagged only (bypassed requirements + failed sign-ins)",
+                Location = new Point(844, fy + 22), AutoSize = true,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), ForeColor = Color.FromArgb(180, 83, 9)
+            };
+            tab.Controls.Add(chkMonFlaggedOnly);
+
+            var btnRefresh = new Button
+            {
+                Text = "Refresh", Location = new Point(22, fy + 54), Size = new Size(90, 30),
+                FlatStyle = FlatStyle.Flat, ForeColor = Color.White,
+                BackColor = Color.FromArgb(13, 110, 253), Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+            };
+            btnRefresh.Click += (s, e) => LoadMonitoring();
+            tab.Controls.Add(btnRefresh);
+
+            var btnExport = new Button
+            {
+                Text = "Export CSV", Location = new Point(118, fy + 54), Size = new Size(100, 30),
+                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9.5F)
+            };
+            btnExport.Click += (s, e) => ExportMonitoringCsv();
+            tab.Controls.Add(btnExport);
+
+            lblMonCount = new Label
+            {
+                Text = "", AutoSize = true, Location = new Point(230, fy + 62),
+                Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(108, 117, 125)
+            };
+            tab.Controls.Add(lblMonCount);
+
+            // --- the log itself: strictly read-only ---
+            dgvMonitor = new DataGridView
+            {
+                Location = new Point(22, fy + 96),
+                Size = new Size(900, 380),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToOrderColumns = false,
+                AllowUserToResizeRows = false,
+                EditMode = DataGridViewEditMode.EditProgrammatically,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BackgroundColor = Color.White,
+                MultiSelect = false
+            };
+            dgvMonitor.CellFormatting += DgvMonitor_CellFormatting;
+            tab.Controls.Add(dgvMonitor);
+
+            tab.Controls.Add(new Label
+            {
+                Text = "Every create, update, delete, sign-in and sign-out the app records, plus any " +
+                       "licence/registration requirement an officer marked Waived or overrode instead " +
+                       "of verifying. This is the same tamper-evident log used by Users & Audit Trail, " +
+                       "filtered here by date and flagged for review.",
+                AutoSize = false, Location = new Point(24, fy + 480), Size = new Size(898, 34),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            tabs.TabPages.Add(tab);
+
+            dtpMonFrom.ValueChanged += (s, e) => LoadMonitoring();
+            dtpMonTo.ValueChanged += (s, e) => LoadMonitoring();
+            cboMonUser.SelectedIndexChanged += (s, e) => LoadMonitoring();
+            chkMonFlaggedOnly.CheckedChanged += (s, e) => LoadMonitoring();
+            txtMonSearch.TextChanged += (s, e) => LoadMonitoring();
+
+            LoadMonUsers();
+            LoadMonitoring();
+        }
+
+        private void LoadMonUsers()
+        {
+            try
+            {
+                DataTable dt = Db.Pull("SELECT username FROM users ORDER BY username");
+                cboMonUser.Items.Clear();
+                cboMonUser.Items.Add("All users");
+                foreach (DataRow r in dt.Rows) cboMonUser.Items.Add(r["username"].ToString());
+                cboMonUser.SelectedIndex = 0;
+            }
+            catch { /* degrade quietly — the filter just stays empty */ }
+        }
+
+        private void LoadMonitoring()
+        {
+            if (dgvMonitor == null) return;
+            try
+            {
+                var ps = new List<MySqlParameter>
+                {
+                    new MySqlParameter("@from", dtpMonFrom.Value.Date),
+                    new MySqlParameter("@to", dtpMonTo.Value.Date)
+                };
+
+                string userClause = "";
+                if (cboMonUser.SelectedIndex > 0)
+                {
+                    userClause = "AND Username = @u";
+                    ps.Add(new MySqlParameter("@u", cboMonUser.SelectedItem.ToString()));
+                }
+
+                string flagClause = chkMonFlaggedOnly.Checked ? "AND FlagReason <> ''" : "";
+
+                string searchClause = "";
+                string term = txtMonSearch.Text.Trim();
+                if (term.Length > 0)
+                {
+                    searchClause = "AND (Details LIKE @q OR Area LIKE @q OR Username LIKE @q OR RecordRef LIKE @q)";
+                    ps.Add(new MySqlParameter("@q", "%" + term + "%"));
+                }
+
+                // audit_log = every create/update/delete/login/logout the app writes (Data/Audit.cs).
+                // marriage_history = requirement-level status moves; only WAIVED rows are surfaced
+                // here as a bypass (Verified/Submitted/Rejected/Missing are ordinary progress, not
+                // an overbypass of a requirement).
+                string sql =
+                    "SELECT * FROM (" +
+                    "  SELECT a.created_at AS EventAt, COALESCE(u.username,'—') AS Username, " +
+                    "         COALESCE(u.full_name,'—') AS FullName, COALESCE(u.role,'—') AS Role, " +
+                    "         a.action AS ActionType, COALESCE(a.table_name,'—') AS Area, " +
+                    "         COALESCE(a.record_id,'—') AS RecordRef, COALESCE(a.details,'') AS Details, " +
+                    "         CASE WHEN a.action = 'Login' AND a.details LIKE 'Failed sign-in%' THEN 'Failed sign-in' " +
+                    "              WHEN a.details LIKE '%Requirements override%' THEN 'Requirement bypass' " +
+                    "              ELSE '' END AS FlagReason " +
+                    "  FROM audit_log a LEFT JOIN users u ON u.id = a.user_id " +
+                    "  UNION ALL " +
+                    "  SELECT h.created_at, COALESCE(u2.username,'—'), COALESCE(u2.full_name,'—'), COALESCE(u2.role,'—'), " +
+                    "         'Bypass' AS ActionType, h.entity AS Area, CAST(h.entity_id AS CHAR) AS RecordRef, " +
+                    "         CONCAT(h.event, ': ', COALESCE(h.details,'no reason given'), " +
+                    "                ' [', COALESCE(h.from_status,'—'), ' -> Waived]') AS Details, " +
+                    "         'Requirement waived' AS FlagReason " +
+                    "  FROM marriage_history h LEFT JOIN users u2 ON u2.id = h.user_id " +
+                    "  WHERE h.to_status = 'Waived'" +
+                    ") x " +
+                    "WHERE DATE(EventAt) BETWEEN @from AND @to " + userClause + " " + flagClause + " " + searchClause +
+                    " ORDER BY EventAt DESC LIMIT 1000";
+
+                DataTable dt = Db.Pull(sql, ps.ToArray());
+                dgvMonitor.DataSource = dt;
+
+                if (dgvMonitor.Columns.Contains("EventAt"))
+                {
+                    dgvMonitor.Columns["EventAt"].HeaderText = "Date & Time";
+                    dgvMonitor.Columns["EventAt"].DefaultCellStyle.Format = "MMM d, yyyy  h:mm:ss tt";
+                }
+                if (dgvMonitor.Columns.Contains("Username")) dgvMonitor.Columns["Username"].HeaderText = "Username";
+                if (dgvMonitor.Columns.Contains("FullName")) dgvMonitor.Columns["FullName"].HeaderText = "Full Name";
+                if (dgvMonitor.Columns.Contains("Role")) dgvMonitor.Columns["Role"].HeaderText = "Role";
+                if (dgvMonitor.Columns.Contains("ActionType")) dgvMonitor.Columns["ActionType"].HeaderText = "Action";
+                if (dgvMonitor.Columns.Contains("Area")) dgvMonitor.Columns["Area"].HeaderText = "Area / Table";
+                if (dgvMonitor.Columns.Contains("RecordRef")) dgvMonitor.Columns["RecordRef"].HeaderText = "Record";
+                if (dgvMonitor.Columns.Contains("Details")) dgvMonitor.Columns["Details"].HeaderText = "Details (transaction / client)";
+                if (dgvMonitor.Columns.Contains("FlagReason")) dgvMonitor.Columns["FlagReason"].HeaderText = "Flag";
+
+                lblMonCount.Text = dt.Rows.Count + " event(s)" + (dt.Rows.Count == 1000 ? " (showing the most recent 1000 — narrow the date range for the rest)" : "");
+            }
+            catch (Exception ex)
+            {
+                dgvMonitor.DataSource = null;
+                lblMonCount.Text = "Could not load activity: " + ex.Message;
+            }
+        }
+
+        /// <summary>Tints a flagged row so an override/waiver/failed sign-in stands out at a glance.</summary>
+        private void DgvMonitor_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex < 0 || !dgvMonitor.Columns.Contains("FlagReason")) return;
+            object flagVal = dgvMonitor.Rows[e.RowIndex].Cells["FlagReason"].Value;
+            string flag = flagVal?.ToString() ?? "";
+            if (flag.Length == 0) return;
+
+            e.CellStyle.BackColor = Color.FromArgb(255, 243, 224);
+            e.CellStyle.ForeColor = Color.FromArgb(180, 83, 9);
+            if (dgvMonitor.Columns[e.ColumnIndex].Name == "FlagReason" && e.Value != null)
+                e.Value = "⚠ " + e.Value;
+        }
+
+        private void ExportMonitoringCsv()
+        {
+            var dt = dgvMonitor.DataSource as DataTable;
+            if (dt == null || dt.Rows.Count == 0)
+            {
+                MessageBox.Show("Nothing to export.", "Export CSV", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            using (var sfd = new SaveFileDialog
+            {
+                Filter = "CSV file (*.csv)|*.csv",
+                FileName = "activity_" + dtpMonFrom.Value.ToString("yyyyMMdd") + "_" + dtpMonTo.Value.ToString("yyyyMMdd") + ".csv"
+            })
+            {
+                if (sfd.ShowDialog() != DialogResult.OK) return;
+                var sb = new StringBuilder();
+                for (int c = 0; c < dt.Columns.Count; c++)
+                    sb.Append(c == 0 ? "" : ",").Append(MonCsv(dt.Columns[c].ColumnName));
+                sb.AppendLine();
+                foreach (DataRow row in dt.Rows)
+                {
+                    for (int c = 0; c < dt.Columns.Count; c++)
+                        sb.Append(c == 0 ? "" : ",").Append(MonCsv(row[c].ToString()));
+                    sb.AppendLine();
+                }
+                File.WriteAllText(sfd.FileName, sb.ToString());
+                MessageBox.Show("Exported to " + sfd.FileName, "Export CSV", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private static string MonCsv(string value)
+        {
+            if (value.Contains(",") || value.Contains("\"") || value.Contains("\n"))
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            return value;
+        }
+
+        private static Label Cap2(string text, int x, int y) => new Label
+        {
+            Text = text, AutoSize = true, Location = new Point(x, y),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold), ForeColor = Color.FromArgb(108, 117, 125)
+        };
 
         private static Label Section(string text, int x, int y) => new Label
         {
