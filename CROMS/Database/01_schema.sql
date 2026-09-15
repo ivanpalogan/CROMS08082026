@@ -444,6 +444,7 @@ CREATE TABLE IF NOT EXISTS `document_routing` (
 CREATE TABLE IF NOT EXISTS `audit_log` (
   `id`         BIGINT NOT NULL AUTO_INCREMENT,
   `user_id`    INT NULL,
+  `window_id`  INT NULL,          -- the service window the actor was signed in to (see 49_audit_window.sql)
   `action`     ENUM('Create','Update','Delete','Login','Logout') NOT NULL,
   `table_name` VARCHAR(60) NULL,
   `record_id`  VARCHAR(60) NULL,
@@ -452,6 +453,8 @@ CREATE TABLE IF NOT EXISTS `audit_log` (
   PRIMARY KEY (`id`),
   KEY `fk_audit_user` (`user_id`),
   CONSTRAINT `fk_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
+  -- window_id -> windows(id) FK added by 49_audit_window.sql, since the `windows`
+  -- table itself doesn't exist yet at this point in a fresh install (added by 13_windows.sql).
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

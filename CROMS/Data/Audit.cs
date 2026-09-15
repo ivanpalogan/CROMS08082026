@@ -23,9 +23,10 @@ namespace CROMS.Data
             try
             {
                 Db.Push(
-                    "INSERT INTO audit_log (user_id, action, table_name, record_id, details) " +
-                    "VALUES (@u, @a, @t, @r, @d)",
+                    "INSERT INTO audit_log (user_id, window_id, action, table_name, record_id, details) " +
+                    "VALUES (@u, @w, @a, @t, @r, @d)",
                     new MySqlParameter("@u", Session.UserIdParam),
+                    new MySqlParameter("@w", Session.HasWindow ? (object)Session.WindowId : DBNull.Value),
                     new MySqlParameter("@a", action),
                     new MySqlParameter("@t", (object)tableName ?? DBNull.Value),
                     new MySqlParameter("@r", recordId == null ? (object)DBNull.Value : recordId.ToString()),

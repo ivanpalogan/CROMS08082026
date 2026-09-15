@@ -417,6 +417,7 @@ namespace CROMS.Forms
                 MultiSelect = false
             };
             dgvMonitor.CellFormatting += DgvMonitor_CellFormatting;
+            dgvMonitor.CellDoubleClick += DgvMonitor_CellDoubleClick;
             tab.Controls.Add(dgvMonitor);
 
             tab.Controls.Add(new Label
@@ -495,14 +496,18 @@ namespace CROMS.Forms
                     "         COALESCE(a.record_id,'—') AS RecordRef, COALESCE(a.details,'') AS Details, " +
                     "         CASE WHEN a.action = 'Login' AND a.details LIKE 'Failed sign-in%' THEN 'Failed sign-in' " +
                     "              WHEN a.details LIKE '%Requirements override%' THEN 'Requirement bypass' " +
-                    "              ELSE '' END AS FlagReason " +
+                    "              ELSE '' END AS FlagReason, " +
+                    "         COALESCE(w.window_name,'—') AS WindowName, " +
+                    "         a.table_name AS TableRaw, a.record_id AS RecordRaw " +
                     "  FROM audit_log a LEFT JOIN users u ON u.id = a.user_id " +
+                    "                   LEFT JOIN windows w ON w.id = a.window_id " +
                     "  UNION ALL " +
                     "  SELECT h.created_at, COALESCE(u2.username,'—'), COALESCE(u2.full_name,'—'), COALESCE(u2.role,'—'), " +
                     "         'Bypass' AS ActionType, h.entity AS Area, CAST(h.entity_id AS CHAR) AS RecordRef, " +
                     "         CONCAT(h.event, ': ', COALESCE(h.details,'no reason given'), " +
                     "                ' [', COALESCE(h.from_status,'—'), ' -> Waived]') AS Details, " +
-                    "         'Requirement waived' AS FlagReason " +
+                    "         'Requirement waived' AS FlagReason, " +
+                    "         '—' AS WindowName, NULL AS TableRaw, NULL AS RecordRaw " +
                     "  FROM marriage_history h LEFT JOIN users u2 ON u2.id = h.user_id " +
                     "  WHERE h.to_status = 'Waived'" +
                     ") x " +
@@ -525,8 +530,12 @@ namespace CROMS.Forms
                 if (dgvMonitor.Columns.Contains("RecordRef")) dgvMonitor.Columns["RecordRef"].HeaderText = "Record";
                 if (dgvMonitor.Columns.Contains("Details")) dgvMonitor.Columns["Details"].HeaderText = "Details (transaction / client)";
                 if (dgvMonitor.Columns.Contains("FlagReason")) dgvMonitor.Columns["FlagReason"].HeaderText = "Flag";
+                if (dgvMonitor.Columns.Contains("WindowName")) dgvMonitor.Columns["WindowName"].HeaderText = "Window";
+                if (dgvMonitor.Columns.Contains("TableRaw")) dgvMonitor.Columns["TableRaw"].Visible = false;
+                if (dgvMonitor.Columns.Contains("RecordRaw")) dgvMonitor.Columns["RecordRaw"].Visible = false;
 
-                lblMonCount.Text = dt.Rows.Count + " event(s)" + (dt.Rows.Count == 1000 ? " (showing the most recent 1000 — narrow the date range for the rest)" : "");
+                lblMonCount.Text = dt.Rows.Count + " event(s) — double-click a row for details" +
+                    (dt.Rows.Count == 1000 ? " (showing the most recent 1000 — narrow the date range for the rest)" : "");
             }
             catch (Exception ex)
             {
@@ -547,6 +556,186 @@ namespace CROMS.Forms
             e.CellStyle.ForeColor = Color.FromArgb(180, 83, 9);
             if (dgvMonitor.Columns[e.ColumnIndex].Name == "FlagReason" && e.Value != null)
                 e.Value = "⚠ " + e.Value;
+        }
+
+        private void DgvMonitor_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            ShowRowDetail(dgvMonitor.Rows[e.RowIndex]);
+        }
+
+        /// <summary>
+        /// Row-detail popup: record type, window, client name and (for a payment row)
+        /// the payment that was handled. Resolved from TableRaw/RecordRaw — the raw
+        /// table_name/record_id behind that audit_log row — by a per-table lookup,
+        /// since audit_log itself only ever stores a table + numeric id, never a name.
+        /// </summary>
+        private void ShowRowDetail(DataGridViewRow row)
+        {
+            string tableRaw = row.Cells["TableRaw"].Value?.ToString() ?? "";
+            string recordRawStr = row.Cells["RecordRaw"].Value?.ToString() ?? "";
+            string action = row.Cells["ActionType"].Value?.ToString() ?? "";
+            string username = row.Cells["Username"].Value?.ToString() ?? "—";
+            string fullName = row.Cells["FullName"].Value?.ToString() ?? "—";
+            string role = row.Cells["Role"].Value?.ToString() ?? "—";
+            string windowName = row.Cells["WindowName"].Value?.ToString() ?? "—";
+            string eventAt = row.Cells["EventAt"].Value is DateTime dt ? dt.ToString("MMM d, yyyy  h:mm:ss tt") : "—";
+            string details = row.Cells["Details"].Value?.ToString() ?? "";
+            string flag = row.Cells["FlagReason"].Value?.ToString() ?? "";
+
+            string recordType = FriendlyTableName(tableRaw);
+            string clientName = "—";
+            string paymentInfo = null;
+
+            int recId;
+            if (!string.IsNullOrEmpty(tableRaw) && int.TryParse(recordRawStr, out recId))
+                ResolveClientAndPayment(tableRaw, recId, out clientName, out paymentInfo);
+
+            var sb = new StringBuilder();
+            sb.AppendLine("Date & Time:   " + eventAt);
+            sb.AppendLine("Action:        " + action);
+            sb.AppendLine("User:          " + fullName + " (" + username + ")  ·  " + role);
+            sb.AppendLine("Window:        " + windowName);
+            sb.AppendLine("Record type:   " + recordType);
+            sb.AppendLine("Client served: " + clientName);
+            if (paymentInfo != null)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Payment handled:");
+                sb.AppendLine(paymentInfo);
+            }
+            if (flag.Length > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("⚠ Flag: " + flag);
+            }
+            if (details.Length > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Details: " + details);
+            }
+
+            MessageBox.Show(sb.ToString(), "Activity Detail", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static string FriendlyTableName(string tableRaw)
+        {
+            switch (tableRaw)
+            {
+                case "births": return "Birth Registration";
+                case "deaths": return "Death Registration";
+                case "marriages": return "Marriage Registration";
+                case "marriage_licenses": return "Marriage License";
+                case "transactions": return "Transaction";
+                case "certificate_requests": return "Certificate Request";
+                case "releases": return "Release / Claim";
+                case "payments": return "Payment";
+                case "petitions": return "Petition";
+                case "claim_requests": return "Claim Request";
+                case "breqs_requests": return "PSA Copy Request (BREQS)";
+                case "queue_tickets": return "Queue Ticket";
+                case "users": return "User Account";
+                case "windows": return "Service Window";
+                case "": return "—";
+                case null: return "—";
+                default: return tableRaw;
+            }
+        }
+
+        /// <summary>
+        /// Best-effort client-name (and, for payments, payment-detail) lookup for one
+        /// audit_log row. Every table needs its own query since there is no common
+        /// "name" column across births/marriages/deaths/transactions/etc. — a table
+        /// this doesn't recognise (users, windows, master-file lookups, ...) just
+        /// reports "—", since there is no client involved.
+        /// </summary>
+        private static void ResolveClientAndPayment(string tableRaw, int recordId, out string clientName, out string paymentInfo)
+        {
+            clientName = "—";
+            paymentInfo = null;
+            try
+            {
+                switch (tableRaw)
+                {
+                    case "births":
+                        clientName = MonScalar(
+                            "SELECT TRIM(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name)) FROM births WHERE id=@id",
+                            recordId);
+                        break;
+                    case "deaths":
+                        clientName = MonScalar(
+                            "SELECT COALESCE(NULLIF(full_name,''), TRIM(CONCAT(first_name,' ',COALESCE(middle_name,''),' ',last_name))) FROM deaths WHERE id=@id",
+                            recordId);
+                        break;
+                    case "marriages":
+                        clientName = MonScalar(
+                            "SELECT CONCAT(TRIM(CONCAT(husband_first_name,' ',husband_last_name)), ' & ', " +
+                            "              TRIM(CONCAT(wife_first_name,' ',wife_last_name))) FROM marriages WHERE id=@id",
+                            recordId);
+                        break;
+                    case "marriage_licenses":
+                        clientName = MonScalar(
+                            "SELECT CONCAT(COALESCE(husband_first_name,'?'), ' & ', COALESCE(wife_first_name,'?')) FROM marriage_licenses WHERE id=@id",
+                            recordId);
+                        break;
+                    case "transactions":
+                        clientName = MonScalar("SELECT client_name FROM transactions WHERE id=@id", recordId);
+                        break;
+                    case "certificate_requests":
+                        clientName = MonScalar(
+                            "SELECT t.client_name FROM certificate_requests c LEFT JOIN transactions t ON t.id=c.transaction_id WHERE c.id=@id",
+                            recordId);
+                        break;
+                    case "releases":
+                        clientName = MonScalar("SELECT claimant_name FROM releases WHERE id=@id", recordId);
+                        break;
+                    case "petitions":
+                        clientName = MonScalar(
+                            "SELECT CASE p.record_type " +
+                            "  WHEN 'Birth' THEN (SELECT TRIM(CONCAT(first_name,' ',last_name)) FROM births WHERE id=p.record_id) " +
+                            "  WHEN 'Death' THEN (SELECT full_name FROM deaths WHERE id=p.record_id) " +
+                            "  WHEN 'Marriage' THEN (SELECT TRIM(CONCAT(husband_last_name,' & ',wife_last_name)) FROM marriages WHERE id=p.record_id) " +
+                            "  ELSE '—' END " +
+                            "FROM petitions p WHERE p.id=@id",
+                            recordId);
+                        break;
+                    case "claim_requests":
+                        clientName = MonScalar(
+                            "SELECT COALESCE(NULLIF(TRIM(CONCAT(COALESCE(id_first_name,''),' ',COALESCE(id_last_name,''))),''), 'Not yet identified') " +
+                            "FROM claim_requests WHERE id=@id",
+                            recordId);
+                        break;
+                    case "payments":
+                        var row = Db.Pull(
+                            "SELECT t.client_name, p.or_number, p.payment_method, p.reference_no, " +
+                            "       p.gross_amount, p.additional_fee, p.net_amount, p.amount_tendered, p.change_amount " +
+                            "FROM payments p LEFT JOIN transactions t ON t.id = p.transaction_id WHERE p.id=@id",
+                            new MySqlParameter("@id", recordId));
+                        if (row.Rows.Count > 0)
+                        {
+                            var r = row.Rows[0];
+                            clientName = r["client_name"] == DBNull.Value ? "—" : r["client_name"].ToString();
+                            paymentInfo =
+                                "  OR No.:      " + (r["or_number"] == DBNull.Value ? "—" : r["or_number"]) + "\r\n" +
+                                "  Method:      " + r["payment_method"] + "\r\n" +
+                                "  Reference:   " + (r["reference_no"] == DBNull.Value ? "—" : r["reference_no"]) + "\r\n" +
+                                "  Document fee:" + string.Format("  ₱{0:N2}", r["gross_amount"]) + "\r\n" +
+                                "  Additional:  " + string.Format("  ₱{0:N2}", r["additional_fee"]) + "\r\n" +
+                                "  Total paid:  " + string.Format("  ₱{0:N2}", r["net_amount"]);
+                        }
+                        break;
+                }
+                if (string.IsNullOrWhiteSpace(clientName)) clientName = "—";
+            }
+            catch { clientName = "—"; }
+        }
+
+        private static string MonScalar(string sql, int id)
+        {
+            var dt = Db.Pull(sql, new MySqlParameter("@id", id));
+            if (dt.Rows.Count == 0 || dt.Rows[0][0] == DBNull.Value) return "—";
+            string v = dt.Rows[0][0].ToString().Trim();
+            return v.Length == 0 ? "—" : v;
         }
 
         private void ExportMonitoringCsv()
