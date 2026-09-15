@@ -209,6 +209,9 @@
     <Compile Include="Forms\Form3ACertForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Form3BCertForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\MarriageEntryForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -446,6 +449,7 @@
     <Compile Include="Data\ConsentForm.cs" />
     <Compile Include="Data\AdviceForm.cs" />
     <Compile Include="Data\Form3ACert.cs" />
+    <Compile Include="Data\Form3BCert.cs" />
     <Compile Include="Data\DelayedBirthRules.cs" />
     <Compile Include="Data\DelayedBirthService.cs" />
     <Compile Include="Forms\DelayedBirthCaseForm.cs">

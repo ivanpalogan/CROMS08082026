@@ -26,6 +26,7 @@ namespace CROMS.Forms
             this.components = new System.ComponentModel.Container();
             this.certificateMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.mnuViewSoftcopy = new System.Windows.Forms.ToolStripMenuItem();
+            this.mnuFactsCert = new System.Windows.Forms.ToolStripMenuItem();
             this.btnCertificate = new CROMS.Modules.SplitButton();
             this.btnNew = new System.Windows.Forms.Button();
             this.layoutRoot = new System.Windows.Forms.TableLayoutPanel();
@@ -211,17 +212,25 @@ namespace CROMS.Forms
             // 
             this.certificateMenu.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.certificateMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.mnuViewSoftcopy});
+            this.mnuViewSoftcopy,
+            this.mnuFactsCert});
             this.certificateMenu.Name = "certificateMenu";
-            this.certificateMenu.Size = new System.Drawing.Size(150, 26);
+            this.certificateMenu.Size = new System.Drawing.Size(220, 48);
             this.certificateMenu.Opening += new System.ComponentModel.CancelEventHandler(this.certificateMenu_Opening);
-            // 
+            //
             // mnuViewSoftcopy
-            // 
+            //
             this.mnuViewSoftcopy.Name = "mnuViewSoftcopy";
-            this.mnuViewSoftcopy.Size = new System.Drawing.Size(149, 22);
+            this.mnuViewSoftcopy.Size = new System.Drawing.Size(219, 22);
             this.mnuViewSoftcopy.Text = "View Softcopy";
             this.mnuViewSoftcopy.Click += new System.EventHandler(this.btnViewScan_Click);
+            //
+            // mnuFactsCert
+            //
+            this.mnuFactsCert.Name = "mnuFactsCert";
+            this.mnuFactsCert.Size = new System.Drawing.Size(219, 22);
+            this.mnuFactsCert.Text = "Facts Certification (Form 3B)...";
+            this.mnuFactsCert.Click += new System.EventHandler(this.mnuFactsCert_Click);
             // 
             // btnCertificate
             // 
@@ -2186,6 +2195,7 @@ namespace CROMS.Forms
         private SplitButton btnCertificate;
         private ContextMenuStrip certificateMenu;
         private ToolStripMenuItem mnuViewSoftcopy;
+        private ToolStripMenuItem mnuFactsCert;
 
         private System.Windows.Forms.TableLayoutPanel layoutRoot;
         private System.Windows.Forms.TableLayoutPanel layoutMain;

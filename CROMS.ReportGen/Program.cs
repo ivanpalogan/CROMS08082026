@@ -48,13 +48,20 @@ namespace CROMS.ReportGen
                 }
                 else Console.WriteLine("skip MF-90: blank form not found: " + Mf90Form.BlankPath);
 
-                // FORM 3A has no scanned blank to embed - one is generated from Form3ACert.Cells
-                // itself (its own Static + Picture cells), so the Crystal report and the
-                // no-runtime fallback can never draw the labels in different places.
+                // FORM 3A / 3B have no scanned blank to embed - each is generated from its own
+                // class's Static + Picture cells, so the Crystal report and the no-runtime
+                // fallback can never draw a label in a different place.
                 string form3aBlank = Form3ACert.RenderBlankTemplate(outDir);
                 Console.WriteLine("blank : " + form3aBlank + " (generated)");
-                BuildForm3A(seed, outDir, form3aBlank);
+                BuildLetterReport(seed, outDir, Form3ACert.RptFile, Form3ACert.PageWidth, Form3ACert.PageHeight,
+                    Form3ACert.Cells, Form3ACert.BuildTable(0), form3aBlank);
                 Console.WriteLine("wrote : " + Path.Combine(outDir, Form3ACert.RptFile));
+
+                string form3bBlank = Form3BCert.RenderBlankTemplate(outDir);
+                Console.WriteLine("blank : " + form3bBlank + " (generated)");
+                BuildLetterReport(seed, outDir, Form3BCert.RptFile, Form3BCert.PageWidth, Form3BCert.PageHeight,
+                    Form3BCert.Cells, Form3BCert.BuildTable(0), form3bBlank);
+                Console.WriteLine("wrote : " + Path.Combine(outDir, Form3BCert.RptFile));
                 return 0;
             }
             catch (Exception ex) { Console.WriteLine("FAILED: " + ex); return 1; }
@@ -142,24 +149,28 @@ namespace CROMS.ReportGen
         }
 
         /// <summary>
-        /// Builds CROMS\Reports\FORM-3A.rpt the same way BuildMf90 does - the only difference
-        /// is the background is a GENERATED image (Form3ACert.RenderBlankTemplate), not a
-        /// scanned blank, because there is no scanned Form 3A on file. Every Field cell in
-        /// Form3ACert.Cells becomes one FieldObject on top of it; Static/Picture cells are
-        /// already baked into the background so they are not repeated here.
+        /// Builds one "letter" report (Form 3A, Form 3B, ...) the same way BuildMf90 builds a
+        /// scanned-form report - the only difference is the background is a GENERATED image
+        /// (<c>RenderBlankTemplate</c> on the calling class), not a scan, because neither
+        /// letter has an office blank on file. Every Field cell becomes one FieldObject on top
+        /// of it; Static/Picture cells are already baked into the background so they are not
+        /// repeated here. Shared by <c>Form3ACert</c> and <c>Form3BCert</c> - both use the same
+        /// <c>Form3ACell</c> shape, so one generator serves any class built on that shape.
         /// </summary>
-        private static void BuildForm3A(string seed, string outDir, string blankPath)
+        private static void BuildLetterReport(string seed, string outDir, string rptFile,
+            float pageWidthPt, float pageHeightPt, System.Collections.Generic.IReadOnlyList<Form3ACell> cells,
+            DataTable seedTable, string blankPath)
         {
             var doc = new ReportDocument();
             doc.Load(seed);
             ISCDReportClientDocument rcd = doc.ReportClientDocument;
 
             var ds = new DataSet("CROMS");
-            ds.Tables.Add(Form3ACert.BuildTable(0).Clone());
+            ds.Tables.Add(seedTable.Clone());
             rcd.DatabaseController.AddDataSource(CrystalDecisions.ReportAppServer.DataSetConversion.DataSetConverter.Convert(ds));
             DD.Table table = (DD.Table)rcd.Database.Tables[0];
 
-            int pageW = (int)(Form3ACert.PageWidth * Twips), pageH = (int)(Form3ACert.PageHeight * Twips);
+            int pageW = (int)(pageWidthPt * Twips), pageH = (int)(pageHeightPt * Twips);
             rcd.PrintOutputController.ModifyUserPaperSize(pageH, pageW);
             rcd.PrintOutputController.ModifyPageMargins(0, 0, 0, 0);
 
@@ -184,7 +195,7 @@ namespace CROMS.ReportGen
             sized.Left = 0; sized.Top = 0; sized.Width = pageW; sized.Height = bodyH;
             objects.Modify(pic, sized);
 
-            foreach (Form3ACell cell in Form3ACert.Cells)
+            foreach (Form3ACell cell in cells)
             {
                 if (cell.Kind != "Field") continue;   // Static/Picture are already in the background
                 DD.Field field = table.DataFields.Cast<DD.Field>().First(x => string.Equals(x.Name, cell.Column, StringComparison.OrdinalIgnoreCase));
@@ -211,12 +222,12 @@ namespace CROMS.ReportGen
 
             sections.SetProperty(body, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, bodyH);
 
-            string target = Path.Combine(outDir, Form3ACert.RptFile);
+            string target = Path.Combine(outDir, rptFile);
             if (File.Exists(target)) File.Delete(target);
             object dir = outDir;
-            rcd.SaveAs(Form3ACert.RptFile, ref dir, 0);
+            rcd.SaveAs(rptFile, ref dir, 0);
             doc.Close();
-            Console.WriteLine("fields: " + Form3ACert.Cells.Count(c => c.Kind == "Field"));
+            Console.WriteLine("fields: " + cells.Count(c => c.Kind == "Field"));
         }
 
         private static string FindSeed()
