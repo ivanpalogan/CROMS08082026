@@ -808,11 +808,12 @@ namespace CROMS.Forms
 
         /// <summary>The same issues, WITHOUT the override applied - used only to decide whether
         /// the Admin Override button has anything to offer (there is no point overriding when
-        /// nothing is actually missing).</summary>
+        /// nothing is actually missing, and payment can never be overridden so it alone doesn't
+        /// count).</summary>
         private bool HasOverridableIssues()
         {
             if (_l.Id <= 0) return false;
-            return MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s).Where(i => i.Blocks).Any(i => i.Code.StartsWith("REQ_"));
+            return MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s).Where(i => i.Blocks).Any(i => i.Code != "PAYMENT");
         }
 
         private void DoAdminOverride()
@@ -825,10 +826,21 @@ namespace CROMS.Forms
                 catch (Exception ex) { MUi.Fail(this, ex); }
                 return;
             }
+
+            List<RuleIssue> toBypass = MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s)
+                .Where(i => i.Blocks && i.Code != "PAYMENT").ToList();
+            if (toBypass.Count == 0)
+            {
+                MessageBox.Show(this, "Nothing to override - the only outstanding item is payment, and that can never be bypassed.",
+                    "Admin Override", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string list = string.Join("\n", toBypass.Select(i => "- " + i.Message));
             string reason = MUi.Ask(this, "Admin Override",
-                "This application has missing or unverified requirement attachments (birth certificate, valid ID, CENOMAR, parental consent/advice, etc.). " +
-                "Issuing it anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\n" +
-                "This does NOT bypass posting, payment, an unresolved impediment, or the under-18 rule.\n\nReason for overriding:", "");
+                "This will let the licence issue with the following still unresolved:\n\n" + list +
+                "\n\nIssuing anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\n" +
+                "Payment can NEVER be bypassed - it will still be required regardless of this override.\n\nReason for overriding:", "");
             if (reason == null) return;
             try { MarriageService.OverrideRequirements(_l.Id, reason); Reload(); }
             catch (Exception ex) { MUi.Fail(this, ex); }

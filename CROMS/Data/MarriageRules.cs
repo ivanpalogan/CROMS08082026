@@ -598,17 +598,16 @@ namespace CROMS.Data
         }
 
         /// <summary>
-        /// Drops requirement-shaped issues (Code starting "REQ_" - missing/unverified attachments)
-        /// from a blocking-issue list when an Admin has recorded a requirements override on this
-        /// licence. Everything else - under-18 (HardStop, never in this list to begin with),
-        /// posting not complete, an unresolved impediment, no payment recorded, wrong status -
-        /// stays blocking regardless: those are legal/workflow gates, not paperwork the client
-        /// could not supply, and an Admin override is not a licence to skip them.
+        /// Once an Admin has recorded an override on this licence, EVERY blocking issue is
+        /// dropped except payment - missing/unverified attachments, posting not complete, an
+        /// unresolved impediment, wrong status, and the under-18 hard stop can all be issued
+        /// past by Admin decision. Only "PAYMENT" survives: CROMS has no way to verify money
+        /// actually changed hands at the Treasury, so that one is never overridable in software.
         /// </summary>
         public static List<RuleIssue> ApplyOverride(List<RuleIssue> issues, LicenseFacts l)
         {
             if (l == null || !l.RequirementsOverrideBy.HasValue) return issues;
-            return issues.Where(i => !i.Code.StartsWith("REQ_")).ToList();
+            return issues.Where(i => i.Code == "PAYMENT").ToList();
         }
 
         // ---------------------------------------------------- applicant data
