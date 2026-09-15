@@ -38,24 +38,31 @@ namespace CROMS.Data
             var c = new List<Form3ACell>();
             Action<string, float, float, float, float, float, bool> stat = (text, x, top, w, h, size, bold) =>
                 c.Add(new Form3ACell { Kind = "Static", Text = text, X = x, Top = top, Width = w, Height = h, FontSize = size, Bold = bold });
+            Action<string, float, float, float, float, float, bool> statC = (text, x, top, w, h, size, bold) =>
+                c.Add(new Form3ACell { Kind = "Static", Text = text, X = x, Top = top, Width = w, Height = h, FontSize = size, Bold = bold, Center = true });
+            Action<string, float, float, float, float, float> noteItalic = (text, x, top, w, h, size) =>
+                c.Add(new Form3ACell { Kind = "Static", Text = text, X = x, Top = top, Width = w, Height = h, FontSize = size, Italic = true });
             Action<string, float, float, float, float, float, bool> field = (col, x, top, w, h, size, center) =>
                 c.Add(new Form3ACell { Kind = "Field", Column = col, X = x, Top = top, Width = w, Height = h, FontSize = size, Center = center });
             Action<AssetKind, float, float, float, float> pic = (kind, x, top, w, h) =>
                 c.Add(new Form3ACell { Kind = "Picture", Asset = kind, X = x, Top = top, Width = w, Height = h });
+            Action<float, float, float> rule = (x, top, w) =>
+                c.Add(new Form3ACell { Kind = "Rule", X = x, Top = top, Width = w, Height = 1f });
 
-            pic(AssetKind.HeaderLogoLeft, 40f, 24f, 60f, 60f);
-            pic(AssetKind.HeaderLogoRight1, 460f, 24f, 56f, 56f);
-            pic(AssetKind.HeaderLogoRight2, 520f, 24f, 56f, 56f);
+            pic(AssetKind.HeaderLogoLeft, 40f, 20f, 58f, 58f);
+            pic(AssetKind.HeaderLogoRight1, 452f, 20f, 54f, 54f);
+            pic(AssetKind.HeaderLogoRight2, 510f, 20f, 54f, 54f);
 
             stat("FORM 3B", 8f, 4f, 90f, 11f, 7f, true);
             stat("(Birth Available)", 8f, 15f, 90f, 10f, 6.5f, false);
-            stat("Republic of the Philippines", 156f, 26f, 300f, 12f, 10f, false);
-            stat("Province of Cagayan", 156f, 40f, 300f, 12f, 9f, false);
-            stat("MUNICIPALITY OF PENABLANCA", 106f, 54f, 400f, 15f, 13f, true);
-            stat("LOCAL CIVIL REGISTRY OFFICE", 106f, 70f, 400f, 15f, 12f, true);
-            field("office_contact_line", 106f, 88f, 400f, 11f, 7.5f, false);
+            statC("Republic of the Philippines", 40f, 24f, 532f, 12f, 10f, false);
+            statC("Province of Cagayan", 40f, 38f, 532f, 12f, 9f, false);
+            statC("MUNICIPALITY OF PENABLANCA", 40f, 54f, 532f, 16f, 14f, true);
+            statC("LOCAL CIVIL REGISTRY OFFICE", 40f, 72f, 532f, 14f, 11.5f, true);
+            field("office_contact_line", 40f, 90f, 532f, 11f, 8f, true);
+            rule(40f, 104f, 532f);
 
-            field("date_issued", 420f, 112f, 156f, 12f, 9f, false);
+            field("date_issued", 420f, 110f, 152f, 12f, 9f, false);
 
             stat("TO WHOM IT MAY CONCERN:", 40f, 138f, 250f, 12f, 9.5f, true);
             stat("We certify that among others, the following facts of birth appear in our Register of Births on Page",
@@ -109,8 +116,8 @@ namespace CROMS.Data
             stat(":", 112f, 626f, 6f, 11f, 8f, false);
             field("date_paid", 118f, 626f, 160f, 11f, 8f, false);
 
-            stat("Note: This certification is not valid if it has mark of erasure or alteration of any entry.",
-                40f, 660f, 532f, 11f, 7.5f, false);
+            noteItalic("Note: This certification is not valid if it has mark of erasure or alteration of any entry.",
+                40f, 660f, 532f, 11f, 7.5f);
 
             pic(AssetKind.FooterBanner, 40f, 700f, 532f, 70f);
 
@@ -155,7 +162,11 @@ namespace CROMS.Data
             }
             catch (Exception) { /* record not found, no DB, or a hiccup - leave blank, editable */ }
 
-            r["office_contact_line"] = string.IsNullOrWhiteSpace(office.Contact) ? "" : "Tel. No. " + office.Contact;
+            r["office_contact_line"] = string.Join("   |   ", new[]
+            {
+                string.IsNullOrWhiteSpace(office.Contact) ? null : "Tel. No. " + office.Contact,
+                string.IsNullOrWhiteSpace(office.Email) ? null : "Email: " + office.Email,
+            }.Where(s => s != null));
             r["date_issued"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
             r["date_of_registration"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
             r["purpose"] = "general purpose/s";
@@ -240,9 +251,16 @@ namespace CROMS.Data
             {
                 foreach (Form3ACell c in Cells)
                 {
+                    if (c.Kind == "Rule")
+                    {
+                        using (var pen = new Pen(Color.Black, 0.75f))
+                            g.DrawLine(pen, c.X, c.Top, c.X + c.Width, c.Top);
+                        continue;
+                    }
                     if (c.Kind == "Static")
                     {
-                        using (var f = new Font("Arial", c.FontSize, c.Bold ? FontStyle.Bold : FontStyle.Regular))
+                        FontStyle style = (c.Bold ? FontStyle.Bold : FontStyle.Regular) | (c.Italic ? FontStyle.Italic : FontStyle.Regular);
+                        using (var f = new Font("Arial", c.FontSize, style))
                             g.DrawString(c.Text, f, Brushes.Black, c.Rect, c.Center ? center : left);
                         continue;
                     }

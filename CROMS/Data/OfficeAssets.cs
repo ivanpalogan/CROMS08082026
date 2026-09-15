@@ -24,6 +24,7 @@ namespace CROMS.Data
         public string RegistrarTitle = "Municipal Civil Registrar";
         public string Address = "";
         public string Contact = "";
+        public string Email = "";
         public string VerifyingOfficerName = "";
         public string VerifyingOfficerTitle = "Registration Officer II";
 
@@ -199,6 +200,7 @@ namespace CROMS.Data
                                          ? p.RegistrarTitle : S("registrar_title");
                         p.Address = S("address");
                         p.Contact = S("contact");
+                        p.Email = S("email");
                         p.VerifyingOfficerName = S("verifying_officer_name");
                         p.VerifyingOfficerTitle = S("verifying_officer_title") == ""
                                                  ? p.VerifyingOfficerTitle : S("verifying_officer_title");
