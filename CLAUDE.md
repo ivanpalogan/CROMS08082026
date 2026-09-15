@@ -10,6 +10,34 @@ CROMS replaces the paper-and-spreadsheet workflow of the LCRO with a single inte
 
 
 
+Git Collaboration Workflow (permanent — Kim's laptop)
+
+Identity: Kim. Personal branch `kim-work`. Gilvan's branch `gilvan-work`. Shared integration/testing branch `dev`. Stable branch `main`.
+
+Rules:
+- Before editing, check current branch. Normal dev work happens on `kim-work`.
+- If on `main` or `dev` when asked to edit code: STOP, confirm with Kim before touching files.
+- Never develop directly on `main`. Never auto-push to `main`.
+- Kim may work on any part of CROMS.
+- After a requested task is done and verified: review `git status`/`git diff`, commit only files belonging to that task (clear message), push to `origin/kim-work`.
+- Do NOT commit after every small edit mid-task. Commit/push only when a logical task completes or Kim explicitly says to save/push.
+- No unrelated, temp, generated, secret, or accidental files in commits.
+
+Getting Gilvan's latest work: fetch from origin, integrate the relevant `origin/gilvan-work` changes into the current work as needed.
+
+Sync `dev` (triggers: "merge our work to dev" / "sync dev" / "combine our work"):
+1. Ensure `kim-work` changes are committed and pushed.
+2. Fetch all remote branches.
+3. Update local `dev` from `origin/dev`.
+4. Merge in latest completed work from `origin/gilvan-work` and `origin/kim-work`.
+5. No conflicts -> push `dev` to `origin/dev`.
+6. Switch back to `kim-work`.
+7. Report what was integrated.
+
+Conflict safety: never blindly resolve, never delete either person's work. Inspect conflicting files, explain what each side changed. Propose a resolution only if obviously correct and preserves both intents; otherwise STOP and ask Kim.
+
+Main branch safety: never merge `dev` into `main` unless Kim explicitly says release/merge dev to main. Never force push. Never run destructive git commands (reset --hard, discarding others' work, etc.) without explicit approval.
+
 The 15 modules
 
 🟦 Client Services (front-desk workflow)
