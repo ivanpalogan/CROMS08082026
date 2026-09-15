@@ -836,14 +836,61 @@ namespace CROMS.Forms
                 return;
             }
 
-            string list = string.Join("\n", toBypass.Select(i => "- " + i.Message));
-            string reason = MUi.Ask(this, "Admin Override",
-                "This will let the licence issue with the following still unresolved:\n\n" + list +
-                "\n\nIssuing anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\n" +
-                "Payment can NEVER be bypassed - it will still be required regardless of this override.\n\nReason for overriding:", "");
+            string reason = AskOverrideReason(toBypass);
             if (reason == null) return;
             try { MarriageService.OverrideRequirements(_l.Id, reason); Reload(); }
             catch (Exception ex) { MUi.Fail(this, ex); }
+        }
+
+        /// <summary>
+        /// The override warning + reason prompt as ONE dialog, sized so the list of bypassed
+        /// issues and the Proceed/Cancel buttons can never overlap regardless of how many
+        /// issues there are - MUi.Ask is a fixed-height one-line prompt box and a long list
+        /// pushed its buttons off the visible dialog (reported by a screenshot showing no
+        /// visible option to proceed or cancel). The issue list is a scrolling read-only box
+        /// instead of growing the form, so the buttons stay in a fixed place at the bottom.
+        /// </summary>
+        private string AskOverrideReason(List<RuleIssue> toBypass)
+        {
+            using (var f = new Form
+            {
+                Text = "Admin Override", FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false, MaximizeBox = false, ClientSize = new Size(560, 480), BackColor = UiTheme.Surface, ShowInTaskbar = false
+            })
+            {
+                var head = MUi.Txt("This will let the licence issue with the following still unresolved:", 9.5F, FontStyle.Bold);
+                head.Location = new Point(20, 16); head.MaximumSize = new Size(520, 0);
+                f.Controls.Add(head);
+
+                var list = new TextBox
+                {
+                    Location = new Point(20, 44), Size = new Size(520, 190), Font = MUi.F(9.25F),
+                    Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.White,
+                    Text = string.Join("\r\n", toBypass.Select(i => "• " + i.Message))
+                };
+                f.Controls.Add(list);
+
+                var note = MUi.Txt(
+                    "Issuing anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\n" +
+                    "Payment can NEVER be bypassed by this override - it will still be required.", 9F, FontStyle.Regular, UiTheme.Muted);
+                note.Location = new Point(20, 242); note.MaximumSize = new Size(520, 0);
+                f.Controls.Add(note);
+
+                var reasonLbl = MUi.Txt("Reason for overriding:", 9.5F, FontStyle.Bold); reasonLbl.Location = new Point(20, 320);
+                var reasonBox = new TextBox { Location = new Point(20, 344), Width = 520, Font = MUi.F(9.75F) };
+                f.Controls.Add(reasonLbl); f.Controls.Add(reasonBox);
+
+                var ok = MUi.Btn("Proceed With Override", MUi.Kind.Danger, 200); ok.DialogResult = DialogResult.OK;
+                var cancel = MUi.Btn("Cancel", MUi.Kind.Secondary, 90); cancel.DialogResult = DialogResult.Cancel;
+                ok.Location = new Point(f.ClientSize.Width - 20 - ok.PreferredSize.Width - 10, f.ClientSize.Height - 50);
+                cancel.Location = new Point(ok.Left - 100, f.ClientSize.Height - 50);
+                f.Controls.Add(ok); f.Controls.Add(cancel);
+                f.AcceptButton = null; f.CancelButton = cancel;
+                UiTheme.Polish(f);
+
+                if (f.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(reasonBox.Text)) return null;
+                return reasonBox.Text.Trim();
+            }
         }
 
         private void RefreshIssue()
