@@ -38,6 +38,7 @@ namespace CROMS.Forms
             foot.Controls.Add(Btn("View License", (s, e) => OpenLicense()));
             foot.Controls.Add(Btn("View Scan", (s, e) => ViewScan()));
             foot.Controls.Add(Btn("Print / Preview", (s, e) => CertificateReport.ShowFor(DocKind.Marriage, _id, this)));
+            foot.Controls.Add(Btn("Facts Certification (Form 3A)", (s, e) => { using (var f = new Form3ACertForm(_id)) f.ShowDialog(this); }));
             foot.Controls.Add(Btn("Certified Copy Workflow", (s, e) => CertifiedCopy()));
             foot.Controls.Add(Btn("View History", (s, e) => MUi.HistoryDialog(this, "Marriage", _id, "History - marriage record")));
             var close = MUi.Btn("Close", MUi.Kind.Ghost, 90); close.Click += (s, e) => Close(); foot.Controls.Add(close);

@@ -8,8 +8,9 @@ using MySql.Data.MySqlClient;
 namespace CROMS.Data
 {
     /// <summary>Which branding image is meant. Stored separately so the office can
-    /// replace one without disturbing the other.</summary>
-    public enum AssetKind { Logo, Stamp }
+    /// replace one without disturbing the other. The four Header/Footer kinds are the
+    /// letterhead images on Form 3A (Marriage Available Certification) - added migration 47.</summary>
+    public enum AssetKind { Logo, Stamp, HeaderLogoLeft, HeaderLogoRight1, HeaderLogoRight2, FooterBanner }
 
     /// <summary>The registering office's own details, as printed in a form's header and
     /// signature block. One row in `office_profile`; read, never guessed.</summary>
@@ -23,6 +24,8 @@ namespace CROMS.Data
         public string RegistrarTitle = "Municipal Civil Registrar";
         public string Address = "";
         public string Contact = "";
+        public string VerifyingOfficerName = "";
+        public string VerifyingOfficerTitle = "Registration Officer II";
 
         public string HeaderLine =>
             string.Join(", ", new[] { OfficeName, Municipality, Province }
@@ -196,6 +199,9 @@ namespace CROMS.Data
                                          ? p.RegistrarTitle : S("registrar_title");
                         p.Address = S("address");
                         p.Contact = S("contact");
+                        p.VerifyingOfficerName = S("verifying_officer_name");
+                        p.VerifyingOfficerTitle = S("verifying_officer_title") == ""
+                                                 ? p.VerifyingOfficerTitle : S("verifying_officer_title");
                     }
                 }
                 catch (MySqlException) { /* pre-migration: keep the defaults */ }

@@ -37,12 +37,24 @@ namespace CROMS.ReportGen
                 string seed = args.Length > 0 && File.Exists(args[0]) ? args[0] : FindSeed();
                 string outDir = args.Length > 1 ? args[1] : Path.Combine(RepoRoot(), "CROMS", "Reports");
                 if (seed == null) { Console.WriteLine("No seed CrystalReport.rpt found - is Crystal Reports for Visual Studio installed?"); return 2; }
-                if (!File.Exists(Mf90Form.BlankPath)) { Console.WriteLine("Blank form not found: " + Mf90Form.BlankPath); return 2; }
                 Directory.CreateDirectory(outDir);
-                Console.WriteLine("seed  : " + seed);
-                Console.WriteLine("blank : " + Mf90Form.BlankPath);
-                BuildMf90(seed, outDir);
-                Console.WriteLine("wrote : " + Path.Combine(outDir, Mf90Form.RptFile));
+
+                if (File.Exists(Mf90Form.BlankPath))
+                {
+                    Console.WriteLine("seed  : " + seed);
+                    Console.WriteLine("blank : " + Mf90Form.BlankPath);
+                    BuildMf90(seed, outDir);
+                    Console.WriteLine("wrote : " + Path.Combine(outDir, Mf90Form.RptFile));
+                }
+                else Console.WriteLine("skip MF-90: blank form not found: " + Mf90Form.BlankPath);
+
+                // FORM 3A has no scanned blank to embed - one is generated from Form3ACert.Cells
+                // itself (its own Static + Picture cells), so the Crystal report and the
+                // no-runtime fallback can never draw the labels in different places.
+                string form3aBlank = Form3ACert.RenderBlankTemplate(outDir);
+                Console.WriteLine("blank : " + form3aBlank + " (generated)");
+                BuildForm3A(seed, outDir, form3aBlank);
+                Console.WriteLine("wrote : " + Path.Combine(outDir, Form3ACert.RptFile));
                 return 0;
             }
             catch (Exception ex) { Console.WriteLine("FAILED: " + ex); return 1; }
@@ -127,6 +139,84 @@ namespace CROMS.ReportGen
             rcd.SaveAs(Mf90Form.RptFile, ref dir, 0);
             doc.Close();
             Console.WriteLine("fields: " + Mf90Form.Cells.Count);
+        }
+
+        /// <summary>
+        /// Builds CROMS\Reports\FORM-3A.rpt the same way BuildMf90 does - the only difference
+        /// is the background is a GENERATED image (Form3ACert.RenderBlankTemplate), not a
+        /// scanned blank, because there is no scanned Form 3A on file. Every Field cell in
+        /// Form3ACert.Cells becomes one FieldObject on top of it; Static/Picture cells are
+        /// already baked into the background so they are not repeated here.
+        /// </summary>
+        private static void BuildForm3A(string seed, string outDir, string blankPath)
+        {
+            var doc = new ReportDocument();
+            doc.Load(seed);
+            ISCDReportClientDocument rcd = doc.ReportClientDocument;
+
+            var ds = new DataSet("CROMS");
+            ds.Tables.Add(Form3ACert.BuildTable(0).Clone());
+            rcd.DatabaseController.AddDataSource(CrystalDecisions.ReportAppServer.DataSetConversion.DataSetConverter.Convert(ds));
+            DD.Table table = (DD.Table)rcd.Database.Tables[0];
+
+            int pageW = (int)(Form3ACert.PageWidth * Twips), pageH = (int)(Form3ACert.PageHeight * Twips);
+            rcd.PrintOutputController.ModifyUserPaperSize(pageH, pageW);
+            rcd.PrintOutputController.ModifyPageMargins(0, 0, 0, 0);
+
+            int bodyH = pageH - Twips;
+            RD.ReportDefinition def = rcd.ReportDefController.ReportDefinition;
+            ReportSectionController sections = rcd.ReportDefController.ReportSectionController;
+            foreach (RD.ISCRArea area in new RD.ISCRArea[] { def.ReportHeaderArea, def.PageHeaderArea, def.ReportFooterArea, def.PageFooterArea })
+                foreach (RD.Section s in area.Sections)
+                {
+                    var f = (RD.SectionFormat)s.Format.Clone(true);
+                    f.EnableSuppress = true;
+                    sections.SetProperty(s, CrReportSectionPropertyEnum.crReportSectionPropertyFormat, f);
+                    sections.SetProperty(s, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, 0);
+                }
+            RD.Section body = def.DetailArea.Sections[0];
+            sections.SetProperty(body, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, bodyH);
+
+            ReportObjectController objects = rcd.ReportDefController.ReportObjectController;
+
+            RD.ISCRReportObject pic = objects.ImportPicture(blankPath, body, 0, 0);
+            var sized = (RD.ISCRReportObject)pic.Clone(true);
+            sized.Left = 0; sized.Top = 0; sized.Width = pageW; sized.Height = bodyH;
+            objects.Modify(pic, sized);
+
+            foreach (Form3ACell cell in Form3ACert.Cells)
+            {
+                if (cell.Kind != "Field") continue;   // Static/Picture are already in the background
+                DD.Field field = table.DataFields.Cast<DD.Field>().First(x => string.Equals(x.Name, cell.Column, StringComparison.OrdinalIgnoreCase));
+                var fo = new RD.FieldObject
+                {
+                    Name = cell.Column,
+                    DataSourceName = field.FormulaForm,
+                    FieldValueType = field.Type,
+                    Left = (int)Math.Round(cell.X * Twips),
+                    Top = (int)Math.Round(cell.Top * Twips),
+                    Width = (int)Math.Round(cell.Width * Twips),
+                    Height = (int)Math.Round(cell.Height * Twips)
+                };
+                var font = new RD.Font { Name = "Arial", Size = (decimal)cell.FontSize, Bold = cell.Bold };
+                fo.FontColor = new RD.FontColor { Font = font, Color = 0 };
+                var fmt = new RD.ObjectFormat
+                {
+                    HorizontalAlignment = cell.Center ? RD.CrAlignmentEnum.crAlignmentHorizontalCenter : RD.CrAlignmentEnum.crAlignmentLeft,
+                    EnableCanGrow = false
+                };
+                fo.Format = fmt;
+                objects.Add(fo, body, -1);
+            }
+
+            sections.SetProperty(body, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, bodyH);
+
+            string target = Path.Combine(outDir, Form3ACert.RptFile);
+            if (File.Exists(target)) File.Delete(target);
+            object dir = outDir;
+            rcd.SaveAs(Form3ACert.RptFile, ref dir, 0);
+            doc.Close();
+            Console.WriteLine("fields: " + Form3ACert.Cells.Count(c => c.Kind == "Field"));
         }
 
         private static string FindSeed()

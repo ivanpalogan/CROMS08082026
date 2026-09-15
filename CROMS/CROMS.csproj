@@ -206,6 +206,9 @@
     <Compile Include="Forms\MarriageLicenseForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Form3ACertForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\MarriageEntryForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -442,6 +445,7 @@
     <Compile Include="Data\Mf90Form.cs" />
     <Compile Include="Data\ConsentForm.cs" />
     <Compile Include="Data\AdviceForm.cs" />
+    <Compile Include="Data\Form3ACert.cs" />
     <Compile Include="Data\DelayedBirthRules.cs" />
     <Compile Include="Data\DelayedBirthService.cs" />
     <Compile Include="Forms\DelayedBirthCaseForm.cs">
@@ -687,6 +691,7 @@
     <None Include="Database\44_case_tracking_types.sql" />
     <None Include="Database\45_out_of_province_license.sql" />
     <None Include="Database\46_marriage_registration_birthplace.sql" />
+    <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\47_staff_biodata.sql" />
     <None Include="Database\48_marriage_requirements_override.sql" />
     <None Include="Database\49_audit_window.sql" />
