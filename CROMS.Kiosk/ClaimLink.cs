@@ -29,9 +29,37 @@ namespace CROMS.Kiosk
         {
             string host = ServerConfig.Host;
             if (string.IsNullOrWhiteSpace(host) || IsLoopback(host)) host = LanIp();
-            string scheme = Cfg("ClaimAppScheme", "http");
+            string scheme = Cfg("ClaimAppScheme", "https");
             string port = Cfg("ClaimAppPort", "4300");
+
+            // Guard against a stale saved server IP (Wi-Fi/hotspot changed since
+            // server.cfg was last written): if the configured host doesn't actually
+            // answer on the claimapp port, and the kiosk's OWN LAN IP does, the
+            // claimapp almost certainly runs on THIS PC (single-station deployment)
+            // — fall back to it rather than printing a QR/link to a dead address.
+            if (!PortOpen(host, port))
+            {
+                string self = LanIp();
+                if (self != host && PortOpen(self, port)) host = self;
+            }
+
             return scheme + "://" + host + ":" + port;
+        }
+
+        private static bool PortOpen(string host, string port)
+        {
+            if (!int.TryParse(port, out int p)) return true; // can't check, don't block
+            try
+            {
+                using (var c = new System.Net.Sockets.TcpClient())
+                {
+                    var ar = c.BeginConnect(host, p, null, null);
+                    bool ok = ar.AsyncWaitHandle.WaitOne(500);
+                    if (ok) { c.EndConnect(ar); return true; }
+                    return false;
+                }
+            }
+            catch { return false; }
         }
 
         private static string Cfg(string key, string def)

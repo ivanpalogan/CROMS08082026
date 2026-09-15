@@ -37,13 +37,16 @@ namespace CROMS.Data
             "Mobile", "IonicAppPath", @"C:\Users\ivan palogan\ORCMobile_Application",
             "MobileServeCommand", "npx ng serve --host 0.0.0.0 --port 4200 --disable-host-check", 4200,
             "MobileScheme", "http");
-        // claimapp is served over plain HTTP (no --ssl) so a phone's stock camera opens
-        // the QR link with NO "your connection is not private" warning. Its ID capture uses
-        // the native camera file-input, which does not need a secure context.
+        // claimapp is served over HTTPS (angular.json sets ssl:true, cert in claimapp/ssl/)
+        // because the ID-upload page now runs a LIVE in-page camera (edge detection while
+        // framing the ID) via getUserMedia, which browsers refuse outside a secure context.
+        // The self-signed cert means one "connection is not private" tap-through per phone;
+        // the client can still fall back to picking a photo from the gallery with no camera
+        // permission at all if they decline it.
         public static readonly IonicServerManager ClaimApp = new IonicServerManager(
             "ClaimApp", "ClaimAppPath", @"C:\Users\ivan palogan\claimapp",
             "ClaimAppServeCommand", "npx ng serve --host 0.0.0.0 --port 4300 --disable-host-check", 4300,
-            "ClaimAppScheme", "http");
+            "ClaimAppScheme", "https");
 
         private readonly string _label, _appPathKey, _appPathDefault, _serveCmdKey, _serveCmdDefault,
                                 _schemeKey, _schemeDefault;

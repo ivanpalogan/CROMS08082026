@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Modules;
@@ -33,7 +34,7 @@ namespace CROMS.Forms
             public TextBox First, Middle, Last, Father, Mother;
             public DateTimePicker Dob;
             public Label Age;
-            public ComboBox BirthProv, BirthMuni, Cit, Rel, Res, Civil;
+            public ComboBox BirthCountry, BirthProv, BirthMuni, Cit, Rel, Res, Civil;
         }
 
         private int? _id;
@@ -74,6 +75,18 @@ namespace CROMS.Forms
         private readonly CheckBox _licAll = new CheckBox { Text = "Show all licences", AutoSize = true };
         private readonly ListBox _licList = new ListBox { Font = MUi.F(9.5F), IntegralHeight = false, BorderStyle = BorderStyle.FixedSingle };
         private readonly Panel _licPanel = new Panel(), _exPanel = new Panel(), _licSummary = new Panel();
+        // "licence obtained in another province" - backlog Sec.4.1: trigger confirmed 2026-09-13,
+        // which document proves it is still open, so this is a generic attachment slot, not a
+        // named-document requirement.
+        private readonly CheckBox _oop = new CheckBox { Text = "This licence was obtained in ANOTHER province (wedding solemnized here)", AutoSize = true, Font = MUi.F(9F, FontStyle.Bold) };
+        private readonly TextBox _oopLicNo = MUi.Box();
+        private readonly DateTimePicker _oopLicDate = MUi.Date(true);
+        private readonly Panel _oopPanel = new Panel(), _localPanel = new Panel();
+        // Held only between "Scan..." and the next Save - the image is written to the
+        // OUT_OF_PROVINCE_LICENSE requirement row's own attachment, which needs the row to
+        // exist first (it is created by SyncMarriageRequirements inside SaveMarriage).
+        private byte[] _oopScanImage;
+        private string _oopScanImageName;
         private readonly ComboBox _exBasis = MUi.Combo(false);
         private readonly RequirementsGrid _docs = new RequirementsGrid();
         private readonly Label _docsHint = MUi.Txt("", 9F, FontStyle.Regular, UiTheme.Muted);
@@ -253,11 +266,15 @@ namespace CROMS.Forms
             var inner = new Panel { Padding = new Padding(12, 6, 2, 6), BackColor = Color.Transparent };
             p.First = MUi.Box(); p.Middle = MUi.Box(); p.Last = MUi.Box();
             p.Dob = MUi.Date(true); p.Age = MUi.Txt("-", 10F, FontStyle.Bold, UiTheme.Muted);
-            p.BirthProv = MUi.Combo(false); p.BirthMuni = MUi.Combo(false);
+            // Country/Province/Municipality, same trio and the same GeoLookup wiring as Birth
+            // Registration and the Marriage Licence (Form 90) - editable so a foreign locality
+            // can be typed, matching every other place-of-birth field in the app (2026-09-14).
+            p.BirthCountry = MUi.Combo(true); p.BirthProv = MUi.Combo(true); p.BirthMuni = MUi.Combo(true);
             p.Cit = MUi.Combo(false); p.Rel = MUi.Combo(false); p.Res = MUi.Combo(false); p.Civil = MUi.Combo(false, MarriageRules.CivilStatuses);
-            Bind(p.BirthProv, Read("provinces")); Bind(p.BirthMuni, Empty());
             Bind(p.Cit, Read("nationalities")); Bind(p.Rel, Read("religions")); Bind(p.Res, Read("residences"));
-            p.BirthProv.SelectedIndexChanged += (s, e) => ReloadMunis(p.BirthProv, p.BirthMuni);
+            GeoLookup.LoadCountries(p.BirthCountry);
+            GeoLookup.CascadeCountry(p.BirthCountry, p.BirthProv, p.BirthMuni, null);
+            GeoLookup.Select(p.BirthCountry, GeoLookup.HomeCountry);
 
             TableLayoutPanel names = MUi.Grid(3, 1, 56);
             names.Controls.Add(MUi.Field("First", p.First), 0, 0); names.Controls.Add(MUi.Field("Middle", p.Middle), 1, 0); names.Controls.Add(MUi.Field("Last", p.Last), 2, 0);
@@ -265,17 +282,22 @@ namespace CROMS.Forms
             dob.Controls.Add(MUi.Field("Date of birth", p.Dob), 0, 0);
             var ap = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent }; p.Age.AutoSize = false; p.Age.Dock = DockStyle.Fill; p.Age.TextAlign = ContentAlignment.MiddleLeft; ap.Controls.Add(p.Age);
             dob.Controls.Add(MUi.Field("Age (computed)", ap), 1, 0);
-            TableLayoutPanel pob = MUi.Grid(2, 1, 56);
-            pob.Controls.Add(MUi.Field("Place of birth - province", p.BirthProv), 0, 0); pob.Controls.Add(MUi.Field("City / municipality", p.BirthMuni), 1, 0);
+            // Two rows, not three columns on one - "City / municipality of birth" is the longest
+            // caption on the card, same reasoning as Form 90's own place-of-birth layout.
+            TableLayoutPanel pob1 = MUi.Grid(2, 1, 56);
+            pob1.Controls.Add(MUi.Field("Country of birth", p.BirthCountry), 0, 0); pob1.Controls.Add(MUi.Field("Province of birth", p.BirthProv), 1, 0);
+            TableLayoutPanel pob2 = MUi.Grid(1, 1, 56);
+            pob2.Controls.Add(MUi.Field("City / municipality of birth", p.BirthMuni), 0, 0);
             TableLayoutPanel cr = MUi.Grid(2, 1, 56);
             cr.Controls.Add(MUi.Field("Citizenship", p.Cit), 0, 0); cr.Controls.Add(MUi.Field("Religion", p.Rel), 1, 0);
             TableLayoutPanel cs = MUi.Grid(2, 1, 56);
             cs.Controls.Add(MUi.Field("Civil status", p.Civil), 0, 0); cs.Controls.Add(MUi.Field("Residence", p.Res), 1, 0);
-            Stack(inner, names, dob, pob, cr, cs);
+            Stack(inner, names, dob, pob1, pob2, cr, cs);
 
             _keyControls[pre + "First"] = p.First; _keyControls[pre + "Middle"] = p.Middle; _keyControls[pre + "Last"] = p.Last;
             foreach (Control c in new Control[] { p.First, p.Middle, p.Last }) c.TextChanged += (s, e) => Changed(c);
-            foreach (ComboBox c in new[] { p.Cit, p.Rel, p.Res, p.Civil, p.BirthMuni }) c.SelectedIndexChanged += (s, e) => Changed(c);
+            foreach (ComboBox c in new[] { p.Cit, p.Rel, p.Res, p.Civil }) c.SelectedIndexChanged += (s, e) => Changed(c);
+            foreach (ComboBox c in new[] { p.BirthCountry, p.BirthProv, p.BirthMuni }) { c.SelectedIndexChanged += (s, e) => Changed(c); c.TextChanged += (s, e) => Changed(c); }
             p.Dob.ValueChanged += (s, e) => Changed(p.Dob);
             LearningLibrary.Attach(p.First, LearningLibrary.GivenName);
             LearningLibrary.Attach(p.Last, LearningLibrary.Surname);
@@ -292,7 +314,11 @@ namespace CROMS.Forms
             top.Controls.Add(MUi.Field("Page", _page), 2, 0);
             _reg.TextChanged += (s, e) => Changed(_reg); _book.TextChanged += (s, e) => Changed(_book); _page.TextChanged += (s, e) => Changed(_page);
             _keyControls["RegistryNo"] = _reg;
-            var cols = TwoColumns(344,
+            // 400, not 344: the place-of-birth block grew from one 56px row (province+municipality)
+            // to two (country+province, then municipality alone) when Country was added
+            // 2026-09-14 - `inner` has no AutoScroll of its own, so a card shorter than its
+            // content would silently clip the Civil status/Residence row off the bottom.
+            var cols = TwoColumns(400,
                 SpouseCard("HUSBAND / PARTY 1", UiTheme.AccentTint, Color.FromArgb(27, 62, 158), PartyInner(_h, "Husband")),
                 SpouseCard("WIFE / PARTY 2", Color.FromArgb(245, 237, 251), Color.FromArgb(107, 48, 150), PartyInner(_w, "Wife")));
             Stack(pg, Section("Contracting parties", "Read down the paper: the husband's column on the left, the wife's on the right. Age is computed from the date of birth on the marriage date."),
@@ -327,7 +353,11 @@ namespace CROMS.Forms
             _rbLic.CheckedChanged += (s, e) => { if (!_loading) { _dirty = true; RefreshAll(); } };
             _rbEx.CheckedChanged += (s, e) => { if (!_loading) { _dirty = true; RefreshAll(); } };
 
-            // licensed
+            // licensed - locally, or obtained in another province (backlog Sec.4.1)
+            var oopRow = new FlowLayoutPanel { Height = 30, BackColor = Color.Transparent, Dock = DockStyle.Top };
+            oopRow.Controls.Add(_oop);
+            _oop.CheckedChanged += (s, e) => { if (!_loading) { _dirty = true; RefreshAll(); } };
+
             var searchRow = MUi.Grid(3, 1, 58);
             var sf = MUi.Field("Select marriage license - search name or licence number", _licSearch);
             searchRow.Controls.Add(sf, 0, 0); searchRow.SetColumnSpan(sf, 2);
@@ -343,14 +373,31 @@ namespace CROMS.Forms
             _licSummary.Height = 120; _licSummary.BackColor = Color.Transparent;
             var copy = MUi.Btn("Copy applicants from licence", MUi.Kind.Secondary);
             copy.Click += (s, e) => CopyFromLicense();
+            Stack(_localPanel, searchRow, _licList, _licSummary);
+            _localPanel.Height = 58 + 128 + 120 + 6;
+
+            var oopFieldsRow = MUi.Grid(2, 1, 58);
+            oopFieldsRow.Controls.Add(MUi.Field("Licence number (from the issuing LCRO)", _oopLicNo), 0, 0);
+            oopFieldsRow.Controls.Add(MUi.Field("Date issued", _oopLicDate), 1, 0);
+            _oopLicNo.TextChanged += (s, e) => Changed(_oopLicNo);
+            _oopLicDate.ValueChanged += (s, e) => Changed(_oopLicDate);
+            var oopScanRow = new Panel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(0, 2, 0, 0), BackColor = Color.Transparent };
+            var oopScanBtn = MUi.Btn("Scan / attach license image...", MUi.Kind.Secondary);
+            oopScanBtn.Click += (s, e) => ScanOopLicense();
+            oopScanRow.Controls.Add(oopScanBtn); oopScanBtn.Dock = DockStyle.Left;
+            var oopHint = new Banner();
+            oopHint.Set(RuleSeverity.Info, "Licence from another province - no proof document is required.",
+                "It is lawful to apply for the licence in one province and marry in another; type the number and date (or Scan the image to read them off it, verify what was read). Attaching a copy is optional - only if the applicant happens to have one. The licence's own 120-day validity still applies regardless of which office issued it. The image and typed data are both saved on this record.");
+            Stack(_oopPanel, oopFieldsRow, oopScanRow, oopHint);
+            _oopPanel.Height = 58 + 34 + 76;
+
             var placeRow = MUi.Grid(2, 1, 58);
             placeRow.Controls.Add(MUi.Field("Licence issued at (place)", _licPlace), 0, 0);
             var cp = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 24, 0, 0), BackColor = Color.Transparent };
             cp.Controls.Add(copy); copy.Dock = DockStyle.Left;
             placeRow.Controls.Add(cp, 1, 0);
             _licPlace.TextChanged += (s, e) => Changed(_licPlace);
-            Stack(_licPanel, searchRow, _licList, _licSummary, placeRow);
-            _licPanel.Height = 58 + 128 + 120 + 58 + 6;
+            Stack(_licPanel, oopRow, _localPanel, _oopPanel, placeRow);
 
             // exempt
             for (int i = 0; i < MarriageRules.ExemptionBases.GetLength(0); i++) _exBasis.Items.Add(MarriageRules.ExemptionBases[i, 1]);
@@ -540,7 +587,14 @@ namespace CROMS.Forms
                 MUi.Put(p.Dob, D(pre + "_date_of_birth"));
                 SetId(p.Cit, r[pre + "_citizenship_id"]); SetId(p.Rel, r[pre + "_religion_id"]); SetId(p.Res, r[pre + "_residence_id"]);
                 p.Civil.SelectedItem = MarriageRules.CivilStatuses.Contains(S(pre + "_civil_status")) ? S(pre + "_civil_status") : null;
-                SetPlace(p.BirthProv, p.BirthMuni, r[pre + "_birth_place_id"], null);
+                // Country first - it rebuilds the province list the next two select into.
+                string place = dt.Columns.Contains(pre + "_place_of_birth") ? S(pre + "_place_of_birth") : null;
+                string country = dt.Columns.Contains(pre + "_birth_country") ? S(pre + "_birth_country") : null;
+                if (!string.IsNullOrEmpty(place) || !string.IsNullOrEmpty(country))
+                    GeoLookup.SetCountryPlace(p.BirthCountry, p.BirthProv, p.BirthMuni,
+                        country, GeoLookup.ProvinceOf(place), GeoLookup.MunicipalityOf(place));
+                else
+                    GeoLookup.Select(p.BirthCountry, GeoLookup.HomeCountry);   // pre-2026-09-14 row: nothing stored, default to home
                 p.Father.Text = S(pre + "_father_name"); p.Mother.Text = S(pre + "_mother_name");
             }
             MUi.Put(_dom, D("date_of_marriage")); _tom.Text = S("time_of_marriage");
@@ -553,7 +607,10 @@ namespace CROMS.Forms
             _rbEx.Checked = basis == "Exempt"; _rbLic.Checked = basis != "Exempt";
             for (int i = 0; i < MarriageRules.ExemptionBases.GetLength(0); i++) if (MarriageRules.ExemptionBases[i, 0] == S("exemption_basis")) _exBasis.SelectedIndex = i;
             _exNotes.Text = S("exemption_notes");
+            bool oop = dt.Columns.Contains("license_out_of_province") && S("license_out_of_province") == "1";
+            _oop.Checked = oop;
             if (r["license_id"] != DBNull.Value) _lic = MarriageService.LoadLicense(Convert.ToInt32(r["license_id"]));
+            else if (oop) { _oopLicNo.Text = S("license_no"); MUi.Put(_oopLicDate, D("license_date")); }
             else if (S("license_no") != "") _licSearch.Text = S("license_no");
             _scanImage = r["scan_image"] == DBNull.Value ? null : (byte[])r["scan_image"];
             _ocrScanId = S("ocr_scan_id") == "" ? null : S("ocr_scan_id");
@@ -572,7 +629,10 @@ namespace CROMS.Forms
             m.HasPlace = Id(_prov) > 0 && Id(_muni) > 0;
             m.Solemnizer = N(_sol.Text); m.SolemnizerPosition = N(_solPos.Text); m.Witness1 = N(_w1.Text); m.Witness2 = N(_w2.Text);
             m.Basis = _rbEx.Checked ? "Exempt" : "Licensed";
-            m.LicenseId = m.Basis == "Licensed" && _lic != null ? (int?)_lic.Id : null;
+            m.OutOfProvinceLicense = m.Basis == "Licensed" && _oop.Checked;
+            m.LicenseId = m.Basis == "Licensed" && !m.OutOfProvinceLicense && _lic != null ? (int?)_lic.Id : null;
+            m.ExternalLicenseNo = m.OutOfProvinceLicense ? N(_oopLicNo.Text) : null;
+            m.ExternalLicenseDate = m.OutOfProvinceLicense ? MUi.Val(_oopLicDate) : null;
             m.ExemptionBasis = _exBasis.SelectedIndex >= 0 ? MarriageRules.ExemptionBases[_exBasis.SelectedIndex, 0] : null;
             m.DelayReason = N(_delay.Text);
             if (_id.HasValue)
@@ -607,11 +667,14 @@ namespace CROMS.Forms
                 { "received_by", Nz(_recvBy.Text) }, { "received_by_title", Nz(_recvTitle.Text) }, { "received_by_date", MUi.Val(_recv) },
                 { "remarks", Nz(_remarks.Text) }, { "delay_reason", Nz(_delay.Text) },
                 { "license_basis", m.Basis }, { "license_id", m.LicenseId },
+                { "license_out_of_province", m.OutOfProvinceLicense ? 1 : 0 },
                 { "exemption_basis", m.Basis == "Exempt" ? m.ExemptionBasis : null }, { "exemption_notes", m.Basis == "Exempt" ? Nz(_exNotes.Text) : null },
                 // The typed-licence columns are kept IN STEP with the linked licence so the
-                // printed certificate and legacy reports read the same number.
-                { "license_no", m.Basis == "Licensed" && _lic != null ? _lic.LicenseNo : null },
-                { "license_date", m.Basis == "Licensed" && _lic != null ? (object)_lic.IssueDate : null },
+                // printed certificate and legacy reports read the same number - or, for a
+                // licence obtained elsewhere, carry the number/date typed straight from the
+                // paper, since there is no local licence row to read them from.
+                { "license_no", m.Basis == "Licensed" ? (m.OutOfProvinceLicense ? m.ExternalLicenseNo : _lic != null ? _lic.LicenseNo : null) : null },
+                { "license_date", m.Basis == "Licensed" ? (m.OutOfProvinceLicense ? (object)m.ExternalLicenseDate : _lic != null ? (object)_lic.IssueDate : null) : null },
                 { "license_place", m.Basis == "Licensed" ? Nz(_licPlace.Text) : null },
             };
             foreach (var pair in new[] { Tuple.Create(_h, "husband"), Tuple.Create(_w, "wife") })
@@ -621,7 +684,8 @@ namespace CROMS.Forms
                 v[pre + "_first_name"] = Nz(p.First.Text); v[pre + "_middle_name"] = Nz(p.Middle.Text); v[pre + "_last_name"] = Nz(p.Last.Text);
                 v[pre + "_date_of_birth"] = dob;
                 v[pre + "_age"] = dob.HasValue ? (object)MarriageRules.AgeOn(dob.Value, on) : null;
-                v[pre + "_birth_place_id"] = FkVal(p.BirthMuni);
+                v[pre + "_place_of_birth"] = GeoLookup.JoinPlace(p.BirthMuni.Text, p.BirthProv.Text);
+                v[pre + "_birth_country"] = N(p.BirthCountry.Text);
                 v[pre + "_citizenship_id"] = FkVal(p.Cit); v[pre + "_religion_id"] = FkVal(p.Rel); v[pre + "_residence_id"] = FkVal(p.Res);
                 v[pre + "_civil_status"] = p.Civil.SelectedItem as string;
                 v[pre + "_father_name"] = Nz(p.Father.Text); v[pre + "_mother_name"] = Nz(p.Mother.Text);
@@ -648,11 +712,103 @@ namespace CROMS.Forms
                     MarriageService.SetOcrContext(_id.Value, _ocrScanId, _ocr != null ? _ocr.OverallConfidence : 0, WeakCount(), _ocr != null && _ocr.NeedsManualReview);
                     _ocrPending = false;
                 }
+                // SaveMarriage already synced marriage_requirements (it runs SyncMarriageRequirements
+                // internally), so the OUT_OF_PROVINCE_LICENSE row now exists if this marriage needs
+                // it - only now can the scanned image actually be attached to it.
+                if (_oopScanImage != null && _id.HasValue)
+                {
+                    ReqRow oopRow = MarriageService.Requirements("Marriage", _id.Value).FirstOrDefault(x => x.Code == "OUT_OF_PROVINCE_LICENSE");
+                    if (oopRow != null)
+                    {
+                        try { MarriageService.AttachRequirement(oopRow.Id, _oopScanImage, _oopScanImageName); _oopScanImage = null; _oopScanImageName = null; }
+                        catch { /* the marriage record itself still saved; retry the attach from the grid below */ }
+                    }
+                }
                 _dirty = false;
                 RefreshAll();
                 return true;
             }
             catch (Exception ex) { MUi.Fail(this, ex); return false; }
+        }
+
+        /// <summary>
+        /// Scan or re-attach the image proving the out-of-province licence. Reads it with plain
+        /// OCR (the issuing LCRO's form is unknown, so no template applies - unlike Birth/
+        /// Marriage/Death there is no DocLayouts entry to read this against) and offers a licence
+        /// number and date it can find in the text; the fields stay editable either way, and a
+        /// failed or absent read just leaves them for the operator to type. The image itself is
+        /// held until the next Save, because it is attached to the marriage_requirements ROW,
+        /// which does not exist until the marriage record it belongs to has been saved once.
+        /// </summary>
+        private void ScanOopLicense()
+        {
+            using (var dlg = new OpenFileDialog { Title = "Scan / attach license image", Filter = "Images|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff" })
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                byte[] bytes;
+                try { bytes = File.ReadAllBytes(dlg.FileName); }
+                catch (Exception ex) { MUi.Fail(this, ex); return; }
+
+                Bitmap bmp = null;
+                try { using (var ms = new MemoryStream(bytes)) bmp = new Bitmap(Image.FromStream(ms)); }
+                catch
+                {
+                    MessageBox.Show(this, "That file could not be read as an image.", "Not an image", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _oopScanImage = bytes; _oopScanImageName = Path.GetFileName(dlg.FileName);
+
+                string no = null; DateTime? date = null;
+                if (OcrService.IsAvailable())
+                {
+                    try { OcrResult r = OcrService.Run(bmp); no = GuessLicenseNo(r.Text); date = GuessDate(r.Text); }
+                    catch { /* best-effort - manual entry still works either way */ }
+                }
+                bmp.Dispose();
+
+                if (!string.IsNullOrWhiteSpace(no) && string.IsNullOrWhiteSpace(_oopLicNo.Text)) _oopLicNo.Text = no;
+                if (date.HasValue && !MUi.Val(_oopLicDate).HasValue) MUi.Put(_oopLicDate, date);
+                _dirty = true; RefreshAll();
+
+                string readBack = (no != null ? "License number: " + no + "\n" : "") + (date.HasValue ? "Date issued: " + MUi.Short(date) + "\n" : "");
+                MessageBox.Show(this,
+                    (readBack.Length > 0 ? "Read from the image - check this against the picture, then correct it if needed:\n" + readBack
+                                          : "Could not read a number or date automatically - type them in.") +
+                    "\nThe image will be saved as the attachment for this requirement when you save this record.",
+                    "License image", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        /// <summary>Best-effort: a licence-number-looking token near the word License/No, else the
+        /// office's own YYYY-#### numbering shape. Never guaranteed - the issuing office is not
+        /// one CROMS has a template for.</summary>
+        private static string GuessLicenseNo(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            Match m = Regex.Match(text, @"(?:Lic\w*\.?\s*(?:No\.?)?|No\.?)\s*[:\-]?\s*([A-Za-z0-9][A-Za-z0-9\-\/]{2,19})", RegexOptions.IgnoreCase);
+            if (m.Success) return m.Groups[1].Value.Trim();
+            m = Regex.Match(text, @"\b(19|20)\d{2}-\d{2,6}\b");
+            return m.Success ? m.Value : null;
+        }
+
+        /// <summary>Best-effort date read - accepts a named-month date or a numeric one, never
+        /// invents a year or a month that is not on the page (same fabrication guard used
+        /// throughout DocumentAI's own date parsing).</summary>
+        private static DateTime? GuessDate(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            Match m = Regex.Match(text,
+                @"\b(\d{1,2})(?:st|nd|rd|th)?\s+(Jan\w*|Feb\w*|Mar\w*|Apr\w*|May\w*|Jun\w*|Jul\w*|Aug\w*|Sep\w*|Oct\w*|Nov\w*|Dec\w*)\.?\s+(\d{4})\b",
+                RegexOptions.IgnoreCase);
+            DateTime dt;
+            if (m.Success && DateTime.TryParse(m.Groups[1].Value + " " + m.Groups[2].Value + " " + m.Groups[3].Value,
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
+                return dt.Date;
+            m = Regex.Match(text, @"\b(19|20)\d{2}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b");
+            if (m.Success && DateTime.TryParseExact(m.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt))
+                return dt.Date;
+            return null;
         }
 
         // ===================================================================== OCR
@@ -694,10 +850,12 @@ namespace CROMS.Forms
             MUi.SetPill(_formPill, _formCode ?? "MF-97", "Draft");
             MUi.SetPill(_statusPill, (_status ?? "Draft").ToUpperInvariant() + (_reg.Text.Length > 0 && registered ? "  " + _reg.Text : ""), _status);
             _licPanel.Visible = _rbLic.Checked; _exPanel.Visible = _rbEx.Checked;
+            _localPanel.Visible = !_oop.Checked; _oopPanel.Visible = _oop.Checked;
+            _licPanel.Height = 30 + (_oop.Checked ? _oopPanel.Height : _localPanel.Height) + 58 + 6;
 
             MarriageFacts m = UiFacts();
             bool delayed = MarriageRules.WouldBeDelayed(m, _s);
-            List<Need> needs = MarriageRules.Needs(m.Husband, m.Wife, m.DateOfMarriage ?? DateTime.Today, _catalog, "Marriage", _s, m.Basis == "Exempt", delayed);
+            List<Need> needs = MarriageRules.Needs(m.Husband, m.Wife, m.DateOfMarriage ?? DateTime.Today, _catalog, "Marriage", _s, m.Basis == "Exempt", delayed, m.OutOfProvinceLicense);
             if (_id.HasValue)
             {
                 if (!_dirty) MarriageService.SyncMarriageRequirements(_id.Value);
@@ -747,6 +905,7 @@ namespace CROMS.Forms
 
         private void RefreshLicenseSummary(MarriageFacts m)
         {
+            if (m.OutOfProvinceLicense) return; // shown in _oopPanel instead
             _licSummary.Controls.Clear();
             if (_lic == null)
             {
@@ -798,10 +957,18 @@ namespace CROMS.Forms
             foreach (Control c in _rail.Controls.Cast<Control>().ToList()) if (c != _issues) c.Dispose();
             _rail.Controls.Clear();
             var items = new List<Control>();
-            items.Add(MUi.Cap(_rbEx.Checked ? "License exemption" : "License on file"));
+            items.Add(MUi.Cap(_rbEx.Checked ? "License exemption" : _oop.Checked ? "License (out of province)" : "License on file"));
             if (_rbEx.Checked)
                 items.Add(MUi.Kv("Basis", _exBasis.SelectedIndex >= 0 ? MarriageRules.ExemptionBases[_exBasis.SelectedIndex, 0].Replace("ART", "Art. ") : "not stated",
                     _exBasis.SelectedIndex >= 0 ? (Color?)null : UiTheme.Danger));
+            else if (_oop.Checked)
+            {
+                items.Add(MUi.Kv("Licence no.", string.IsNullOrWhiteSpace(_oopLicNo.Text) ? "not entered" : _oopLicNo.Text,
+                    string.IsNullOrWhiteSpace(_oopLicNo.Text) ? UiTheme.Danger : (Color?)null));
+                items.Add(MUi.Kv("Issued", MUi.Val(_oopLicDate).HasValue ? MUi.Short(MUi.Val(_oopLicDate)) : "not entered",
+                    MUi.Val(_oopLicDate).HasValue ? (Color?)null : UiTheme.Danger));
+                items.Add(MUi.Kv("Issuing office", "another province - attach proof"));
+            }
             else if (_lic == null) items.Add(MUi.Kv("Licence", "none selected", UiTheme.Danger));
             else
             {
@@ -890,7 +1057,9 @@ namespace CROMS.Forms
             if (!MUi.Confirm(this, "Register marriage", "Register this marriage?",
                     "Registry number|" + regNo, "Marriage date|" + MUi.D(m.DateOfMarriage),
                     "Parties|" + m.Husband.FullName, "|" + m.Wife.FullName,
-                    "License|" + (m.Basis == "Exempt" ? "Exempt - " + m.ExemptionBasis : _lic != null ? _lic.LicenseNo : "-"),
+                    "License|" + (m.Basis == "Exempt" ? "Exempt - " + m.ExemptionBasis :
+                                  m.OutOfProvinceLicense ? m.ExternalLicenseNo + " (another province)" :
+                                  _lic != null ? _lic.LicenseNo : "-"),
                     "Registration|" + (MarriageRules.WouldBeDelayed(m, _s) ? "DELAYED" : "Timely")))
                 return;
             try
@@ -918,7 +1087,19 @@ namespace CROMS.Forms
 
         private void ViewSoftcopy()
         {
-            if (_scanImage == null) return;
+            if (_scanImage == null)
+            {
+                if (_id.HasValue)
+                {
+                    // No scanned original on file — fall back to the official Municipal
+                    // Form 97 blank already in Assets, filled in from the saved record.
+                    CertificateReport.Show(_formCode, _id.Value, this);
+                    return;
+                }
+                MessageBox.Show("No softcopy is saved for this record.", "Softcopy",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             SoftcopyViewer.Show(_scanImage, "Certificate of Marriage - original softcopy", this);
         }
 
@@ -933,7 +1114,8 @@ namespace CROMS.Forms
                 { "WifeFatherName", _w.Father.Text }, { "WifeMotherName", _w.Mother.Text },
                 { "DateOfMarriage", d(MUi.Val(_dom)) }, { "PlaceOfMarriage", _church.Text }, { "Solemnizer", _sol.Text },
                 { "SolemnizerPosition", _solPos.Text }, { "Witness1", _w1.Text }, { "Witness2", _w2.Text },
-                { "LicenseNo", _lic != null && _rbLic.Checked ? _lic.LicenseNo : "" }, { "LicenseDate", _lic != null && _rbLic.Checked ? d(_lic.IssueDate) : "" },
+                { "LicenseNo", !_rbLic.Checked ? "" : _oop.Checked ? _oopLicNo.Text : _lic != null ? _lic.LicenseNo : "" },
+                { "LicenseDate", !_rbLic.Checked ? "" : _oop.Checked ? d(MUi.Val(_oopLicDate)) : _lic != null ? d(_lic.IssueDate) : "" },
                 { "ReceivedByName", _recvBy.Text }, { "ReceivedByTitle", _recvTitle.Text }, { "ReceivedByDate", d(MUi.Val(_recv)) },
             };
         }

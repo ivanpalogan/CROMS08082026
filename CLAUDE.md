@@ -3869,3 +3869,356 @@ at times; REBUILD IN VS to pick this up if so).
 NOT DONE: Legal Instruments/Court Order/Legitimation/Supplemental Report all still route to the
 SAME `petitions` table and record/type picker Petitions already had — no per-type extra screen.
 The backlog's Phase 4 items 10-11 (decide one table vs four) is now answered: one table, done.
+
+2026-09-13 (Phase 3, item 8 — the another-province licence attachment, the last unbuilt marriage
+§14 item with a known trigger) - Backlog build order flagged this item as blocked pending which
+DOCUMENT proves the trigger. The TRIGGER itself was already confirmed by the office (backlog
+Sec.4.1, 2026-09-13 earlier the same day): not the applicant's residence or birthplace, but a
+marriage LICENCE obtained in ANOTHER province, solemnized HERE. So the trigger and the generic
+"an attachment must be possible" requirement were buildable now; only the document's IDENTITY
+stays open, and nothing here guesses at that - the new requirement's caption says so explicitly
+and the attachment slot is generic, matching the build order's own instruction ("reuse the
+marriage_requirements attachment path").
+
+Migration 45_out_of_province_license.sql (applied against the built assembly's schema
+expectations, registered in CROMS.csproj) adds `marriages.license_out_of_province` (a boolean
+fact kept SEPARATE from `license_basis`, since Licensed vs Exempt and "which office issued the
+licence" are two different questions - the same reasoning `PreviouslyMarried` already sits beside
+Basis rather than folding into it) and a conditional `OUT_OF_PROVINCE_LICENSE` requirement row in
+`marriage_requirement_types` (applies_to='Marriage', rule_key='OutOfProvinceLicense', blocking=1),
+the same shape ConsentAge/AdviceAge/PreviouslyMarried/Delayed already use on this table.
+
+WHY A REAL GAP, NOT JUST A MISSING CHECKBOX. Before this, `MarriageEntryForm`'s licence tab only
+let a Licensed marriage link a LOCAL `marriage_licenses` row, and `MarriageRules.ValidateMarriage`
+hard-blocked ("NO_LICENSE") on nothing being linked. A marriage solemnized here under a licence
+issued by another LCRO has no local licence row and could never pass that check - so the ONLY way
+to register one in CROMS was to mis-mark it Exempt (wrong: it IS licensed) or fabricate a fake
+local licence record (worse). The checkbox and its own validation branch open a real path: when
+checked, the licence number and issue date are typed in directly (they're the licence's own
+stated facts, already have columns - `license_no`/`license_date`, added 2026-09-07 migration 30 -
+and print onto the certificate the same way a linked licence's would via
+v_marriage_certificate's existing COALESCE), and NO_LICENSE is skipped in favor of requiring
+those two fields plus a marriage-date-not-before-issue check.
+
+`Data/MarriageRules.cs`: MarriageFacts gains OutOfProvinceLicense/ExternalLicenseNo/
+ExternalLicenseDate; Needs() gains an outOfProvinceLicense parameter and an
+"OutOfProvinceLicense" rule-key case; ValidateMarriage's licence-link block branches on the new
+flag before falling into the existing local-licence checks. `Data/MarriageService.cs`:
+MarriageColumns whitelist gains license_out_of_province; LoadMarriageFacts reads the flag
+(Columns.Contains-guarded, so a database still on migration 44 doesn't throw) plus the two
+external fields from the existing license_no/license_date columns; SyncMarriageRequirements
+threads the flag through to Needs() so the new requirement appears in the RequirementsGrid
+exactly like every other marriage-level document. `Forms/MarriageEntryForm.cs`: a checkbox
+swaps the local-licence search panel for a typed number/date panel plus a warning banner
+("Attach proof of the out-of-province licence below... which document is still being
+confirmed"); the rail, the register-confirmation dialog, the OCR-preview field map, and the
+load/save round-trip all follow the same branch.
+
+VERIFIED by compiling only (no live DB touched this pass - the change is schema-additive and
+was reasoned from the existing, already-verified marriage workflow patterns rather than run
+against croms). MSBuild (VS2019, CROMS.csproj) exit 0, 0 warnings 0 errors, built to a temp
+OutputPath. Migration 45 NOT yet applied to the live croms database - run it before using the
+new checkbox on a real record. bin\Debug not updated - rebuild in VS.
+
+NOT DONE, stated plainly: the printed Marriage Application (MF-90) does not reflect
+out-of-province status (MF-90 is the LICENCE application, filed at the ISSUING office - this
+marriage's licence was never applied for here, so MF-90 for it was never CROMS's to print in
+the first place; only the Certificate of Marriage, MF-97, is affected, and that already prints
+correctly via the existing license_no/date/place columns). Which specific document to require is
+still open - see item 5's consolidated list, item A1.
+
+2026-09-13 (Phase 3 item 8, follow-up — scan or type the out-of-province licence, image and data
+both saved) - The out-of-province licence panel built earlier today only took typed number/date.
+Added a "Scan / attach license image..." button beside those two fields: it opens an image,
+runs it through the plain `OcrService.Run` pass (no DocLayouts template applies - the issuing
+LCRO's own form is unknown to CROMS, unlike Birth/Marriage/Death), and offers a licence number
+and date it can find in the text via two narrow regexes (a token after "Lic.../No." or the
+office's own YYYY-#### numbering shape; a named-month or numeric date). A suggestion only fills
+a field that is still BLANK - it never overwrites what the operator already typed - and a
+confirmation dialog states plainly what was read and that it needs checking against the picture,
+or that nothing was read and both fields need typing. Manual entry alone, with no scan at all,
+still works exactly as before.
+
+BOTH THE IMAGE AND THE DATA ARE SAVED, per the ask, but not at the same moment - and the delay is
+structural, not a shortcut. The image belongs to the `marriage_requirements` row for
+OUT_OF_PROVINCE_LICENSE (the generic attachment slot item 8 already wired up), and that row does
+not exist until the marriage record it belongs to has been saved once - `SyncMarriageRequirements`
+creates it from inside `MarriageService.SaveMarriage`. So `ScanOopLicense` holds the scanned bytes
+in memory only; `Save()` now looks the row up right after `SaveMarriage` returns and attaches the
+held image to it in the same click the operator already used to save the record - one action,
+both facts land. The licence number and date, being ordinary marriage columns, save immediately
+with everything else on Save regardless of whether they were typed or read off a scan.
+
+NOT A NEW OCR PROFILE. This deliberately does not join Birth/Marriage/Death's classified,
+per-field extraction pipeline (DocLayouts/DocIntelligence) - that machinery is built and measured
+against the office's OWN forms; an out-of-province licence is a different LCRO's own stock, of
+unknown layout, and pretending otherwise would produce a confident-looking field that is really a
+guess. Two narrow regexes over the whole-page text is the honest version of "try to help, never
+claim more certainty than that" this project has kept everywhere else this kind of scan appears.
+
+VERIFIED by compiling only - no live database or OCR engine exercised this pass (no sample
+out-of-province licence image on hand to test extraction against). MSBuild (VS2019,
+CROMS.csproj) exit 0, 0 warnings 0 errors, built to a temp OutputPath. Depends on migration 45
+(not yet applied to the live croms database, per the earlier entry) - the requirement row this
+attaches to does not exist until that migration runs.
+
+2026-09-13 (Phase 2, item 5 — the §14 questions sent to the office as one list, no code) - New
+"CROMS — Questions for LCRO Peñablanca.md" at the repo root: 24 items (A-H) pulled straight from
+backlog §14, everything still genuinely open after the six documents arrived, plus two items that
+were not questions before - confirming the MF-102 (2007) blank and the re-typed Consent/Advice
+Word docs actually match the office's own stock (§13 flagged both as unverified). Struck-through
+(already-answered) §14 items are not repeated. Backlog §15 Phase 2 marked DONE and its item 5
+checked off, pointing at this file. Nothing here is a guess - it is the standing PENDING items
+restated as one list to hand over, per backlog rule §16.
+
+2026-09-13 (Records Archive — admin-only browser over everything ever saved) - New module,
+Administration group, key "archive". One screen: a category tree on the left (Civil Registry
+Records / Marriage Licensing / Petitions & Legal Instruments / Certification & PSA Copies /
+Claims & Releases / Front Desk), a grid on the right, and a "View Full Record" button that opens
+every column of the selected row plus a button for each stored scan/photo (routed through the
+existing SoftcopyViewer, same viewer Birth/Marriage/Death already use for their softcopies - no
+new image-viewing code).
+
+Fourteen categories, one per table this system actually writes records/images/forms into: Birth
+/ Marriage / Death registration (scan_image, birth_image), Marriage License applications (Form
+90), the six petition_type values as SIX SEPARATE categories - Correction of Entry (RA9048),
+Change of First Name (RA10172), Legitimation, Supplemental Report, Legal Instrument, and Court
+Order (petitions is one table but the office thinks of these as different case types, so each
+gets its own node rather than one "Petitions" bucket with a filter dropdown) - Certificate
+Requests, PSA Copies/BREQS (scan_image), Claim Requests (uploaded valid ID), Releases (claimant
+webcam photo), and Queue Tickets (kiosk face photo + spouse photo for marriage tickets).
+
+Read-only by design - no INSERT/UPDATE/DELETE anywhere in the file, matching the Analytics
+module's own rule. Admin-only the same way every other admin-only screen in this app already is:
+the key "archive" is not listed in Registrar/Staff/Cashier/Releasing's AllowedKeys in MainForm,
+and AllowedKeys returns null (full access) only for roles it doesn't recognise - which today
+means only Admin.
+
+Petition record-name resolution (which birth/death/marriage a petition is about) reuses the
+exact CASE expression PetitionsForm's own grid already runs - one query pattern, not a second
+one that could drift from it. Detail view is a generic "SELECT * FROM <table> WHERE id=@id" read
+into a label:value list, so a column added to any of these tables later shows up here with no
+code change; blob columns are excluded from that list and offered as their own "View <label>"
+button instead, matching the pattern already used for scan_image with a shown/committed record.
+
+Not built: a cross-category text search box (deferred - column-header click-to-sort already
+works since every grid binds a DataTable) and marriage_licenses' own attachment scans, which
+live on marriage_requirements keyed by owner type rather than on the license row itself.
+
+MSBuild exit 0, 0 warnings 0 errors (temp OutputPath). bin\Debug not touched by this build -
+REBUILD IN VS to pick this up if CROMS.exe is running.
+
+### 2026-09-14 — Backlog §12/§14 "Workflow" answered: semi-admin staff roles + Phase 8 confirmed built
+
+Two office answers closed the last open workflow item and let Phase 8 be marked done without new
+plumbing — the pipeline it asked for already existed.
+
+**Semi-admin staff permissions (§12).** Office: any staff member may cover any stage (receiving /
+processing / releasing) on a given day, decided internally — not one fixed person per stage, and
+one employee may hold several roles. `MainForm.AllowedKeys` (MainForm.cs) changed from four
+different per-role module sets to ONE shared `OperationalKeys` set returned for Registrar, Staff,
+Cashier and Releasing alike — every non-Admin role now sees the identical broad operational menu
+(queue/transactions/certrequest/release/breqs/birth/marriage/death/petitions/search/ocr/fees/
+reports). True admin config (Master Files, Settings, Users & Audit Trail, Records Archive) stays
+Admin-only — the distinction that matters is operational vs administrative, not which of the four
+staff titles someone holds.
+
+**Phase 8 three-stage workflow — already built, no new code.** Office described the flow in their
+own words: Window 1 only receives the request; Window 2 finds/prints the certificate and collects
+payment; Window 3 only hands over the printed certificate; each window passes the transaction to
+the next. That is exactly the Certificate Request pipeline built 2026-08-04: Create (**ForPrint**)
+→ `CertificatePrintForm` find+print → "Proceed to Payment" (**ForPayment**) → Fees & Payments →
+**ForRelease** → Release & Claim (**Released**) — one transaction, handed off by STATUS, not by a
+hardcoded window identity, so any window/staff can pick it up at whatever stage it's at. That is
+exactly what makes it compatible with the semi-admin answer above. Confirmed in
+`CROMS — Agency Requirements Backlog.md` §15 Phase 8, no schema/code change needed. (BREQS already
+has its own analogous 5-status pipeline, 2026-09-13; Birth/Marriage/Death registration and
+Petitions are record CREATION, not certificate retrieval, so the find-and-print hand-off doesn't
+apply to them the same way.)
+
+**Marriage §14 items answered, backlog updated:** (1) how the office records a marriage
+registration after receiving the Certificate of Marriage — nothing extra; save the certificate as
+a scanned image on the record, which CROMS already has (`marriages.scan_image` + the shared
+SoftcopyViewer every registration module uses) — matches the file's own Tier B framing (§0),
+"records and tracks," not a rebuilt procedure. (2) CROMS ↔ PhilCRIS boundary — PhilCRIS is a
+future API CONSUMER of CROMS data (pulls a client's info via National ID when they need it), not
+something CROMS integrates into; no endpoint exists or was requested. (3) Advice form's
+"(DECEASED)" annotation — confirmed no reason field needed, the handwritten note on paper is
+enough. (4) Out-of-province licence proof document — confirmed NO document is required at all:
+lawful to license in one province and marry in another, and the licence's existing 120-day
+validity check (already enforced regardless of issuing office) is all that matters. Migration 45
+(`CROMS/Database/45_out_of_province_license.sql`, not yet applied to the live DB) changed the
+`OUT_OF_PROVINCE_LICENSE` requirement row from `blocking=1` to `blocking=0` (informational/
+optional — attach a copy only if the applicant has one) and reworded its caption/legal_basis;
+`MarriageEntryForm.cs`'s on-screen banner reworded from a Warning ("attach proof... which document
+is still being confirmed") to an Info note stating no document is required. (5) Degree of
+Relationship (MF-90, Family Code Arts. 37-38) — explained what "capture it" meant (a field for
+the applicants' declared relationship, e.g. first cousins, used to catch legally prohibited
+marriages) but stays PENDING — office has not yet said whether they want it recorded and whether
+anything should act on a close-relationship answer.
+
+Build: `MSBuild CROMS.csproj` clean, 0 errors (temp OutputPath via VS2022 BuildTools — this
+machine has no VS2019 msbuild.exe on PATH, used 2022's instead; same compiler target, no issue).
+`MainForm.cs`, `CROMS/Database/45_out_of_province_license.sql`, `CROMS/Forms/MarriageEntryForm.cs`
+changed; migration 45 still not applied to the live croms DB (same as before this pass) — apply it
+before relying on the reworded non-blocking requirement row showing up on a real record. REBUILD
+IN VS to update bin\Debug if CROMS.exe is running elsewhere.
+
+### 2026-09-14 (later) — Correction: fuller Marriage Registration interview finding recovered; no code change
+
+Earlier the same day this file recorded the marriage-registration answer too thin ("nothing
+extra, just save the scanned image"). User supplied the fuller interview finding (item 10 of the
+original interview, previously only a PENDING placeholder in the backlog's §5): after
+solemnization, staff receive the already-issued marriage licence and the accomplished/approved
+Certificate of Marriage, and mainly do REGISTRATION-related work — add or verify dates, registry
+information, signatures and similar registration details, then record the marriage. The office
+also uses **PhilCRIS** as the existing system for PSA transmission/coordination, and the actual
+civil-registration data for PSA still needs to be placed there separately (by staff, outside
+CROMS) — CROMS's role is recording the marriage, scanning/attaching the relevant documents,
+keeping the important marriage information, and maintaining an internal record; it is not
+responsible for PSA transmission.
+
+**No code change** — `MarriageEntryForm` (Form 97) already has every field this describes
+(registry number, book/volume, status, date/time, solemnizer, the licence link, and the
+certification-block fields from migrations 30/38) plus `marriages.scan_image` +
+`SoftcopyViewer` for the attached documents. The fuller finding confirms the existing screen is
+already the right scope — it corrects the earlier progress-log entry's *description* of the
+answer (which undersold it as "just an image"), not the conclusion that nothing needs building.
+
+Backlog updated: §5 ("Marriage Application vs Marriage Registration") marked CONFIRMED with the
+full finding quoted and both its PENDING items resolved; §14's Marriage bullets for
+"how registration is recorded," "which details staff add," and "CROMS ↔ PhilCRIS" reworded to
+match and cross-reference §5, rather than repeating the thinner version. The separate,
+unrelated same-day mention of PhilCRIS possibly calling a future CROMS API to pull
+kiosk-collected client data by National ID is kept as a distinct, not-yet-requested integration
+point — not conflated with the PSA-transmission answer here.
+
+### 2026-09-14 (later still) — Marriage Registration (Form 97): place of birth standardized to Country/Province/Municipality
+
+User supplied a fuller, formally-written version of the original interview notes for cross-check.
+Auditing it against the running app confirmed the earlier answers hold, and surfaced one real gap
+against item 1 ("place of birth split applies wherever it's recorded, not limited to one module"):
+`marriages.husband_birth_place_id` / `wife_birth_place_id` were still a single bare FK id with no
+country at all — the only place-of-birth fields in the app not already on the Country/Province/
+Municipality trio. Birth Registration and the Marriage Licence (Form 90) already had it
+(migrations 36/37, 2026-09-12). Built on request.
+
+A SECOND, PRE-EXISTING DEFECT surfaced while fixing the first, unrelated to this session's own
+work: the FK constraints on those two columns (`01_schema.sql`, 2026-07 build) reference
+`hospitals(id)`, but every query touching them (`MarriageEntryForm`'s `ReloadMunis`, and
+`v_marriage_certificate`'s own `LEFT JOIN municipalities hbp ON hbp.id = m.husband_birth_place_id`)
+has always treated the value as a MUNICIPALITY id. A place of birth is a municipality, not a
+hospital — the queries were right and the constraint was wrong from the start. Not touched
+directly (risk not worth it for a column now being retired from the write path); documented in
+the new migration so nobody re-derives the same confusion from the schema file alone.
+
+**Storage changed to TEXT, matching the rest of the app, not to a second FK.** Every other
+place-of-birth field CROMS has (`births.place_of_birth`, `marriage_licenses.husband_place_of_birth`)
+is a joined "Municipality, Province" VARCHAR plus its own country column — because an id-based FK
+cannot hold a birthplace with no PSGC row (there is no `municipalities` entry for Osaka). Migration
+46 (`CROMS/Database/46_marriage_registration_birthplace.sql`, NOT yet applied to the live DB) adds
+`marriages.husband_place_of_birth` / `wife_place_of_birth` (VARCHAR(150)) and
+`husband_birth_country` / `wife_birth_country` (VARCHAR(80), matching migration 37's shape on
+`marriage_licenses` exactly) and restates `v_marriage_certificate` to read the new columns first,
+falling back to the old FK-joined name only for a row saved before this migration — nothing
+already on file goes blank. No row is backfilled. The deprecated `husband_birth_place_id` /
+`wife_birth_place_id` columns are left in the table (harmless, unreferenced) rather than dropped.
+
+**`GeoLookup.JoinPlace`/`ProvinceOf`/`MunicipalityOf` promoted out of `MarriageLicenseForm.cs`
+into `GeoLookup.cs`** as public statics, so Form 90 and Form 97 share one join/split
+implementation instead of `MarriageEntryForm` growing a second private copy of the identical
+logic — `MarriageLicenseForm.cs`'s three private methods now just forward to `GeoLookup`.
+
+`MarriageEntryForm.cs`: `SP.BirthCountry` added; `PartyInner` swaps the old ad-hoc
+`Bind`/`ReloadMunis` province-only wiring for `GeoLookup.LoadCountries` +
+`GeoLookup.CascadeCountry` (editable combos, so a foreign locality can be typed — matches Form 90
+and Birth exactly); the place-of-birth block goes from one 2-column row to two rows (Country +
+Province, then Municipality alone) — same layout call Form 90 already made for the same reason
+("City/municipality of birth" is the longest caption on the card). Load reads the new columns via
+`GeoLookup.SetCountryPlace`, falling back to `GeoLookup.HomeCountry` when a legacy row has neither
+column set. Save writes `GeoLookup.JoinPlace(municipality, province)` +
+`N(BirthCountry.Text)` instead of the old `FkVal(BirthMuni)`. `MarriageColumns` in
+`MarriageService.cs` updated to match (old `*_birth_place_id` keys removed from the whitelist, so
+nothing can write them again by mistake).
+
+**Layout bug caught before it shipped, not after:** the husband/wife card row is a FIXED-height
+`TwoColumns(344, ...)` and the inner content panel has no `AutoScroll` — adding the second
+place-of-birth row (5 rows -> 6 at 56px each) would have silently clipped the Civil
+status/Residence row off the bottom of the card with no scrollbar to reach it. Row height raised
+344 -> 400 before ever running it, reasoning from the same math Form 90's own layout already
+had to solve.
+
+Build: `MSBuild CROMS.csproj` clean, 0 errors (temp OutputPath, VS2022 BuildTools — this machine
+has no VS2019 msbuild.exe on PATH). Not run against the live database — migration 46 still needs
+applying, and the change was verified by compile + reading the exact query/save paths, not by
+driving the real form (no interactive desktop / live croms connection in this session). REBUILD IN
+VS to update bin\Debug if CROMS.exe is running elsewhere; apply migration 46 before saving a
+marriage registration record, or the INSERT/UPDATE will fail on the two new columns.
+
+NOT DONE, stated plainly: OCR extraction (`DocumentAI.ExtractMarriage`) still does not fill
+Form 97's place-of-birth fields at all — `MarriageEntryForm.PrimeFromExtraction` has no
+place-of-birth handling today (checked; pre-existing gap, not introduced or worsened here). Barangay
+was deliberately not added — no PSA marriage form in this codebase asks for one at the place-of-birth
+level (matching Birth Registration's own choice not to add it there either).
+
+### 2026-09-15 — Registry Books module built; Book Page added to Birth and Death Registration
+
+User asked for the book/page pair to be enterable on all three registration screens and for a
+real Registry Books screen showing the year (volume) of a book and its pages — the module was
+still the 2026-07-09 title-only stub, dropped from the sidebar that same day and never rebuilt.
+
+WHAT WAS ALREADY THERE, checked before writing anything. `births.book_volume` has existed since
+the first Form-102 build, and Marriage's `MarriageEntryForm` already had BOTH `_book` and
+`_page` wired into its save dict — migration 26 (2026-09-06) added `book_page` to all three
+tables and `book_volume` to marriages/deaths specifically so a certificate could print book/page
+for any of the three, but only Marriage's screen ever got the matching input boxes. Birth had
+Book/Volume but no Page box; Death had NEITHER box — two live database columns with no way for
+staff to fill them on the form the office actually uses.
+
+BIRTH REGISTRATION: added `txtBookPage` as a new row (row 8) in the Certification tab's
+`tblCert` grid — the existing 4-column layout's remaining cells at the Book/Volume row and the
+Remarks row are already occupied (Remarks' textbox spans all 3 value columns). `tblCert` grew
+from 8 to 9 rows / 404 to 448px. Wired into `Columns`/`ValuePlaceholders`/`SetClause`/
+`FieldParams`/`LoadBirth`; `ClearForm` needed no extra line — it clears every input control
+generically via `EnumerateInputs`/`ClearControl`, which already covers a plain TextBox. Added
+Page to the Recent Registrations grid beside the existing Book column.
+
+DEATH REGISTRATION: added BOTH `txtBookVol` and `txtBookPage`, since neither existed. Placed as
+a new label+textbox pair at the bottom of the "Deceased Information" groupbox (there was ~60px
+of unused space below the Religion field). `grpDeceased` grew 407->452px, so the button row and
+`grpCert`/the records grid were nudged down 45px to stay clear (480->525, 492->537, 855->900,
+875->920); `ClientSize` grew 1200->1245 — the form is embedded with `AutoScroll=true` by
+`MainForm.ShowModule` regardless, so this only tidies the design-time canvas. Wired into
+`Columns`/`ValuePlaceholders`/`SetClause`/`FieldParams`/`LoadDeath`; Death's `ClearForm` is NOT
+generic (clears each control by name), so `txtBookVol.Clear()`/`txtBookPage.Clear()` were added
+explicitly. Added Book/Page to the Recent Death Registrations grid.
+
+MARRIAGE REGISTRATION: unchanged — `MarriageEntryForm` already reads/writes/loads both fields
+(confirmed before touching anything).
+
+REGISTRY BOOKS, built as a real read-only screen. Two grids: BOOKS ON FILE (one row per Type +
+Volume — the office's staff-typed "book/year" — with a live COUNT of records and a COUNT
+DISTINCT of the pages actually used in that volume, via three independent `GROUP BY
+book_volume` queries UNION ALL'd together), and clicking a book fills RECORDS IN THE SELECTED
+BOOK below it (Registry No / Page / Name / Event Date / Status for just that volume, ordered by
+page). Double-clicking a record jumps to its registration module, reusing the exact
+`Shell()`/`GoToModule` pattern `RecordSearchForm` already established for the same "found it
+here, go edit it there" hand-off. A record with no book/volume recorded groups under "(no
+volume recorded)" rather than being silently dropped. The table name in the per-type query is
+chosen by a `switch` over the fixed literal Type value ("Birth"/"Marriage"/"Death"), never from
+user input, so building it as a string is not an injection vector.
+
+Registered as module key `"books"` in `ModuleRegistry` (Petitions & Search group), added to
+`MainForm.OperationalKeys` (every non-Admin role sees it — it's a lookup screen, not an admin
+function), and given a sidebar nav button (`btnBooks`, Tag="books") in `MainForm.Designer.cs`.
+
+VERIFIED by compiling only — no live database touched this pass (schema unchanged; every column
+already existed). MSBuild (VS2019) `CROMS.csproj` clean, 0 errors, 0 warnings, temp OutputPath.
+GUI not clicked (no interactive desktop) — rebuild in VS to see the new Book Page boxes on
+Birth/Death and the Registry Books screen on the sidebar.
+
+NOT DONE: no way to type book_volume/book_page from the Registry Books screen itself (values
+are entered on Birth/Marriage/Death Registration, where the record's other facts are typed, not
+on a separate catalogue screen); Birth's Book/Volume box is still free text exactly as
+Marriage's and Death's now are (nothing validates it against an actual physical book count or
+enforces one page per record).

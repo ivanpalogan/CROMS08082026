@@ -21,13 +21,38 @@ namespace CROMS.Kiosk
 
         private static string _host;
         private static int _port = 3306;
+        private static DateTime _lastLoad = DateTime.MinValue;
+        private static DateTime _lastWrite = DateTime.MinValue;
 
         static ServerConfig() { Load(); }
 
         private static bool Configured => !string.IsNullOrWhiteSpace(_host);
 
-        /// <summary>The saved DB server host (empty when unconfigured / local).</summary>
-        public static string Host => _host;
+        /// <summary>
+        /// The saved DB server host (empty when unconfigured / local). Re-reads
+        /// server.cfg from disk whenever its last-write time has changed (checked
+        /// at most once/5s, so this stays cheap) — the MAIN CROMS app can rewrite
+        /// this file at any point during its own run (its startup auto-discovery,
+        /// or a manual Connect-to-Server save) and the kiosk is a SEPARATE process
+        /// that would otherwise keep using whatever IP was on disk when it first
+        /// launched, even after the real server address changed underneath it.
+        /// </summary>
+        public static string Host { get { RefreshIfChanged(); return _host; } }
+
+        private static void RefreshIfChanged()
+        {
+            if ((DateTime.UtcNow - _lastLoad).TotalSeconds < 5) return;
+            _lastLoad = DateTime.UtcNow;
+            try
+            {
+                if (!System.IO.File.Exists(File)) return;
+                var wt = System.IO.File.GetLastWriteTimeUtc(File);
+                if (wt == _lastWrite) return;
+                _lastWrite = wt;
+                Load();
+            }
+            catch { }
+        }
 
         private static void Load()
         {

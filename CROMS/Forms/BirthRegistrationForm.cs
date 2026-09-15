@@ -313,7 +313,7 @@ namespace CROMS.Forms
             mnuViewSoftcopy.Enabled = _scanImage != null || _editingId != null;
         }
 
-        /// <summary>Opens the existing OCR Digitization module in the main application.</summary>
+        /// <summary>Opens Intelligent Document Processing so a scanned certificate can be read and auto-filled into this form.</summary>
         private void btnOCRLiveBirth_Click(object sender, EventArgs e)
         {
             try
@@ -355,6 +355,15 @@ namespace CROMS.Forms
             }
             if (bytes == null)
             {
+                if (_editingId != null)
+                {
+                    // No scanned original was ever attached — fall back to the official
+                    // Municipal Form 102 blank already in Assets, filled in from the saved
+                    // record, so "view the softcopy" always shows something usable instead
+                    // of a dead end.
+                    CROMS.Data.CertificateReport.Show(_formCode, _editingId.Value, this);
+                    return;
+                }
                 MessageBox.Show("No softcopy is saved for this record. Open a record from the list, " +
                     "or use Document AI to attach a scanned copy.", "Softcopy",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -625,7 +634,7 @@ namespace CROMS.Forms
             dgvBirths.DataSource = Db.Pull(
                 "SELECT id, registry_no AS 'Registry No', " +
                 "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS Child, " +
-                "sex AS Sex, date_of_birth AS DOB, book_volume AS Book, status AS Status " +
+                "sex AS Sex, date_of_birth AS DOB, book_volume AS Book, book_page AS Page, status AS Status " +
                 "FROM births ORDER BY id DESC");
             if (dgvBirths.Columns.Contains("id")) dgvBirths.Columns["id"].Visible = false;
         }
@@ -768,6 +777,7 @@ namespace CROMS.Forms
             chkDelayed.Checked = ToInt(r["is_delayed"]) == 1;
             txtRegNo.Text = Str(r["registry_no"]);
             txtBook.Text = Str(r["book_volume"]);
+            txtBookPage.Text = Str(r["book_page"]);
             SetCombo(cboStatus, r["status"]);
             txtFirstName.Text = Str(r["first_name"]);
             txtMiddleName.Text = Str(r["middle_name"]);
@@ -924,7 +934,7 @@ namespace CROMS.Forms
 
         // ---------- shared SQL fragments ----------
         private const string Columns =
-            "form_code, form_name, is_delayed, date_registered, registry_no, book_volume, status, first_name, middle_name, last_name, sex, " +
+            "form_code, form_name, is_delayed, date_registered, registry_no, book_volume, book_page, status, first_name, middle_name, last_name, sex, " +
             "date_of_birth, place_of_birth, birth_country, type_of_birth, birth_order, weight_grams, " +
             "mother_first_name, mother_middle_name, mother_last_name, mother_citizenship, mother_religion, " +
             "mother_occupation, mother_age, mother_children_born_alive, mother_children_living, " +
@@ -937,7 +947,7 @@ namespace CROMS.Forms
             "registered_by, registered_by_title, registered_by_date, remarks";
 
         private const string ValuePlaceholders =
-            "@form_code, @form_name, @is_delayed, @date_registered, @registry_no, @book_volume, @status, @fn, @mn, @ln, @sex, @dob, @place, @country, " +
+            "@form_code, @form_name, @is_delayed, @date_registered, @registry_no, @book_volume, @book_page, @status, @fn, @mn, @ln, @sex, @dob, @place, @country, " +
             "@type, @order, @weight, @mfn, @mmn, @mln, @mcit, @mrel, @mocc, @mage, @mba, @mlv, @mdd, @mres, " +
             "@ffn, @fmn, @fln, @fcit, @frel, @focc, @fage, @fres, @pmdate, @pmplace, @pmarried, @atype, @aname, @atitle, " +
             "@aaddr, @adate, @iname, @irel, @iaddr, @idate, " +
@@ -945,7 +955,7 @@ namespace CROMS.Forms
             "@regby, @regbytitle, @regbydate, @remarks";
 
         private const string SetClause =
-            "form_code=@form_code, form_name=@form_name, is_delayed=@is_delayed, date_registered=@date_registered, registry_no=@registry_no, book_volume=@book_volume, status=@status, " +
+            "form_code=@form_code, form_name=@form_name, is_delayed=@is_delayed, date_registered=@date_registered, registry_no=@registry_no, book_volume=@book_volume, book_page=@book_page, status=@status, " +
             "first_name=@fn, middle_name=@mn, last_name=@ln, sex=@sex, date_of_birth=@dob, " +
             "place_of_birth=@place, birth_country=@country, type_of_birth=@type, birth_order=@order, weight_grams=@weight, " +
             "mother_first_name=@mfn, mother_middle_name=@mmn, mother_last_name=@mln, mother_citizenship=@mcit, " +
@@ -974,6 +984,7 @@ namespace CROMS.Forms
                     (object)RegistrationDateFor(status) ?? DBNull.Value),
                 new MySqlParameter("@registry_no", S(txtRegNo)),
                 new MySqlParameter("@book_volume", S(txtBook)),
+                new MySqlParameter("@book_page", S(txtBookPage)),
                 new MySqlParameter("@status", status),
                 new MySqlParameter("@fn", txtFirstName.Text.Trim()),
                 new MySqlParameter("@mn", S(txtMiddleName)),
@@ -1470,7 +1481,7 @@ namespace CROMS.Forms
         private void InitializeDelayedCaseButton()
         {
             if (_btnDelayedCase != null || pnlRecordActions == null) return;
-            _btnDelayedCase = new Button { Width = 190, Height = 30, Text = "Delayed Registration...", Margin = btnNew.Margin };
+            _btnDelayedCase = new Button { Width = 220, Height = 30, Text = "Delayed Birth Registration...", Margin = btnNew.Margin };
             _btnDelayedCase.Click += (s, e) =>
             {
                 if (_editingId == null) return;
@@ -1697,9 +1708,17 @@ namespace CROMS.Forms
         private static string Str(object v) => v == DBNull.Value || v == null ? "" : v.ToString();
         private static int ToInt(object v) => v == DBNull.Value || v == null ? 0 : Convert.ToInt32(v);
 
+        /// <summary>
+        /// Thin divider between the document/case actions (Delayed Registration, Print
+        /// Certificate) and the record CRUD group (New, Update, Delete) — the two groups do
+        /// different jobs and read clearer apart than run together in one unbroken row.
+        /// </summary>
         private void pnlRecordActions_Paint(object sender, PaintEventArgs e)
         {
-
+            if (btnCertificate == null || btnNew == null) return;
+            int x = (btnCertificate.Right + btnNew.Left) / 2;
+            using (var pen = new System.Drawing.Pen(UiTheme.CardLine))
+                e.Graphics.DrawLine(pen, x, 8, x, pnlRecordActions.Height - 8);
         }
 
         private static void SetCombo(ComboBox c, object v) =>

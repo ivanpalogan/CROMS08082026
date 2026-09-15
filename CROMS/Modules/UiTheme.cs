@@ -75,7 +75,11 @@ namespace CROMS.Modules
             {
                 NormalizeFont(c);
                 // A button tagged "noskin" draws itself (e.g. a custom icon) — leave it alone.
-                if (c is Button b) { if (!(b.Tag is string s && s == "noskin")) PolishButton(b); }
+                if (c is Button b)
+                {
+                    if (!(b.Tag is string s && s == "noskin")) PolishButton(b);
+                    if (b is SplitButton sb && sb.Menu != null) StyleMenu(sb.Menu);
+                }
                 else if (c is DataGridView g) StyleGrid(g);
                 if (c.HasChildren) Polish(c);
             }
@@ -273,6 +277,40 @@ namespace CROMS.Modules
             path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);         // bottom-left
             path.CloseFigure();
             return path;
+        }
+
+        // ------------------------------------------------------------------ menus
+        // A ContextMenuStrip is a Component, not a child Control, so Polish's recursive walk
+        // never reaches it on its own — a SplitButton's dropdown (Print Certificate's "View
+        // Softcopy") was still rendering with the stock system blue highlight while every
+        // button/grid around it had already moved onto the Navy Blue palette. Applied once,
+        // lazily, the first time Polish encounters the SplitButton that owns the menu.
+        private static readonly ToolStripProfessionalRenderer MenuRenderer =
+            new ToolStripProfessionalRenderer(new MenuColors());
+
+        private static void StyleMenu(ContextMenuStrip menu)
+        {
+            if (menu.Renderer == MenuRenderer) return;   // already styled
+            menu.Renderer = MenuRenderer;
+            menu.Font = new Font(BaseFamily, 9F);
+            menu.ShowImageMargin = false;
+        }
+
+        private sealed class MenuColors : ProfessionalColorTable
+        {
+            public override Color ToolStripDropDownBackground => Surface;
+            public override Color ImageMarginGradientBegin => Surface;
+            public override Color ImageMarginGradientMiddle => Surface;
+            public override Color ImageMarginGradientEnd => Surface;
+            public override Color MenuBorder => CardLine;
+            public override Color MenuItemBorder => AccentTint;
+            public override Color MenuItemSelected => AccentTint;
+            public override Color MenuItemSelectedGradientBegin => AccentTint;
+            public override Color MenuItemSelectedGradientEnd => AccentTint;
+            public override Color MenuItemPressedGradientBegin => AccentTint;
+            public override Color MenuItemPressedGradientEnd => AccentTint;
+            public override Color SeparatorDark => RowLine;
+            public override Color SeparatorLight => RowLine;
         }
 
         // ------------------------------------------------------------------ grids

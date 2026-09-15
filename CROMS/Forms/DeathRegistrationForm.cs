@@ -109,6 +109,13 @@ namespace CROMS.Forms
             }
             if (bytes == null)
             {
+                if (_editingId != null)
+                {
+                    // No scanned original on file — fall back to the official Municipal
+                    // Form 103 blank already in Assets, filled in from the saved record.
+                    CertificateReport.Show(_formCode, _editingId.Value, this);
+                    return;
+                }
                 MessageBox.Show("No softcopy is saved for this record.", "Softcopy",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -326,7 +333,8 @@ namespace CROMS.Forms
         {
             dgvDeaths.DataSource = Db.Pull(
                 "SELECT id, registry_no AS 'Registry No', full_name AS Deceased, age AS Age, " +
-                "date_of_death AS 'Date of Death', permit_type AS Permit, status AS Status " +
+                "date_of_death AS 'Date of Death', book_volume AS Book, book_page AS Page, " +
+                "permit_type AS Permit, status AS Status " +
                 "FROM deaths ORDER BY id DESC");
             if (dgvDeaths.Columns.Contains("id")) dgvDeaths.Columns["id"].Visible = false;
         }
@@ -413,6 +421,8 @@ namespace CROMS.Forms
                 _formName = r["form_name"].ToString();
 
             txtFullName.Text = Str(r["full_name"]);
+            txtBookVol.Text = Str(r["book_volume"]);
+            txtBookPage.Text = Str(r["book_page"]);
             SetCombo(cboSex, r["sex"]);
             SetCombo(cboCivil, r["civil_status"]);
             txtAge.Text = Str(r["age"]);
@@ -698,16 +708,17 @@ namespace CROMS.Forms
             "prepared_by, prepared_by_title, prepared_by_date, " +
             "received_by, received_by_title, received_by_date, " +
             "registered_by, registered_by_title, registered_by_date, " +
-            "form_code, form_name, full_name, sex, civil_status, age, citizenship, date_of_death, time_of_death, place_of_death, " +
+            "form_code, form_name, full_name, book_volume, book_page, sex, civil_status, age, citizenship, date_of_death, time_of_death, place_of_death, " +
             "religion_name, immediate_cause, antecedent_cause, underlying_cause, medical_certifier, " +
             "certifier_license_no, disposal_method, place_of_disposal, date_of_disposal, permit_type";
 
         private const string ValuePlaceholders =
-            "@form_code, @form_name, @name, @sex, @civil, @age, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
+            "@form_code, @form_name, @name, @bookvol, @bookpage, @sex, @civil, @age, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
             "@lic, @disp, @dplace, @ddate, @permit";
 
         private const string SetClause =
-            "form_code=@form_code, form_name=@form_name, full_name=@name, sex=@sex, civil_status=@civil, age=@age, citizenship=@citizen, " +
+            "form_code=@form_code, form_name=@form_name, full_name=@name, book_volume=@bookvol, book_page=@bookpage, " +
+            "sex=@sex, civil_status=@civil, age=@age, citizenship=@citizen, " +
             "informant_name=@iname, informant_relationship=@irel, informant_address=@iaddr, " +
             "informant_date=@idate, prepared_by=@prep, prepared_by_title=@preptitle, " +
             "prepared_by_date=@prepdate, received_by=@recv, received_by_title=@recvtitle, " +
@@ -725,6 +736,8 @@ namespace CROMS.Forms
                 new MySqlParameter("@form_code", _formCode),
                 new MySqlParameter("@form_name", _formName),
                 new MySqlParameter("@name", txtFullName.Text.Trim()),
+                new MySqlParameter("@bookvol", S(txtBookVol)),
+                new MySqlParameter("@bookpage", S(txtBookPage)),
                 new MySqlParameter("@sex", Combo(cboSex)),
                 new MySqlParameter("@civil", Combo(cboCivil)),
                 new MySqlParameter("@age", I(txtAge)),
@@ -857,6 +870,8 @@ namespace CROMS.Forms
             _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;
             _formName = FormCatalog.Current(DocKind.Death)?.FormName;
             txtFullName.Clear();
+            txtBookVol.Clear();
+            txtBookPage.Clear();
             cboSex.SelectedIndex = -1;
             cboCivil.SelectedIndex = -1;
             txtAge.Clear();

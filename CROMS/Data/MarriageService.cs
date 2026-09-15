@@ -638,13 +638,14 @@ namespace CROMS.Data
         {
             "form_code", "form_name", "registry_no", "book_volume", "book_page", "status", "solemnizer", "solemnizer_position",
             "husband_first_name", "husband_middle_name", "husband_last_name", "husband_age", "husband_date_of_birth",
-            "husband_birth_place_id", "husband_citizenship_id", "husband_religion_id", "husband_civil_status", "husband_residence_id",
+            "husband_place_of_birth", "husband_birth_country", "husband_citizenship_id", "husband_religion_id", "husband_civil_status", "husband_residence_id",
             "husband_father_name", "husband_mother_name",
             "wife_first_name", "wife_middle_name", "wife_last_name", "wife_age", "wife_date_of_birth",
-            "wife_birth_place_id", "wife_citizenship_id", "wife_religion_id", "wife_civil_status", "wife_residence_id",
+            "wife_place_of_birth", "wife_birth_country", "wife_citizenship_id", "wife_religion_id", "wife_civil_status", "wife_residence_id",
             "wife_father_name", "wife_mother_name",
             "church_id", "place_municipality_id", "place_province_id", "date_of_marriage", "time_of_marriage",
             "witness1_name", "witness2_name", "license_id", "license_no", "license_date", "license_place",
+            "license_out_of_province",
             "license_basis", "exemption_basis", "exemption_notes", "delay_reason",
             "received_by", "received_by_title", "received_by_date", "remarks", "scan_image"
         };
@@ -734,6 +735,8 @@ namespace CROMS.Data
                 Solemnizer = Col(r, "solemnizer"), SolemnizerPosition = Col(r, "solemnizer_position"),
                 Witness1 = Col(r, "witness1_name"), Witness2 = Col(r, "witness2_name"),
                 Basis = Col(r, "license_basis"), LicenseId = Int(r["license_id"]),
+                OutOfProvinceLicense = r.Table.Columns.Contains("license_out_of_province") && Int(r["license_out_of_province"]) == 1,
+                ExternalLicenseNo = Col(r, "license_no"), ExternalLicenseDate = ColD(r, "license_date"),
                 ExemptionBasis = Col(r, "exemption_basis"), DelayReason = Col(r, "delay_reason"),
                 RegistrarReview = Col(r, "registrar_review_status"), OcrReviewStatus = Col(r, "ocr_review_status"),
                 OcrWeakFields = Int(r["ocr_weak_fields"])
@@ -756,7 +759,7 @@ namespace CROMS.Data
             bool exempt = m.Basis == "Exempt";
             bool delayed = MarriageRules.WouldBeDelayed(m, Settings);
             List<Need> needs = MarriageRules.Needs(m.Husband, m.Wife, m.DateOfMarriage ?? DateTime.Today, Catalog(), "Marriage",
-                                                   Settings, exempt, delayed);
+                                                   Settings, exempt, delayed, m.OutOfProvinceLicense);
             // A licensed marriage proves an ended previous marriage from its licence file.
             if (m.LicenseId.HasValue)
             {

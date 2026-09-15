@@ -23,7 +23,7 @@ $MysqlBin = 'C:\Program Files\MySQL\MySQL Server 9.3\bin'
 $DbHost   = 'localhost'
 $DbPort   = '3306'
 $DbUser   = 'root'
-$DbPass   = '@ivan123'
+$DbPass   = 'ofAEusyUEy2DjvAnK2Z1'
 $DbName   = 'croms'
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path

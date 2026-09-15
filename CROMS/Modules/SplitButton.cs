@@ -106,7 +106,15 @@ namespace CROMS.Modules
             _pressed = false;
             Invalidate();
             Menu.Closed += MenuClosed;
-            Menu.Show(this, new Point(0, Height));
+
+            // Left-aligned under the button is the standard split-button default; flip to
+            // right-aligned only when that would run the menu off the screen's right edge
+            // (e.g. this button sitting near the edge of a maximized window).
+            int menuWidth = Math.Max(Menu.PreferredSize.Width, Width);
+            Point topLeft = PointToScreen(new Point(0, Height));
+            Rectangle screen = Screen.FromControl(this).WorkingArea;
+            int x = (topLeft.X + menuWidth > screen.Right) ? Width - menuWidth : 0;
+            Menu.Show(this, new Point(x, Height));
         }
 
         private void MenuClosed(object sender, ToolStripDropDownClosedEventArgs e)

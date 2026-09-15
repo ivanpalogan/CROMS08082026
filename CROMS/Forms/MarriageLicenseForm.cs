@@ -543,36 +543,11 @@ namespace CROMS.Forms
 
         private static string N(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
 
-        /// <summary>"City / municipality, Province" - the shape the split below expects back.</summary>
-        private static string JoinPlace(string municipality, string province)
-        {
-            var parts = new List<string>();
-            if (!string.IsNullOrWhiteSpace(municipality)) parts.Add(municipality.Trim());
-            if (!string.IsNullOrWhiteSpace(province)) parts.Add(province.Trim());
-            return parts.Count == 0 ? null : string.Join(", ", parts);
-        }
-
-        /// <summary>
-        /// The province out of a stored place of birth - the LAST comma-separated part.
-        /// <para/>
-        /// Applications filed before this field was split hold whatever the clerk typed into
-        /// one box, and some of those carry three parts ("Bical, Penablanca, Cagayan"). The
-        /// last part is the province either way; everything before it goes to the
-        /// municipality cell rather than being dropped, so a legacy value is shown in full
-        /// for the clerk to correct instead of being quietly truncated.
-        /// </summary>
-        private static string ProvinceOf(string place)
-        {
-            string[] bits = (place ?? "").Split(',');
-            return bits.Length < 2 ? null : N(bits[bits.Length - 1]);
-        }
-
-        private static string MunicipalityOf(string place)
-        {
-            string[] bits = (place ?? "").Split(',');
-            if (bits.Length < 2) return N(place);
-            return N(string.Join(", ", bits.Take(bits.Length - 1).Select(x => x.Trim())));
-        }
+        // JoinPlace/ProvinceOf/MunicipalityOf moved to GeoLookup (shared with MarriageEntryForm,
+        // which needs the identical join/split for Form 97's place-of-birth on 2026-09-14).
+        private static string JoinPlace(string municipality, string province) { return GeoLookup.JoinPlace(municipality, province); }
+        private static string ProvinceOf(string place) { return GeoLookup.ProvinceOf(place); }
+        private static string MunicipalityOf(string place) { return GeoLookup.MunicipalityOf(place); }
 
         /// <summary>The application as it stands on screen, unsaved edits included.</summary>
         private LicenseFacts Current()

@@ -84,7 +84,7 @@ namespace CROMS.Display
                 ? ConfigurationManager.AppSettings["LanDbUser"].Trim() : "croms_user";
         private static string LanPassword =>
             (ConfigurationManager.AppSettings["LanDbPassword"] ?? "").Trim().Length > 0
-                ? ConfigurationManager.AppSettings["LanDbPassword"].Trim() : "Croms#2026";
+                ? ConfigurationManager.AppSettings["LanDbPassword"].Trim() : "y1MqyIrdLew23Sok00B2";
 
         private static bool IsLocalHost(string h)
         {

@@ -36,6 +36,7 @@
             this.btnMarriage = new System.Windows.Forms.Button();
             this.btnDeath = new System.Windows.Forms.Button();
             this.btnPetitions = new System.Windows.Forms.Button();
+            this.btnBooks = new System.Windows.Forms.Button();
             this.btnSearch = new System.Windows.Forms.Button();
             this.lblGrpDocument = new System.Windows.Forms.Label();
             this.btnOcr = new System.Windows.Forms.Button();
@@ -45,6 +46,7 @@
             this.lblGrpAdmin = new System.Windows.Forms.Label();
             this.btnMaster = new System.Windows.Forms.Button();
             this.btnUsers = new System.Windows.Forms.Button();
+            this.btnArchive = new System.Windows.Forms.Button();
             this.btnWindows = new System.Windows.Forms.Button();
             this.brandPanel = new System.Windows.Forms.Panel();
             this.brandLabel = new System.Windows.Forms.Label();
@@ -123,6 +125,7 @@
             this.navFlow.Controls.Add(this.btnDeath);
             this.navFlow.Controls.Add(this.lblGrpRecord);
             this.navFlow.Controls.Add(this.btnPetitions);
+            this.navFlow.Controls.Add(this.btnBooks);
             this.navFlow.Controls.Add(this.btnSearch);
             this.navFlow.Controls.Add(this.lblGrpDocument);
             this.navFlow.Controls.Add(this.btnOcr);
@@ -133,6 +136,7 @@
             this.navFlow.Controls.Add(this.btnMaster);
             this.navFlow.Controls.Add(this.btnWindows);
             this.navFlow.Controls.Add(this.btnUsers);
+            this.navFlow.Controls.Add(this.btnArchive);
             this.navFlow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.navFlow.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.navFlow.Location = new System.Drawing.Point(0, 64);
@@ -372,6 +376,24 @@
             this.btnSearch.UseVisualStyleBackColor = false;
             this.btnSearch.Click += new System.EventHandler(this.NavButton_Click);
             //
+            // btnBooks
+            //
+            this.btnBooks.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
+            this.btnBooks.FlatAppearance.BorderSize = 0;
+            this.btnBooks.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
+            this.btnBooks.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBooks.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnBooks.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
+            this.btnBooks.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
+            this.btnBooks.Name = "btnBooks";
+            this.btnBooks.Size = new System.Drawing.Size(204, 38);
+            this.btnBooks.TabIndex = 13;
+            this.btnBooks.Tag = "books";
+            this.btnBooks.Text = "   Registry Books";
+            this.btnBooks.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnBooks.UseVisualStyleBackColor = false;
+            this.btnBooks.Click += new System.EventHandler(this.NavButton_Click);
+            //
             // lblGrpDocument
             //
             this.lblGrpDocument.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
@@ -495,6 +517,24 @@
             this.btnUsers.UseVisualStyleBackColor = false;
             this.btnUsers.Click += new System.EventHandler(this.NavButton_Click);
             //
+            // btnArchive
+            //
+            this.btnArchive.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
+            this.btnArchive.FlatAppearance.BorderSize = 0;
+            this.btnArchive.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
+            this.btnArchive.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnArchive.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnArchive.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
+            this.btnArchive.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
+            this.btnArchive.Name = "btnArchive";
+            this.btnArchive.Size = new System.Drawing.Size(204, 38);
+            this.btnArchive.TabIndex = 22;
+            this.btnArchive.Tag = "archive";
+            this.btnArchive.Text = "   Records Archive";
+            this.btnArchive.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnArchive.UseVisualStyleBackColor = false;
+            this.btnArchive.Click += new System.EventHandler(this.NavButton_Click);
+            //
             // btnWindows
             //
             this.btnWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
@@ -577,6 +617,7 @@
         private System.Windows.Forms.Button btnMarriage;
         private System.Windows.Forms.Button btnDeath;
         private System.Windows.Forms.Button btnPetitions;
+        private System.Windows.Forms.Button btnBooks;
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Label lblGrpDocument;
         private System.Windows.Forms.Button btnOcr;
@@ -586,6 +627,7 @@
         private System.Windows.Forms.Label lblGrpAdmin;
         private System.Windows.Forms.Button btnMaster;
         private System.Windows.Forms.Button btnUsers;
+        private System.Windows.Forms.Button btnArchive;
         private System.Windows.Forms.Button btnWindows;
         private System.Windows.Forms.Panel brandPanel;
         private System.Windows.Forms.Label brandLabel;

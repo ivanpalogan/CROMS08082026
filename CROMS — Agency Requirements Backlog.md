@@ -354,25 +354,33 @@ joined string.
   solemnisation the staff receive the issued licence and the accomplished Certificate of Marriage,
   add registration details, and record the marriage.
 
-**PENDING and important:** exactly what the staff add. The interviewee could not fully recall.
-Candidates mentioned: dates, registry information, signatures. Needs confirming.
+**CONFIRMED 2026-09-14 — both PENDING items above answered, fuller interview finding recovered.**
+The 2026-09-13 "conceptual only" note was a placeholder pending this. The office does NOT want
+another large application re-entered. Staff receive the already-issued licence and the
+accomplished/approved Certificate of Marriage after solemnization, and mainly do
+**registration-related work**: add or verify dates, registry information, signatures and similar
+registration details, and record the marriage. The role for CROMS is: record the marriage; scan
+or attach the relevant documents; keep the important marriage information; maintain an internal
+record. **Not** a second large intake form re-collecting everything the licence already has.
 
-**PENDING:** the CROMS ↔ **PhilCRIS** boundary. The office already uses PhilCRIS for the PSA
-side. CROMS should not duplicate what PhilCRIS already does.
+This matches what `MarriageEntryForm` (Form 97) ALREADY DOES — registry number, book/volume,
+status, date/time of marriage, solemnizer, the licence link, and (since migration 30/38) the
+certification block fields — so **no new fields or screens are needed**; this is the office
+confirming the existing registration screen + `scan_image`/SoftcopyViewer attach is the right
+scope, not asking for something more. Correction to the 2026-09-14 progress-log entry that first
+answered this: it undersold the finding as "nothing extra, just save the scanned image" — the
+fuller finding is "use the registration fields that already exist to record what's on the
+accomplished certificate, AND attach the scan," which is a more complete but equally
+already-built answer.
 
-**CLARIFIED 2026-09-13 (user), conceptual only — does not settle either PENDING above:**
-"marriage application is like applying, marriage registration is like the wedding is done." That
-confirms the *concept* already stated at the top of this section (Application = licensing;
-Registration = recording that solemnization happened) but names no field, no registry-number
-rule, and no PhilCRIS boundary. Both PENDING items stand as written.
-
-**SUPPLEMENT — do not under-build this on the interview alone.** "The office just stores the
-document" is too strong a reading. PSA guidance: the solemnising officer reports the marriage to
-the City/Municipal Civil Registrar **within 15 days** (licensed marriages); the Civil Registrar is
-responsible for the correct form being used, properly and completely accomplished, with the
-required attachments. Act No. 3753 requires entry in the marriage register. The honest reading is:
-*the LCRO does perform official registration; CROMS may not need to duplicate the processing if
-PhilCRIS already carries it.* Where the line falls is the open question.
+**PhilCRIS boundary — CONFIRMED 2026-09-14.** The office already uses PhilCRIS as "the existing
+system used for transmission/coordination with PSA" — the actual civil-registration data for PSA
+transmission is placed into PhilCRIS separately (by office staff, outside CROMS). CROMS's job
+stops at recording the marriage internally, attaching the documents, and keeping the record —
+it does not transmit to PSA and does not duplicate PhilCRIS. (Separate, unrelated PhilCRIS
+mention from the same day — PhilCRIS potentially calling a future CROMS API to pull kiosk-collected
+client data by National ID — is a different, not-yet-requested integration point; see the note
+still in §14 under Marriage.)
 
 ---
 
@@ -752,22 +760,42 @@ Grouped as they should be asked. **Nothing here is to be implemented from a gues
 
 **Marriage**
 - ~~What triggers the another-province attachment~~ — answered 2026-09-13, §4.1: licence obtained
-  in another province, wedding solemnized here. Still open: **which document** proves it.
+  in another province, wedding solemnized here.
+- ~~Which document proves an out-of-province licence~~ — **answered 2026-09-13: none required.**
+  It is lawful to apply for the licence in one province and marry in another; the licence's own
+  number/date is what the record carries, and its normal 120-day validity window is the only
+  thing that matters (already enforced regardless of issuing office). Migration 45's requirement
+  row changed from blocking to informational/optional — attach a copy only if the applicant has
+  one.
 - ~~Exact previous-marriage information for a widowed applicant~~ — answered, §4.2
 - ~~Exact contents and signature blocks of the Parental Consent form~~ — answered, §3
 - ~~Exact contents and signature blocks of the Parental Advice form~~ — answered, §3
-- How the office records a marriage registration after receiving the Certificate of Marriage
-- Which registry number, dates, signatures or details the staff add at registration
-- The CROMS ↔ PhilCRIS division of responsibility
-- ~~**Does a 25-year-old need parental advice here?**~~ — **answered 2026-09-13: yes, advice band is
-  21–25** (migration 39); consent 18–20 settled by the form's own "less than twenty-one" wording.
+- ~~How the office records a marriage registration after receiving the Certificate of Marriage~~ —
+  **answered 2026-09-14, see §5 for the full finding.** Staff mostly add/verify dates, registry
+  information, signatures and similar registration details (reading them off the already-issued
+  licence and the accomplished/approved Certificate of Marriage), and attach the scan — not a
+  second full intake. Matches `MarriageEntryForm` (Form 97) as already built — no new fields.
+- ~~Which registry number, dates, signatures or details the staff add at registration~~ — same
+  answer as above: the existing Form-97 registration fields are what's verified/typed, plus the
+  attached scan (`marriages.scan_image` + SoftcopyViewer).
+- ~~The CROMS ↔ PhilCRIS division of responsibility~~ — **answered 2026-09-14, see §5.** PhilCRIS
+  is the office's existing system for PSA transmission/coordination; the civil-registration data
+  for PSA is placed into PhilCRIS separately (by staff, outside CROMS). CROMS's role stops at
+  the internal record + attached documents — it does not transmit to PSA. (A separate, unrelated
+  same-day mention — PhilCRIS possibly calling a future CROMS API to pull kiosk-collected client
+  data by National ID — is a different, not-yet-requested integration; not part of this answer.)
 - Is a counselling certificate required for the whole 18–25 band in practice? Is CENOMAR required?
 - Is any RA 10354 §15 family-planning certificate enforced locally?
-- **New, from MF-90:** the form asks for **Degree of Relationship of Contracting Parties** (Arts.
-  37–38). CROMS has no such field. Does the office want it captured, and does anything act on it?
-- **New, from the advice form:** a deceased parent is annotated **"(DECEASED)"** in the signature
-  block. Should CROMS record *why* a parent did not sign (deceased / absent / refused), or is the
-  annotation written by hand?
+- **Degree of Relationship of Contracting Parties (MF-90, Family Code Arts. 37–38)** — explained
+  2026-09-14, still **PENDING an answer**: this is the form's own declaration of how closely
+  related (if at all) the two applicants are — e.g. first cousins — used to catch marriages the
+  law voids or prohibits between close relatives. "Capture it" meant: add a field/dropdown on the
+  marriage licence screen for whatever the applicant declares, matching what MF-90 prints. Not
+  yet decided: does the office want this recorded in CROMS at all, and if so, should anything
+  (a warning, a hard stop) act on a close-relationship answer, or is it record-only?
+- **New, from the advice form:** ~~a deceased parent is annotated "(DECEASED)"~~ — **answered
+  2026-09-14: no, don't build a reason field.** The handwritten annotation on the paper form is
+  enough; CROMS does not need to record why a parent didn't sign.
 
 **Death registration**
 - Exactly what staff enter when accepting/registering a Death Certificate
@@ -793,8 +821,13 @@ but still: is item (c) really **"any two of the eight"** as the card reads, or a
 preferred/required? · is the **10-day posting** run by this office for delayed birth registration
 the way it is for a marriage licence?
 
-**Workflow** — staff permissions · can a transaction be transferred mid-flight · queue behaviour ·
-may one employee hold several roles
+**Workflow** — ~~staff permissions · may one employee hold several roles~~ — **answered
+2026-09-14: yes to both, "semi-admin."** Any staff member may cover any stage (receiving /
+processing / releasing) on a given day, decided internally by the office, not fixed per person.
+Built same day: `MainForm.AllowedKeys` now gives every non-Admin role (Registrar/Staff/Cashier/
+Releasing) the identical broad operational module set; true admin config (Master Files/Settings/
+Users & Audit/Records Archive) stays Admin-only. ~~Can a transaction be transferred mid-flight ·
+queue behaviour~~ — **answered 2026-09-14, see Phase 8 below: already built.**
 
 ---
 
@@ -802,21 +835,26 @@ may one employee hold several roles
 
 Sequenced by: what already has foundations → what is unblocked → what is waiting on §13.
 
-**Phase 1 — DONE 2026-09-12**
+**Phase 1 — DONE 2026-09-12; audit gap closed 2026-09-14**
 1. ~~Marriage Application: add **Sex** to applicant info~~ ✔
 2. ~~**Place of birth**: audit every module for the single-textbox form; add **Country** and
-   decide the non-PH behaviour (§1)~~ ✔
+   decide the non-PH behaviour (§1)~~ ✔ Birth Registration + Marriage Licence (Form 90) 2026-09-12.
+   Re-auditing against the fuller interview notes 2026-09-14 found one module the first pass
+   missed: **Marriage Registration (Form 97)** still stored husband/wife place of birth as a bare
+   FK id with no country. Fixed same day — migration 46, `GeoLookup.JoinPlace/ProvinceOf/
+   MunicipalityOf` promoted to a shared implementation (was duplicated per-form). See CLAUDE.md
+   2026-09-14 for the full entry, including a second pre-existing FK-target bug found in the process.
 
 *(The 21–24 vs 21–25 band is a question for the office, not Phase 1 work — see §3.)*
 
-**Phase 2 — chase documents — ✔ ALL 6 IN HAND 2026-09-13** (MF-102 2007 as an online draft)
+**Phase 2 — chase documents — DONE 2026-09-13** (MF-102 2007 as an online draft, §14 list sent)
 4. ~~Collect everything in §13~~ — only the blank MF-102 (2007) is still owed. The blank MF-90 is
    preserved in the repo at `Docs/AgencyForms/`; the other three arrived as photographs and are
    transcribed into §3, §8 and §10 of this file.
-5. Put §14 to the office as one list — **still to do**, and now shorter: the documents answered
-   four of its questions and raised two new ones.
+5. ~~Put §14 to the office as one list~~ ✔ **`CROMS — Questions for LCRO Peñablanca.md`** at the
+   repo root — 24 items (A-H), everything still open in §14 plus the two forms-fidelity checks.
 
-**Phase 3 — marriage fill-ins — 3A DONE 2026-09-13 (items 6-7); item 8 blocked; 9 next**
+**Phase 3 — marriage fill-ins — 3A/3B/3C DONE 2026-09-13; item 8 DONE 2026-09-13**
 6. ~~Parent (father + mother, each with citizenship + residence) and the single
    "person who gave consent or advice" block (name + relationship + citizenship + residence)~~ ✔
    migration 38; three name cells per person
@@ -825,8 +863,19 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
    *Not done in 3A, flagged:* the consent/advice slot is NOT age-gated (it is open for a 30-year-old
    too) — the office said only that one slot is needed, not when it must be blank; and the printed
    licence (`LicensePrinter`) still shows only the joined father/mother names, not the new blocks.
-8. Another-province attachment — reuse the `marriage_requirements` attachment path — **still
-   blocked**, the document and its trigger are the one unanswered §14 marriage item
+8. ~~Another-province attachment — reuse the `marriage_requirements` attachment path~~ ✔
+   **DONE 2026-09-13** — migration 45 adds `marriages.license_out_of_province` (a fact
+   independent of Basis: the marriage is still Licensed, just not by this office) and a
+   conditional `OUT_OF_PROVINCE_LICENSE` requirement row (same rule-key shape as
+   PreviouslyMarried/ConsentAge), wired through `MarriageRules.Needs`/`ValidateMarriage` and
+   the Form 97 screen's existing licence tab: a checkbox swaps the local licence
+   search for two typed fields (licence number, date issued — no local `marriage_licenses`
+   row exists to link since another LCRO issued it) and requires the generic attachment
+   before the marriage can register. **Deliberately does not name the document** — the
+   requirement's own caption and legal_basis text say the identity is still open (this file's
+   own §14/§4.1), and the attachment slot accepts whatever the applicant presents. Which
+   specific document the office wants stays **PENDING** — item 5's §14 list (now sent, see
+   `CROMS — Questions for LCRO Peñablanca.md` item A1) is what will resolve it.
 9. ~~Printed Marriage Application (MF-90)~~ ✔ **3B DONE 2026-09-13** — a real **Crystal report**
    (`CROMS/Reports/MF-90-1993.rpt`, generated from measured cells), previewed in the Crystal
    viewer with **Ctrl + mouse wheel** zoom, printable and exportable; identical fallback page on a
@@ -884,8 +933,23 @@ Sequenced by: what already has foundations → what is unblocked → what is wai
     open) — the mechanism works either way; the affidavit's own seven fields (found on the back
     of the MF-102 sheet, §13) are not yet their own data, only the generic affidavit requirement.
 
-**Phase 8 — three-stage workflow**
-18. Extend the existing status machine and role gates — after permissions are confirmed (§12)
+**Phase 8 — three-stage workflow — DONE (already built), confirmed 2026-09-14**
+18. Extend the existing status machine and role gates — after permissions are confirmed (§12) ✔
+    Office described the flow 2026-09-14: Window 1 only RECEIVES the request; Window 2's job is
+    to find/print the certificate AND collect payment; Window 3's only job is to hand over the
+    printed certificate — window 1 passes the transaction to window 2, window 2 passes it to
+    window 3. This is exactly the Certificate Request pipeline already built on 2026-08-04:
+    Create (**ForPrint**, received) → `CertificatePrintForm` finds+prints, then "Proceed to
+    Payment" (**ForPayment**) → Fees & Payments collects payment → **ForRelease** → Release &
+    Claim hands it over (**Released**). One transaction, hand-off by status, not by a hardcoded
+    "window 2" identity — which is what makes it compatible with the "semi-admin" answer above:
+    ANY window/staff can pick up a transaction at whatever stage its status says it's at, so the
+    office's day-to-day choice of who mans which physical window is exactly the flexibility asked
+    for. No new schema or code needed — Phase 8 is the existing status machine, confirmed to
+    match what the office actually does. (Applies to Certificate Requests/CTC; BREQS already has
+    its own analogous 5-status pipeline — Requested→Paid→Submitted→Received→Released — built
+    2026-09-13. Birth/Marriage/Death registration and Petitions are record CREATION, not
+    certificate retrieval, so this find-and-print hand-off doesn't apply to them the same way.)
 
 **Phase 9 — confirm-only, no code**
 19. Everything remaining in §14

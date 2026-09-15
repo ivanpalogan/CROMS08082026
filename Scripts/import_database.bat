@@ -15,7 +15,7 @@ set "MYSQL_BIN=C:\Program Files\MySQL\MySQL Server 9.3\bin"
 set "DB_HOST=localhost"
 set "DB_PORT=3306"
 set "DB_USER=root"
-set "DB_PASS=@ivan123"
+set "DB_PASS=ofAEusyUEy2DjvAnK2Z1"
 set "DB_NAME=croms"
 
 REM Dump file: looked for next to this script first, then Downloads

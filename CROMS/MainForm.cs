@@ -79,7 +79,7 @@ namespace CROMS
                 FlowDirection = FlowDirection.RightToLeft,
                 WrapContents = false,
                 AutoSize = false,
-                Width = 520,
+                Width = 680,
                 Padding = new Padding(0, 0, 20, 0),
                 BackColor = headerPanel.BackColor
             };
@@ -111,6 +111,27 @@ namespace CROMS
             };
 
             bar.Controls.Add(btnLogout);   // RightToLeft flow → first child sits at the far right
+
+            var btnBiodata = new Button
+            {
+                Text = "View My Biodata",
+                AutoSize = false,
+                Size = new Size(140, 36),
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = Color.White,
+                BackColor = UiTheme.Navy,
+                Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
+                Cursor = Cursors.Hand,
+                Margin = new Padding(0, 10, 10, 10)
+            };
+            btnBiodata.FlatAppearance.BorderSize = 0;
+            btnBiodata.FlatAppearance.MouseOverBackColor = UiTheme.NavyHover;
+            btnBiodata.Click += (s, e) =>
+            {
+                using (var f = new Forms.StaffBiodataForm())
+                    f.ShowDialog(this);
+            };
+            bar.Controls.Add(btnBiodata);   // flows to the left of Logout
 
             // "Update" button — only on client PCs (a server share to pull from
             // exists). Lets staff pull the latest app build from the server over
@@ -213,24 +234,30 @@ namespace CROMS
                 pair.Value.Visible = allowed.Contains(pair.Key);
         }
 
-        /// <summary>Module keys each role may open, or null for full access (Admin).</summary>
+        /// <summary>
+        /// Module keys each role may open, or null for full access (Admin).
+        /// The office runs a flexible three-stage workflow (receiving / processing / releasing)
+        /// where any staff member may cover any stage on a given day, rather than CROMS assuming
+        /// one fixed person per stage. So every non-Admin role gets the SAME broad operational
+        /// set ("semi-admin") — the distinction that matters is operational vs true admin
+        /// (Master Files / Settings / Users & Audit Trail / Records Archive stay Admin-only).
+        /// </summary>
+        private static readonly HashSet<string> OperationalKeys = new HashSet<string> {
+            "dashboard", "queue", "transactions", "certrequest", "release", "breqs",
+            "birth", "marriage", "death", "petitions", "books", "search", "ocr", "fees", "reports"
+        };
+
         private static HashSet<string> AllowedKeys(string role)
         {
             switch (role)
             {
                 case "Registrar":
-                    return new HashSet<string> { "dashboard", "queue", "transactions", "certrequest",
-                        "release", "breqs", "birth", "marriage", "death", "petitions", "search", "ocr",
-                        "reports", "masterfiles", "settings" };
                 case "Staff":
-                    return new HashSet<string> { "dashboard", "queue", "certrequest", "transactions",
-                        "search", "release", "breqs" };
                 case "Cashier":
-                    return new HashSet<string> { "dashboard", "fees", "transactions" };
                 case "Releasing":
-                    return new HashSet<string> { "dashboard", "release", "breqs", "transactions" };
+                    return OperationalKeys;
                 default:
-                    return null;   // Admin → everything
+                    return null;   // Admin → everything, incl. masterfiles/settings/users/archive
             }
         }
 

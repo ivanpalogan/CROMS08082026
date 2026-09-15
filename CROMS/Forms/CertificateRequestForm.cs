@@ -454,27 +454,27 @@ namespace CROMS.Forms
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false; MaximizeBox = false;
-            ClientSize = new Size(560, 476);
+            ClientSize = new Size(560, 618);
             BackColor = Color.White;
             Font = new Font("Segoe UI", 10F);
 
             var head = new Label
             {
-                Text = "Step 2 — Print the Certificate",
+                Text = "Step 2 of 4 — Print the Certificate",
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 37, 41),
                 Location = new Point(24, 18), AutoSize = true
             };
             var sub = new Label
             {
-                Text = "Locate the record and print the Certified True Copy before payment.",
+                Text = "Follow the steps below in order.",
                 ForeColor = Color.FromArgb(108, 117, 125),
                 Location = new Point(26, 52), AutoSize = true
             };
 
             var info = new Label
             {
-                Location = new Point(26, 88), Size = new Size(508, 96),
+                Location = new Point(26, 82), Size = new Size(508, 72),
                 Font = new Font("Segoe UI", 10F), ForeColor = Color.FromArgb(52, 58, 64),
                 Text =
                     "Transaction:  " + _txnCode + "\r\n" +
@@ -485,24 +485,40 @@ namespace CROMS.Forms
 
             _lblFound = new Label
             {
-                Location = new Point(26, 190), Size = new Size(508, 40),
+                Location = new Point(26, 156), Size = new Size(508, 40),
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(108, 117, 125),
                 Text = _recordId > 0
-                    ? "Record is linked. Click \"Print Certificate\" to print the certificate."
-                    : "⚠ No record was picked on the request. You can still park it to Waiting-to-Release and locate the record later."
+                    ? "Record is linked. Start with Step 1 below."
+                    : "⚠ No record was picked on the request. Skip to Step 3 and park it — you can locate the record later."
             };
+
+            // ---- Step 1: Print --------------------------------------------------
+            var lblStep1 = StepLabel(1, "Print the certificate");
+            lblStep1.Location = new Point(26, 202);
 
             _btnPrint = new Button
             {
                 Text = "🖨  Print Certificate",
-                Location = new Point(26, 236), Size = new Size(508, 46),
+                Location = new Point(26, 226), Size = new Size(508, 46),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(13, 110, 253),
                 ForeColor = Color.White, Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             _btnPrint.FlatAppearance.BorderSize = 0;
             _btnPrint.Click += (s, e) => FindAndPrint();
+            _btnPrint.Enabled = _recordId > 0;
+
+            var lblStep1Hint = new Label
+            {
+                Text = "Finds the record and sends it to your printer.",
+                Location = new Point(26, 274), Size = new Size(508, 18),
+                Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(134, 142, 150)
+            };
+
+            // ---- Step 2: Call the client (optional, any time) --------------------
+            var lblStep2 = StepLabel(2, "Call the client to the counter (optional)");
+            lblStep2.Location = new Point(26, 306);
 
             // Call / Recall the client's queue number to the window (voice callout). Use it
             // when the client stepped away; if they still don't come, park the request.
@@ -511,7 +527,7 @@ namespace CROMS.Forms
                 Text = _queueCode != null
                     ? "📢  Call Client  (" + _queueCode + ")"
                     : "📢  Call Client",
-                Location = new Point(26, 290), Size = new Size(508, 44),
+                Location = new Point(26, 330), Size = new Size(508, 44),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(102, 16, 242),
                 ForeColor = Color.White, Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
@@ -519,21 +535,40 @@ namespace CROMS.Forms
             _btnCall.FlatAppearance.BorderSize = 0;
             _btnCall.Click += (s, e) => CallClient();
 
+            var lblStep2Hint = new Label
+            {
+                Text = "Announces the queue number at the window. Use if the client stepped away.",
+                Location = new Point(26, 376), Size = new Size(508, 18),
+                Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(134, 142, 150)
+            };
+
+            // ---- Step 3: Choose what happens next ---------------------------------
+            var lblStep3 = StepLabel(3, "Choose what happens next");
+            lblStep3.Location = new Point(26, 410);
+
             _btnPay = new Button
             {
-                Text = "✔  Certificate ready — Proceed to Payment",
-                Location = new Point(26, 346), Size = new Size(508, 46),
+                Text = "✔  Certificate Ready — Proceed to Payment",
+                Location = new Point(26, 434), Size = new Size(508, 46),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(25, 135, 84),
                 ForeColor = Color.White, Font = new Font("Segoe UI", 11F, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
             _btnPay.FlatAppearance.BorderSize = 0;
             _btnPay.Click += (s, e) => { Result = CertNextStep.ProceedToPayment; Close(); };
+            _btnPay.Enabled = false;   // stays off until Step 1 has printed the certificate
+
+            var lblStep3HintA = new Label
+            {
+                Text = "Unlocks after the certificate is printed in Step 1.",
+                Location = new Point(26, 482), Size = new Size(508, 18),
+                Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(134, 142, 150)
+            };
 
             var btnPark = new Button
             {
                 Text = "⏸  Client Not Present — Hold for Release",
-                Location = new Point(26, 406), Size = new Size(360, 44),
+                Location = new Point(26, 508), Size = new Size(508, 44),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(233, 236, 239),
                 ForeColor = Color.FromArgb(33, 37, 41), Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
                 Cursor = Cursors.Hand
@@ -541,21 +576,43 @@ namespace CROMS.Forms
             btnPark.FlatAppearance.BorderColor = Color.FromArgb(206, 212, 218);
             btnPark.Click += (s, e) => Park();
 
+            var lblStep3HintB = new Label
+            {
+                Text = "Use this any time — before or after printing — if the client isn't here.",
+                Location = new Point(26, 554), Size = new Size(508, 18),
+                Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(134, 142, 150)
+            };
+
             var btnCancel = new Button
             {
                 Text = "Close",
-                Location = new Point(396, 406), Size = new Size(138, 44),
+                Location = new Point(408, 580), Size = new Size(126, 32),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.White,
-                ForeColor = Color.FromArgb(73, 80, 87), Font = new Font("Segoe UI", 9.5F),
+                ForeColor = Color.FromArgb(73, 80, 87), Font = new Font("Segoe UI", 9F),
                 Cursor = Cursors.Hand
             };
             btnCancel.FlatAppearance.BorderColor = Color.FromArgb(206, 212, 218);
             btnCancel.Click += (s, e) => Close();
 
             Controls.Add(head); Controls.Add(sub); Controls.Add(info);
-            Controls.Add(_lblFound); Controls.Add(_btnPrint); Controls.Add(_btnCall);
-            Controls.Add(_btnPay); Controls.Add(btnPark); Controls.Add(btnCancel);
+            Controls.Add(_lblFound);
+            Controls.Add(lblStep1); Controls.Add(_btnPrint); Controls.Add(lblStep1Hint);
+            Controls.Add(lblStep2); Controls.Add(_btnCall); Controls.Add(lblStep2Hint);
+            Controls.Add(lblStep3); Controls.Add(_btnPay); Controls.Add(lblStep3HintA);
+            Controls.Add(btnPark); Controls.Add(lblStep3HintB);
+            Controls.Add(btnCancel);
+        }
 
+        /// <summary>Small bold "STEP N — Title" caption placed above each action button.</summary>
+        private static Label StepLabel(int n, string title)
+        {
+            return new Label
+            {
+                Text = "STEP " + n + "   " + title,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(73, 80, 87)
+            };
         }
 
         /// <summary>
@@ -675,8 +732,9 @@ namespace CROMS.Forms
                     if (dlg.ShowDialog() == DialogResult.OK)
                     {
                         doc.Print();
-                        _lblFound.Text = "✔ Certificate found and printed. Proceed to payment when the client is ready.";
+                        _lblFound.Text = "✔ Step 1 done — certificate printed. Now do Step 3: Proceed to Payment.";
                         _lblFound.ForeColor = Color.FromArgb(25, 135, 84);
+                        _btnPay.Enabled = true;
                         Audit.Write(Audit.Update, "transactions", _txnId, "Certificate printed (CTC)");
                     }
                 }

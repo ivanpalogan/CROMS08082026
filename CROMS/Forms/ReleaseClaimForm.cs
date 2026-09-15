@@ -2049,9 +2049,17 @@ namespace CROMS.Forms
                 "AND id_image IS NOT NULL ORDER BY id DESC LIMIT 1", txnId);
 
             Image uploadedId = null;
+            // Same lookup as the main screen's ShowUploadedIdFor: a claim_requests row can be
+            // linked directly by transaction_id (reclaim/pickup path) or only via the queue
+            // ticket that later became this transaction (first-time visit — the "Upload Your
+            // ID" QR was created before the transaction existed, so only queue_ticket_id was
+            // set at the time). Matching transaction_id only (as before) missed that case and
+            // showed "no ID uploaded" even when the main screen had the image on file.
             DataTable c = Db.Pull(
-                "SELECT id_image, id_first_name, id_middle_name, id_last_name " +
-                "FROM claim_requests WHERE transaction_id = @t ORDER BY id DESC LIMIT 1",
+                "SELECT cr.id_image, cr.id_first_name, cr.id_middle_name, cr.id_last_name " +
+                "FROM claim_requests cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
+                "WHERE cr.transaction_id = @t OR qt.transaction_id = @t " +
+                "ORDER BY cr.id DESC LIMIT 1",
                 new MySqlParameter("@t", txnId));
             if (c.Rows.Count > 0)
             {

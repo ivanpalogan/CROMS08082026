@@ -272,6 +272,12 @@
     <Compile Include="Forms\UsersAuditForm.Designer.cs">
       <DependentUpon>UsersAuditForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\StaffBiodataForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\StaffBiodataForm.Designer.cs">
+      <DependentUpon>StaffBiodataForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\MasterFilesForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -289,6 +295,12 @@
     </Compile>
     <Compile Include="Forms\SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\RecordsArchiveForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\RecordsArchiveForm.Designer.cs">
+      <DependentUpon>RecordsArchiveForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\AdminVerificationForm.cs">
       <SubType>Form</SubType>
@@ -673,6 +685,9 @@
     <None Include="Database\42_delayed_birth_registration.sql" />
     <None Include="Database\43_birth_country_in_view.sql" />
     <None Include="Database\44_case_tracking_types.sql" />
+    <None Include="Database\45_out_of_province_license.sql" />
+    <None Include="Database\46_marriage_registration_birthplace.sql" />
+    <None Include="Database\47_staff_biodata.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>

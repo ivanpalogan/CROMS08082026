@@ -23,6 +23,7 @@ namespace CROMS.Kiosk
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            LocalServices.Start();   // best-effort: brings up claimapp + save-API if nothing already did
             RunFlow();
         }
 

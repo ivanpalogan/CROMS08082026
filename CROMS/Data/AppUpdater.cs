@@ -54,7 +54,7 @@ namespace CROMS.Data
         /// Establishes an authenticated SMB session to the release share, so reading it
         /// works WITHOUT the operator running <c>net use</c> in a command prompt first.
         /// Does the equivalent of:
-        ///   net use \\&lt;server&gt;\CROMSRelease /user:&lt;server&gt;\cromsshare Croms#2026 /persistent:yes
+        ///   net use \\&lt;server&gt;\CROMSRelease /user:&lt;server&gt;\cromsshare &lt;password&gt; /persistent:yes
         /// Credentials are configurable in App.config (ReleaseShareUser / ReleaseSharePassword
         /// / ReleaseShareDomain); the domain defaults to the server IP so a local account on
         /// the server authenticates without needing the server's machine name. If the share is
@@ -69,7 +69,7 @@ namespace CROMS.Data
 
             string host = ServerConfig.EffectiveHost;
             string user = (ConfigurationManager.AppSettings["ReleaseShareUser"] ?? "cromsshare").Trim();
-            string pass = ConfigurationManager.AppSettings["ReleaseSharePassword"] ?? "Croms#2026";
+            string pass = ConfigurationManager.AppSettings["ReleaseSharePassword"] ?? "hAjuTRW0WIUNwc0P43BE";
             string domainCfg = ConfigurationManager.AppSettings["ReleaseShareDomain"];
             string domain = string.IsNullOrWhiteSpace(domainCfg) ? (host ?? "") : domainCfg.Trim();  // blank → server IP
             if (user.Length > 0 && !user.Contains("\\") && domain.Length > 0)

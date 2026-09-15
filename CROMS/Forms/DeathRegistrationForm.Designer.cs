@@ -40,6 +40,10 @@
             this.txtPlace = new System.Windows.Forms.TextBox();
             this.lblReligion = new System.Windows.Forms.Label();
             this.txtReligion = new System.Windows.Forms.TextBox();
+            this.lblBookVol = new System.Windows.Forms.Label();
+            this.txtBookVol = new System.Windows.Forms.TextBox();
+            this.lblBookPage = new System.Windows.Forms.Label();
+            this.txtBookPage = new System.Windows.Forms.TextBox();
             this.grpCause = new System.Windows.Forms.GroupBox();
             this.lblImm = new System.Windows.Forms.Label();
             this.txtImm = new System.Windows.Forms.TextBox();
@@ -169,10 +173,14 @@
             this.grpDeceased.Controls.Add(this.txtPlace);
             this.grpDeceased.Controls.Add(this.lblReligion);
             this.grpDeceased.Controls.Add(this.txtReligion);
+            this.grpDeceased.Controls.Add(this.lblBookVol);
+            this.grpDeceased.Controls.Add(this.txtBookVol);
+            this.grpDeceased.Controls.Add(this.lblBookPage);
+            this.grpDeceased.Controls.Add(this.txtBookPage);
             this.grpDeceased.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.grpDeceased.Location = new System.Drawing.Point(21, 71);
             this.grpDeceased.Name = "grpDeceased";
-            this.grpDeceased.Size = new System.Drawing.Size(686, 407);
+            this.grpDeceased.Size = new System.Drawing.Size(686, 452);
             this.grpDeceased.TabIndex = 4;
             this.grpDeceased.TabStop = false;
             this.grpDeceased.Text = "Deceased Information (Form 103)";
@@ -352,6 +360,44 @@
             this.txtReligion.Name = "txtReligion";
             this.txtReligion.Size = new System.Drawing.Size(652, 25);
             this.txtReligion.TabIndex = 17;
+            //
+            // lblBookVol
+            //
+            this.lblBookVol.AutoSize = true;
+            this.lblBookVol.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
+            this.lblBookVol.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.lblBookVol.Location = new System.Drawing.Point(17, 364);
+            this.lblBookVol.Name = "lblBookVol";
+            this.lblBookVol.Size = new System.Drawing.Size(93, 13);
+            this.lblBookVol.TabIndex = 18;
+            this.lblBookVol.Text = "BOOK / VOLUME";
+            //
+            // txtBookVol
+            //
+            this.txtBookVol.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtBookVol.Location = new System.Drawing.Point(17, 380);
+            this.txtBookVol.Name = "txtBookVol";
+            this.txtBookVol.Size = new System.Drawing.Size(315, 25);
+            this.txtBookVol.TabIndex = 19;
+            //
+            // lblBookPage
+            //
+            this.lblBookPage.AutoSize = true;
+            this.lblBookPage.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold);
+            this.lblBookPage.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.lblBookPage.Location = new System.Drawing.Point(351, 364);
+            this.lblBookPage.Name = "lblBookPage";
+            this.lblBookPage.Size = new System.Drawing.Size(69, 13);
+            this.lblBookPage.TabIndex = 20;
+            this.lblBookPage.Text = "BOOK PAGE";
+            //
+            // txtBookPage
+            //
+            this.txtBookPage.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtBookPage.Location = new System.Drawing.Point(351, 380);
+            this.txtBookPage.Name = "txtBookPage";
+            this.txtBookPage.Size = new System.Drawing.Size(315, 25);
+            this.txtBookPage.TabIndex = 21;
             // 
             // grpCause
             // 
@@ -587,7 +633,7 @@
             this.grpCert.Controls.Add(this.lblCRegDate);
             this.grpCert.Controls.Add(this.dtpCRegDate);
             this.grpCert.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
-            this.grpCert.Location = new System.Drawing.Point(21, 492);
+            this.grpCert.Location = new System.Drawing.Point(21, 537);
             this.grpCert.Name = "grpCert";
             this.grpCert.Size = new System.Drawing.Size(1407, 347);
             this.grpCert.TabIndex = 4;
@@ -835,7 +881,7 @@
             this.lblRecent.AutoSize = true;
             this.lblRecent.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblRecent.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblRecent.Location = new System.Drawing.Point(21, 855);
+            this.lblRecent.Location = new System.Drawing.Point(21, 900);
             this.lblRecent.Name = "lblRecent";
             this.lblRecent.Size = new System.Drawing.Size(205, 17);
             this.lblRecent.TabIndex = 6;
@@ -851,7 +897,7 @@
             this.dgvDeaths.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells;
             this.dgvDeaths.BackgroundColor = System.Drawing.Color.White;
             this.dgvDeaths.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dgvDeaths.Location = new System.Drawing.Point(5, 875);
+            this.dgvDeaths.Location = new System.Drawing.Point(5, 920);
             this.dgvDeaths.Name = "dgvDeaths";
             this.dgvDeaths.ReadOnly = true;
             this.dgvDeaths.RowHeadersVisible = false;
@@ -864,7 +910,7 @@
             this.btnNew.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnNew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnNew.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnNew.Location = new System.Drawing.Point(1101, 480);
+            this.btnNew.Location = new System.Drawing.Point(1101, 525);
             this.btnNew.Name = "btnNew";
             this.btnNew.Size = new System.Drawing.Size(100, 30);
             this.btnNew.TabIndex = 8;
@@ -877,7 +923,7 @@
             this.btnUpdate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnUpdate.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnUpdate.Location = new System.Drawing.Point(1207, 480);
+            this.btnUpdate.Location = new System.Drawing.Point(1207, 525);
             this.btnUpdate.Name = "btnUpdate";
             this.btnUpdate.Size = new System.Drawing.Size(100, 30);
             this.btnUpdate.TabIndex = 9;
@@ -891,7 +937,7 @@
             this.btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDelete.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.btnDelete.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(220)))), ((int)(((byte)(53)))), ((int)(((byte)(69)))));
-            this.btnDelete.Location = new System.Drawing.Point(1313, 480);
+            this.btnDelete.Location = new System.Drawing.Point(1313, 525);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(100, 30);
             this.btnDelete.TabIndex = 10;
@@ -904,7 +950,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            this.ClientSize = new System.Drawing.Size(1449, 1200);
+            this.ClientSize = new System.Drawing.Size(1449, 1245);
             this.Controls.Add(this.lblTitle);
             this.Controls.Add(this.lblSubtitle);
             this.Controls.Add(this.btnSave);
@@ -957,6 +1003,10 @@
         private System.Windows.Forms.TextBox txtPlace;
         private System.Windows.Forms.Label lblReligion;
         private System.Windows.Forms.TextBox txtReligion;
+        private System.Windows.Forms.Label lblBookVol;
+        private System.Windows.Forms.TextBox txtBookVol;
+        private System.Windows.Forms.Label lblBookPage;
+        private System.Windows.Forms.TextBox txtBookPage;
         private System.Windows.Forms.GroupBox grpCause;
         private System.Windows.Forms.Label lblImm;
         private System.Windows.Forms.TextBox txtImm;

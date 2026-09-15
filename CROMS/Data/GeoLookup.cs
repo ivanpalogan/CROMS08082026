@@ -238,5 +238,50 @@ namespace CROMS.Data
             combo.SelectedIndex = 0;
             combo.Text = "";
         }
+
+        /// <summary>
+        /// "City / municipality, Province" - the joined shape a table stores a place of birth
+        /// in when it has no separate province column (marriage_licenses.husband_place_of_birth,
+        /// marriages.husband_place_of_birth). Shared with <see cref="ProvinceOf"/> /
+        /// <see cref="MunicipalityOf"/> so every screen that joins/splits this shape agrees on it.
+        /// </summary>
+        public static string JoinPlace(string municipality, string province)
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            if (!string.IsNullOrWhiteSpace(municipality)) parts.Add(municipality.Trim());
+            if (!string.IsNullOrWhiteSpace(province)) parts.Add(province.Trim());
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
+
+        /// <summary>
+        /// The province out of a stored place of birth - the LAST comma-separated part.
+        /// <para/>
+        /// A record filed before the field was split holds whatever the clerk typed into one
+        /// box, and some of those carry three parts ("Bical, Penablanca, Cagayan"). The last
+        /// part is the province either way; everything before it goes to the municipality
+        /// cell rather than being dropped, so a legacy value is shown in full for the clerk
+        /// to correct instead of being quietly truncated.
+        /// </summary>
+        public static string ProvinceOf(string place)
+        {
+            string[] bits = (place ?? "").Split(',');
+            return bits.Length < 2 ? null : Norm(bits[bits.Length - 1]);
+        }
+
+        /// <summary>The municipality (and anything before the province) out of a stored place.</summary>
+        public static string MunicipalityOf(string place)
+        {
+            string[] bits = (place ?? "").Split(',');
+            if (bits.Length < 2) return Norm(place);
+            var joined = new System.Text.StringBuilder();
+            for (int i = 0; i < bits.Length - 1; i++)
+            {
+                if (i > 0) joined.Append(", ");
+                joined.Append(bits[i].Trim());
+            }
+            return Norm(joined.ToString());
+        }
+
+        private static string Norm(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
     }
 }

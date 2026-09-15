@@ -145,6 +145,8 @@ namespace CROMS.Forms
             this.txtRegNo = new System.Windows.Forms.TextBox();
             this.lblBook = new System.Windows.Forms.Label();
             this.txtBook = new System.Windows.Forms.TextBox();
+            this.lblBookPage = new System.Windows.Forms.Label();
+            this.txtBookPage = new System.Windows.Forms.TextBox();
             this.lblStatus = new System.Windows.Forms.Label();
             this.cboStatus = new System.Windows.Forms.ComboBox();
             this.lblPreparedBy = new System.Windows.Forms.Label();
@@ -232,10 +234,10 @@ namespace CROMS.Forms
             this.btnCertificate.Margin = this.btnNew.Margin;
             this.btnCertificate.Menu = this.certificateMenu;
             this.btnCertificate.Name = "btnCertificate";
-            this.btnCertificate.Size = new System.Drawing.Size(158, 30);
+            this.btnCertificate.Size = new System.Drawing.Size(230, 30);
             this.btnCertificate.TabIndex = 3;
             this.btnCertificate.Tag = "noskin";
-            this.btnCertificate.Text = "Print Certificate";
+            this.btnCertificate.Text = "Print Certificate of Live Birth";
             this.btnCertificate.UseVisualStyleBackColor = false;
             this.btnCertificate.Click += new System.EventHandler(this.btnPrintCert_Click);
             // 
@@ -243,12 +245,12 @@ namespace CROMS.Forms
             // 
             this.btnNew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnNew.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnNew.Location = new System.Drawing.Point(170, 6);
+            this.btnNew.Location = new System.Drawing.Point(242, 6);
             this.btnNew.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
             this.btnNew.Name = "btnNew";
             this.btnNew.Size = new System.Drawing.Size(100, 30);
             this.btnNew.TabIndex = 0;
-            this.btnNew.Text = "New";
+            this.btnNew.Text = "New Form";
             this.btnNew.UseVisualStyleBackColor = true;
             this.btnNew.Click += new System.EventHandler(this.btnNew_Click);
             // 
@@ -281,7 +283,7 @@ namespace CROMS.Forms
             this.layoutMain.Padding = new System.Windows.Forms.Padding(20, 16, 20, 18);
             this.layoutMain.RowCount = 3;
             this.layoutMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 96F));
-            this.layoutMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 384F));
+            this.layoutMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 444F));
             this.layoutMain.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.layoutMain.Size = new System.Drawing.Size(1240, 900);
             this.layoutMain.TabIndex = 0;
@@ -311,7 +313,7 @@ namespace CROMS.Forms
             this.pnlHeadText.Location = new System.Drawing.Point(0, 0);
             this.pnlHeadText.Margin = new System.Windows.Forms.Padding(0);
             this.pnlHeadText.Name = "pnlHeadText";
-            this.pnlHeadText.Size = new System.Drawing.Size(740, 96);
+            this.pnlHeadText.Size = new System.Drawing.Size(716, 96);
             this.pnlHeadText.TabIndex = 0;
             // 
             // lblTitle
@@ -358,11 +360,11 @@ namespace CROMS.Forms
             this.pnlHeadActions.Controls.Add(this.btnOCRLiveBirth);
             this.pnlHeadActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlHeadActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.pnlHeadActions.Location = new System.Drawing.Point(740, 0);
+            this.pnlHeadActions.Location = new System.Drawing.Point(716, 0);
             this.pnlHeadActions.Margin = new System.Windows.Forms.Padding(0);
             this.pnlHeadActions.Name = "pnlHeadActions";
             this.pnlHeadActions.Padding = new System.Windows.Forms.Padding(0, 4, 0, 0);
-            this.pnlHeadActions.Size = new System.Drawing.Size(460, 96);
+            this.pnlHeadActions.Size = new System.Drawing.Size(484, 96);
             this.pnlHeadActions.TabIndex = 1;
             this.pnlHeadActions.WrapContents = false;
             // 
@@ -372,7 +374,7 @@ namespace CROMS.Forms
             this.btnSubmit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSubmit.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnSubmit.ForeColor = System.Drawing.Color.White;
-            this.btnSubmit.Location = new System.Drawing.Point(288, 4);
+            this.btnSubmit.Location = new System.Drawing.Point(312, 4);
             this.btnSubmit.Margin = new System.Windows.Forms.Padding(8, 0, 0, 0);
             this.btnSubmit.Name = "btnSubmit";
             this.btnSubmit.Size = new System.Drawing.Size(172, 40);
@@ -385,7 +387,7 @@ namespace CROMS.Forms
             // 
             this.btnSaveDraft.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSaveDraft.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnSaveDraft.Location = new System.Drawing.Point(140, 4);
+            this.btnSaveDraft.Location = new System.Drawing.Point(164, 4);
             this.btnSaveDraft.Margin = new System.Windows.Forms.Padding(0);
             this.btnSaveDraft.Name = "btnSaveDraft";
             this.btnSaveDraft.Size = new System.Drawing.Size(140, 40);
@@ -396,15 +398,17 @@ namespace CROMS.Forms
             // 
             // btnOCRLiveBirth
             // 
+            this.btnOCRLiveBirth.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(234)))), ((int)(((byte)(241)))), ((int)(((byte)(254)))));
             this.btnOCRLiveBirth.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnOCRLiveBirth.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnOCRLiveBirth.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
             this.btnOCRLiveBirth.Location = new System.Drawing.Point(0, 4);
-            this.btnOCRLiveBirth.Margin = new System.Windows.Forms.Padding(0);
+            this.btnOCRLiveBirth.Margin = new System.Windows.Forms.Padding(0, 0, 14, 0);
             this.btnOCRLiveBirth.Name = "btnOCRLiveBirth";
-            this.btnOCRLiveBirth.Size = new System.Drawing.Size(140, 40);
+            this.btnOCRLiveBirth.Size = new System.Drawing.Size(150, 40);
             this.btnOCRLiveBirth.TabIndex = 2;
-            this.btnOCRLiveBirth.Text = "OCRLiveBirth";
-            this.btnOCRLiveBirth.UseVisualStyleBackColor = true;
+            this.btnOCRLiveBirth.Text = "Scan Document";
+            this.btnOCRLiveBirth.UseVisualStyleBackColor = false;
             this.btnOCRLiveBirth.Click += new System.EventHandler(this.btnOCRLiveBirth_Click);
             // 
             // cardForm
@@ -420,7 +424,7 @@ namespace CROMS.Forms
             this.cardForm.Name = "cardForm";
             this.cardForm.Padding = new System.Windows.Forms.Padding(14, 12, 14, 14);
             this.cardForm.Radius = 10;
-            this.cardForm.Size = new System.Drawing.Size(1200, 370);
+            this.cardForm.Size = new System.Drawing.Size(1200, 430);
             this.cardForm.TabIndex = 1;
             // 
             // tabControl
@@ -438,7 +442,7 @@ namespace CROMS.Forms
             this.tabControl.Name = "tabControl";
             this.tabControl.Padding = new System.Drawing.Point(14, 5);
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(1172, 344);
+            this.tabControl.Size = new System.Drawing.Size(1172, 404);
             this.tabControl.TabIndex = 0;
             // 
             // tabChild
@@ -449,7 +453,7 @@ namespace CROMS.Forms
             this.tabChild.Location = new System.Drawing.Point(4, 30);
             this.tabChild.Name = "tabChild";
             this.tabChild.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabChild.Size = new System.Drawing.Size(1164, 310);
+            this.tabChild.Size = new System.Drawing.Size(1164, 370);
             this.tabChild.TabIndex = 0;
             this.tabChild.Text = "Child";
             // 
@@ -573,7 +577,7 @@ namespace CROMS.Forms
             this.cboSex.Items.AddRange(new object[] {
             "Male",
             "Female"});
-            this.cboSex.Location = new System.Drawing.Point(745, 55);
+            this.cboSex.Location = new System.Drawing.Point(745, 53);
             this.cboSex.Name = "cboSex";
             this.cboSex.Size = new System.Drawing.Size(200, 25);
             this.cboSex.TabIndex = 7;
@@ -621,7 +625,7 @@ namespace CROMS.Forms
             "Twin",
             "Triplet",
             "Quadruplet"});
-            this.cboTypeOfBirth.Location = new System.Drawing.Point(181, 143);
+            this.cboTypeOfBirth.Location = new System.Drawing.Point(181, 141);
             this.cboTypeOfBirth.Name = "cboTypeOfBirth";
             this.cboTypeOfBirth.Size = new System.Drawing.Size(240, 25);
             this.cboTypeOfBirth.TabIndex = 13;
@@ -697,7 +701,7 @@ namespace CROMS.Forms
             this.tabMother.Location = new System.Drawing.Point(4, 30);
             this.tabMother.Name = "tabMother";
             this.tabMother.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabMother.Size = new System.Drawing.Size(1164, 310);
+            this.tabMother.Size = new System.Drawing.Size(1164, 370);
             this.tabMother.TabIndex = 1;
             this.tabMother.Text = "Mother";
             // 
@@ -977,7 +981,7 @@ namespace CROMS.Forms
             this.tabFather.Location = new System.Drawing.Point(4, 30);
             this.tabFather.Name = "tabFather";
             this.tabFather.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabFather.Size = new System.Drawing.Size(1164, 310);
+            this.tabFather.Size = new System.Drawing.Size(1164, 370);
             this.tabFather.TabIndex = 2;
             this.tabFather.Text = "Father";
             // 
@@ -1190,7 +1194,7 @@ namespace CROMS.Forms
             this.tabMarriage.Location = new System.Drawing.Point(4, 30);
             this.tabMarriage.Name = "tabMarriage";
             this.tabMarriage.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabMarriage.Size = new System.Drawing.Size(1164, 310);
+            this.tabMarriage.Size = new System.Drawing.Size(1164, 370);
             this.tabMarriage.TabIndex = 3;
             this.tabMarriage.Text = "Marriage of Parents";
             // 
@@ -1315,7 +1319,7 @@ namespace CROMS.Forms
             this.tabAttendant.Location = new System.Drawing.Point(4, 30);
             this.tabAttendant.Name = "tabAttendant";
             this.tabAttendant.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabAttendant.Size = new System.Drawing.Size(1164, 310);
+            this.tabAttendant.Size = new System.Drawing.Size(1164, 370);
             this.tabAttendant.TabIndex = 4;
             this.tabAttendant.Text = "Attendant";
             // 
@@ -1372,7 +1376,7 @@ namespace CROMS.Forms
             "Midwife",
             "Hilot (Traditional)",
             "Others"});
-            this.cboAttType.Location = new System.Drawing.Point(181, 11);
+            this.cboAttType.Location = new System.Drawing.Point(181, 9);
             this.cboAttType.Name = "cboAttType";
             this.cboAttType.Size = new System.Drawing.Size(260, 25);
             this.cboAttType.TabIndex = 1;
@@ -1494,7 +1498,7 @@ namespace CROMS.Forms
             this.tabInformant.Location = new System.Drawing.Point(4, 30);
             this.tabInformant.Name = "tabInformant";
             this.tabInformant.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabInformant.Size = new System.Drawing.Size(1164, 310);
+            this.tabInformant.Size = new System.Drawing.Size(1164, 370);
             this.tabInformant.TabIndex = 5;
             this.tabInformant.Text = "Informant";
             // 
@@ -1640,7 +1644,7 @@ namespace CROMS.Forms
             this.tabCert.Location = new System.Drawing.Point(4, 30);
             this.tabCert.Name = "tabCert";
             this.tabCert.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabCert.Size = new System.Drawing.Size(1164, 310);
+            this.tabCert.Size = new System.Drawing.Size(1164, 370);
             this.tabCert.TabIndex = 6;
             this.tabCert.Text = "Certification";
             // 
@@ -1677,10 +1681,12 @@ namespace CROMS.Forms
             this.tblCert.Controls.Add(this.dtpRegisteredDate, 1, 6);
             this.tblCert.Controls.Add(this.lblRemarks, 0, 7);
             this.tblCert.Controls.Add(this.txtRemarks, 1, 7);
+            this.tblCert.Controls.Add(this.lblBookPage, 0, 8);
+            this.tblCert.Controls.Add(this.txtBookPage, 1, 8);
             this.tblCert.Dock = System.Windows.Forms.DockStyle.Top;
             this.tblCert.Location = new System.Drawing.Point(18, 14);
             this.tblCert.Name = "tblCert";
-            this.tblCert.RowCount = 8;
+            this.tblCert.RowCount = 9;
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
@@ -1689,7 +1695,8 @@ namespace CROMS.Forms
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 96F));
-            this.tblCert.Size = new System.Drawing.Size(1111, 404);
+            this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
+            this.tblCert.Size = new System.Drawing.Size(1111, 448);
             this.tblCert.TabIndex = 0;
             // 
             // lblRegNo
@@ -1732,7 +1739,28 @@ namespace CROMS.Forms
             this.txtBook.Name = "txtBook";
             this.txtBook.Size = new System.Drawing.Size(372, 25);
             this.txtBook.TabIndex = 3;
-            // 
+            //
+            // lblBookPage
+            //
+            this.lblBookPage.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblBookPage.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblBookPage.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBookPage.Location = new System.Drawing.Point(3, 404);
+            this.lblBookPage.Name = "lblBookPage";
+            this.lblBookPage.Size = new System.Drawing.Size(172, 44);
+            this.lblBookPage.TabIndex = 12;
+            this.lblBookPage.Text = "Book Page";
+            this.lblBookPage.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
+            // txtBookPage
+            //
+            this.txtBookPage.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtBookPage.Location = new System.Drawing.Point(181, 413);
+            this.txtBookPage.Margin = new System.Windows.Forms.Padding(3, 3, 24, 3);
+            this.txtBookPage.Name = "txtBookPage";
+            this.txtBookPage.Size = new System.Drawing.Size(350, 25);
+            this.txtBookPage.TabIndex = 13;
+            //
             // lblStatus
             // 
             this.lblStatus.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -1755,7 +1783,7 @@ namespace CROMS.Forms
             "Pending Approval",
             "Registered",
             "Delayed Posting"});
-            this.cboStatus.Location = new System.Drawing.Point(181, 55);
+            this.cboStatus.Location = new System.Drawing.Point(181, 53);
             this.cboStatus.Name = "cboStatus";
             this.cboStatus.Size = new System.Drawing.Size(240, 25);
             this.cboStatus.TabIndex = 5;
@@ -1983,12 +2011,12 @@ namespace CROMS.Forms
             this.cardRecords.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cardRecords.DrawShadow = true;
             this.cardRecords.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(225)))), ((int)(((byte)(229)))), ((int)(((byte)(236)))));
-            this.cardRecords.Location = new System.Drawing.Point(20, 496);
+            this.cardRecords.Location = new System.Drawing.Point(20, 556);
             this.cardRecords.Margin = new System.Windows.Forms.Padding(0);
             this.cardRecords.Name = "cardRecords";
             this.cardRecords.Padding = new System.Windows.Forms.Padding(16, 10, 16, 14);
             this.cardRecords.Radius = 10;
-            this.cardRecords.Size = new System.Drawing.Size(1200, 386);
+            this.cardRecords.Size = new System.Drawing.Size(1200, 326);
             this.cardRecords.TabIndex = 2;
             // 
             // layoutRecords
@@ -2004,7 +2032,7 @@ namespace CROMS.Forms
             this.layoutRecords.RowCount = 2;
             this.layoutRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 42F));
             this.layoutRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.layoutRecords.Size = new System.Drawing.Size(1168, 362);
+            this.layoutRecords.Size = new System.Drawing.Size(1168, 302);
             this.layoutRecords.TabIndex = 0;
             // 
             // pnlRecordsHead
@@ -2030,7 +2058,7 @@ namespace CROMS.Forms
             this.lblRecent.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
             this.lblRecent.Location = new System.Drawing.Point(3, 0);
             this.lblRecent.Name = "lblRecent";
-            this.lblRecent.Size = new System.Drawing.Size(680, 42);
+            this.lblRecent.Size = new System.Drawing.Size(608, 42);
             this.lblRecent.TabIndex = 0;
             this.lblRecent.Text = "RECENT BIRTH REGISTRATIONS";
             this.lblRecent.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -2045,10 +2073,10 @@ namespace CROMS.Forms
             this.pnlRecordActions.Controls.Add(this.btnCertificate);
             this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlRecordActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.pnlRecordActions.Location = new System.Drawing.Point(686, 0);
+            this.pnlRecordActions.Location = new System.Drawing.Point(614, 0);
             this.pnlRecordActions.Margin = new System.Windows.Forms.Padding(0);
             this.pnlRecordActions.Name = "pnlRecordActions";
-            this.pnlRecordActions.Size = new System.Drawing.Size(482, 42);
+            this.pnlRecordActions.Size = new System.Drawing.Size(554, 42);
             this.pnlRecordActions.TabIndex = 1;
             this.pnlRecordActions.WrapContents = false;
             this.pnlRecordActions.Paint += new System.Windows.Forms.PaintEventHandler(this.pnlRecordActions_Paint);
@@ -2058,7 +2086,7 @@ namespace CROMS.Forms
             this.btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnDelete.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.btnDelete.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
-            this.btnDelete.Location = new System.Drawing.Point(382, 6);
+            this.btnDelete.Location = new System.Drawing.Point(454, 6);
             this.btnDelete.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
             this.btnDelete.Name = "btnDelete";
             this.btnDelete.Size = new System.Drawing.Size(100, 30);
@@ -2071,7 +2099,7 @@ namespace CROMS.Forms
             // 
             this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnUpdate.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnUpdate.Location = new System.Drawing.Point(276, 6);
+            this.btnUpdate.Location = new System.Drawing.Point(348, 6);
             this.btnUpdate.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
             this.btnUpdate.Name = "btnUpdate";
             this.btnUpdate.Size = new System.Drawing.Size(100, 30);
@@ -2094,7 +2122,7 @@ namespace CROMS.Forms
             this.dgvBirths.ReadOnly = true;
             this.dgvBirths.RowHeadersVisible = false;
             this.dgvBirths.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvBirths.Size = new System.Drawing.Size(1168, 320);
+            this.dgvBirths.Size = new System.Drawing.Size(1168, 260);
             this.dgvBirths.TabIndex = 1;
             this.dgvBirths.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvBirths_CellClick);
             // 
@@ -2273,6 +2301,8 @@ namespace CROMS.Forms
         private System.Windows.Forms.TextBox txtRegNo;
         private System.Windows.Forms.Label lblBook;
         private System.Windows.Forms.TextBox txtBook;
+        private System.Windows.Forms.Label lblBookPage;
+        private System.Windows.Forms.TextBox txtBookPage;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.ComboBox cboStatus;
         private System.Windows.Forms.Label lblPreparedBy;

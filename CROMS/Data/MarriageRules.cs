@@ -209,6 +209,9 @@ namespace CROMS.Data
         public string Solemnizer, SolemnizerPosition, Witness1, Witness2;
         public string Basis;          // Licensed / Exempt / null (not chosen)
         public int? LicenseId;
+        public bool OutOfProvinceLicense;   // true = the licence was obtained in ANOTHER province (backlog Sec.4.1)
+        public string ExternalLicenseNo;    // typed, not linked - only meaningful when OutOfProvinceLicense
+        public DateTime? ExternalLicenseDate;
         public string ExemptionBasis, DelayReason, RegistrarReview, OcrReviewStatus;
         public int? OcrWeakFields;
         public List<ReqRow> Requirements = new List<ReqRow>();
@@ -451,7 +454,8 @@ namespace CROMS.Data
         /// </summary>
         public static List<Need> Needs(Party h, Party w, DateTime on, IEnumerable<ReqType> catalog,
                                        string appliesTo, MarriageSettings s,
-                                       bool exempt = false, bool delayed = false)
+                                       bool exempt = false, bool delayed = false,
+                                       bool outOfProvinceLicense = false)
         {
             var needs = new List<Need>();
             var parties = new[] { h, w };
@@ -507,6 +511,11 @@ namespace CROMS.Data
 
                     case "Delayed":
                         if (delayed) needs.Add(N(t, "Both", "The certificate was received after the reporting period."));
+                        break;
+
+                    case "OutOfProvinceLicense":
+                        if (outOfProvinceLicense)
+                            needs.Add(N(t, "Both", "The marriage licence for this couple was obtained in another province."));
                         break;
                 }
             }
@@ -731,7 +740,24 @@ namespace CROMS.Data
                     "Choose LICENSE REQUIRED (select the licence) or LICENSE EXEMPT (state the legal basis).", Consent));
 
             // ---- licence link
-            if (m.Basis == "Licensed")
+            if (m.Basis == "Licensed" && m.OutOfProvinceLicense)
+            {
+                // No local marriage_licenses row to link - this office never issued it. The
+                // licence's own number/date are typed in (backlog Sec.4.1); the attachment that
+                // proves it is enforced separately below, through the OUT_OF_PROVINCE_LICENSE
+                // requirement row, the same way PREV_MARRIAGE/EXEMPT_AFFIDAVIT already are.
+                if (string.IsNullOrWhiteSpace(m.ExternalLicenseNo))
+                    list.Add(new RuleIssue(RuleSeverity.Blocking, "OOP_LICNO",
+                        "Enter the licence number issued by the other LCRO.", Consent));
+                if (!m.ExternalLicenseDate.HasValue)
+                    list.Add(new RuleIssue(RuleSeverity.Blocking, "OOP_LICDATE",
+                        "Enter the date that licence was issued.", Consent));
+                else if (m.DateOfMarriage.HasValue && m.DateOfMarriage.Value.Date < m.ExternalLicenseDate.Value.Date)
+                    list.Add(new RuleIssue(RuleSeverity.Blocking, "OOP_LIC_BEFORE",
+                        "Marriage date " + D(m.DateOfMarriage) + " is before the licence was issued (" +
+                        D(m.ExternalLicenseDate) + ").", Consent));
+            }
+            else if (m.Basis == "Licensed")
             {
                 if (!m.LicenseId.HasValue || lic == null)
                     list.Add(new RuleIssue(RuleSeverity.Blocking, "NO_LICENSE", "Select the marriage licence this marriage was solemnized under.", Consent));
@@ -809,7 +835,7 @@ namespace CROMS.Data
             // ---- supporting documents (marriage-level; licensed marriages satisfy
             //      previous-marriage proof from the licence file)
             DateTime on = m.DateOfMarriage ?? today;
-            List<Need> needs = Needs(m.Husband, m.Wife, on, catalog, "Marriage", s, exempt, delayed);
+            List<Need> needs = Needs(m.Husband, m.Wife, on, catalog, "Marriage", s, exempt, delayed, m.OutOfProvinceLicense);
             foreach (Need n in needs.Where(x => x.Blocking))
             {
                 ReqRow r = RowFor(m.Requirements, n);

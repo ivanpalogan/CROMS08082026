@@ -44,12 +44,48 @@ namespace CROMS.Forms
             this.btnNew = new System.Windows.Forms.Button();
             this.tabAudit = new System.Windows.Forms.TabPage();
             this.gridAudit = new System.Windows.Forms.DataGridView();
+            this.tabBiodata = new System.Windows.Forms.TabPage();
+            this.gridBiodata = new System.Windows.Forms.DataGridView();
+            this.pnlBiodataEdit = new System.Windows.Forms.Panel();
+            this.lblBioHint = new System.Windows.Forms.Label();
+            this.lblBioUser = new System.Windows.Forms.Label();
+            this.cboBioUser = new System.Windows.Forms.ComboBox();
+            this.lblBioEmployeeNo = new System.Windows.Forms.Label();
+            this.txtBioEmployeeNo = new System.Windows.Forms.TextBox();
+            this.lblBioStatus = new System.Windows.Forms.Label();
+            this.cboBioStatus = new System.Windows.Forms.ComboBox();
+            this.lblBioPosition = new System.Windows.Forms.Label();
+            this.txtBioPosition = new System.Windows.Forms.TextBox();
+            this.lblBioDateHired = new System.Windows.Forms.Label();
+            this.dtpBioDateHired = new System.Windows.Forms.DateTimePicker();
+            this.chkBioDateHired = new System.Windows.Forms.CheckBox();
+            this.lblBioBirthdate = new System.Windows.Forms.Label();
+            this.dtpBioBirthdate = new System.Windows.Forms.DateTimePicker();
+            this.chkBioBirthdate = new System.Windows.Forms.CheckBox();
+            this.lblBioSex = new System.Windows.Forms.Label();
+            this.cboBioSex = new System.Windows.Forms.ComboBox();
+            this.lblBioCivilStatus = new System.Windows.Forms.Label();
+            this.txtBioCivilStatus = new System.Windows.Forms.TextBox();
+            this.lblBioAddress = new System.Windows.Forms.Label();
+            this.txtBioAddress = new System.Windows.Forms.TextBox();
+            this.lblBioContactNo = new System.Windows.Forms.Label();
+            this.txtBioContactNo = new System.Windows.Forms.TextBox();
+            this.lblBioEmergencyName = new System.Windows.Forms.Label();
+            this.txtBioEmergencyName = new System.Windows.Forms.TextBox();
+            this.lblBioEmergencyNo = new System.Windows.Forms.Label();
+            this.txtBioEmergencyNo = new System.Windows.Forms.TextBox();
+            this.lblBioUpdated = new System.Windows.Forms.Label();
+            this.btnBioSave = new System.Windows.Forms.Button();
+            this.btnBioNew = new System.Windows.Forms.Button();
             this.tabControl.SuspendLayout();
             this.tabUsers.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gridUsers)).BeginInit();
             this.pnlEdit.SuspendLayout();
             this.tabAudit.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gridAudit)).BeginInit();
+            this.tabBiodata.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.gridBiodata)).BeginInit();
+            this.pnlBiodataEdit.SuspendLayout();
             this.SuspendLayout();
             //
             // titleLabel
@@ -71,6 +107,7 @@ namespace CROMS.Forms
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl.Controls.Add(this.tabUsers);
             this.tabControl.Controls.Add(this.tabAudit);
+            this.tabControl.Controls.Add(this.tabBiodata);
             this.tabControl.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.tabControl.Location = new System.Drawing.Point(32, 74);
             this.tabControl.Name = "tabControl";
@@ -320,6 +357,400 @@ namespace CROMS.Forms
             this.gridAudit.Size = new System.Drawing.Size(922, 492);
             this.gridAudit.TabIndex = 0;
             //
+            // tabBiodata
+            //
+            this.tabBiodata.BackColor = System.Drawing.Color.White;
+            this.tabBiodata.Controls.Add(this.gridBiodata);
+            this.tabBiodata.Controls.Add(this.pnlBiodataEdit);
+            this.tabBiodata.Location = new System.Drawing.Point(4, 26);
+            this.tabBiodata.Name = "tabBiodata";
+            this.tabBiodata.Padding = new System.Windows.Forms.Padding(3);
+            this.tabBiodata.Size = new System.Drawing.Size(928, 498);
+            this.tabBiodata.TabIndex = 2;
+            this.tabBiodata.Text = "Staff Biodata";
+            //
+            // gridBiodata
+            //
+            this.gridBiodata.AllowUserToAddRows = false;
+            this.gridBiodata.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.gridBiodata.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.gridBiodata.BackgroundColor = System.Drawing.Color.White;
+            this.gridBiodata.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.gridBiodata.Location = new System.Drawing.Point(12, 12);
+            this.gridBiodata.Name = "gridBiodata";
+            this.gridBiodata.ReadOnly = true;
+            this.gridBiodata.RowHeadersVisible = false;
+            this.gridBiodata.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.gridBiodata.Size = new System.Drawing.Size(596, 474);
+            this.gridBiodata.TabIndex = 0;
+            this.gridBiodata.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.gridBiodata_CellClick);
+            //
+            // pnlBiodataEdit
+            //
+            this.pnlBiodataEdit.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.pnlBiodataEdit.AutoScroll = true;
+            this.pnlBiodataEdit.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
+            this.pnlBiodataEdit.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.pnlBiodataEdit.Location = new System.Drawing.Point(624, 12);
+            this.pnlBiodataEdit.Name = "pnlBiodataEdit";
+            this.pnlBiodataEdit.Padding = new System.Windows.Forms.Padding(14);
+            this.pnlBiodataEdit.Size = new System.Drawing.Size(292, 474);
+            this.pnlBiodataEdit.TabIndex = 1;
+            this.pnlBiodataEdit.Controls.Add(this.lblBioHint);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioUser);
+            this.pnlBiodataEdit.Controls.Add(this.cboBioUser);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioEmployeeNo);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioEmployeeNo);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioStatus);
+            this.pnlBiodataEdit.Controls.Add(this.cboBioStatus);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioPosition);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioPosition);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioDateHired);
+            this.pnlBiodataEdit.Controls.Add(this.dtpBioDateHired);
+            this.pnlBiodataEdit.Controls.Add(this.chkBioDateHired);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioBirthdate);
+            this.pnlBiodataEdit.Controls.Add(this.dtpBioBirthdate);
+            this.pnlBiodataEdit.Controls.Add(this.chkBioBirthdate);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioSex);
+            this.pnlBiodataEdit.Controls.Add(this.cboBioSex);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioCivilStatus);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioCivilStatus);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioAddress);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioAddress);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioContactNo);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioContactNo);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioEmergencyName);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioEmergencyName);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioEmergencyNo);
+            this.pnlBiodataEdit.Controls.Add(this.txtBioEmergencyNo);
+            this.pnlBiodataEdit.Controls.Add(this.lblBioUpdated);
+            this.pnlBiodataEdit.Controls.Add(this.btnBioSave);
+            this.pnlBiodataEdit.Controls.Add(this.btnBioNew);
+            //
+            // lblBioHint
+            //
+            this.lblBioHint.Font = new System.Drawing.Font("Segoe UI", 8.25F);
+            this.lblBioHint.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioHint.Location = new System.Drawing.Point(14, 14);
+            this.lblBioHint.Name = "lblBioHint";
+            this.lblBioHint.Size = new System.Drawing.Size(250, 32);
+            this.lblBioHint.TabIndex = 0;
+            this.lblBioHint.Text = "Admin adds or edits any staff member\'s biodata here. Staff can only view their" +
+    " own.";
+            this.lblBioHint.UseMnemonic = false;
+            //
+            // lblBioUser
+            //
+            this.lblBioUser.AutoSize = true;
+            this.lblBioUser.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioUser.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioUser.Location = new System.Drawing.Point(14, 54);
+            this.lblBioUser.Name = "lblBioUser";
+            this.lblBioUser.Size = new System.Drawing.Size(80, 15);
+            this.lblBioUser.TabIndex = 1;
+            this.lblBioUser.Text = "Staff Member";
+            //
+            // cboBioUser
+            //
+            this.cboBioUser.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBioUser.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.cboBioUser.FormattingEnabled = true;
+            this.cboBioUser.Location = new System.Drawing.Point(14, 74);
+            this.cboBioUser.Name = "cboBioUser";
+            this.cboBioUser.Size = new System.Drawing.Size(250, 25);
+            this.cboBioUser.TabIndex = 2;
+            this.cboBioUser.SelectedIndexChanged += new System.EventHandler(this.cboBioUser_SelectedIndexChanged);
+            //
+            // lblBioEmployeeNo
+            //
+            this.lblBioEmployeeNo.AutoSize = true;
+            this.lblBioEmployeeNo.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioEmployeeNo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioEmployeeNo.Location = new System.Drawing.Point(14, 116);
+            this.lblBioEmployeeNo.Name = "lblBioEmployeeNo";
+            this.lblBioEmployeeNo.Size = new System.Drawing.Size(90, 15);
+            this.lblBioEmployeeNo.TabIndex = 3;
+            this.lblBioEmployeeNo.Text = "Employee No.";
+            //
+            // txtBioEmployeeNo
+            //
+            this.txtBioEmployeeNo.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioEmployeeNo.Location = new System.Drawing.Point(14, 136);
+            this.txtBioEmployeeNo.Name = "txtBioEmployeeNo";
+            this.txtBioEmployeeNo.Size = new System.Drawing.Size(250, 25);
+            this.txtBioEmployeeNo.TabIndex = 4;
+            //
+            // lblBioStatus
+            //
+            this.lblBioStatus.AutoSize = true;
+            this.lblBioStatus.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioStatus.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioStatus.Location = new System.Drawing.Point(14, 178);
+            this.lblBioStatus.Name = "lblBioStatus";
+            this.lblBioStatus.Size = new System.Drawing.Size(112, 15);
+            this.lblBioStatus.TabIndex = 5;
+            this.lblBioStatus.Text = "Employment Status";
+            //
+            // cboBioStatus
+            //
+            this.cboBioStatus.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBioStatus.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.cboBioStatus.FormattingEnabled = true;
+            this.cboBioStatus.Items.AddRange(new object[] {
+            "Permanent",
+            "Casual",
+            "Job Order",
+            "Contractual",
+            "Probationary"});
+            this.cboBioStatus.Location = new System.Drawing.Point(14, 198);
+            this.cboBioStatus.Name = "cboBioStatus";
+            this.cboBioStatus.Size = new System.Drawing.Size(250, 25);
+            this.cboBioStatus.TabIndex = 6;
+            //
+            // lblBioPosition
+            //
+            this.lblBioPosition.AutoSize = true;
+            this.lblBioPosition.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioPosition.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioPosition.Location = new System.Drawing.Point(14, 240);
+            this.lblBioPosition.Name = "lblBioPosition";
+            this.lblBioPosition.Size = new System.Drawing.Size(80, 15);
+            this.lblBioPosition.TabIndex = 7;
+            this.lblBioPosition.Text = "Position/Title";
+            //
+            // txtBioPosition
+            //
+            this.txtBioPosition.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioPosition.Location = new System.Drawing.Point(14, 260);
+            this.txtBioPosition.Name = "txtBioPosition";
+            this.txtBioPosition.Size = new System.Drawing.Size(250, 25);
+            this.txtBioPosition.TabIndex = 8;
+            //
+            // lblBioDateHired
+            //
+            this.lblBioDateHired.AutoSize = true;
+            this.lblBioDateHired.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioDateHired.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioDateHired.Location = new System.Drawing.Point(14, 302);
+            this.lblBioDateHired.Name = "lblBioDateHired";
+            this.lblBioDateHired.Size = new System.Drawing.Size(70, 15);
+            this.lblBioDateHired.TabIndex = 9;
+            this.lblBioDateHired.Text = "Date Hired";
+            //
+            // dtpBioDateHired
+            //
+            this.dtpBioDateHired.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.dtpBioDateHired.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpBioDateHired.Location = new System.Drawing.Point(14, 322);
+            this.dtpBioDateHired.Name = "dtpBioDateHired";
+            this.dtpBioDateHired.Size = new System.Drawing.Size(160, 25);
+            this.dtpBioDateHired.TabIndex = 10;
+            //
+            // chkBioDateHired
+            //
+            this.chkBioDateHired.AutoSize = true;
+            this.chkBioDateHired.Font = new System.Drawing.Font("Segoe UI", 8.75F);
+            this.chkBioDateHired.Location = new System.Drawing.Point(180, 325);
+            this.chkBioDateHired.Name = "chkBioDateHired";
+            this.chkBioDateHired.Size = new System.Drawing.Size(52, 19);
+            this.chkBioDateHired.TabIndex = 11;
+            this.chkBioDateHired.Text = "Set";
+            this.chkBioDateHired.UseVisualStyleBackColor = true;
+            this.chkBioDateHired.CheckedChanged += new System.EventHandler(this.chkBioDateHired_CheckedChanged);
+            //
+            // lblBioBirthdate
+            //
+            this.lblBioBirthdate.AutoSize = true;
+            this.lblBioBirthdate.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioBirthdate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioBirthdate.Location = new System.Drawing.Point(14, 364);
+            this.lblBioBirthdate.Name = "lblBioBirthdate";
+            this.lblBioBirthdate.Size = new System.Drawing.Size(60, 15);
+            this.lblBioBirthdate.TabIndex = 12;
+            this.lblBioBirthdate.Text = "Birthdate";
+            //
+            // dtpBioBirthdate
+            //
+            this.dtpBioBirthdate.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.dtpBioBirthdate.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpBioBirthdate.Location = new System.Drawing.Point(14, 384);
+            this.dtpBioBirthdate.Name = "dtpBioBirthdate";
+            this.dtpBioBirthdate.Size = new System.Drawing.Size(160, 25);
+            this.dtpBioBirthdate.TabIndex = 13;
+            //
+            // chkBioBirthdate
+            //
+            this.chkBioBirthdate.AutoSize = true;
+            this.chkBioBirthdate.Font = new System.Drawing.Font("Segoe UI", 8.75F);
+            this.chkBioBirthdate.Location = new System.Drawing.Point(180, 387);
+            this.chkBioBirthdate.Name = "chkBioBirthdate";
+            this.chkBioBirthdate.Size = new System.Drawing.Size(52, 19);
+            this.chkBioBirthdate.TabIndex = 14;
+            this.chkBioBirthdate.Text = "Set";
+            this.chkBioBirthdate.UseVisualStyleBackColor = true;
+            this.chkBioBirthdate.CheckedChanged += new System.EventHandler(this.chkBioBirthdate_CheckedChanged);
+            //
+            // lblBioSex
+            //
+            this.lblBioSex.AutoSize = true;
+            this.lblBioSex.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioSex.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioSex.Location = new System.Drawing.Point(14, 426);
+            this.lblBioSex.Name = "lblBioSex";
+            this.lblBioSex.Size = new System.Drawing.Size(28, 15);
+            this.lblBioSex.TabIndex = 15;
+            this.lblBioSex.Text = "Sex";
+            //
+            // cboBioSex
+            //
+            this.cboBioSex.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboBioSex.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.cboBioSex.FormattingEnabled = true;
+            this.cboBioSex.Items.AddRange(new object[] {
+            "Male",
+            "Female"});
+            this.cboBioSex.Location = new System.Drawing.Point(14, 446);
+            this.cboBioSex.Name = "cboBioSex";
+            this.cboBioSex.Size = new System.Drawing.Size(160, 25);
+            this.cboBioSex.TabIndex = 16;
+            //
+            // lblBioCivilStatus
+            //
+            this.lblBioCivilStatus.AutoSize = true;
+            this.lblBioCivilStatus.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioCivilStatus.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioCivilStatus.Location = new System.Drawing.Point(14, 488);
+            this.lblBioCivilStatus.Name = "lblBioCivilStatus";
+            this.lblBioCivilStatus.Size = new System.Drawing.Size(70, 15);
+            this.lblBioCivilStatus.TabIndex = 17;
+            this.lblBioCivilStatus.Text = "Civil Status";
+            //
+            // txtBioCivilStatus
+            //
+            this.txtBioCivilStatus.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioCivilStatus.Location = new System.Drawing.Point(14, 508);
+            this.txtBioCivilStatus.Name = "txtBioCivilStatus";
+            this.txtBioCivilStatus.Size = new System.Drawing.Size(250, 25);
+            this.txtBioCivilStatus.TabIndex = 18;
+            //
+            // lblBioAddress
+            //
+            this.lblBioAddress.AutoSize = true;
+            this.lblBioAddress.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioAddress.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioAddress.Location = new System.Drawing.Point(14, 550);
+            this.lblBioAddress.Name = "lblBioAddress";
+            this.lblBioAddress.Size = new System.Drawing.Size(52, 15);
+            this.lblBioAddress.TabIndex = 19;
+            this.lblBioAddress.Text = "Address";
+            //
+            // txtBioAddress
+            //
+            this.txtBioAddress.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioAddress.Location = new System.Drawing.Point(14, 570);
+            this.txtBioAddress.Name = "txtBioAddress";
+            this.txtBioAddress.Size = new System.Drawing.Size(250, 25);
+            this.txtBioAddress.TabIndex = 20;
+            //
+            // lblBioContactNo
+            //
+            this.lblBioContactNo.AutoSize = true;
+            this.lblBioContactNo.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioContactNo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioContactNo.Location = new System.Drawing.Point(14, 612);
+            this.lblBioContactNo.Name = "lblBioContactNo";
+            this.lblBioContactNo.Size = new System.Drawing.Size(80, 15);
+            this.lblBioContactNo.TabIndex = 21;
+            this.lblBioContactNo.Text = "Contact No.";
+            //
+            // txtBioContactNo
+            //
+            this.txtBioContactNo.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioContactNo.Location = new System.Drawing.Point(14, 632);
+            this.txtBioContactNo.Name = "txtBioContactNo";
+            this.txtBioContactNo.Size = new System.Drawing.Size(250, 25);
+            this.txtBioContactNo.TabIndex = 22;
+            //
+            // lblBioEmergencyName
+            //
+            this.lblBioEmergencyName.AutoSize = true;
+            this.lblBioEmergencyName.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioEmergencyName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioEmergencyName.Location = new System.Drawing.Point(14, 674);
+            this.lblBioEmergencyName.Name = "lblBioEmergencyName";
+            this.lblBioEmergencyName.Size = new System.Drawing.Size(130, 15);
+            this.lblBioEmergencyName.TabIndex = 23;
+            this.lblBioEmergencyName.Text = "Emergency Contact Name";
+            //
+            // txtBioEmergencyName
+            //
+            this.txtBioEmergencyName.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioEmergencyName.Location = new System.Drawing.Point(14, 694);
+            this.txtBioEmergencyName.Name = "txtBioEmergencyName";
+            this.txtBioEmergencyName.Size = new System.Drawing.Size(250, 25);
+            this.txtBioEmergencyName.TabIndex = 24;
+            //
+            // lblBioEmergencyNo
+            //
+            this.lblBioEmergencyNo.AutoSize = true;
+            this.lblBioEmergencyNo.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBioEmergencyNo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBioEmergencyNo.Location = new System.Drawing.Point(14, 736);
+            this.lblBioEmergencyNo.Name = "lblBioEmergencyNo";
+            this.lblBioEmergencyNo.Size = new System.Drawing.Size(150, 15);
+            this.lblBioEmergencyNo.TabIndex = 25;
+            this.lblBioEmergencyNo.Text = "Emergency Contact No.";
+            //
+            // txtBioEmergencyNo
+            //
+            this.txtBioEmergencyNo.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBioEmergencyNo.Location = new System.Drawing.Point(14, 756);
+            this.txtBioEmergencyNo.Name = "txtBioEmergencyNo";
+            this.txtBioEmergencyNo.Size = new System.Drawing.Size(250, 25);
+            this.txtBioEmergencyNo.TabIndex = 26;
+            //
+            // lblBioUpdated
+            //
+            this.lblBioUpdated.AutoSize = true;
+            this.lblBioUpdated.Font = new System.Drawing.Font("Segoe UI", 8.25F);
+            this.lblBioUpdated.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(150)))), ((int)(((byte)(158)))), ((int)(((byte)(169)))));
+            this.lblBioUpdated.Location = new System.Drawing.Point(14, 798);
+            this.lblBioUpdated.Name = "lblBioUpdated";
+            this.lblBioUpdated.Size = new System.Drawing.Size(140, 15);
+            this.lblBioUpdated.TabIndex = 27;
+            this.lblBioUpdated.Text = "Pick a staff member above.";
+            //
+            // btnBioSave
+            //
+            this.btnBioSave.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
+            this.btnBioSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBioSave.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.btnBioSave.ForeColor = System.Drawing.Color.White;
+            this.btnBioSave.Location = new System.Drawing.Point(14, 830);
+            this.btnBioSave.Name = "btnBioSave";
+            this.btnBioSave.Size = new System.Drawing.Size(122, 38);
+            this.btnBioSave.TabIndex = 28;
+            this.btnBioSave.Text = "Save";
+            this.btnBioSave.UseVisualStyleBackColor = false;
+            this.btnBioSave.Click += new System.EventHandler(this.btnBioSave_Click);
+            //
+            // btnBioNew
+            //
+            this.btnBioNew.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
+            this.btnBioNew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBioNew.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.btnBioNew.ForeColor = System.Drawing.Color.White;
+            this.btnBioNew.Location = new System.Drawing.Point(142, 830);
+            this.btnBioNew.Name = "btnBioNew";
+            this.btnBioNew.Size = new System.Drawing.Size(122, 38);
+            this.btnBioNew.TabIndex = 29;
+            this.btnBioNew.Text = "Clear";
+            this.btnBioNew.UseVisualStyleBackColor = false;
+            this.btnBioNew.Click += new System.EventHandler(this.btnBioNew_Click);
+            //
             // UsersAuditForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
@@ -338,6 +769,10 @@ namespace CROMS.Forms
             this.pnlEdit.PerformLayout();
             this.tabAudit.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.gridAudit)).EndInit();
+            this.tabBiodata.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.gridBiodata)).EndInit();
+            this.pnlBiodataEdit.ResumeLayout(false);
+            this.pnlBiodataEdit.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -365,5 +800,38 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnNew;
         private System.Windows.Forms.TabPage tabAudit;
         private System.Windows.Forms.DataGridView gridAudit;
+        private System.Windows.Forms.TabPage tabBiodata;
+        private System.Windows.Forms.DataGridView gridBiodata;
+        private System.Windows.Forms.Panel pnlBiodataEdit;
+        private System.Windows.Forms.Label lblBioHint;
+        private System.Windows.Forms.Label lblBioUser;
+        private System.Windows.Forms.ComboBox cboBioUser;
+        private System.Windows.Forms.Label lblBioEmployeeNo;
+        private System.Windows.Forms.TextBox txtBioEmployeeNo;
+        private System.Windows.Forms.Label lblBioStatus;
+        private System.Windows.Forms.ComboBox cboBioStatus;
+        private System.Windows.Forms.Label lblBioPosition;
+        private System.Windows.Forms.TextBox txtBioPosition;
+        private System.Windows.Forms.Label lblBioDateHired;
+        private System.Windows.Forms.DateTimePicker dtpBioDateHired;
+        private System.Windows.Forms.CheckBox chkBioDateHired;
+        private System.Windows.Forms.Label lblBioBirthdate;
+        private System.Windows.Forms.DateTimePicker dtpBioBirthdate;
+        private System.Windows.Forms.CheckBox chkBioBirthdate;
+        private System.Windows.Forms.Label lblBioSex;
+        private System.Windows.Forms.ComboBox cboBioSex;
+        private System.Windows.Forms.Label lblBioCivilStatus;
+        private System.Windows.Forms.TextBox txtBioCivilStatus;
+        private System.Windows.Forms.Label lblBioAddress;
+        private System.Windows.Forms.TextBox txtBioAddress;
+        private System.Windows.Forms.Label lblBioContactNo;
+        private System.Windows.Forms.TextBox txtBioContactNo;
+        private System.Windows.Forms.Label lblBioEmergencyName;
+        private System.Windows.Forms.TextBox txtBioEmergencyName;
+        private System.Windows.Forms.Label lblBioEmergencyNo;
+        private System.Windows.Forms.TextBox txtBioEmergencyNo;
+        private System.Windows.Forms.Label lblBioUpdated;
+        private System.Windows.Forms.Button btnBioSave;
+        private System.Windows.Forms.Button btnBioNew;
     }
 }

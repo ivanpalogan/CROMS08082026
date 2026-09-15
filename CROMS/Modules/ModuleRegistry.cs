@@ -52,6 +52,8 @@ namespace CROMS.Modules
             // this group AMENDS a record already registered, it doesn't create/issue one.
             new ModuleInfo("petitions", "Petitions", GroupRecordManagement,
                 () => new PetitionsForm()),
+            new ModuleInfo("books", "Registry Books", GroupRecordManagement,
+                () => new RegistryBooksForm()),
             new ModuleInfo("search", "Record Search", GroupRecordManagement,
                 () => new RecordSearchForm()),
 
@@ -75,6 +77,11 @@ namespace CROMS.Modules
                 () => new SettingsForm()),
             new ModuleInfo("users", "Users & Audit Trail", GroupAdministration,
                 () => new UsersAuditForm()),
+            // Admin-only browser over every saved record/form/image in the system,
+            // grouped by type (birth/marriage/death/petitions/court order/etc).
+            // Not in any role's AllowedKeys list in MainForm, so only Admin sees it.
+            new ModuleInfo("archive", "Records Archive", GroupAdministration,
+                () => new RecordsArchiveForm()),
         };
     }
 }
