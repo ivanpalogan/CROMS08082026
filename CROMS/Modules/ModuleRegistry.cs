@@ -73,6 +73,10 @@ namespace CROMS.Modules
             // Administration
             new ModuleInfo("masterfiles", "Master Files", GroupAdministration,
                 () => new MasterFilesForm()),
+            // Visual, non-technical editor for how a certificate PRINTS — logo/text/field
+            // position, font, lines. Never touches a civil registry record's own data.
+            new ModuleInfo("certtemplates", "Certificate Templates", GroupAdministration,
+                () => new TemplateManagementForm()),
             new ModuleInfo("settings", "Settings", GroupAdministration,
                 () => new SettingsForm()),
             new ModuleInfo("users", "Users & Audit Trail", GroupAdministration,

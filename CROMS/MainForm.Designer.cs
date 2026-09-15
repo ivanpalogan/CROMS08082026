@@ -47,6 +47,7 @@
             this.btnMaster = new System.Windows.Forms.Button();
             this.btnUsers = new System.Windows.Forms.Button();
             this.btnArchive = new System.Windows.Forms.Button();
+            this.btnCertTemplates = new System.Windows.Forms.Button();
             this.btnWindows = new System.Windows.Forms.Button();
             this.brandPanel = new System.Windows.Forms.Panel();
             this.brandLabel = new System.Windows.Forms.Label();
@@ -137,6 +138,7 @@
             this.navFlow.Controls.Add(this.btnWindows);
             this.navFlow.Controls.Add(this.btnUsers);
             this.navFlow.Controls.Add(this.btnArchive);
+            this.navFlow.Controls.Add(this.btnCertTemplates);
             this.navFlow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.navFlow.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.navFlow.Location = new System.Drawing.Point(0, 64);
@@ -535,6 +537,24 @@
             this.btnArchive.UseVisualStyleBackColor = false;
             this.btnArchive.Click += new System.EventHandler(this.NavButton_Click);
             //
+            // btnCertTemplates
+            //
+            this.btnCertTemplates.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
+            this.btnCertTemplates.FlatAppearance.BorderSize = 0;
+            this.btnCertTemplates.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
+            this.btnCertTemplates.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnCertTemplates.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnCertTemplates.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
+            this.btnCertTemplates.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
+            this.btnCertTemplates.Name = "btnCertTemplates";
+            this.btnCertTemplates.Size = new System.Drawing.Size(204, 38);
+            this.btnCertTemplates.TabIndex = 23;
+            this.btnCertTemplates.Tag = "certtemplates";
+            this.btnCertTemplates.Text = "   Certificate Templates";
+            this.btnCertTemplates.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnCertTemplates.UseVisualStyleBackColor = false;
+            this.btnCertTemplates.Click += new System.EventHandler(this.NavButton_Click);
+            //
             // btnWindows
             //
             this.btnWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
@@ -628,6 +648,7 @@
         private System.Windows.Forms.Button btnMaster;
         private System.Windows.Forms.Button btnUsers;
         private System.Windows.Forms.Button btnArchive;
+        private System.Windows.Forms.Button btnCertTemplates;
         private System.Windows.Forms.Button btnWindows;
         private System.Windows.Forms.Panel brandPanel;
         private System.Windows.Forms.Label brandLabel;
