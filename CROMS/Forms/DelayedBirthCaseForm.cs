@@ -36,6 +36,7 @@ namespace CROMS.Forms
         private readonly TextBox _txtEvaluation = new TextBox { Multiline = true, Height = 64, ScrollBars = ScrollBars.Vertical, Font = MUi.F(9.5F) };
         private readonly Label _lblEvaluated = MUi.Txt("", 8.5F, FontStyle.Regular, UiTheme.Muted);
         private readonly Button _btnSaveEvaluation = MUi.Btn("Save Evaluation", MUi.Kind.Primary, 150);
+        private readonly Button _btnAdminOverride = MUi.Btn("Admin Override - Bypass Requirements", MUi.Kind.Danger, 260);
         private readonly Button _btnClose = MUi.Btn("Close", MUi.Kind.Ghost, 90);
         private readonly Panel _root;
 
@@ -94,6 +95,10 @@ namespace CROMS.Forms
             _lblEvaluated.Dock = DockStyle.Top; _lblEvaluated.AutoSize = false; _lblEvaluated.Height = 18; _lblEvaluated.Margin = new Padding(0, 4, 0, 6);
             var evalBtnRow = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent };
             evalBtnRow.Controls.Add(_btnSaveEvaluation);
+            // Admin-only escape hatch: hidden entirely for anyone not signed in as Admin, so a
+            // Registrar/Staff session never even sees a control that could bypass the checklist.
+            _btnAdminOverride.Visible = Session.User != null && Session.User.Role == "Admin";
+            if (_btnAdminOverride.Visible) evalBtnRow.Controls.Add(_btnAdminOverride);
             var evalParts = new Control[] { evalBtnRow, _lblEvaluated, _txtEvaluation, evalHead };
             foreach (Control c in evalParts) evalCard.Controls.Add(c);
 
@@ -115,6 +120,7 @@ namespace CROMS.Forms
 
             _btnStartPosting.Click += (s, e) => DoStartPosting();
             _btnSaveEvaluation.Click += (s, e) => DoSaveEvaluation();
+            _btnAdminOverride.Click += (s, e) => DoAdminOverride();
             _btnClose.Click += (s, e) => Close();
             _tglRegistrantDeceased.CheckedChanged += (s, e) => SaveFacts();
             _tglMotherUnavailable.CheckedChanged += (s, e) => SaveFacts();
@@ -236,6 +242,44 @@ namespace CROMS.Forms
                 LoadCase();
             }
             catch (Exception ex) { MUi.Fail(this, ex); }
+        }
+
+        /// <summary>
+        /// Admin-only: bypasses the requirements checklist entirely - every requirement is marked
+        /// Verified even with no attachment on file. Button is already hidden for anyone not
+        /// signed in as Admin, but re-verifies with a fresh username/password (the same
+        /// AdminVerificationForm gate Settings uses) and checks the ROLE ON THAT VERIFIED ACCOUNT
+        /// is Admin - not merely Admin-or-Registrar, which is all that dialog itself guarantees -
+        /// so this cannot be triggered by someone who walked up to an already-open admin session.
+        /// </summary>
+        private void DoAdminOverride()
+        {
+            if (!MUi.Confirm(this, "Admin override",
+                    "This marks EVERY requirement on this case as Verified, including any with no " +
+                    "document attached. It does not check any paperwork - it records that an " +
+                    "administrator chose to proceed despite the checklist being incomplete. Type the " +
+                    "reason in the Registrar's Evaluation box below first if you want it kept with the record.",
+                    "Case|" + (_c != null ? _c.ChildName : ""),
+                    "Registry No.|" + (_c != null ? (_c.RegistryNo ?? "(not yet assigned)") : "")))
+                return;
+
+            using (var dlg = new AdminVerificationForm())
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                if (dlg.VerifiedUser == null || dlg.VerifiedUser.Role != "Admin")
+                {
+                    MessageBox.Show(this, "Only an Administrator account can bypass delayed-registration requirements.",
+                        "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                try
+                {
+                    DelayedBirthService.AdminOverride(_birthId, _txtEvaluation.Text, dlg.VerifiedUser.Id, dlg.VerifiedUser.Username);
+                    LoadCase();
+                }
+                catch (Exception ex) { MUi.Fail(this, ex); }
+            }
         }
     }
 }
