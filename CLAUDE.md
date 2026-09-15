@@ -80,6 +80,58 @@ Auditable. Every transaction has one ID, one owner, one signature trail — impo
 
 ---
 
+Git Collaboration Workflow (permanent — follow every session)
+
+IDENTITY
+- Gilvan's personal working branch: gilvan-work
+- Kim's working branch: kim-work
+- Shared integration/testing branch: dev
+- Stable branch: main
+
+CORE RULES
+1. Before making changes, verify which branch is currently checked out.
+2. Normal development work happens on gilvan-work.
+3. If currently on main or dev when asked to modify code, STOP and switch/check with Gilvan before editing — do not edit code in place on those branches.
+4. Never directly develop on main.
+5. Never automatically push to main.
+6. Never force push. Never run destructive Git commands (reset --hard, clean -f, branch -D, etc.) that could discard either person's work unless explicitly approved for that specific instance.
+
+WHEN ASKED TO MODIFY THE SYSTEM
+- Work normally on the requested files (any part of CROMS — not limited to UI).
+- After successfully completing and verifying the requested task:
+  - review git diff/status;
+  - commit ONLY the files related to that completed task (never unrelated, temporary, generated, secret, or accidental files);
+  - use a clear, descriptive commit message;
+  - push the commit to origin/gilvan-work.
+- Do NOT commit after every tiny edit while still working on the same request. Commit/push only when a logical task is complete or Gilvan explicitly asks to save/push progress.
+
+COLLABORATION WITH KIM
+- Kim works simultaneously on his own local copy using kim-work.
+- When Gilvan needs Kim's latest completed work, fetch from origin and safely integrate the relevant changes.
+
+SYNCING TO DEV
+When told something like "merge our work to dev" / "sync dev" / "combine our work":
+1. Ensure gilvan-work changes are committed and pushed.
+2. Fetch the latest remote branches.
+3. Update dev from origin/dev.
+4. Integrate the latest completed work from origin/gilvan-work and origin/kim-work.
+5. If no conflicts, push the updated dev branch to origin/dev.
+6. Return to gilvan-work afterward.
+7. Report what was integrated.
+
+CONFLICT SAFETY
+If Git reports a merge conflict:
+- Do NOT blindly resolve it.
+- Do NOT delete either person's work.
+- Inspect the conflicting changes and explain which files conflict and what each person changed.
+- If the correct resolution is obvious and preserves both people's intended changes, propose it.
+- If there is any uncertainty, STOP and ask before resolving.
+
+MAIN BRANCH SAFETY
+- Never merge dev into main unless explicitly told to release/merge dev to main.
+
+---
+
 Progress Log
 
 2026-08-31 — Added "CROMS — Project Truth & Research Facts.md" at the repo root: the verified-from-code source of truth for the manuscript (OCR engine, reworked queueing, database, framework, reporting, deployment, feature list, and an explicit list of features that do NOT exist). Note the discrepancies it records: projects target .NET Framework 4.7.2 (not 4.8); Document AI is declared removed but is still registered, still on the sidebar, and still called by OCR Digitization; Registry Books and Incoming/Outgoing forms exist in the source tree but are not registered in ModuleRegistry, so they are unreachable in the running app.
