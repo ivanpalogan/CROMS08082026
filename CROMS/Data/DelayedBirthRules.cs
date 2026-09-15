@@ -133,6 +133,35 @@ namespace CROMS.Data
             return rows.FirstOrDefault(r => r.Code == n.Code && r.Party == n.Party);
         }
 
+        /// <summary>
+        /// Every outstanding checklist item, in plain words - the evidence group's shortfall
+        /// stated once as a whole (never as one line per document, which would misstate "any
+        /// two of eight" as eight separate demands), then every other unmet blocking item by
+        /// name. Built only to tell an Admin what an override is about to bypass; it gates
+        /// nothing itself.
+        /// </summary>
+        public static List<string> OutstandingItems(List<Need> needs, List<ReqRow> rows, IEnumerable<ReqType> catalog, string groupCode)
+        {
+            var list = new List<string>();
+            bool groupOk = EvidenceGroupSatisfied(rows, catalog, groupCode, out int have, out int need);
+            if (!groupOk)
+                list.Add("Evidence of birth (item c): only " + have + " of " + need + " required documents verified.");
+
+            foreach (Need n in needs.Where(x => x.Blocking))
+            {
+                ReqType t = catalog.FirstOrDefault(c => c.Code == n.Code);
+                if (t != null && t.GroupCode == groupCode) continue;
+                ReqRow r = rows.FirstOrDefault(x => x.Code == n.Code && x.Party == n.Party);
+                if (MarriageRules.Satisfied(r)) continue;
+                string state = r == null || r.Status == "Missing" ? "is still missing."
+                    : r.Status == "Submitted" ? "was submitted but has not been verified."
+                    : r.Status == "Rejected" ? "was rejected" + (string.IsNullOrWhiteSpace(r.Notes) ? "." : ": " + r.Notes)
+                    : "is " + r.Status.ToLowerInvariant() + ".";
+                list.Add(n.Label + " " + state);
+            }
+            return list;
+        }
+
         public static string D(DateTime? d)
         {
             return d.HasValue ? d.Value.ToString("dd MMM yyyy", CultureInfo.InvariantCulture) : "-";

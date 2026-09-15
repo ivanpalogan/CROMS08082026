@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -251,17 +252,31 @@ namespace CROMS.Forms
         /// AdminVerificationForm gate Settings uses) and checks the ROLE ON THAT VERIFIED ACCOUNT
         /// is Admin - not merely Admin-or-Registrar, which is all that dialog itself guarantees -
         /// so this cannot be triggered by someone who walked up to an already-open admin session.
+        /// Same warning dialog as the marriage licence's Admin Override (MUi.AskWithChecklist):
+        /// names every specific item still outstanding, with Proceed/Cancel pinned at a fixed
+        /// position so a long checklist can never push them off the visible dialog.
         /// </summary>
         private void DoAdminOverride()
         {
-            if (!MUi.Confirm(this, "Admin override",
-                    "This marks EVERY requirement on this case as Verified, including any with no " +
-                    "document attached. It does not check any paperwork - it records that an " +
-                    "administrator chose to proceed despite the checklist being incomplete. Type the " +
-                    "reason in the Registrar's Evaluation box below first if you want it kept with the record.",
-                    "Case|" + (_c != null ? _c.ChildName : ""),
-                    "Registry No.|" + (_c != null ? (_c.RegistryNo ?? "(not yet assigned)") : "")))
+            List<ReqRow> rows = DelayedBirthService.Requirements(_birthId);
+            List<ReqType> catalog = DelayedBirthService.Catalog();
+            List<Need> needs = DelayedBirthRules.Needs(_c, catalog);
+            List<string> outstanding = DelayedBirthRules.OutstandingItems(needs, rows, catalog, DelayedBirthService.EvidenceGroup);
+
+            if (outstanding.Count == 0)
+            {
+                MessageBox.Show(this, "Nothing to override - the checklist is already complete.",
+                    "Admin Override", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
+            }
+
+            string reason = MUi.AskWithChecklist(this, "Admin Override",
+                "This marks EVERY requirement below as Verified, including any with no document attached:",
+                outstanding,
+                "It does not check any paperwork - it records that an administrator chose to proceed " +
+                "despite the checklist being incomplete. Recorded on the case and in the audit trail.",
+                "Proceed With Override");
+            if (reason == null) return;
 
             using (var dlg = new AdminVerificationForm())
             {
@@ -275,7 +290,7 @@ namespace CROMS.Forms
 
                 try
                 {
-                    DelayedBirthService.AdminOverride(_birthId, _txtEvaluation.Text, dlg.VerifiedUser.Id, dlg.VerifiedUser.Username);
+                    DelayedBirthService.AdminOverride(_birthId, reason, dlg.VerifiedUser.Id, dlg.VerifiedUser.Username);
                     LoadCase();
                 }
                 catch (Exception ex) { MUi.Fail(this, ex); }

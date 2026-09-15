@@ -265,6 +265,56 @@ namespace CROMS.Forms
             }
         }
 
+        /// <summary>
+        /// A warning that lists SPECIFIC outstanding items, then requires a typed reason before
+        /// an override can proceed - Proceed/Cancel are pinned at a fixed position regardless of
+        /// how many items there are, so a long checklist can never push them off the visible
+        /// dialog (MUi.Ask's fixed one-line-prompt height did exactly that once the prompt grew
+        /// past a couple of lines). The item list scrolls instead of the dialog growing.
+        /// Returns the typed reason, or null if the admin cancelled or left it blank.
+        /// </summary>
+        public static string AskWithChecklist(IWin32Window owner, string title, string headline,
+            IEnumerable<string> items, string note, string proceedLabel)
+        {
+            using (var f = new Form
+            {
+                Text = title, FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false, MaximizeBox = false, ClientSize = new Size(560, 480), BackColor = UiTheme.Surface, ShowInTaskbar = false
+            })
+            {
+                var head = Txt(headline, 9.5F, FontStyle.Bold);
+                head.Location = new Point(20, 16); head.MaximumSize = new Size(520, 0);
+                f.Controls.Add(head);
+
+                var list = new TextBox
+                {
+                    Location = new Point(20, 44), Size = new Size(520, 190), Font = F(9.25F),
+                    Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.White,
+                    Text = string.Join("\r\n", items.Select(i => "• " + i))
+                };
+                f.Controls.Add(list);
+
+                var noteLbl = Txt(note, 9F, FontStyle.Regular, UiTheme.Muted);
+                noteLbl.Location = new Point(20, 242); noteLbl.MaximumSize = new Size(520, 0);
+                f.Controls.Add(noteLbl);
+
+                var reasonLbl = Txt("Reason for overriding:", 9.5F, FontStyle.Bold); reasonLbl.Location = new Point(20, 320);
+                var reasonBox = new TextBox { Location = new Point(20, 344), Width = 520, Font = F(9.75F) };
+                f.Controls.Add(reasonLbl); f.Controls.Add(reasonBox);
+
+                var ok = Btn(proceedLabel, Kind.Danger, 200); ok.DialogResult = DialogResult.OK;
+                var cancel = Btn("Cancel", Kind.Secondary, 90); cancel.DialogResult = DialogResult.Cancel;
+                ok.Location = new Point(f.ClientSize.Width - 20 - ok.Width - 10, f.ClientSize.Height - 50);
+                cancel.Location = new Point(ok.Left - 100, f.ClientSize.Height - 50);
+                f.Controls.Add(ok); f.Controls.Add(cancel);
+                f.AcceptButton = null; f.CancelButton = cancel;
+                UiTheme.Polish(f);
+
+                if (f.ShowDialog(owner) != DialogResult.OK || string.IsNullOrWhiteSpace(reasonBox.Text)) return null;
+                return reasonBox.Text.Trim();
+            }
+        }
+
         public static void Fail(IWin32Window owner, Exception ex)
         {
             MessageBox.Show(owner, ex.Message, "Could not complete", MessageBoxButtons.OK,
