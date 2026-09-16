@@ -72,13 +72,15 @@ namespace CROMS
 
         private Panel _brandMark;
         private Image _lcroLogo;
+        private Label _brandSubtitle;
 
         /// <summary>
         /// Loads the office's own seal from Assets\lcro_logo.png (next to the built exe) when one
         /// has been supplied there; falls back to a drawn line-art mark (the same one Login and
         /// Launcher already use) so the sidebar never shows a blank hole while waiting for the
         /// office to hand over the real image. Drop the PNG in and it appears on the next launch
-        /// — no rebuild needed.
+        /// — no rebuild needed. Laid out as seal + "CROMS" + "LCRO Peñablanca" (matching the
+        /// approved mockup's brand block), not just a bare wordmark.
         /// </summary>
         private void SetupBrandMark()
         {
@@ -86,10 +88,12 @@ namespace CROMS
             try { if (System.IO.File.Exists(path)) _lcroLogo = Image.FromFile(path); }
             catch { _lcroLogo = null; }
 
+            brandPanel.Height = 68;
+
             var mark = new Panel
             {
-                Size = new Size(34, 34),
-                Location = new Point(16, 15),
+                Size = new Size(40, 40),
+                Location = new Point(14, 14),
                 BackColor = Color.Transparent,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
@@ -110,15 +114,30 @@ namespace CROMS
                 else
                 {
                     using (GraphicsPath path2 = CardPanel.RoundedRect(
-                               new Rectangle(0, 0, mark.Width - 1, mark.Height - 1), 8))
+                               new Rectangle(0, 0, mark.Width - 1, mark.Height - 1), 10))
                     using (var b = new SolidBrush(UiTheme.NavyHover))
                         e.Graphics.FillPath(b, path2);
-                    DrawInstitutionIcon(e.Graphics, new RectangleF(7, 7, 20, 20), Color.White);
+                    DrawInstitutionIcon(e.Graphics, new RectangleF(9, 9, 22, 22), Color.White);
                 }
             };
             brandPanel.Controls.Add(mark);
             mark.BringToFront();
-            brandLabel.Location = new Point(mark.Right + 10, brandLabel.Location.Y);
+
+            brandLabel.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
+            brandLabel.Location = new Point(mark.Right + 10, 14);
+
+            _brandSubtitle = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = Color.FromArgb(150, 162, 188),
+                BackColor = Color.Transparent,
+                Text = "LCRO Peñablanca",
+                Location = new Point(mark.Right + 10, 38)
+            };
+            brandPanel.Controls.Add(_brandSubtitle);
+            _brandSubtitle.BringToFront();
+
             _brandMark = mark;
         }
 
@@ -150,6 +169,7 @@ namespace CROMS
         // ================================================================
 
         private readonly Dictionary<Button, int> _navButtonHeight = new Dictionary<Button, int>();
+        private readonly Dictionary<Button, int> _navButtonWidth = new Dictionary<Button, int>();
         private readonly Dictionary<Button, string> _navButtonText = new Dictionary<Button, string>();
 
         private void SetupNavIcons()
@@ -162,6 +182,7 @@ namespace CROMS
                 b.Text = (b.Text ?? "").TrimStart();
                 _navButtonText[b] = b.Text;
                 _navButtonHeight[b] = b.Height;
+                _navButtonWidth[b] = b.Width;
                 UiTheme.SetIcon(b, NavIcons.For(pair.Key));
             }
         }
@@ -316,9 +337,16 @@ namespace CROMS
             _railButton.BringToFront();
         }
 
+        // The narrow rail width a nav button is shrunk to — small enough for a centered 18px
+        // icon plus its 8+8 Margin to fit inside SidebarCollapsedWidth (64) with a hair to spare.
+        private const int RailButtonWidth = 44;
+
         private void ToggleRail()
         {
+            if (_railAnimating) return;   // ignore a second click mid-slide
             _railCollapsed = !_railCollapsed;
+            int fromWidth = sidebarPanel.Width;
+            int toWidth = _railCollapsed ? SidebarCollapsedWidth : SidebarExpandedWidth;
 
             if (_railCollapsed)
             {
@@ -333,6 +361,7 @@ namespace CROMS
                         if (!_navAllowed.Contains(b)) continue;
                         int natural;
                         b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
+                        b.Width = RailButtonWidth;
                         b.Visible = true;
                     }
                 }
@@ -343,8 +372,8 @@ namespace CROMS
                     b.Text = "";
                 }
                 brandLabel.Visible = false;
-                if (_brandMark != null) _brandMark.Location = new Point((SidebarCollapsedWidth - _brandMark.Width) / 2, 15);
-                sidebarPanel.Width = SidebarCollapsedWidth;
+                if (_brandSubtitle != null) _brandSubtitle.Visible = false;
+                if (_brandMark != null) _brandMark.Location = new Point((SidebarCollapsedWidth - _brandMark.Width) / 2, 14);
                 _railButton.Text = "»";
             }
             else
@@ -362,17 +391,47 @@ namespace CROMS
                     foreach (var b in group.Members)
                     {
                         if (!_navAllowed.Contains(b)) continue;
-                        int natural;
+                        int natural, naturalW;
                         b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
+                        b.Width = _navButtonWidth.TryGetValue(b, out naturalW) ? naturalW : 204;
                         b.Visible = group.Expanded;
                     }
                 }
                 brandLabel.Visible = true;
-                if (_brandMark != null) _brandMark.Location = new Point(16, 15);
-                sidebarPanel.Width = SidebarExpandedWidth;
+                if (_brandSubtitle != null) _brandSubtitle.Visible = true;
+                if (_brandMark != null) _brandMark.Location = new Point(14, 14);
                 _railButton.Text = "«  Collapse";
             }
+            navFlow.AutoScrollPosition = new Point(0, 0);
             navFlow.PerformLayout();
+            AnimateSidebarWidth(fromWidth, toWidth);
+        }
+
+        private bool _railAnimating;
+
+        /// <summary>Slides the sidebar's own width from one size to the other — the "sucks,
+        /// no animation" complaint was really the button-width bug above (icons drawing off
+        /// the visible edge of a still-204px-wide button); this is the polish on top of the
+        /// actual fix, not a substitute for it.</summary>
+        private void AnimateSidebarWidth(int from, int to)
+        {
+            _railAnimating = true;
+            var timer = new Timer { Interval = 12 };
+            int steps = 10, i = 0;
+            timer.Tick += (s, e) =>
+            {
+                i++;
+                float t = Math.Min(1f, (float)i / steps);
+                sidebarPanel.Width = (int)(from + (to - from) * t);
+                if (i >= steps)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    sidebarPanel.Width = to;
+                    _railAnimating = false;
+                }
+            };
+            timer.Start();
         }
 
         private static string ModuleTitle(string key)

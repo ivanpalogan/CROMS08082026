@@ -4680,3 +4680,50 @@ accordion/rail logic was traced by hand for the FlowLayoutPanel reflow and Dock 
 it depends on, but none of it has been seen rendered. Rebuild in VS and confirm: the window card
 border now closes fully, every nav button shows an icon, clicking a group header slides its
 buttons, and the bottom "« Collapse" button shrinks the sidebar to an icon rail with tooltips.
+
+### 2026-09-16 (later) — Found and fixed WHY the collapsed rail looked broken; brand block matches the mockup
+
+Screenshots of the actually-running app confirmed the expanded sidebar (icons, accordion carets,
+colours) already looked right — but the collapsed rail was nearly blank navy with one highlighted
+box and no visible icons, and the bottom collapse button read as covering something.
+
+ROOT CAUSE, found by re-deriving what the paint code actually draws rather than guessing again.
+`ToggleRail` blanked each button's `Text` (triggering `UiTheme`'s icon-only centered paint) and
+set `Visible`/`Height`, but never touched `Width` — every nav button stayed at its Designer width
+(204px) even though the sidebar had shrunk to 64px. `UiTheme`'s icon-only centering formula is
+`(b.Width - iconSize) / 2`, so on an UNCHANGED 204px-wide button that centers the icon at x≈93 —
+**off the right edge of the 64px-wide visible strip**. The FlowLayoutPanel's viewport only ever
+showed the button's own LEFT edge (x=0..~47), which is plain navy background: no icon, no text,
+just the button's fill colour. That is exactly the near-blank rail in the screenshot, and the
+"highlighted box with nothing in it" was the ACTIVE button's accent-blue fill suffering the same
+invisible-icon problem. `MainForm.SetupNavIcons` now also captures each button's original Width
+(`_navButtonWidth`), and `ToggleRail` sets every allowed button's `Width = 44` when collapsing
+(and restores the original ~204 on expand) — so the icon now centers inside the button's REAL,
+currently-visible bounds instead of a phantom off-screen box.
+
+ANIMATION ADDED, since "sucks" was partly this bug and partly a genuine gap — the rail toggle was
+instant, the only animated UI in the sidebar being the accordion's height slide. New
+`AnimateSidebarWidth(from, to)` (same 10-step `Timer` pattern as `AnimateGroup`) eases
+`sidebarPanel.Width` between 220 and 64 over ~120ms; a `_railAnimating` guard ignores a second
+click mid-slide. `navFlow.AutoScrollPosition` is also reset to `(0,0)` on every toggle as a
+defensive measure against a stale scroll offset compounding the same off-screen-content family of
+bug.
+
+BRAND BLOCK rebuilt to match the approved mockup's actual structure (seal + "CROMS" + a
+"LCRO Peñablanca" caption underneath, not a bare wordmark): `brandPanel.Height` 64→68, the mark
+grew 34→40px, and a new `_brandSubtitle` label ("LCRO Peñablanca", small muted grey) sits under
+"CROMS" — both hide when the rail collapses and the mark re-centers in the narrow strip, matching
+the existing collapse handling already built for the icon-only mark.
+
+ON THE LOGO ITSELF: the code was already correct (`Assets\lcro_logo.png`, checked at startup,
+falls back to the drawn mark) — the user has said the seal image was already supplied in chat,
+but there is still no image-write tool in this environment, so nothing could have been saved to
+that path without the user placing the file there themselves. Restated plainly rather than
+re-attempted silently: save the seal PNG to `CROMS\Assets\lcro_logo.png` and rebuild — no code
+change needed, the loader and the csproj `Condition="Exists(...)"` guard are already in place.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors (temp OutputPath, removed after). GUI
+not clicked (no interactive desktop) — the width-centering root cause was derived algebraically
+from `UiTheme`'s exact icon-centering formula against the unmodified 204px button width, not
+eyeballed; user should rebuild in VS and confirm the rail now shows every icon and the collapse
+slides instead of snapping.
