@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -225,6 +225,8 @@ namespace CROMS.Forms
             if (_btnApplyFooter != null) _btnApplyFooter.Visible = _editable;
             _btnEditToggle.Visible = !_editable;
             _canvas.ReadOnly = !_editable;
+            _canvas.ShowBandGuides = _editable;
+            _canvas.Invalidate();
             foreach (Control c in ((Panel)Controls.Cast<Control>().First(x => x.Dock == DockStyle.Left)).Controls)
                 if (c is Button b && b.Text.StartsWith("＋")) b.Enabled = _editable;
             RebuildPropertiesPanel();
@@ -315,28 +317,43 @@ namespace CROMS.Forms
 
         // ============================================================== add element helpers
 
+        /// <summary>Where the next added element lands. Deliberately just BELOW the header
+        /// band, not at the top of the sheet: a new element dropped inside the letterhead
+        /// would be tagged Header and then carried onto the other two forms by "Apply
+        /// Header", which is not what adding a line of text means. It is placed on the page
+        /// either way — never outside it — and the operator drags it where they want.</summary>
         private static PointF NextSpot(CertTemplate t) =>
-            new PointF(60 + (t.Elements.Count % 8) * 10, 100 + (t.Elements.Count % 8) * 14);
+            new PointF(60 + (t.Elements.Count % 8) * 10,
+                       TemplateStore.HeaderBandBottom + 20 + (t.Elements.Count % 8) * 14);
+
+        /// <summary>A brand-new element has no operator-chosen band yet, so it takes the one
+        /// its drop position implies. Moving it later does NOT re-tag it — by then the band
+        /// may be a deliberate choice made in the properties panel.</summary>
+        private static TemplateElement Placed(TemplateElement el)
+        {
+            el.Band = TemplateStore.BandForY(el.Y);
+            return el;
+        }
 
         private void AddTextElement()
         {
             PointF p = NextSpot(_current);
             var el = new TemplateElement { Kind = "Text", Text = "New text", X = p.X, Y = p.Y, Width = 160, Height = 16, FontSize = 9f };
-            _canvas.AddElement(el);
+            _canvas.AddElement(Placed(el));
         }
 
         private void AddLineElement()
         {
             PointF p = NextSpot(_current);
             var el = new TemplateElement { Kind = "Line", X = p.X, Y = p.Y, Width = 180, Height = 0, StrokeWidth = 1f };
-            _canvas.AddElement(el);
+            _canvas.AddElement(Placed(el));
         }
 
         private void AddRectElement()
         {
             PointF p = NextSpot(_current);
             var el = new TemplateElement { Kind = "Rectangle", X = p.X, Y = p.Y, Width = 120, Height = 60, StrokeWidth = 1f };
-            _canvas.AddElement(el);
+            _canvas.AddElement(Placed(el));
         }
 
         private void ShowAddFieldMenu(Control anchor)
@@ -364,7 +381,7 @@ namespace CROMS.Forms
             {
                 Kind = "Field", Column = f.Key, X = p.X, Y = p.Y, Width = 180, Height = 14, FontSize = 9f
             };
-            _canvas.AddElement(el);
+            _canvas.AddElement(Placed(el));
         }
 
         private void ShowAddImageMenu(Control anchor)
@@ -390,7 +407,7 @@ namespace CROMS.Forms
         {
             PointF p = NextSpot(_current);
             var el = new TemplateElement { Kind = "Image", OfficeAsset = kind.ToString(), X = p.X, Y = p.Y, Width = 60, Height = 60 };
-            _canvas.AddElement(el);
+            _canvas.AddElement(Placed(el));
         }
 
         private void UploadImageElement(TemplateElement existing)
@@ -430,7 +447,7 @@ namespace CROMS.Forms
                     float box = 120f;
                     float scale = Math.Min(box / natural.Width, box / natural.Height);
                     var el = new TemplateElement { Kind = "Image", ImageId = id, X = p.X, Y = p.Y, Width = natural.Width * scale, Height = natural.Height * scale };
-                    _canvas.AddElement(el);
+                    _canvas.AddElement(Placed(el));
                 }
             }
         }

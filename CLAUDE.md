@@ -4727,3 +4727,65 @@ not clicked (no interactive desktop) — the width-centering root cause was deri
 from `UiTheme`'s exact icon-centering formula against the unmodified 204px button width, not
 eyeballed; user should rebuild in VS and confirm the rail now shows every icon and the collapse
 slides instead of snapping.
+
+### 2026-09-16 (later) — Editing a certification's text/header/footer is reachable FROM the preview, and the page now shows where the bands are
+Reported while looking at the Certification (Birth Available) print preview: the operator wants
+the text on that page editable — add a line of text, add a header, add a footer — and placed
+ON the page rather than somewhere off it.
+
+**Most of this already existed and was simply unreachable from where the operator was standing.**
+The visual editor is Administration -> Certificate Templates (`TemplateManagementForm` ->
+`TemplateDesignerForm`), it can add Text / Data Field / Image / Line / Rectangle, drag and resize
+them on a real page, and `TemplateReportBridge` has made the saved template the PRIMARY print
+layout since earlier today. But the preview window was a dead end — the only way to change what
+it showed was to leave it, find the admin module, edit, then find the record and print again.
+
+**"Edit Layout..." added to the preview toolbar.** `ZoomPrintPreviewForm` gained an optional
+`(TemplateFormInfo, Func<PrintDocument>)` pair; the button appears ONLY when the previewed form
+is one the designer knows, so the burial permit, the MF-90 fallback and every other built-in
+page are unaffected. It opens the designer READ-ONLY — the designer's own "Edit Template" button
+still carries the `AdminVerificationForm` re-check, so this adds no new way around it — and on
+close re-renders THIS record's page from whatever was saved. `TemplateReportBridge` supplies the
+rebuild closure, which re-reads `TemplateStore.GetActive` each time and falls back to the
+template it opened with. Document ownership is explicit: the caller's `using` still owns the
+document it passed, a rebuilt replacement belongs to the form and is disposed on close — so the
+edit-preview loop cannot leak a `PrintDocument` per round trip.
+
+**The page now says where the header and footer are.** `TemplateElement.Band` was described in
+the code as "organizational only" and had no representation on the canvas at all, so "add a
+header" meant guessing which Y counted as the header. `TemplateCanvas.ShowBandGuides` (on only
+while editing) draws the two boundaries as dashed rules with HEADER / BODY / FOOTER named beside
+them, in screen space after the page content and outside its clip, so a guide can never be
+mistaken for an element or hide one. The boundaries were two magic numbers inside
+`TemplateStore.ToElement` (`e.Y < 110 ? Header : e.Y > 660 ? Footer : Body`); they are now
+`HeaderBandBottom` / `FooterBandTop` + `BandForY`, so the seeding rule and the drawn guide
+cannot disagree. The label falls inside the page when the margin beside it is too narrow —
+a guide label off the left edge of a scrolled canvas would be the exact "outside the page"
+problem these guides exist to fix.
+
+**A new element now takes the band its drop position implies** (`Placed()`), instead of always
+saying Body while sitting in the letterhead — which matters because Band is what "Apply Header /
+Footer to 1A/2A/3A" propagates. Moving it afterwards does NOT re-tag it: by then the band may be
+a deliberate choice made in the properties panel. `NextSpot` also moved down to just below the
+header band, so adding a line of text does not silently create a Header element that the next
+"Apply Header" then copies onto the other two certificates.
+
+VERIFIED by running the real code off a freshly built exe against the live croms database, not
+by compiling: the designer opened on FORM-3B-BIRTH-AVAILABLE with the seeded layout, the guides
+rendered (HEADER / BODY with their dashed rules), `AddTextElement` invoked through its own
+handler produced `kind=Text band=Body x=90 y=172` — on the page, selected, with drag handles —
+and the preview's toolbar enumerated as `Print... | - | + | Fit page | Fit width | 100% |
+Edit Layout...`. MSBuild exit 0, 0 warnings 0 errors.
+
+Harness notes for the next person: `TemplateDesignerForm`'s constructor hits the database, so
+`APP_CONFIG_FILE` must be set through `AppDomain.SetData` (the environment variable alone is too
+late) AND `ConfigurationManager`'s `s_initState`/`s_configSystem`/`s_current` cleared, or it
+connects as the Windows user and throws "Access denied" — the same trap recorded on 2026-09-07
+and 2026-09-12. From PowerShell, constructor and method arguments must be unwrapped with
+`.PSObject.BaseObject` or reflection refuses the PSObject.
+
+NOT DONE: still no draft-vs-published split or version history (`TemplateStore.Save` writes
+straight to the live active row; "Restore Default" is the only way back), and a Field element is
+still its own positioned box — there is no inline `{{placeholder}}` inside a sentence, so
+"This certification is issued to Mr. <name>" is composed as separate elements rather than one
+paragraph. Both were already open before this pass.

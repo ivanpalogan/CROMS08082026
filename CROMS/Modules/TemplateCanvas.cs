@@ -25,6 +25,13 @@ namespace CROMS.Modules
         public Func<int, Image> LoadTemplateImage { get; set; }
         public bool ReadOnly { get; set; }
 
+        /// <summary>Draws the HEADER / BODY / FOOTER band boundaries on the page while
+        /// editing, so the operator can see WHERE a letterhead or footer element belongs
+        /// before dropping one. They are guides only — nothing clips to them and an element
+        /// may be placed anywhere on the sheet (see <see cref="TemplateStore.BandForY"/>).
+        /// Off while previewing, where they would print-preview as ink that isn't there.</summary>
+        public bool ShowBandGuides { get; set; }
+
         private float _zoom = 1.25f;
         public float Zoom
         {
@@ -102,6 +109,41 @@ namespace CROMS.Modules
             g.SetClip(new RectangleF(0, 0, Template.PageWidth, Template.PageHeight));
             TemplateRenderer.Draw(g, Template, Values, true, _selectedId, LoadTemplateImage);
             g.Restore(gs);
+
+            if (ShowBandGuides) DrawBandGuides(g, page);
+        }
+
+        /// <summary>Two dashed rules across the page with the band each strip belongs to
+        /// named in the left margin. Drawn in SCREEN space, after the page content and
+        /// outside its clip, so a guide is never mistaken for an element and never hides
+        /// one — it sits on top at a constant hairline weight whatever the zoom.</summary>
+        private void DrawBandGuides(Graphics g, RectangleF page)
+        {
+            float headerY = page.Y + Math.Min(TemplateStore.HeaderBandBottom, Template.PageHeight) * _zoom;
+            float footerY = page.Y + Math.Min(TemplateStore.FooterBandTop, Template.PageHeight) * _zoom;
+
+            using (var pen = new Pen(Color.FromArgb(120, 37, 99, 235)) { DashStyle = DashStyle.Dash })
+            using (var brush = new SolidBrush(Color.FromArgb(150, 37, 99, 235)))
+            using (var font = new Font("Segoe UI", 7.5f, FontStyle.Bold))
+            {
+                g.DrawLine(pen, page.X, headerY, page.Right, headerY);
+                g.DrawLine(pen, page.X, footerY, page.Right, footerY);
+
+                Label("HEADER", page.Y);
+                Label("BODY", headerY);
+                Label("FOOTER", footerY);
+
+                void Label(string text, float top)
+                {
+                    SizeF size = g.MeasureString(text, font);
+                    // Inside the page when the margin beside it is too narrow to hold the
+                    // caption — a guide label off the left edge of a scrolled canvas is
+                    // exactly the "outside the page" problem these guides exist to fix.
+                    float x = page.X - size.Width - 6;
+                    if (x < 2) x = page.X + 4;
+                    g.DrawString(text, font, brush, x, top + 2);
+                }
+            }
         }
 
         // ================================================================ point mapping

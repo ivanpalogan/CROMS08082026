@@ -17,18 +17,33 @@ namespace CROMS.Forms
     /// </summary>
     internal sealed class ZoomPrintPreviewForm : Form
     {
-        private readonly PrintDocument _doc;
+        private PrintDocument _doc;
+        private readonly PrintDocument _originalDoc;
         private readonly PrintPreviewControl _view = new PrintPreviewControl();
         private readonly Label _zoomLabel = new Label();
         private CtrlWheelZoom _wheel;
         private int _zoom = 100;
 
+        // Set only when this preview was drawn from an editable certificate template.
+        // The form code identifies which template to open; the rebuild delegate re-renders
+        // this same record through the template the operator just saved, so the preview
+        // shows their change instead of the layout it was opened with.
+        private readonly CROMS.Data.TemplateFormInfo _editForm;
+        private readonly Func<PrintDocument> _rebuild;
+
         public int ZoomPercent { get { return _zoom; } }
         public PrintPreviewControl View { get { return _view; } }
 
         public ZoomPrintPreviewForm(PrintDocument doc, string caption, string note)
+            : this(doc, caption, note, null, null) { }
+
+        public ZoomPrintPreviewForm(PrintDocument doc, string caption, string note,
+                                    CROMS.Data.TemplateFormInfo editForm, Func<PrintDocument> rebuild)
         {
             _doc = doc;
+            _originalDoc = doc;        // the caller owns this one; any rebuilt replacement is ours
+            _editForm = editForm;
+            _rebuild = rebuild;
             Text = caption;
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(1000, 820);
@@ -80,6 +95,11 @@ namespace CROMS.Forms
             btn("Fit page", 80, (s, e) => FitPage());
             btn("Fit width", 80, (s, e) => FitWidth());
             btn("100%", 56, (s, e) => SetZoom(100));
+            if (_editForm != null)
+            {
+                bar.Controls.Add(new Label { Width = 14 });
+                btn("Edit Layout...", 118, (s, e) => EditLayout());
+            }
             bar.Controls.Add(new Label { Text = "Ctrl + mouse wheel to zoom", AutoSize = true, ForeColor = UiTheme.Muted, Margin = new Padding(14, 9, 0, 0) });
             return bar;
         }
@@ -104,6 +124,31 @@ namespace CROMS.Forms
 
         public void FitPage() { SetZoom(FitPercent(false)); }
         public void FitWidth() { SetZoom(FitPercent(true)); }
+
+        /// <summary>Opens the visual Template Designer on the form being previewed, then redraws
+        /// this preview from whatever the operator saved. Opens read-only — the designer's own
+        /// "Edit Template" button carries the admin re-verification, so this adds no new way
+        /// around it. Re-rendering on close is what makes the edit visible without the operator
+        /// having to find the record and print it again.</summary>
+        private void EditLayout()
+        {
+            using (var designer = new TemplateDesignerForm(_editForm, false))
+                designer.ShowDialog(this);
+
+            if (_rebuild == null) return;
+            PrintDocument fresh;
+            try { fresh = _rebuild(); }
+            catch { return; }          // keep showing the page we already have
+            if (fresh == null) return;
+
+            PrintDocument old = _doc;
+            _doc = fresh;
+            _view.Document = fresh;
+            _view.InvalidatePreview();
+            FitPage();
+            // Never dispose the document the caller handed us — its own using block owns it.
+            if (!ReferenceEquals(old, fresh) && !ReferenceEquals(old, _originalDoc)) old.Dispose();
+        }
 
         private void PrintNow()
         {
@@ -131,6 +176,8 @@ namespace CROMS.Forms
         {
             base.OnFormClosed(e);
             if (_wheel != null) { _wheel.Dispose(); _wheel = null; }
+            // The caller disposes the document it handed us; a rebuilt one is ours to clean up.
+            if (!ReferenceEquals(_doc, _originalDoc)) { _doc.Dispose(); _doc = _originalDoc; }
         }
     }
 }

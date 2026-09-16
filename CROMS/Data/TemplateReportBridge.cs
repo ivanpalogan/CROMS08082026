@@ -35,8 +35,14 @@ namespace CROMS.Data
             try
             {
                 IDictionary<string, string> values = ToValues(t);
+                // The preview offers "Edit Layout..." only for a form the designer knows, and
+                // rebuilds THIS record's page from the saved template when the designer closes.
+                TemplateFormInfo info = TemplateStore.FindForm(formCode);
                 using (PrintDocument doc = BuildDocument(tmpl, formName, values))
-                using (var f = new CROMS.Forms.ZoomPrintPreviewForm(doc, formName, null))
+                using (var f = new CROMS.Forms.ZoomPrintPreviewForm(
+                           doc, formName, null, info,
+                           info == null ? (Func<PrintDocument>)null
+                                        : () => BuildDocument(TemplateStore.GetActive(formCode) ?? tmpl, formName, values)))
                     f.ShowDialog(owner);
                 return true;
             }

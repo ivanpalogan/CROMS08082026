@@ -275,9 +275,25 @@ namespace CROMS.Data
                     e.Text = c.Text ?? "";
                     break;
             }
-            e.Band = e.Y < 110 ? "Header" : (e.Y > 660 ? "Footer" : "Body");
+            e.Band = BandForY(e.Y);
             return e;
         }
+
+        /// <summary>Y (points from the top of the page) where the letterhead band ends and
+        /// the body begins, and where the body ends and the footer begins. These are the
+        /// office's own layout on the 612x792 pt sheet every form in
+        /// <see cref="FactsCertificationFamily"/> shares — NOT a rule the renderer enforces.
+        /// Band is organizational: it decides what "Apply Header/Footer to 1A/2A/3A"
+        /// propagates, and what the designer draws as a guide line, nothing else. An element
+        /// may sit anywhere on the page whatever its band says.</summary>
+        public const float HeaderBandBottom = 110f;
+        public const float FooterBandTop = 660f;
+
+        /// <summary>The band an element at this Y belongs to by default. Used when seeding a
+        /// template from a form's hardcoded layout; afterwards the operator may change any
+        /// element's band from the designer's properties panel.</summary>
+        public static string BandForY(float y) =>
+            y < HeaderBandBottom ? "Header" : (y > FooterBandTop ? "Footer" : "Body");
 
         // ===================================================================
         // Field picker — every column this form's data row can supply, derived from
