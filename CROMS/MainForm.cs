@@ -37,8 +37,7 @@ namespace CROMS
             RegisterNavButtons();
             SetupNavIcons();
             BuildUserBar();
-            ApplyRoleAccess();
-            CaptureAllowedNavButtons();
+            ApplyRoleAccess();   // also fills _navAllowed
             SetupGroupAccordion();
             SetupSidebarRail();
             SetupBrandMark();
@@ -172,11 +171,29 @@ namespace CROMS
         private readonly Dictionary<Button, int> _navButtonWidth = new Dictionary<Button, int>();
         private readonly Dictionary<Button, string> _navButtonText = new Dictionary<Button, string>();
 
+        // Side margin for an expanded nav button. Small on purpose -- see SetupNavIcons.
+        private const int NavMargin = 5;
+
         private void SetupNavIcons()
         {
+            // The Designer sizes every nav button 204 wide with an 8+8 Margin, i.e. exactly the
+            // 220px sidebar. So the moment the list is long enough to need a VERTICAL scrollbar,
+            // the 17px it takes leaves 203px of viewport for 220px of content and a HORIZONTAL
+            // scrollbar appears too -- that is the dark strip cutting through the nav captions,
+            // and it eats another 17px off the bottom, which is what pushed the last button
+            // (Certificate Templates) under the Collapse bar. Size the buttons to the viewport
+            // that is actually left once the vertical scrollbar is there.
+            int navWidth = SidebarExpandedWidth - SystemInformation.VerticalScrollBarWidth - NavMargin * 2;
+
             foreach (var pair in _navButtons)
             {
                 Button b = pair.Value;
+                // Tighter side margin than the Designer's 8: every pixel given back here is a
+                // pixel of caption, and at 8 the longest labels ("Marriage Registration",
+                // "Intelligent Document Processing") ellipsised once the width had to shrink to
+                // clear the vertical scrollbar.
+                b.Margin = new Padding(NavMargin, 1, NavMargin, 1);
+                b.Width = navWidth;
                 // The Designer text carries manual leading spaces ("   Dashboard") as a stand-in
                 // indent for the icon that didn't exist yet — the icon now provides that gap.
                 b.Text = (b.Text ?? "").TrimStart();
@@ -184,6 +201,22 @@ namespace CROMS
                 _navButtonHeight[b] = b.Height;
                 _navButtonWidth[b] = b.Width;
                 UiTheme.SetIcon(b, NavIcons.For(pair.Key));
+            }
+
+            // A little air under the last button so it never sits flush against the bottom-pinned
+            // Collapse bar.
+            navFlow.Padding = new Padding(0, 0, 0, 10);
+
+            // A group header is an AutoSize Label: left to itself its preferred width can exceed
+            // the scrolled viewport and re-trigger the horizontal scrollbar on its own, so cap it
+            // to the same content width the buttons use.
+            foreach (Control c in navFlow.Controls)
+            {
+                var lbl = c as Label;
+                if (lbl == null) continue;
+                lbl.AutoSize = false;
+                lbl.AutoEllipsis = true;
+                lbl.Size = new Size(navWidth - (lbl.Margin.Left - NavMargin), lbl.PreferredHeight);
             }
         }
 
@@ -205,11 +238,6 @@ namespace CROMS
         // this once) — the accordion must never make a role-hidden button visible again.
         private readonly HashSet<Button> _navAllowed = new HashSet<Button>();
 
-        private void CaptureAllowedNavButtons()
-        {
-            foreach (var pair in _navButtons)
-                if (pair.Value.Visible) _navAllowed.Add(pair.Value);
-        }
 
         /// <summary>Groups the flat nav list by the Label headers already placed between runs of buttons.</summary>
         private void SetupGroupAccordion()
@@ -317,6 +345,11 @@ namespace CROMS
         private void SetupSidebarRail()
         {
             _navTip = new ToolTip();
+            // Always on, not just in the rail: at 220px the longest module name ("Intelligent
+            // Document Processing") cannot fit whatever the margins are, so hovering has to be
+            // able to tell you what the ellipsis is hiding.
+            foreach (var pair in _navButtons)
+                _navTip.SetToolTip(pair.Value, ModuleTitle(pair.Key));
 
             _railButton = new Button
             {
@@ -334,12 +367,24 @@ namespace CROMS
             _railButton.FlatAppearance.BorderSize = 0;
             _railButton.Click += (s, e) => ToggleRail();
             sidebarPanel.Controls.Add(_railButton);
-            _railButton.BringToFront();
+            // The Dock=Fill child must be laid out LAST or it claims the whole client area and
+            // the bottom-docked bar is drawn ON TOP of the end of the list -- measured: navFlow
+            // ran 68..1057 while the rail sat 1015..1057, hiding the final nav button. Docking
+            // order follows z-order, so bringing navFlow to the front (not the rail) is what
+            // makes the rail reserve its 42px first. This is the user-reported "the collapse
+            // button even covered a button".
+            navFlow.BringToFront();
         }
 
-        // The narrow rail width a nav button is shrunk to — small enough for a centered 18px
-        // icon plus its 8+8 Margin to fit inside SidebarCollapsedWidth (64) with a hair to spare.
-        private const int RailButtonWidth = 44;
+        // In the rail the buttons drop to a 4+4 Margin, so the widest they can be without
+        // provoking a horizontal scrollbar is the 64px sidebar less the vertical scrollbar and
+        // those margins. Computed, not a literal 44: at 44 + 8 + 8 = 60 against a 47px viewport
+        // the panel grew a horizontal scrollbar and slid the icons out of sight.
+        private const int RailMargin = 4;
+        private static int RailButtonWidth
+        {
+            get { return SidebarCollapsedWidth - SystemInformation.VerticalScrollBarWidth - RailMargin * 2; }
+        }
 
         private void ToggleRail()
         {
@@ -348,72 +393,99 @@ namespace CROMS
             int fromWidth = sidebarPanel.Width;
             int toWidth = _railCollapsed ? SidebarCollapsedWidth : SidebarExpandedWidth;
 
+            // Sequencing matters, and getting it wrong is what made the slide look broken:
+            // COLLAPSING swaps to icons first, so the panel narrows around content that already
+            // fits. EXPANDING waits for the slide to finish before putting the captions back --
+            // restoring 204px-wide labelled buttons into a still-64px panel is what clipped the
+            // text mid-animation and flashed a scrollbar.
             if (_railCollapsed)
             {
-                // The rail shows every allowed icon flat, ignoring whatever the accordion state
-                // was — there is no room for section headers at this width, and an icon rail is
-                // meant to be a complete, ungrouped list of everything reachable.
-                foreach (var group in _navGroups)
-                {
-                    group.Header.Visible = false;
-                    foreach (var b in group.Members)
-                    {
-                        if (!_navAllowed.Contains(b)) continue;
-                        int natural;
-                        b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
-                        b.Width = RailButtonWidth;
-                        b.Visible = true;
-                    }
-                }
-                foreach (var pair in _navButtons)
-                {
-                    Button b = pair.Value;
-                    _navTip.SetToolTip(b, ModuleTitle(pair.Key));
-                    b.Text = "";
-                }
-                brandLabel.Visible = false;
-                if (_brandSubtitle != null) _brandSubtitle.Visible = false;
-                if (_brandMark != null) _brandMark.Location = new Point((SidebarCollapsedWidth - _brandMark.Width) / 2, 14);
-                _railButton.Text = "»";
+                ApplyRailContent();
+                AnimateSidebarWidth(fromWidth, toWidth, null);
             }
             else
             {
-                foreach (var pair in _navButtons)
-                {
-                    Button b = pair.Value;
-                    _navTip.SetToolTip(b, null);
-                    string original;
-                    b.Text = _navButtonText.TryGetValue(b, out original) ? original : b.Text;
-                }
-                foreach (var group in _navGroups)
-                {
-                    group.Header.Visible = true;
-                    foreach (var b in group.Members)
-                    {
-                        if (!_navAllowed.Contains(b)) continue;
-                        int natural, naturalW;
-                        b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
-                        b.Width = _navButtonWidth.TryGetValue(b, out naturalW) ? naturalW : 204;
-                        b.Visible = group.Expanded;
-                    }
-                }
-                brandLabel.Visible = true;
-                if (_brandSubtitle != null) _brandSubtitle.Visible = true;
-                if (_brandMark != null) _brandMark.Location = new Point(14, 14);
-                _railButton.Text = "«  Collapse";
+                AnimateSidebarWidth(fromWidth, toWidth, ApplyExpandedContent);
             }
+        }
+
+        /// <summary>
+        /// The rail shows every allowed icon flat, ignoring whatever the accordion state was --
+        /// there is no room for section headers at this width, and an icon rail is meant to be a
+        /// complete, ungrouped list of everything reachable.
+        /// </summary>
+        private void ApplyRailContent()
+        {
+            navFlow.SuspendLayout();
+            foreach (var group in _navGroups)
+            {
+                group.Header.Visible = false;
+                foreach (var b in group.Members)
+                {
+                    if (!_navAllowed.Contains(b)) continue;
+                    int natural;
+                    b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
+                    b.Margin = new Padding(RailMargin, 1, RailMargin, 1);
+                    b.Width = RailButtonWidth;
+                    b.Visible = true;
+                }
+            }
+            foreach (var pair in _navButtons)
+            {
+                Button b = pair.Value;
+                if (!_navAllowed.Contains(b)) continue;
+                _navTip.SetToolTip(b, ModuleTitle(pair.Key));
+                b.Text = "";                     // blank text -> UiTheme centres the icon alone
+            }
+            brandLabel.Visible = false;
+            if (_brandSubtitle != null) _brandSubtitle.Visible = false;
+            if (_brandMark != null) _brandMark.Location = new Point((SidebarCollapsedWidth - _brandMark.Width) / 2, 14);
+            _railButton.Text = "»";
             navFlow.AutoScrollPosition = new Point(0, 0);
-            navFlow.PerformLayout();
-            AnimateSidebarWidth(fromWidth, toWidth);
+            navFlow.ResumeLayout(true);
+        }
+
+        private void ApplyExpandedContent()
+        {
+            navFlow.SuspendLayout();
+            foreach (var pair in _navButtons)
+            {
+                Button b = pair.Value;
+                if (!_navAllowed.Contains(b)) continue;
+                _navTip.SetToolTip(b, ModuleTitle(pair.Key));
+                string original;
+                b.Text = _navButtonText.TryGetValue(b, out original) ? original : b.Text;
+            }
+            foreach (var group in _navGroups)
+            {
+                group.Header.Visible = true;
+                foreach (var b in group.Members)
+                {
+                    if (!_navAllowed.Contains(b)) continue;
+                    int natural, naturalW;
+                    b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
+                    b.Margin = new Padding(NavMargin, 1, NavMargin, 1);
+                    b.Width = _navButtonWidth.TryGetValue(b, out naturalW) ? naturalW : 204;
+                    b.Visible = group.Expanded;
+                }
+            }
+            brandLabel.Visible = true;
+            if (_brandSubtitle != null) _brandSubtitle.Visible = true;
+            if (_brandMark != null) _brandMark.Location = new Point(14, 14);
+            _railButton.Text = "«  Collapse";
+            navFlow.AutoScrollPosition = new Point(0, 0);
+            navFlow.ResumeLayout(true);
         }
 
         private bool _railAnimating;
 
-        /// <summary>Slides the sidebar's own width from one size to the other — the "sucks,
-        /// no animation" complaint was really the button-width bug above (icons drawing off
-        /// the visible edge of a still-204px-wide button); this is the polish on top of the
-        /// actual fix, not a substitute for it.</summary>
-        private void AnimateSidebarWidth(int from, int to)
+        /// <summary>
+        /// Slides the sidebar's own width from one size to the other, then runs <paramref name="onDone"/>.
+        /// The "animation sucks" complaint was really the button-width bug (icons drawing off the
+        /// visible edge of a still-204px-wide button) plus the content/slide ordering above; this
+        /// is the polish on top of those fixes, not a substitute for them.
+        /// </summary>
+        private void AnimateSidebarWidth(int from, int to, Action onDone)
         {
             _railAnimating = true;
             var timer = new Timer { Interval = 12 };
@@ -422,13 +494,16 @@ namespace CROMS
             {
                 i++;
                 float t = Math.Min(1f, (float)i / steps);
-                sidebarPanel.Width = (int)(from + (to - from) * t);
+                // Ease-out so the slide decelerates into place instead of stopping dead.
+                float eased = 1f - (1f - t) * (1f - t);
+                sidebarPanel.Width = (int)(from + (to - from) * eased);
                 if (i >= steps)
                 {
                     timer.Stop();
                     timer.Dispose();
                     sidebarPanel.Width = to;
                     _railAnimating = false;
+                    if (onDone != null) onDone();
                 }
             };
             timer.Start();
@@ -714,9 +789,18 @@ namespace CROMS
         private void ApplyRoleAccess()
         {
             HashSet<string> allowed = AllowedKeys(Session.User?.Role);
-            if (allowed == null) return;   // Admin (or unknown) → full access
             foreach (var pair in _navButtons)
-                pair.Value.Visible = allowed.Contains(pair.Key);
+            {
+                // Derived from the role map, NEVER read back off Control.Visible: this runs in
+                // the constructor, where the form has not been shown yet, so Visible reports
+                // EFFECTIVE visibility (false for every child) and _navAllowed came out EMPTY.
+                // That is what made the collapsed rail render blank and the accordion do nothing
+                // -- both gate on _navAllowed. Same trap already recorded for the Dashboard on
+                // 2026-09-07 and the kiosk Others box on 2026-09-10.
+                bool ok = allowed == null || allowed.Contains(pair.Key);
+                if (allowed != null) pair.Value.Visible = ok;
+                if (ok) _navAllowed.Add(pair.Value);
+            }
         }
 
         /// <summary>

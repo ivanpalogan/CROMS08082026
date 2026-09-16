@@ -256,9 +256,9 @@ namespace CROMS.Modules
                 // indent, since there is no label beside it to leave room for.
                 bool iconOnly = hasIcon && string.IsNullOrEmpty(b.Text);
                 const int iconBox = 18;
-                int iconX = iconOnly ? (b.Width - iconBox) / 2 : 14;
+                int iconX = iconOnly ? (b.Width - iconBox) / 2 : 11;
                 int iconY = (b.Height - iconBox) / 2;
-                int textStart = hasIcon ? iconX + iconBox + 10 : 10;
+                int textStart = hasIcon ? iconX + iconBox + 8 : 10;
 
                 if (hasIcon) icon(g, new RectangleF(iconX, iconY, iconBox, iconBox), ink);
 

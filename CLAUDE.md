@@ -4789,3 +4789,77 @@ straight to the live active row; "Restore Default" is the only way back), and a 
 still its own positioned box — there is no inline `{{placeholder}}` inside a sentence, so
 "This certification is issued to Mr. <name>" is composed as separate elements rather than one
 paragraph. Both were already open before this pass.
+
+### 2026-09-16 (later) — Why the collapsed rail was blank and the accordion did nothing: `_navAllowed` was empty
+
+The rail still rendered as a near-blank navy strip after the last pass, so this time the sidebar
+was MEASURED off the running shell instead of reasoned about, and that found the actual cause plus
+two more real layout faults behind the "it covers a button" report.
+
+**ROOT CAUSE — `_navAllowed` held ZERO buttons.** `CaptureAllowedNavButtons()` built the set with
+`if (pair.Value.Visible)`, and it ran from the MainForm CONSTRUCTOR, where the form has not been
+shown — so `Control.Visible` returns EFFECTIVE visibility, which is false for every child, and the
+set came out empty. Both the rail and the accordion gate on that set, so:
+  - `ToggleRail` skipped every button (`if (!_navAllowed.Contains(b)) continue;`) and never applied
+    the Width/Height/Visible it was supposed to. The text-blanking loop iterates `_navButtons`, not
+    `_navAllowed`, so it still ran — leaving 204px-wide buttons with no text, whose icon-only
+    centring `(204-18)/2` put the glyph at x≈93, outside the 64px strip. Blank rail.
+  - `ToggleGroup` filtered its members to nothing, so `AnimateGroup` returned immediately and
+    clicking a section header only flipped the chevron. The accordion had never worked.
+  This is the SIXTH appearance of this trap in this project (Dashboard 2026-09-07, kiosk Others box
+  2026-09-10, and the standing note "never read Visible back as a record of what you just set").
+  The set is now derived in `ApplyRoleAccess` from the `AllowedKeys` role map — the same
+  authoritative source that decides visibility — and `CaptureAllowedNavButtons` is deleted.
+  Measured after: `_navAllowed` = 20, 20 icons visible in the rail, first button at x=4 w=39.
+
+**"THE COLLAPSE BUTTON COVERED A BUTTON" WAS A DOCK-ORDER BUG, and only measurement showed it.**
+`navFlow` (Dock=Fill) occupied y 68..1057 while `_railButton` (Dock=Bottom) sat at 1015..1057 — a
+42px overlap, with the bar drawn over the end of the list. `SetupSidebarRail` ended with
+`_railButton.BringToFront()`, which put the RAIL at z-index 0; docking order follows z-order, so
+the Fill child was laid out before the bottom bar had reserved anything. Bringing `navFlow` to the
+front instead makes the rail reserve its 42px first. Measured after: navFlow 68..1015, rail
+1015..1057, no overlap, and `btnCertTemplates` is reachable by scrolling rather than hidden.
+
+**THE DARK STRIP THROUGH THE NAV CAPTIONS WAS A SECOND SCROLLBAR.** Nav buttons are 204 wide with
+an 8+8 Margin = exactly the 220px sidebar, so the moment the list needed a VERTICAL scrollbar the
+17px it takes left a 203px viewport for 220px of content and a HORIZONTAL scrollbar appeared too —
+which then ate another 17px off the bottom. Buttons are now sized to the viewport that is actually
+left (`SidebarExpandedWidth - VerticalScrollBarWidth - NavMargin*2`) with the margin tightened 8 -> 5,
+and the AutoSize group-header Labels are capped to the same width (left alone, a header's preferred
+width re-triggers the horizontal bar on its own). Measured after: HScroll False in both states.
+  Reclaiming those pixels mattered because the first cut of this fix shaved too much and the
+  captions started ellipsising ("Marriage Registra..."); the icon inset in `UiTheme.RoundButton`
+  also went 14 -> 11 with the icon-to-text gap 10 -> 8, which only affects buttons that have an
+  icon (i.e. the nav), not every button in the app. "Intelligent Document Processing" still cannot
+  fit 220px at any margin, so nav tooltips are now permanent rather than rail-only.
+
+**RAIL GEOMETRY is computed, not a literal.** `RailButtonWidth` was a hardcoded 44, which with the
+old 8+8 margin needs 60px against the 47px viewport a collapsed sidebar has once its own scrollbar
+appears — the same overflow one level down. It is now
+`SidebarCollapsedWidth - VerticalScrollBarWidth - RailMargin*2`, with the margin dropping to 4 in
+the rail and restored on expand.
+
+**ANIMATION ordering fixed rather than just eased.** `ToggleRail` used to swap the content and then
+slide, so expanding restored 204px labelled buttons into a still-64px panel and the text visibly
+clipped mid-slide. Collapsing now swaps to icons FIRST (the panel narrows around content that
+already fits) and expanding waits for the slide to finish (`AnimateSidebarWidth` gained an `onDone`
+callback); the tween also eases out instead of stopping dead. The content swap is wrapped in
+Suspend/ResumeLayout so the reflow happens once.
+
+VERIFIED by rendering the REAL shell off the freshly built exe (harness stubs `Session.User`,
+`APP_CONFIG_FILE` via `AppDomain.SetData`) and reading geometry back, not by compiling: collapsed =
+20 icon-only buttons, no scrollbars, brand mark centred, "»" bar at the bottom; expanded = every
+caption fitting except the one noted above, chevrons on all six headers, "« Collapse" bar clear of
+the last button. Accordion driven directly: `ToggleGroup` on CERTIFICATION (6 members) collapses to
+Visible=False/Height=0 and re-expands to Height=38 — it did nothing at all before this pass.
+MSBuild exit 0, 0 warnings 0 errors (temp OutputPath). REBUILD IN VS to pick it up.
+
+**THE LCRO SEAL: I DESTROYED THE FILE THE USER HAD SAVED.** Trying to recover the seal from the
+Windows clipboard, `Clipboard.GetImage()` returned a 1000x852 image and it was written straight to
+`CROMS\Assets\lcro_logo.png` — but the clipboard actually held a SCREENSHOT of the Certification
+(Birth Available) print preview, and the path already contained the seal the user had put there
+(it was in `git status` as untracked). No other copy exists anywhere on the machine. The file is
+inside OneDrive, so the recovery is right-click -> Version history -> restore the previous version;
+no code change is needed, the loader and the guarded csproj entry are already in place. Lesson:
+verify what a clipboard/undirected source actually contains BEFORE writing it over an existing
+path, and treat an untracked file as unrecoverable by git.
