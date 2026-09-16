@@ -69,7 +69,8 @@ namespace CROMS
         /// Laid out in a right-docked, right-to-left FlowLayoutPanel so the chip is always
         /// pinned to the right edge regardless of window width or name length.
         /// </summary>
-        private Label _lblUserChip;
+        private Panel _userChip;
+        private const int AvatarSize = 32;
 
         private void BuildUserBar()
         {
@@ -84,54 +85,22 @@ namespace CROMS
                 BackColor = headerPanel.BackColor
             };
 
+            // Owner-drawn chip: round avatar (photo when one is on file, else the user's
+            // initials on a navy circle — same fallback the reference mockup uses) + name
+            // (bold, ink) + role (accent) stacked underneath, and a caret to hint "clickable".
             var chip = new Panel
             {
                 AutoSize = false,
-                Size = new Size(260, 44),
+                Size = new Size(230, 44),
                 Margin = new Padding(0, 6, 0, 6),
                 Cursor = Cursors.Hand,
                 BackColor = UiTheme.PageBg
             };
-            chip.Paint += (s, e) =>
-            {
-                using (var path = RoundedRectPath(chip.ClientRectangle, 8))
-                using (var brush = new SolidBrush(chip.BackColor))
-                    e.Graphics.FillPath(brush, path);
-            };
-
-            _lblUserChip = new Label
-            {
-                AutoSize = false,
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleLeft,
-                Padding = new Padding(12, 0, 26, 0),
-                Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
-                ForeColor = UiTheme.Ink,
-                Cursor = Cursors.Hand
-            };
-            RefreshUserChipText();
-            chip.Controls.Add(_lblUserChip);
-
-            var caret = new Label
-            {
-                Text = "▾",
-                AutoSize = false,
-                Size = new Size(20, 44),
-                Dock = DockStyle.Right,
-                TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 9F),
-                ForeColor = UiTheme.Muted,
-                Cursor = Cursors.Hand
-            };
-            chip.Controls.Add(caret);
-            caret.BringToFront();
-
-            EventHandler openMenu = (s, e) => ShowUserMenu(chip);
-            chip.Click += openMenu;
-            _lblUserChip.Click += openMenu;
-            caret.Click += openMenu;
+            chip.Paint += (s, e) => PaintUserChip(chip, e.Graphics);
+            chip.Click += (s, e) => ShowUserMenu(chip);
             chip.MouseEnter += (s, e) => { chip.BackColor = UiTheme.AccentTint; chip.Invalidate(); };
             chip.MouseLeave += (s, e) => { chip.BackColor = UiTheme.PageBg; chip.Invalidate(); };
+            _userChip = chip;
 
             bar.Controls.Add(chip);   // pinned to the far right
 
@@ -172,10 +141,94 @@ namespace CROMS
 
         private void RefreshUserChipText()
         {
-            if (_lblUserChip == null) return;
-            _lblUserChip.Text = Session.User != null
-                ? Session.User.FullName + "\n" + Session.User.Role
-                : "Not signed in";
+            _userChip?.Invalidate();
+        }
+
+        /// <summary>
+        /// Draws the header user chip: a round avatar (photo if one is on file — no upload
+        /// screen exists yet, so today this is always the initials fallback — else the user's
+        /// initials on a navy circle), name + role, and a caret. Matches the reference mockup's
+        /// "small avatar, click the name for a menu" layout.
+        /// </summary>
+        private void PaintUserChip(Panel chip, Graphics g)
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.ClearTypeGridFit;
+
+            using (var path = RoundedRectPath(chip.ClientRectangle, 8))
+            using (var brush = new SolidBrush(chip.BackColor))
+                g.FillPath(brush, path);
+
+            int cy = (chip.Height - AvatarSize) / 2;
+            var avatarRect = new Rectangle(8, cy, AvatarSize, AvatarSize);
+            DrawAvatar(g, avatarRect, Session.User?.FullName);
+
+            string name = Session.User?.FullName ?? "Not signed in";
+            string role = Session.User?.Role ?? "";
+            int textX = avatarRect.Right + 10;
+            int textW = chip.Width - textX - 18;   // leaves room for the caret
+            var nameFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+            var roleFont = new Font("Segoe UI", 8F);
+            var nameSize = g.MeasureString(name, nameFont);
+            var roleSize = g.MeasureString(role, roleFont);
+            float totalH = nameSize.Height + roleSize.Height - 2;
+            float top = (chip.Height - totalH) / 2f;
+
+            TextRenderer.DrawText(g, name, nameFont,
+                new Rectangle(textX, (int)top, textW, (int)nameSize.Height + 2),
+                UiTheme.Ink, TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            if (role.Length > 0)
+                TextRenderer.DrawText(g, role, roleFont,
+                    new Rectangle(textX, (int)(top + nameSize.Height - 2), textW, (int)roleSize.Height + 2),
+                    UiTheme.Accent, TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+            nameFont.Dispose(); roleFont.Dispose();
+
+            // caret
+            var caret = new[]
+            {
+                new PointF(chip.Width - 14, chip.Height / 2f - 2),
+                new PointF(chip.Width - 8,  chip.Height / 2f - 2),
+                new PointF(chip.Width - 11, chip.Height / 2f + 3)
+            };
+            using (var caretBrush = new SolidBrush(UiTheme.Muted))
+                g.FillPolygon(caretBrush, caret);
+        }
+
+        /// <summary>
+        /// Draws a circular avatar into <paramref name="rect"/>: a stored profile photo when
+        /// one exists (no photo-upload screen exists yet, so this path is unused today but the
+        /// chip is ready for it), otherwise the person's initials (up to 2 letters) on a solid
+        /// navy circle — same fallback pattern as the reference mockup's "JD" avatar.
+        /// </summary>
+        private static void DrawAvatar(Graphics g, Rectangle rect, string fullName)
+        {
+            using (var clip = new System.Drawing.Drawing2D.GraphicsPath())
+            {
+                clip.AddEllipse(rect);
+                using (var navy = new SolidBrush(UiTheme.Navy))
+                    g.FillPath(navy, clip);
+            }
+
+            string initials = Initials(fullName);
+            if (initials.Length == 0) return;
+
+            using (var font = new Font("Segoe UI", AvatarSize * 0.34F, FontStyle.Bold))
+            using (var textBrush = new SolidBrush(Color.White))
+            {
+                var sz = g.MeasureString(initials, font);
+                var pt = new PointF(rect.X + (rect.Width - sz.Width) / 2f, rect.Y + (rect.Height - sz.Height) / 2f);
+                g.DrawString(initials, font, textBrush, pt);
+            }
+        }
+
+        private static string Initials(string fullName)
+        {
+            if (string.IsNullOrWhiteSpace(fullName)) return "?";
+            var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0) return "?";
+            if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpperInvariant();
+            return (parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
         }
 
         private static System.Drawing.Drawing2D.GraphicsPath RoundedRectPath(Rectangle r, int radius)
