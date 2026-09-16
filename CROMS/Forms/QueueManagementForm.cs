@@ -31,6 +31,10 @@ namespace CROMS.Forms
             // Avoid database access and running timers when Visual Studio creates the form.
             if (System.ComponentModel.LicenseManager.UsageMode ==
                 System.ComponentModel.LicenseUsageMode.Designtime) return;
+            // "Click this next" pulse for a first-time operator: only the button/card that is
+            // currently the valid next step glows (driven from UpdateWorkflowButtons).
+            NextStepGlow.Wire(btnCallNext, 8);
+            NextStepGlow.Wire(_btnCallClient, 8);
             SetupServingArea();
             SetupSyncTimer();
             SetChipFilter("ALL");
@@ -171,6 +175,7 @@ namespace CROMS.Forms
             // their card so a long queue code never clips — see AutoFitText.
             AutoFitText.Attach(codeLbl, 26F, 9F);
             AutoFitText.Attach(subLbl, 8.5F, 6.5F);
+            NextStepGlow.Wire(card, card.Radius);
 
             EventHandler click = (s, e) => WindowClicked(windowId);
             card.Click += click;
@@ -541,6 +546,14 @@ namespace CROMS.Forms
                 _lblNextStep.Text = "Now serving " + code + " — click your window card when a service is done.";
             else
                 _lblNextStep.Text = "Next: press Call Next to take the next client in line.";
+
+            // Pulse only the ONE control that is the valid next click. Session.HasWindow guards
+            // all of it — a monitor/admin with no claimed window has no single "next step".
+            NextStepGlow.SetActive(btnCallNext, Session.HasWindow && !busy);
+            NextStepGlow.SetActive(_btnCallClient, accepted);
+            CardPanel ownCard;
+            if (_cardByWin.TryGetValue(Session.HasWindow ? Session.WindowId : 0, out ownCard))
+                NextStepGlow.SetActive(ownCard, serving);
         }
 
         // Voice announcement is now spoken ONLY by the public queue Display (a separate PC

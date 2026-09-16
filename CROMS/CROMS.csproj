@@ -553,6 +553,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\HoverFade.cs" />
+    <Compile Include="Modules\NextStepGlow.cs" />
     <Compile Include="Modules\SplitButton.cs">
       <SubType>Component</SubType>
     </Compile>
