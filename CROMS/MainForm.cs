@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
@@ -84,7 +85,17 @@ namespace CROMS
         private void SetupBrandMark()
         {
             string path = System.IO.Path.Combine(Application.StartupPath, "Assets", "lcro_logo.png");
-            try { if (System.IO.File.Exists(path)) _lcroLogo = Image.FromFile(path); }
+            try
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    // Clone the image into memory so Image.FromFile does not keep the deployed
+                    // PNG locked for the lifetime of the application. This lets a rebuild replace
+                    // the seal while CROMS is open without leaving the next launch with no logo.
+                    using (var source = Image.FromFile(path))
+                        _lcroLogo = new Bitmap(source);
+                }
+            }
             catch { _lcroLogo = null; }
 
             brandPanel.Height = 68;
@@ -478,32 +489,58 @@ namespace CROMS
         }
 
         private bool _railAnimating;
+        private const int SidebarAnimationDurationMs = 220;
 
         /// <summary>
         /// Slides the sidebar's own width from one size to the other, then runs <paramref name="onDone"/>.
-        /// The "animation sucks" complaint was really the button-width bug (icons drawing off the
-        /// visible edge of a still-204px-wide button) plus the content/slide ordering above; this
-        /// is the polish on top of those fixes, not a substitute for them.
+        /// Layout inside the two large content areas is paused during the slide. Their bounds still
+        /// follow the docked sidebar, but expensive child-form and navigation reflows happen only
+        /// once at the end instead of on every animation frame.
         /// </summary>
         private void AnimateSidebarWidth(int from, int to, Action onDone)
         {
+            if (from == to)
+            {
+                if (onDone != null) onDone();
+                return;
+            }
+
             _railAnimating = true;
-            var timer = new Timer { Interval = 12 };
-            int steps = 10, i = 0;
+            mainPanel.SuspendLayout();
+            navFlow.SuspendLayout();
+
+            var clock = Stopwatch.StartNew();
+            var timer = new Timer { Interval = 15 };
+            int lastWidth = from;
             timer.Tick += (s, e) =>
             {
-                i++;
-                float t = Math.Min(1f, (float)i / steps);
-                // Ease-out so the slide decelerates into place instead of stopping dead.
-                float eased = 1f - (1f - t) * (1f - t);
-                sidebarPanel.Width = (int)(from + (to - from) * eased);
-                if (i >= steps)
+                double t = Math.Min(1d, clock.Elapsed.TotalMilliseconds / SidebarAnimationDurationMs);
+                // Smoothstep eases both ends without the large first-frame jump of the old
+                // ten-step ease-out animation. Time-based progress also stays consistent when
+                // the UI thread is briefly busy and a timer tick arrives late.
+                double eased = t * t * (3d - 2d * t);
+                int width = (int)Math.Round(from + (to - from) * eased);
+                if (width != lastWidth)
                 {
-                    timer.Stop();
-                    timer.Dispose();
-                    sidebarPanel.Width = to;
-                    _railAnimating = false;
+                    sidebarPanel.Width = width;
+                    lastWidth = width;
+                }
+
+                if (t < 1d) return;
+
+                clock.Stop();
+                timer.Stop();
+                timer.Dispose();
+                sidebarPanel.Width = to;
+                try
+                {
                     if (onDone != null) onDone();
+                }
+                finally
+                {
+                    navFlow.ResumeLayout(true);
+                    mainPanel.ResumeLayout(true);
+                    _railAnimating = false;
                 }
             };
             timer.Start();
@@ -881,6 +918,7 @@ namespace CROMS
                 form.AutoScroll = true;
                 _cache[key] = form;
                 contentPanel.Controls.Add(form);
+                SuppressDuplicateModuleTitle(form, module.Title);
                 form.Show();
                 UiTheme.PolishButtons(form);   // consistent hand cursor + hover on every module's buttons
             }
@@ -892,6 +930,89 @@ namespace CROMS
             headerLabel.Text = module.Title;
             SetActiveButton(key);
             _activeKey = key;
+        }
+
+        /// <summary>
+        /// The shell header is the single owner of a module's page name. Module forms are also
+        /// usable in the WinForms designer, so many of them still carry their own large title
+        /// label; hide that label only when the form is embedded here. Standalone dialogs keep
+        /// their titles because they never pass through this method.
+        /// </summary>
+        private static void SuppressDuplicateModuleTitle(Form form, string moduleTitle)
+        {
+            Label best = null;
+            int bestScore = 0;
+            FindDuplicateTitle(form, moduleTitle, ref best, ref bestScore);
+            if (best == null) return;
+
+            // Absolute-positioned headers do not reflow when the title disappears. Pull the
+            // nearby explanatory line into its place; TableLayoutPanel headers reflow themselves.
+            if (!(best.Parent is TableLayoutPanel))
+            {
+                Label subtitle = null;
+                foreach (Control sibling in best.Parent.Controls)
+                {
+                    var label = sibling as Label;
+                    if (label == null || label == best || label.Font.Size >= best.Font.Size) continue;
+                    if (label.Top < best.Top || label.Top > best.Bottom + 12) continue;
+                    if (subtitle == null || label.Top < subtitle.Top) subtitle = label;
+                }
+                if (subtitle != null) subtitle.Top = best.Top;
+            }
+
+            best.Visible = false;
+            best.TabStop = false;
+        }
+
+        private static void FindDuplicateTitle(Control parent, string moduleTitle,
+            ref Label best, ref int bestScore)
+        {
+            foreach (Control control in parent.Controls)
+            {
+                var label = control as Label;
+                if (label != null && label.Font.Bold && label.Font.Size >= 14F)
+                {
+                    int score = 0;
+                    string name = (label.Name ?? string.Empty).ToLowerInvariant();
+                    if (name == "lbltitle" || name == "titlelabel") score += 100;
+                    if (NormalizePageTitle(label.Text) == NormalizePageTitle(moduleTitle)) score += 80;
+
+                    // A duplicate page heading is always one of the first large labels in a
+                    // module. This breaks ties without touching section/card titles below it.
+                    int top = RelativeTop(label, parent.FindForm());
+                    if (score > 0 && top <= 120) score += 20;
+
+                    if (score > bestScore)
+                    {
+                        best = label;
+                        bestScore = score;
+                    }
+                }
+
+                if (control.HasChildren)
+                    FindDuplicateTitle(control, moduleTitle, ref best, ref bestScore);
+            }
+        }
+
+        private static int RelativeTop(Control control, Form form)
+        {
+            int top = control.Top;
+            Control parent = control.Parent;
+            while (parent != null && parent != form)
+            {
+                top += parent.Top;
+                parent = parent.Parent;
+            }
+            return top;
+        }
+
+        private static string NormalizePageTitle(string text)
+        {
+            return (text ?? string.Empty)
+                .Replace("&", "and")
+                .Replace("  ", " ")
+                .Trim()
+                .ToLowerInvariant();
         }
 
         private void SetActiveButton(string key)
