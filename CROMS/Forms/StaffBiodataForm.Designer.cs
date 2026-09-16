@@ -16,6 +16,11 @@ namespace CROMS.Forms
         {
             this.titleLabel = new System.Windows.Forms.Label();
             this.subtitleLabel = new System.Windows.Forms.Label();
+            this.pnlPhoto = new System.Windows.Forms.Panel();
+            this.pnlAvatar = new System.Windows.Forms.Panel();
+            this.btnUploadPhoto = new System.Windows.Forms.Button();
+            this.btnRemovePhoto = new System.Windows.Forms.Button();
+            this.lblPhotoHint = new System.Windows.Forms.Label();
             this.pnlAccount = new System.Windows.Forms.Panel();
             this.lblFullNameCap = new System.Windows.Forms.Label();
             this.txtFullName = new System.Windows.Forms.TextBox();
@@ -57,6 +62,7 @@ namespace CROMS.Forms
             this.lblUpdated = new System.Windows.Forms.Label();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
+            this.pnlPhoto.SuspendLayout();
             this.pnlAccount.SuspendLayout();
             this.pnlForm.SuspendLayout();
             this.SuspendLayout();
@@ -85,11 +91,69 @@ namespace CROMS.Forms
             this.subtitleLabel.Text = "Update your name or password below. Ask an admin to change your work details.";
             this.subtitleLabel.UseMnemonic = false;
             //
+            // pnlPhoto
+            //
+            this.pnlPhoto.BackColor = System.Drawing.Color.White;
+            this.pnlPhoto.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.pnlPhoto.Location = new System.Drawing.Point(24, 82);
+            this.pnlPhoto.Name = "pnlPhoto";
+            this.pnlPhoto.Size = new System.Drawing.Size(552, 80);
+            this.pnlPhoto.TabIndex = 2;
+            this.pnlPhoto.Controls.Add(this.pnlAvatar);
+            this.pnlPhoto.Controls.Add(this.btnUploadPhoto);
+            this.pnlPhoto.Controls.Add(this.btnRemovePhoto);
+            this.pnlPhoto.Controls.Add(this.lblPhotoHint);
+            //
+            // pnlAvatar
+            //
+            this.pnlAvatar.BackColor = System.Drawing.Color.White;
+            this.pnlAvatar.Location = new System.Drawing.Point(16, 12);
+            this.pnlAvatar.Name = "pnlAvatar";
+            this.pnlAvatar.Size = new System.Drawing.Size(56, 56);
+            this.pnlAvatar.TabIndex = 0;
+            //
+            // btnUploadPhoto
+            //
+            this.btnUploadPhoto.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnUploadPhoto.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnUploadPhoto.ForeColor = System.Drawing.Color.White;
+            this.btnUploadPhoto.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
+            this.btnUploadPhoto.Location = new System.Drawing.Point(84, 14);
+            this.btnUploadPhoto.Name = "btnUploadPhoto";
+            this.btnUploadPhoto.Size = new System.Drawing.Size(150, 26);
+            this.btnUploadPhoto.TabIndex = 1;
+            this.btnUploadPhoto.Text = "Upload Photo...";
+            this.btnUploadPhoto.UseVisualStyleBackColor = false;
+            this.btnUploadPhoto.Click += new System.EventHandler(this.btnUploadPhoto_Click);
+            //
+            // btnRemovePhoto
+            //
+            this.btnRemovePhoto.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnRemovePhoto.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnRemovePhoto.Location = new System.Drawing.Point(244, 14);
+            this.btnRemovePhoto.Name = "btnRemovePhoto";
+            this.btnRemovePhoto.Size = new System.Drawing.Size(110, 26);
+            this.btnRemovePhoto.TabIndex = 2;
+            this.btnRemovePhoto.Text = "Remove Photo";
+            this.btnRemovePhoto.UseVisualStyleBackColor = true;
+            this.btnRemovePhoto.Click += new System.EventHandler(this.btnRemovePhoto_Click);
+            //
+            // lblPhotoHint
+            //
+            this.lblPhotoHint.AutoSize = true;
+            this.lblPhotoHint.Font = new System.Drawing.Font("Segoe UI", 8F);
+            this.lblPhotoHint.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblPhotoHint.Location = new System.Drawing.Point(84, 46);
+            this.lblPhotoHint.Name = "lblPhotoHint";
+            this.lblPhotoHint.Size = new System.Drawing.Size(300, 13);
+            this.lblPhotoHint.TabIndex = 3;
+            this.lblPhotoHint.Text = "JPG or PNG, up to 3 MB. Leave blank to keep your initials.";
+            //
             // pnlAccount
             //
             this.pnlAccount.BackColor = System.Drawing.Color.White;
             this.pnlAccount.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pnlAccount.Location = new System.Drawing.Point(24, 82);
+            this.pnlAccount.Location = new System.Drawing.Point(24, 174);
             this.pnlAccount.Name = "pnlAccount";
             this.pnlAccount.Size = new System.Drawing.Size(552, 222);
             this.pnlAccount.TabIndex = 2;
@@ -222,7 +286,7 @@ namespace CROMS.Forms
             this.lblWorkHeader.AutoSize = true;
             this.lblWorkHeader.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.lblWorkHeader.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(27)))), ((int)(((byte)(36)))));
-            this.lblWorkHeader.Location = new System.Drawing.Point(24, 316);
+            this.lblWorkHeader.Location = new System.Drawing.Point(24, 408);
             this.lblWorkHeader.Name = "lblWorkHeader";
             this.lblWorkHeader.Size = new System.Drawing.Size(150, 19);
             this.lblWorkHeader.TabIndex = 3;
@@ -232,7 +296,7 @@ namespace CROMS.Forms
             //
             this.pnlForm.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
             this.pnlForm.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pnlForm.Location = new System.Drawing.Point(24, 344);
+            this.pnlForm.Location = new System.Drawing.Point(24, 436);
             this.pnlForm.Name = "pnlForm";
             this.pnlForm.Padding = new System.Windows.Forms.Padding(20);
             this.pnlForm.Size = new System.Drawing.Size(552, 520);
@@ -528,7 +592,7 @@ namespace CROMS.Forms
             this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(24, 876);
+            this.btnSave.Location = new System.Drawing.Point(24, 968);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(160, 40);
             this.btnSave.TabIndex = 5;
@@ -542,7 +606,7 @@ namespace CROMS.Forms
             this.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnClose.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnClose.ForeColor = System.Drawing.Color.White;
-            this.btnClose.Location = new System.Drawing.Point(194, 876);
+            this.btnClose.Location = new System.Drawing.Point(194, 968);
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(100, 40);
             this.btnClose.TabIndex = 6;
@@ -555,9 +619,10 @@ namespace CROMS.Forms
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.ClientSize = new System.Drawing.Size(600, 936);
+            this.ClientSize = new System.Drawing.Size(600, 1028);
             this.Controls.Add(this.titleLabel);
             this.Controls.Add(this.subtitleLabel);
+            this.Controls.Add(this.pnlPhoto);
             this.Controls.Add(this.pnlAccount);
             this.Controls.Add(this.lblWorkHeader);
             this.Controls.Add(this.pnlForm);
@@ -569,6 +634,8 @@ namespace CROMS.Forms
             this.Name = "StaffBiodataForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Edit Profile";
+            this.pnlPhoto.ResumeLayout(false);
+            this.pnlPhoto.PerformLayout();
             this.pnlAccount.ResumeLayout(false);
             this.pnlAccount.PerformLayout();
             this.pnlForm.ResumeLayout(false);
@@ -581,6 +648,11 @@ namespace CROMS.Forms
 
         private System.Windows.Forms.Label titleLabel;
         private System.Windows.Forms.Label subtitleLabel;
+        private System.Windows.Forms.Panel pnlPhoto;
+        private System.Windows.Forms.Panel pnlAvatar;
+        private System.Windows.Forms.Button btnUploadPhoto;
+        private System.Windows.Forms.Button btnRemovePhoto;
+        private System.Windows.Forms.Label lblPhotoHint;
         private System.Windows.Forms.Panel pnlAccount;
         private System.Windows.Forms.Label lblFullNameCap;
         private System.Windows.Forms.TextBox txtFullName;

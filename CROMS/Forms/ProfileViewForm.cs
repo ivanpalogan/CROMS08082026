@@ -9,8 +9,8 @@ using MySql.Data.MySqlClient;
 namespace CROMS.Forms
 {
     /// <summary>
-    /// "View My Profile" — a simple, read-only card: avatar (initials, same fallback the
-    /// header chip uses), full name, role, username, and a short work-details summary pulled
+    /// "View My Profile" — a simple, read-only card: avatar (uploaded photo, or initials when
+    /// none is set), full name, role, username, and a short work-details summary pulled
     /// from <c>staff_biodata</c>. No editable fields live here — the detailed, editable screen
     /// (name/password self-edit) only opens from the "Edit Profile" button below, or the
     /// header menu's own Edit Profile item.
@@ -18,6 +18,7 @@ namespace CROMS.Forms
     internal sealed class ProfileViewForm : Form
     {
         private const int AvatarSize = 96;
+        private byte[] _photoBytes;
 
         public ProfileViewForm()
         {
@@ -28,8 +29,11 @@ namespace CROMS.Forms
             BackColor = UiTheme.PageBg;
             ClientSize = new Size(360, 460);
 
+            try { _photoBytes = Session.User != null ? ProfilePhoto.Load(Session.User.Id) : null; }
+            catch { _photoBytes = null; }
+
             var avatar = new Panel { Location = new Point((360 - AvatarSize) / 2, 24), Size = new Size(AvatarSize, AvatarSize) };
-            avatar.Paint += (s, e) => DrawAvatar(e.Graphics, avatar.ClientRectangle, Session.User?.FullName);
+            avatar.Paint += (s, e) => AvatarPainter.Draw(e.Graphics, avatar.ClientRectangle, _photoBytes, Session.User?.FullName);
             Controls.Add(avatar);
 
             var name = new Label
@@ -83,6 +87,8 @@ namespace CROMS.Forms
                 using (var f = new StaffBiodataForm())
                     f.ShowDialog(this);
                 name.Text = Session.User?.FullName ?? "Not signed in";
+                try { _photoBytes = Session.User != null ? ProfilePhoto.Load(Session.User.Id) : null; }
+                catch { _photoBytes = null; }
                 avatar.Invalidate();
             };
             Controls.Add(btnEdit);
@@ -143,36 +149,5 @@ namespace CROMS.Forms
             return v.Length == 0 ? "—" : v;
         }
 
-        /// <summary>Photo when one is on file (no upload screen exists yet), else initials on a navy circle.</summary>
-        private static void DrawAvatar(Graphics g, Rectangle rect, string fullName)
-        {
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            using (var clip = new System.Drawing.Drawing2D.GraphicsPath())
-            {
-                clip.AddEllipse(rect);
-                using (var navy = new SolidBrush(UiTheme.Navy))
-                    g.FillPath(navy, clip);
-            }
-
-            string initials = Initials(fullName);
-            if (initials.Length == 0) return;
-
-            using (var font = new Font("Segoe UI", rect.Width * 0.34F, FontStyle.Bold))
-            using (var textBrush = new SolidBrush(Color.White))
-            {
-                var sz = g.MeasureString(initials, font);
-                var pt = new PointF(rect.X + (rect.Width - sz.Width) / 2f, rect.Y + (rect.Height - sz.Height) / 2f);
-                g.DrawString(initials, font, textBrush, pt);
-            }
-        }
-
-        private static string Initials(string fullName)
-        {
-            if (string.IsNullOrWhiteSpace(fullName)) return "?";
-            var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) return "?";
-            if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpperInvariant();
-            return (parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
-        }
     }
 }

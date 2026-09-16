@@ -70,6 +70,7 @@ namespace CROMS
         /// pinned to the right edge regardless of window width or name length.
         /// </summary>
         private Panel _userChip;
+        private byte[] _userPhotoBytes;
         private const int AvatarSize = 32;
 
         private void BuildUserBar()
@@ -101,6 +102,7 @@ namespace CROMS
             chip.MouseEnter += (s, e) => { chip.BackColor = UiTheme.AccentTint; chip.Invalidate(); };
             chip.MouseLeave += (s, e) => { chip.BackColor = UiTheme.PageBg; chip.Invalidate(); };
             _userChip = chip;
+            RefreshUserChipText();   // loads the photo (or clears to initials) before first paint
 
             bar.Controls.Add(chip);   // pinned to the far right
 
@@ -141,6 +143,8 @@ namespace CROMS
 
         private void RefreshUserChipText()
         {
+            try { _userPhotoBytes = Session.User != null ? Data.ProfilePhoto.Load(Session.User.Id) : null; }
+            catch { _userPhotoBytes = null; }
             _userChip?.Invalidate();
         }
 
@@ -161,7 +165,7 @@ namespace CROMS
 
             int cy = (chip.Height - AvatarSize) / 2;
             var avatarRect = new Rectangle(8, cy, AvatarSize, AvatarSize);
-            DrawAvatar(g, avatarRect, Session.User?.FullName);
+            AvatarPainter.Draw(g, avatarRect, _userPhotoBytes, Session.User?.FullName);
 
             string name = Session.User?.FullName ?? "Not signed in";
             string role = Session.User?.Role ?? "";
@@ -193,42 +197,6 @@ namespace CROMS
             };
             using (var caretBrush = new SolidBrush(UiTheme.Muted))
                 g.FillPolygon(caretBrush, caret);
-        }
-
-        /// <summary>
-        /// Draws a circular avatar into <paramref name="rect"/>: a stored profile photo when
-        /// one exists (no photo-upload screen exists yet, so this path is unused today but the
-        /// chip is ready for it), otherwise the person's initials (up to 2 letters) on a solid
-        /// navy circle — same fallback pattern as the reference mockup's "JD" avatar.
-        /// </summary>
-        private static void DrawAvatar(Graphics g, Rectangle rect, string fullName)
-        {
-            using (var clip = new System.Drawing.Drawing2D.GraphicsPath())
-            {
-                clip.AddEllipse(rect);
-                using (var navy = new SolidBrush(UiTheme.Navy))
-                    g.FillPath(navy, clip);
-            }
-
-            string initials = Initials(fullName);
-            if (initials.Length == 0) return;
-
-            using (var font = new Font("Segoe UI", AvatarSize * 0.34F, FontStyle.Bold))
-            using (var textBrush = new SolidBrush(Color.White))
-            {
-                var sz = g.MeasureString(initials, font);
-                var pt = new PointF(rect.X + (rect.Width - sz.Width) / 2f, rect.Y + (rect.Height - sz.Height) / 2f);
-                g.DrawString(initials, font, textBrush, pt);
-            }
-        }
-
-        private static string Initials(string fullName)
-        {
-            if (string.IsNullOrWhiteSpace(fullName)) return "?";
-            var parts = fullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) return "?";
-            if (parts.Length == 1) return parts[0].Substring(0, 1).ToUpperInvariant();
-            return (parts[0].Substring(0, 1) + parts[parts.Length - 1].Substring(0, 1)).ToUpperInvariant();
         }
 
         private static System.Drawing.Drawing2D.GraphicsPath RoundedRectPath(Rectangle r, int radius)

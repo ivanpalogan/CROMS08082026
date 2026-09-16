@@ -1,7 +1,10 @@
 using System;
 using System.Data;
+using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using CROMS.Data;
+using CROMS.Modules;
 using MySql.Data.MySqlClient;
 
 namespace CROMS.Forms
@@ -10,17 +13,23 @@ namespace CROMS.Forms
     /// The "Edit Profile" dialog. Reached from the header user menu's Edit Profile item (the
     /// simple "View My Profile" window is <see cref="ProfileViewForm"/> instead — this one is
     /// only shown when the user actually wants to change something).
-    /// Self-service: Full Name + password. Work details (position, employment status, etc.)
-    /// stay view-only — Admin is the only one who ADDS/EDITS biodata (Users &amp; Audit Trail
-    /// -&gt; "Staff Biodata" tab); this screen just shows what the office has on file.
+    /// Self-service: photo, Full Name and password. Work details (position, employment status,
+    /// etc.) stay view-only — Admin is the only one who ADDS/EDITS biodata (Users &amp; Audit
+    /// Trail -&gt; "Staff Biodata" tab); this screen just shows what the office has on file.
     /// </summary>
     public partial class StaffBiodataForm : Form
     {
         private const int MinPasswordLength = 8;
+        private const long MaxPhotoBytes = 3 * 1024 * 1024;   // 3 MB
+
+        private byte[] _photoBytes;
+        private string _photoFileName;
+        private bool _photoDirty;
 
         public StaffBiodataForm()
         {
             InitializeComponent();
+            pnlAvatar.Paint += (s, e) => AvatarPainter.Draw(e.Graphics, pnlAvatar.ClientRectangle, _photoBytes, Session.User?.FullName);
             LockAsReadOnly();
             LoadAccount();
             LoadOwnRow();
@@ -84,11 +93,62 @@ namespace CROMS.Forms
             Audit.Write(Audit.Update, "users", Session.User.Id,
                 changingPassword ? "Edited own profile; changed password" : "Edited own profile");
 
+            if (_photoDirty)
+            {
+                if (_photoBytes != null)
+                    ProfilePhoto.Save(Session.User.Id, _photoBytes, _photoFileName);
+                else
+                    ProfilePhoto.Remove(Session.User.Id);
+                _photoDirty = false;
+            }
+
             Session.User.FullName = fullName;
             txtCurPass.Clear(); txtNewPass.Clear(); txtConfirmPass.Clear();
 
             MessageBox.Show("Saved.", "Edit Profile", MessageBoxButtons.OK, MessageBoxIcon.Information);
             DialogResult = DialogResult.OK;
+        }
+
+        private void btnUploadPhoto_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new OpenFileDialog { Filter = "Photo (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp" })
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                var info = new FileInfo(dlg.FileName);
+                if (info.Length > MaxPhotoBytes)
+                {
+                    MessageBox.Show("That photo is too large — please choose one under 3 MB.",
+                        "Edit Profile", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                byte[] bytes = File.ReadAllBytes(dlg.FileName);
+                try
+                {
+                    using (var ms = new MemoryStream(bytes))
+                    using (Image.FromStream(ms)) { /* just proving it decodes */ }
+                }
+                catch
+                {
+                    MessageBox.Show("That file doesn't look like a valid image.", "Edit Profile",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _photoBytes = bytes;
+                _photoFileName = Path.GetFileName(dlg.FileName);
+                _photoDirty = true;
+                pnlAvatar.Invalidate();
+            }
+        }
+
+        private void btnRemovePhoto_Click(object sender, EventArgs e)
+        {
+            _photoBytes = null;
+            _photoFileName = null;
+            _photoDirty = true;
+            pnlAvatar.Invalidate();
         }
 
         private void LockAsReadOnly()
@@ -125,6 +185,9 @@ namespace CROMS.Forms
                 return;
             }
             DataRow r = dt.Rows[0];
+            _photoBytes = r["profile_photo"] == DBNull.Value ? null : (byte[])r["profile_photo"];
+            pnlAvatar.Invalidate();
+
             txtEmployeeNo.Text = S(r, "employee_no");
             int idx = cboEmploymentStatus.Items.IndexOf(S(r, "employment_status"));
             cboEmploymentStatus.SelectedIndex = idx >= 0 ? idx : -1;

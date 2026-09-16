@@ -508,6 +508,7 @@
     <Compile Include="Data\DocLayouts.cs" />
     <Compile Include="Data\DocumentAI.cs" />
     <Compile Include="Data\LearningLibrary.cs" />
+    <Compile Include="Data\ProfilePhoto.cs" />
     <Compile Include="Forms\SoftcopyViewer.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -547,6 +548,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\UiTheme.cs" />
+    <Compile Include="Modules\AvatarPainter.cs" />
     <Compile Include="Modules\TemplateCanvas.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -733,6 +735,7 @@
     <None Include="Database\48_marriage_requirements_override.sql" />
     <None Include="Database\49_audit_window.sql" />
     <None Include="Database\50_certificate_templates.sql" />
+    <None Include="Database\51_staff_profile_photo.sql" />
     <None Include="Database\README.md" />
   </ItemGroup>
   <ItemGroup>
