@@ -178,6 +178,9 @@ namespace CROMS.Forms
             this.btnDelete = new System.Windows.Forms.Button();
             this.btnUpdate = new System.Windows.Forms.Button();
             this.dgvBirths = new System.Windows.Forms.DataGridView();
+            this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
+            this.txtSearch = new System.Windows.Forms.TextBox();
+            this.btnClearSearch = new System.Windows.Forms.Button();
             this.certificateMenu.SuspendLayout();
             this.layoutRoot.SuspendLayout();
             this.layoutMain.SuspendLayout();
@@ -205,6 +208,7 @@ namespace CROMS.Forms
             this.layoutRecords.SuspendLayout();
             this.pnlRecordsHead.SuspendLayout();
             this.pnlRecordActions.SuspendLayout();
+            this.pnlSearch.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvBirths)).BeginInit();
             this.SuspendLayout();
             // 
@@ -2033,13 +2037,15 @@ namespace CROMS.Forms
             this.layoutRecords.ColumnCount = 1;
             this.layoutRecords.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.layoutRecords.Controls.Add(this.pnlRecordsHead, 0, 0);
-            this.layoutRecords.Controls.Add(this.dgvBirths, 0, 1);
+            this.layoutRecords.Controls.Add(this.pnlSearch, 0, 1);
+            this.layoutRecords.Controls.Add(this.dgvBirths, 0, 2);
             this.layoutRecords.Dock = System.Windows.Forms.DockStyle.Fill;
             this.layoutRecords.Location = new System.Drawing.Point(16, 10);
             this.layoutRecords.Margin = new System.Windows.Forms.Padding(0);
             this.layoutRecords.Name = "layoutRecords";
-            this.layoutRecords.RowCount = 2;
+            this.layoutRecords.RowCount = 3;
             this.layoutRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 42F));
+            this.layoutRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
             this.layoutRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.layoutRecords.Size = new System.Drawing.Size(1168, 302);
             this.layoutRecords.TabIndex = 0;
@@ -2116,23 +2122,63 @@ namespace CROMS.Forms
             this.btnUpdate.Text = "Update";
             this.btnUpdate.UseVisualStyleBackColor = true;
             this.btnUpdate.Click += new System.EventHandler(this.btnUpdate_Click);
-            // 
+            //
+            // pnlSearch
+            //
+            this.pnlSearch.ColumnCount = 2;
+            this.pnlSearch.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.pnlSearch.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.pnlSearch.Controls.Add(this.txtSearch, 0, 0);
+            this.pnlSearch.Controls.Add(this.btnClearSearch, 1, 0);
+            this.pnlSearch.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlSearch.Location = new System.Drawing.Point(0, 42);
+            this.pnlSearch.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.pnlSearch.Name = "pnlSearch";
+            this.pnlSearch.RowCount = 1;
+            this.pnlSearch.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.pnlSearch.Size = new System.Drawing.Size(1168, 28);
+            this.pnlSearch.TabIndex = 2;
+            //
+            // txtSearch
+            //
+            this.txtSearch.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.txtSearch.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.txtSearch.Location = new System.Drawing.Point(3, 3);
+            this.txtSearch.Margin = new System.Windows.Forms.Padding(3, 3, 6, 0);
+            this.txtSearch.Name = "txtSearch";
+            this.txtSearch.Size = new System.Drawing.Size(1085, 23);
+            this.txtSearch.TabIndex = 0;
+            this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
+            //
+            // btnClearSearch
+            //
+            this.btnClearSearch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnClearSearch.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.btnClearSearch.Location = new System.Drawing.Point(1094, 0);
+            this.btnClearSearch.Margin = new System.Windows.Forms.Padding(0);
+            this.btnClearSearch.Name = "btnClearSearch";
+            this.btnClearSearch.Size = new System.Drawing.Size(74, 28);
+            this.btnClearSearch.TabIndex = 1;
+            this.btnClearSearch.Text = "Clear";
+            this.btnClearSearch.UseVisualStyleBackColor = true;
+            this.btnClearSearch.Click += new System.EventHandler(this.btnClearSearch_Click);
+            //
             // dgvBirths
-            // 
+            //
             this.dgvBirths.AllowUserToAddRows = false;
             this.dgvBirths.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dgvBirths.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells;
             this.dgvBirths.BackgroundColor = System.Drawing.Color.White;
             this.dgvBirths.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvBirths.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.dgvBirths.Location = new System.Drawing.Point(0, 42);
+            this.dgvBirths.Location = new System.Drawing.Point(0, 76);
             this.dgvBirths.Margin = new System.Windows.Forms.Padding(0);
             this.dgvBirths.Name = "dgvBirths";
             this.dgvBirths.ReadOnly = true;
             this.dgvBirths.RowHeadersVisible = false;
             this.dgvBirths.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvBirths.Size = new System.Drawing.Size(1168, 260);
-            this.dgvBirths.TabIndex = 1;
+            this.dgvBirths.Size = new System.Drawing.Size(1168, 226);
+            this.dgvBirths.TabIndex = 3;
             this.dgvBirths.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvBirths_CellClick);
             // 
             // BirthRegistrationForm
@@ -2185,6 +2231,8 @@ namespace CROMS.Forms
             this.pnlRecordsHead.ResumeLayout(false);
             this.pnlRecordsHead.PerformLayout();
             this.pnlRecordActions.ResumeLayout(false);
+            this.pnlSearch.ResumeLayout(false);
+            this.pnlSearch.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvBirths)).EndInit();
             this.ResumeLayout(false);
 
@@ -2347,5 +2395,8 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnDelete;
         private System.Windows.Forms.DataGridView dgvBirths;
         private System.Windows.Forms.Button btnOCRLiveBirth;
+        private System.Windows.Forms.TableLayoutPanel pnlSearch;
+        private System.Windows.Forms.TextBox txtSearch;
+        private System.Windows.Forms.Button btnClearSearch;
     }
 }

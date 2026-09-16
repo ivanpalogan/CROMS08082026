@@ -643,12 +643,36 @@ namespace CROMS.Forms
 
         private void LoadBirths()
         {
-            dgvBirths.DataSource = Db.Pull(
+            DataTable dt = Db.Pull(
                 "SELECT id, registry_no AS 'Registry No', " +
                 "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS Child, " +
                 "sex AS Sex, date_of_birth AS DOB, book_volume AS Book, book_page AS Page, status AS Status " +
                 "FROM births ORDER BY id DESC");
+            dgvBirths.DataSource = dt;
             if (dgvBirths.Columns.Contains("id")) dgvBirths.Columns["id"].Visible = false;
+            ApplySearchFilter();
+        }
+
+        /// <summary>
+        /// Filters the already-loaded grid by Registry No / Child name / Sex / Status —
+        /// client-side over the bound DataTable's DataView, so typing never re-queries the
+        /// database. Column names in the filter are the SQL aliases from LoadBirths.
+        /// </summary>
+        private void ApplySearchFilter()
+        {
+            if (!(dgvBirths.DataSource is DataTable dt)) return;
+            string q = (txtSearch?.Text ?? "").Trim().Replace("'", "''");
+            dt.DefaultView.RowFilter = q.Length == 0 ? "" :
+                "[Registry No] LIKE '%" + q + "%' OR Child LIKE '%" + q + "%' " +
+                "OR Sex LIKE '%" + q + "%' OR Status LIKE '%" + q + "%'";
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e) => ApplySearchFilter();
+
+        private void btnClearSearch_Click(object sender, EventArgs e)
+        {
+            txtSearch.Text = "";
+            txtSearch.Focus();
         }
 
         // ---------- CREATE ----------
