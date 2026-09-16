@@ -4,6 +4,7 @@ using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using CROMS.Analytics;
 using CROMS.Analytics.Widgets;
@@ -46,6 +47,20 @@ namespace CROMS.Forms
         private string _windowsSig;
         private readonly Dictionary<int, ListRow> _windowRows = new Dictionary<int, ListRow>();
 
+        // The "Tasks requiring attention" and "Recent transactions" lists used the same
+        // clear-then-rebuild pattern the window board had (and was fixed above) — every refresh
+        // disposed every row and made new ones even when nothing had changed, which is exactly
+        // the flicker this task list calls out. Same fix: skip the rebuild when the content is
+        // identical to what is already on screen.
+        private string _attentionSig;
+        private string _recentSig;
+
+        // Guards every Load*Async call against overlapping itself — a slow/unreachable database
+        // must never let a second refresh stack on top of one still running (which would also
+        // let two DB reads race to set the same labels in whichever order happens to finish
+        // last).
+        private volatile bool _refreshing;
+
         private static readonly string[] TrendTables = { "births", "marriages", "deaths" };
         private static readonly string[] TrendNames = { "Birth", "Marriage", "Death" };
         private static readonly Color[] TrendColors = { UiTheme.Accent, UiTheme.Success, UiTheme.Faint };
@@ -60,23 +75,51 @@ namespace CROMS.Forms
             WireCard(cardCollections);  // → Fees & Payments
             WireCard(cardPending);      // → Release & Claim
 
-            lblTitle.Text = "Dashboard";
+            UpdateClock();
+            clockTimer.Start();
             RefreshData();
             statusTimer.Start();
         }
 
-        public void RefreshData()
+        /// <summary>
+        /// Re-pulls every section. Fired once on open and again every time MainForm navigates
+        /// back to this module (<see cref="IRefreshable"/>) — there is no manual Refresh control
+        /// any more, so this is the ONLY way the screen updates besides the timers below.
+        /// Re-entrant-safe: a slow call in flight makes a second call a no-op instead of racing
+        /// it or piling queries on top of a database that is already struggling to answer.
+        /// </summary>
+        public async void RefreshData()
         {
-            LoadKpis();
-            LoadTrend();
-            LoadWindowStatus();
-            LoadAttention();
-            LoadRecentTransactions();
+            if (_refreshing) return;
+            _refreshing = true;
+            try
+            {
+                await LoadKpisAsync();
+                await LoadTrendAsync();
+                await LoadWindowStatusAsync();
+                await LoadAttentionAsync();
+                await LoadRecentTransactionsAsync();
+            }
+            finally { _refreshing = false; }
         }
 
-        private void btnRefresh_Click(object sender, EventArgs e)
+        /// <summary>The clock alone — see the Designer note on <c>lblClock</c>/<c>clockTimer</c>.</summary>
+        private void clockTimer_Tick(object sender, EventArgs e)
         {
-            RefreshData();
+            UpdateClock();
+        }
+
+        private void UpdateClock()
+        {
+            lblClock.Text = DateTime.Now.ToString("h:mm:ss tt");
+        }
+
+        private void picLogo_Paint(object sender, PaintEventArgs e)
+        {
+            // brandFlow/headerLeft/header are all transparent panels; the real surface behind
+            // this control is the page itself, not any of those.
+            CROMS.Modules.BrandAssets.DrawMark(e.Graphics, new Rectangle(0, 0, picLogo.Width - 1, picLogo.Height - 1),
+                UiTheme.PageBg, UiTheme.AccentTint, UiTheme.Accent);
         }
 
         /// <summary>
@@ -496,7 +539,20 @@ namespace CROMS.Forms
         }
 
         // ------------------------------------------------------------------ KPIs
-        private void LoadKpis()
+        private sealed class KpiSnapshot
+        {
+            public bool Connected;
+            public int Waiting, Registered, Pending;
+            public decimal Collections;
+        }
+
+        /// <summary>
+        /// Pulls the four KPI numbers and updates ONLY the four cards' Value/colour properties —
+        /// the cards themselves (their fonts, layout, icon) are never recreated, so nothing about
+        /// them flickers; the query itself runs on a background thread via Task.Run so a slow or
+        /// unreachable database never freezes the UI, only these four numbers go stale.
+        /// </summary>
+        private async Task LoadKpisAsync()
         {
             string who = Session.User != null
                 ? (Session.User.Role ?? "") + (string.IsNullOrEmpty(Session.User.FullName)
@@ -504,43 +560,63 @@ namespace CROMS.Forms
                 : "not signed in";
             lblToday.Text = DateTime.Now.ToString("dddd, d MMMM yyyy") + "  ·  " + who.TrimStart(' ', '—');
 
-            pillUpdated.Text = "Updated " + DateTime.Now.ToString("HH:mm:ss");
+            KpiSnapshot snap;
+            try
+            {
+                snap = await Task.Run(() =>
+                {
+                    var s = new KpiSnapshot { Connected = Db.IsConnected() };
+                    if (!s.Connected) return s;
+
+                    s.Waiting = Scalar(
+                        "SELECT COUNT(*) FROM queue_tickets WHERE status = 'Waiting' AND DATE(created_at) = CURDATE()");
+                    s.Registered = Scalar(
+                        "SELECT (SELECT COUNT(*) FROM births    WHERE DATE(created_at) = CURDATE()) + " +
+                        "       (SELECT COUNT(*) FROM marriages WHERE DATE(created_at) = CURDATE()) + " +
+                        "       (SELECT COUNT(*) FROM deaths    WHERE DATE(created_at) = CURDATE())");
+                    s.Collections = ScalarDec(
+                        "SELECT COALESCE(SUM(net_amount), 0) FROM payments WHERE DATE(paid_at) = CURDATE()");
+                    s.Pending = Scalar(
+                        "SELECT COUNT(*) FROM transactions WHERE status = 'ForRelease'");
+                    return s;
+                });
+            }
+            catch { snap = new KpiSnapshot { Connected = false }; }
+
+            SetOffline(!snap.Connected);
+            if (!snap.Connected) return;
+
+            pillUpdated.Text = "Updated " + DateTime.Now.ToString("h:mm:ss tt");
             pillUpdated.SetTone(UiTheme.Surface, UiTheme.Muted);
 
-            bool connected = Db.IsConnected();
-            pillConnection.SetTone(connected ? UiTheme.SuccessTint : UiTheme.DangerTint,
-                                   connected ? UiTheme.Success : UiTheme.Danger);
-            pillConnection.Text = connected ? "Database connected" : "Database unavailable";
-            if (!connected) return;
+            cardWaiting.Value = snap.Waiting.ToString();
+            cardWaiting.ValueColor = snap.Waiting > WaitingAlert ? UiTheme.Danger : UiTheme.Ink;   // threshold cue
 
-            int waiting = Scalar(
-                "SELECT COUNT(*) FROM queue_tickets WHERE status = 'Waiting' AND DATE(created_at) = CURDATE()");
-            int registered = Scalar(
-                "SELECT (SELECT COUNT(*) FROM births    WHERE DATE(created_at) = CURDATE()) + " +
-                "       (SELECT COUNT(*) FROM marriages WHERE DATE(created_at) = CURDATE()) + " +
-                "       (SELECT COUNT(*) FROM deaths    WHERE DATE(created_at) = CURDATE())");
-            decimal collections = ScalarDec(
-                "SELECT COALESCE(SUM(net_amount), 0) FROM payments WHERE DATE(paid_at) = CURDATE()");
-            int pending = Scalar(
-                "SELECT COUNT(*) FROM transactions WHERE status = 'ForRelease'");
-
-            cardWaiting.Value = waiting.ToString();
-            cardWaiting.ValueColor = waiting > WaitingAlert ? UiTheme.Danger : UiTheme.Ink;   // threshold cue
-
-            cardRegistered.Value = registered.ToString();
+            cardRegistered.Value = snap.Registered.ToString();
 
             // The peso sign and the centavos are drawn small on the SAME baseline as the digits,
             // so this card lines up with the other three instead of having to shrink to fit.
-            cardCollections.Value = decimal.Truncate(collections).ToString("N0");
-            cardCollections.Suffix = "." + ((int)((collections - decimal.Truncate(collections)) * 100)).ToString("00");
+            cardCollections.Value = decimal.Truncate(snap.Collections).ToString("N0");
+            cardCollections.Suffix = "." + ((int)((snap.Collections - decimal.Truncate(snap.Collections)) * 100)).ToString("00");
 
-            cardPending.Value = pending.ToString();
-            cardPending.ValueColor = pending > 0 ? UiTheme.Accent : UiTheme.Ink;              // something to hand over
+            cardPending.Value = snap.Pending.ToString();
+            cardPending.ValueColor = snap.Pending > 0 ? UiTheme.Accent : UiTheme.Ink;              // something to hand over
 
             cardWaiting.Invalidate();
             cardRegistered.Invalidate();
             cardCollections.Invalidate();
             cardPending.Invalidate();
+        }
+
+        /// <summary>
+        /// Shows/hides the offline banner. A no-op when the state already matches, so this can
+        /// be called on every refresh cycle without ever forcing a redundant layout pass while
+        /// the database is reachable (the common case).
+        /// </summary>
+        private void SetOffline(bool offline)
+        {
+            if (lblOffline.Visible == offline) return;
+            lblOffline.Visible = offline;
         }
 
         /// <summary>
@@ -669,31 +745,35 @@ namespace CROMS.Forms
 
         // ---------------------------------------------------------------- trend
         /// <summary>Counts registrations per day for the last 7 days, kept per register.</summary>
-        private void LoadTrend()
+        private async Task LoadTrendAsync()
         {
             DateTime start = DateTime.Today.AddDays(-6);
-            for (int i = 0; i < 7; i++)
-            {
-                _trendLabels[i] = start.AddDays(i).ToString("ddd d");
-                for (int s = 0; s < 3; s++) _trend[s, i] = 0;
-            }
+            var labels = new string[7];
+            var trend = new int[3, 7];
+            for (int i = 0; i < 7; i++) labels[i] = start.AddDays(i).ToString("ddd d");
 
-            for (int s = 0; s < TrendTables.Length; s++)                // whitelist, not user input
+            await Task.Run(() =>
             {
-                try
+                for (int s = 0; s < TrendTables.Length; s++)             // whitelist, not user input
                 {
-                    DataTable dt = Db.Pull(
-                        "SELECT DATE(created_at) AS d, COUNT(*) AS c FROM " + TrendTables[s] +
-                        " WHERE created_at >= (CURDATE() - INTERVAL 6 DAY) GROUP BY DATE(created_at)");
-                    foreach (DataRow r in dt.Rows)
+                    try
                     {
-                        if (r["d"] == DBNull.Value) continue;
-                        int idx = (Convert.ToDateTime(r["d"]).Date - start).Days;
-                        if (idx >= 0 && idx < 7) _trend[s, idx] += Convert.ToInt32(r["c"]);
+                        DataTable dt = Db.Pull(
+                            "SELECT DATE(created_at) AS d, COUNT(*) AS c FROM " + TrendTables[s] +
+                            " WHERE created_at >= (CURDATE() - INTERVAL 6 DAY) GROUP BY DATE(created_at)");
+                        foreach (DataRow r in dt.Rows)
+                        {
+                            if (r["d"] == DBNull.Value) continue;
+                            int idx = (Convert.ToDateTime(r["d"]).Date - start).Days;
+                            if (idx >= 0 && idx < 7) trend[s, idx] += Convert.ToInt32(r["c"]);
+                        }
                     }
+                    catch { /* a transient DB hiccup just leaves that day at 0 */ }
                 }
-                catch { /* a transient DB hiccup just leaves that day at 0 */ }
-            }
+            });
+
+            Array.Copy(labels, _trendLabels, 7);
+            Array.Copy(trend, _trend, trend.Length);
             pnlTrend.Invalidate();
         }
 
@@ -829,57 +909,87 @@ namespace CROMS.Forms
         }
 
         // --------------------------------------------------------- service windows
-        private void statusTimer_Tick(object sender, EventArgs e)
+        /// <summary>
+        /// Every tick fires this handler, but only one refresh cycle is ever actually in flight —
+        /// <see cref="_refreshing"/> makes a tick that lands while a previous one (or a manual
+        /// <see cref="RefreshData"/>) is still awaiting the database a no-op instead of stacking
+        /// a second set of queries on top of it. The clock keeps ticking regardless: it runs on
+        /// its own <see cref="clockTimer"/>, entirely separate from this one.
+        /// </summary>
+        private async void statusTimer_Tick(object sender, EventArgs e)
         {
-            LoadWindowStatus();                              // Online/Offline is the fast-moving part
-            if (++_tickCount % 4 == 0)
+            if (_refreshing) return;
+            _refreshing = true;
+            try
             {
-                LoadKpis();
-                LoadTrend();
-                LoadAttention();
-                LoadRecentTransactions();
+                await LoadWindowStatusAsync();               // Online/Offline is the fast-moving part
+                if (++_tickCount % 4 == 0)
+                {
+                    await LoadKpisAsync();
+                    await LoadTrendAsync();
+                    await LoadAttentionAsync();
+                    await LoadRecentTransactionsAsync();
+                }
             }
+            finally { _refreshing = false; }
+        }
+
+        private sealed class WindowSnapshot
+        {
+            public DataTable Windows;
+            public readonly Dictionary<int, string> OnWindow = new Dictionary<int, string>();
         }
 
         /// <summary>
         /// Fills the Service Windows panel with one row per active window: number badge, window
-        /// and staff name, the ticket it is on, and a Serving / Idle / Closed badge.
+        /// and staff name, the ticket it is on, and a Serving / Idle / Closed badge. Both queries
+        /// run on a background thread; only the resulting rows are applied on the UI thread.
         /// </summary>
-        private void LoadWindowStatus()
+        private async Task LoadWindowStatusAsync()
         {
             if (pnlWindows == null) return;
 
-            DataTable dt;
+            WindowSnapshot snap;
             try
             {
-                dt = Db.Pull(
-                    "SELECT w.id, w.window_name, w.operator_name, w.is_priority, " +
-                    "(w.current_operator IS NOT NULL AND w.last_heartbeat > (NOW() - INTERVAL " +
-                    WindowAssignmentForm.StaleMinutes + " MINUTE)) AS online, " +
-                    "(SELECT COUNT(*) FROM queue_tickets q WHERE q.window_no = w.id " +
-                    "   AND q.status IN ('Accepted','Serving') AND DATE(q.created_at) = CURDATE()) AS busy, " +
-                    "(SELECT GROUP_CONCAT(wt.service_code SEPARATOR ', ') FROM window_transactions wt " +
-                    "   WHERE wt.window_id = w.id) AS services " +
-                    "FROM windows w WHERE w.status = 'Active' ORDER BY w.display_order, w.id");
+                snap = await Task.Run(() =>
+                {
+                    var s = new WindowSnapshot
+                    {
+                        Windows = Db.Pull(
+                            "SELECT w.id, w.window_name, w.operator_name, w.is_priority, " +
+                            "(w.current_operator IS NOT NULL AND w.last_heartbeat > (NOW() - INTERVAL " +
+                            WindowAssignmentForm.StaleMinutes + " MINUTE)) AS online, " +
+                            "(SELECT COUNT(*) FROM queue_tickets q WHERE q.window_no = w.id " +
+                            "   AND q.status IN ('Accepted','Serving') AND DATE(q.created_at) = CURDATE()) AS busy, " +
+                            "(SELECT GROUP_CONCAT(wt.service_code SEPARATOR ', ') FROM window_transactions wt " +
+                            "   WHERE wt.window_id = w.id) AS services " +
+                            "FROM windows w WHERE w.status = 'Active' ORDER BY w.display_order, w.id")
+                    };
+
+                    // The ticket CODE is not in the query above, and that query is left byte-
+                    // identical — so the codes come from their own small read-only lookup rather
+                    // than by editing it.
+                    try
+                    {
+                        DataTable tk = Db.Pull(
+                            "SELECT window_no, ticket_code FROM queue_tickets " +
+                            "WHERE DATE(created_at) = CURDATE() AND window_no IS NOT NULL " +
+                            "  AND status IN ('Accepted','Serving') ORDER BY id");
+                        foreach (DataRow r in tk.Rows)
+                        {
+                            if (r["window_no"] == DBNull.Value || r["ticket_code"] == DBNull.Value) continue;
+                            s.OnWindow[Convert.ToInt32(r["window_no"])] = r["ticket_code"].ToString();
+                        }
+                    }
+                    catch { /* no codes; the rows simply show an em-dash */ }
+
+                    return s;
+                });
             }
             catch { return; }   // never let a transient DB hiccup crash the dashboard timer
 
-            // The ticket CODE is not in the query above, and that query is left byte-identical —
-            // so the codes come from their own small read-only lookup rather than by editing it.
-            var onWindow = new Dictionary<int, string>();
-            try
-            {
-                DataTable tk = Db.Pull(
-                    "SELECT window_no, ticket_code FROM queue_tickets " +
-                    "WHERE DATE(created_at) = CURDATE() AND window_no IS NOT NULL " +
-                    "  AND status IN ('Accepted','Serving') ORDER BY id");
-                foreach (DataRow r in tk.Rows)
-                {
-                    if (r["window_no"] == DBNull.Value || r["ticket_code"] == DBNull.Value) continue;
-                    onWindow[Convert.ToInt32(r["window_no"])] = r["ticket_code"].ToString();
-                }
-            }
-            catch { /* no codes; the rows simply show an em-dash */ }
+            DataTable dt = snap.Windows;
 
             // Rebuild only when the shown-window SET changes (added/removed/renamed);
             // an ordinary tick just updates each row's live status in place below.
@@ -893,7 +1003,7 @@ namespace CROMS.Forms
                 _windowsSig = sigStr;
             }
 
-            UpdateWindowRows(dt, onWindow);
+            UpdateWindowRows(dt, snap.OnWindow);
         }
 
         private void RebuildWindowRows(DataTable dt)
@@ -960,80 +1070,103 @@ namespace CROMS.Forms
         /// The workflow backlogs an operator can act on now. A row whose count is 0 is removed,
         /// not rendered as "0"; the card stays a short task list instead of becoming another
         /// statistics panel.
+        ///
+        /// The seven queries run off the UI thread, and the rebuilt-or-not decision is made
+        /// BEFORE any <see cref="ListRow"/> is created: if the counts are identical to the ones
+        /// already on screen the panel is left completely untouched (no clear, no rebuild) —
+        /// this, not the KPI cards, was the actual source of the "everything blinks every few
+        /// seconds" complaint, since the old code cleared and rebuilt this list unconditionally
+        /// on every refresh regardless of whether anything had changed.
         /// </summary>
-        private void LoadAttention()
+        private async Task LoadAttentionAsync()
         {
             if (pnlAttention == null) return;
-            if (!Db.IsConnected())
+
+            bool connected = await Task.Run(() => Db.IsConnected());
+            if (!connected)
             {
                 lblAttentionBasis.Text = "Unavailable";
                 return;
             }
 
-            int readyLicenses = 0, expiringLicenses = 0, missingRequirements = 0;
-            int pendingReleases = 0, staleReleases = 0, pendingPsa = 0, delayedPostings = 0;
+            int[] c = await Task.Run(() =>
+            {
+                int readyLicenses = 0, expiringLicenses = 0, missingRequirements = 0;
+                int pendingReleases = 0, staleReleases = 0, pendingPsa = 0, delayedPostings = 0;
 
-            try { readyLicenses = Scalar("SELECT COUNT(*) FROM marriage_licenses WHERE status='Posting' AND earliest_issue_date <= CURDATE()"); }
-            catch { }
-            try { expiringLicenses = Scalar("SELECT COUNT(*) FROM marriage_licenses WHERE status='Issued' AND expiry_date BETWEEN CURDATE() AND (CURDATE() + INTERVAL 7 DAY)"); }
-            catch { }
-            try
-            {
-                missingRequirements = Scalar(
-                    "SELECT COUNT(DISTINCT owner_id) FROM marriage_requirements " +
-                    "WHERE owner_type='License' AND status IN ('Missing','Rejected')");
-            }
-            catch { }
-            try { pendingReleases = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease'"); }
-            catch { }
-            try { staleReleases = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease' AND updated_at < (NOW() - INTERVAL 3 DAY)"); }
-            catch { }
-            try
-            {
-                pendingPsa = Scalar(
-                    "SELECT COUNT(*) FROM marriages m WHERE m.status='Registered' AND NOT EXISTS (" +
-                    "SELECT 1 FROM psa_transmittal_items i WHERE i.record_table='marriages' AND i.record_id=m.id)");
-            }
-            catch { }
-            try
-            {
-                delayedPostings = Scalar(
-                    "SELECT COUNT(*) FROM births WHERE delayed_posting_start IS NOT NULL " +
-                    "AND delayed_posting_end >= CURDATE() AND delayed_evaluation_at IS NULL");
-            }
-            catch { }
+                try { readyLicenses = Scalar("SELECT COUNT(*) FROM marriage_licenses WHERE status='Posting' AND earliest_issue_date <= CURDATE()"); }
+                catch { }
+                try { expiringLicenses = Scalar("SELECT COUNT(*) FROM marriage_licenses WHERE status='Issued' AND expiry_date BETWEEN CURDATE() AND (CURDATE() + INTERVAL 7 DAY)"); }
+                catch { }
+                try
+                {
+                    missingRequirements = Scalar(
+                        "SELECT COUNT(DISTINCT owner_id) FROM marriage_requirements " +
+                        "WHERE owner_type='License' AND status IN ('Missing','Rejected')");
+                }
+                catch { }
+                try { pendingReleases = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease'"); }
+                catch { }
+                try { staleReleases = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease' AND updated_at < (NOW() - INTERVAL 3 DAY)"); }
+                catch { }
+                try
+                {
+                    pendingPsa = Scalar(
+                        "SELECT COUNT(*) FROM marriages m WHERE m.status='Registered' AND NOT EXISTS (" +
+                        "SELECT 1 FROM psa_transmittal_items i WHERE i.record_table='marriages' AND i.record_id=m.id)");
+                }
+                catch { }
+                try
+                {
+                    delayedPostings = Scalar(
+                        "SELECT COUNT(*) FROM births WHERE delayed_posting_start IS NOT NULL " +
+                        "AND delayed_posting_end >= CURDATE() AND delayed_evaluation_at IS NULL");
+                }
+                catch { }
 
-            pnlAttention.SuspendLayout();
-            ClearRows(pnlAttention);
+                return new[] { readyLicenses, expiringLicenses, missingRequirements,
+                                pendingReleases, staleReleases, pendingPsa, delayedPostings };
+            });
+
+            int readyLicenses2 = c[0], expiringLicenses2 = c[1], missingRequirements2 = c[2];
+            int pendingReleases2 = c[3], staleReleases2 = c[4], pendingPsa2 = c[5], delayedPostings2 = c[6];
+
+            string sig = string.Join(",", readyLicenses2, expiringLicenses2, missingRequirements2,
+                                            pendingReleases2, staleReleases2, pendingPsa2, delayedPostings2);
+            if (sig == _attentionSig) return;   // identical to what is already on screen
+            _attentionSig = sig;
 
             var rows = new List<ListRow>();
-            if (readyLicenses > 0)
+            if (readyLicenses2 > 0)
                 rows.Add(TaskRow("✓", UiTheme.SuccessTint, UiTheme.Success,
-                    readyLicenses + (readyLicenses == 1 ? " marriage license ready to issue" : " marriage licenses ready to issue"),
+                    readyLicenses2 + (readyLicenses2 == 1 ? " marriage license ready to issue" : " marriage licenses ready to issue"),
                     "Posting complete — no license issued yet", "Review", "marriage"));
-            if (expiringLicenses > 0)
+            if (expiringLicenses2 > 0)
                 rows.Add(TaskRow("!", UiTheme.WarningTint, UiTheme.Warning,
-                    expiringLicenses + (expiringLicenses == 1 ? " marriage license expires within 7 days" : " marriage licenses expire within 7 days"),
+                    expiringLicenses2 + (expiringLicenses2 == 1 ? " marriage license expires within 7 days" : " marriage licenses expire within 7 days"),
                     "120-day validity period ending soon", "View list", "marriage"));
-            if (missingRequirements > 0)
+            if (missingRequirements2 > 0)
                 rows.Add(TaskRow("×", UiTheme.DangerTint, UiTheme.Danger,
-                    missingRequirements + (missingRequirements == 1 ? " application has missing requirements" : " applications have missing requirements"),
+                    missingRequirements2 + (missingRequirements2 == 1 ? " application has missing requirements" : " applications have missing requirements"),
                     "Required supporting documents need review", "Open", "marriage"));
-            if (pendingReleases > 0)
+            if (pendingReleases2 > 0)
                 rows.Add(TaskRow("!", UiTheme.DangerTint, UiTheme.Danger,
-                    pendingReleases + (pendingReleases == 1 ? " document ready for release" : " documents ready for release") +
-                    (staleReleases > 0 ? ", " + staleReleases + " unclaimed 3+ days" : ""),
+                    pendingReleases2 + (pendingReleases2 == 1 ? " document ready for release" : " documents ready for release") +
+                    (staleReleases2 > 0 ? ", " + staleReleases2 + " unclaimed 3+ days" : ""),
                     "Certificate requests awaiting claimant", "Open", "release"));
-            if (pendingPsa > 0)
+            if (pendingPsa2 > 0)
                 rows.Add(TaskRow("⇧", UiTheme.AccentTint, UiTheme.Accent,
-                    pendingPsa + (pendingPsa == 1 ? " registered marriage pending PSA transmittal" : " registered marriages pending PSA transmittal"),
+                    pendingPsa2 + (pendingPsa2 == 1 ? " registered marriage pending PSA transmittal" : " registered marriages pending PSA transmittal"),
                     "Registered in CROMS — endorsement not yet batched", "Open", "marriage"));
-            if (delayedPostings > 0)
+            if (delayedPostings2 > 0)
                 rows.Add(TaskRow("◐", UiTheme.AccentTint, UiTheme.Accent,
-                    delayedPostings + (delayedPostings == 1 ? " delayed birth registration in posting" : " delayed birth registrations in posting"),
+                    delayedPostings2 + (delayedPostings2 == 1 ? " delayed birth registration in posting" : " delayed birth registrations in posting"),
                     "Public posting period is still underway", "Open", "birth"));
 
             lblAttentionBasis.Text = rows.Count + (rows.Count == 1 ? " item" : " items");
+
+            pnlAttention.SuspendLayout();
+            ClearRows(pnlAttention);
 
             if (rows.Count == 0)
                 pnlAttention.Controls.Add(EmptyLine("Nothing outstanding — you're caught up"));
@@ -1070,41 +1203,48 @@ namespace CROMS.Forms
         /// <summary>
         /// Shows the four most recently changed client transactions. This is deliberately a
         /// short dispatch list; the full searchable ledger remains in Transactions.
+        ///
+        /// Same rule as <see cref="LoadAttentionAsync"/>: the panel is rebuilt only when the four
+        /// rows' content actually differs from what is already shown, computed from a signature
+        /// of the query result rather than by clearing and rebuilding unconditionally.
         /// </summary>
-        private void LoadRecentTransactions()
+        private async Task LoadRecentTransactionsAsync()
         {
             if (pnlRecent == null) return;
 
-            pnlRecent.SuspendLayout();
-            ClearRows(pnlRecent);
-
-            if (!Db.IsConnected())
+            bool connected = await Task.Run(() => Db.IsConnected());
+            if (!connected)
             {
-                pnlRecent.Controls.Add(EmptyLine("Recent transactions are unavailable."));
-                pnlRecent.ResumeLayout();
+                ShowRecentPlaceholder("disconnected", "Recent transactions are unavailable.");
                 return;
             }
 
             DataTable dt;
             try
             {
-                dt = Db.Pull(
+                dt = await Task.Run(() => Db.Pull(
                     "SELECT txn_code, client_name, type, status, updated_at " +
-                    "FROM transactions ORDER BY updated_at DESC, id DESC LIMIT 4");
+                    "FROM transactions ORDER BY updated_at DESC, id DESC LIMIT 4"));
             }
             catch
             {
-                pnlRecent.Controls.Add(EmptyLine("Recent transactions are unavailable."));
-                pnlRecent.ResumeLayout();
+                ShowRecentPlaceholder("error", "Recent transactions are unavailable.");
                 return;
             }
 
             if (dt.Rows.Count == 0)
             {
-                pnlRecent.Controls.Add(EmptyLine("No transactions recorded yet."));
-                pnlRecent.ResumeLayout();
+                ShowRecentPlaceholder("empty", "No transactions recorded yet.");
                 return;
             }
+
+            var sigBuilder = new StringBuilder();
+            foreach (DataRow r in dt.Rows)
+                sigBuilder.Append(r["txn_code"]).Append('|').Append(r["status"]).Append('|')
+                          .Append(r["updated_at"]).Append(';');
+            string sig = sigBuilder.ToString();
+            if (sig == _recentSig) return;      // identical list already on screen
+            _recentSig = sig;
 
             var rows = new List<ListRow>();
             foreach (DataRow r in dt.Rows)
@@ -1138,6 +1278,8 @@ namespace CROMS.Forms
                 rows.Add(row);
             }
 
+            pnlRecent.SuspendLayout();
+            ClearRows(pnlRecent);
             for (int i = rows.Count - 1; i >= 0; i--)
             {
                 rows[i].Dock = DockStyle.Top;
@@ -1145,6 +1287,18 @@ namespace CROMS.Forms
                 rows[i].Separator = i > 0;
                 pnlRecent.Controls.Add(rows[i]);
             }
+            pnlRecent.ResumeLayout();
+        }
+
+        /// <summary>Shows a one-line placeholder in the recent-transactions card, skipping the
+        /// rebuild entirely once that exact placeholder is already what's on screen.</summary>
+        private void ShowRecentPlaceholder(string sig, string text)
+        {
+            if (_recentSig == sig) return;
+            _recentSig = sig;
+            pnlRecent.SuspendLayout();
+            ClearRows(pnlRecent);
+            pnlRecent.Controls.Add(EmptyLine(text));
             pnlRecent.ResumeLayout();
         }
 

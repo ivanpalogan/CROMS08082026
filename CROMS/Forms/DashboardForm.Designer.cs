@@ -35,12 +35,13 @@ namespace CROMS.Forms
             this.root = new System.Windows.Forms.TableLayoutPanel();
             this.header = new System.Windows.Forms.TableLayoutPanel();
             this.headerLeft = new System.Windows.Forms.TableLayoutPanel();
-            this.lblTitle = new System.Windows.Forms.Label();
+            this.brandFlow = new System.Windows.Forms.FlowLayoutPanel();
+            this.picLogo = new System.Windows.Forms.Panel();
             this.lblToday = new System.Windows.Forms.Label();
+            this.lblClock = new System.Windows.Forms.Label();
+            this.lblOffline = new System.Windows.Forms.Label();
             this.headerRight = new System.Windows.Forms.FlowLayoutPanel();
-            this.pillConnection = new CROMS.Modules.StatusPill();
             this.pillUpdated = new CROMS.Modules.StatusPill();
-            this.btnRefresh = new System.Windows.Forms.Button();
 
             this.kpiRow = new System.Windows.Forms.TableLayoutPanel();
             this.cardWaiting = new CROMS.Modules.KpiCard();
@@ -88,6 +89,7 @@ namespace CROMS.Forms
             this.pnlInsights = new System.Windows.Forms.TableLayoutPanel();
 
             this.statusTimer = new System.Windows.Forms.Timer(this.components);
+            this.clockTimer = new System.Windows.Forms.Timer(this.components);
 
             this.SuspendLayout();
 
@@ -132,24 +134,58 @@ namespace CROMS.Forms
             this.headerLeft.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             this.headerLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.headerLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.headerLeft.Controls.Add(this.lblTitle, 0, 0);
-            this.headerLeft.Controls.Add(this.lblToday, 0, 1);
+            this.headerLeft.Controls.Add(this.brandFlow, 0, 0);
+            this.headerLeft.Controls.Add(this.lblOffline, 0, 1);
 
-            this.lblTitle.AutoSize = true;
-            this.lblTitle.Font = new System.Drawing.Font("Segoe UI", 15.75F, System.Drawing.FontStyle.Bold);
-            this.lblTitle.ForeColor = UiTheme.Ink;
-            this.lblTitle.Margin = new System.Windows.Forms.Padding(0, 0, 0, 1);
-            this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Text = "Dashboard";
+            // Seal + date + live clock, one row. No page title here — the sidebar already names
+            // the screen, and the Dashboard's own content starts right below instead of under a
+            // repeated "Dashboard" heading.
+            this.brandFlow.AutoSize = true;
+            this.brandFlow.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.brandFlow.BackColor = System.Drawing.Color.Transparent;
+            this.brandFlow.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
+            this.brandFlow.WrapContents = false;
+            this.brandFlow.Margin = new System.Windows.Forms.Padding(0);
+            this.brandFlow.Controls.Add(this.picLogo);
+            this.brandFlow.Controls.Add(this.lblToday);
+            this.brandFlow.Controls.Add(this.lblClock);
 
-            // The date + who is signed in. Replaces the old 16pt "Today" heading — the date is
-            // context for the numbers, not the name of the screen.
+            this.picLogo.Size = new System.Drawing.Size(30, 30);
+            this.picLogo.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
+            this.picLogo.BackColor = System.Drawing.Color.Transparent;
+            this.picLogo.Name = "picLogo";
+            this.picLogo.Paint += new System.Windows.Forms.PaintEventHandler(this.picLogo_Paint);
+
+            // The date + who is signed in.
             this.lblToday.AutoSize = true;
             this.lblToday.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblToday.ForeColor = UiTheme.Muted;
-            this.lblToday.Margin = new System.Windows.Forms.Padding(0);
+            this.lblToday.Margin = new System.Windows.Forms.Padding(0, 8, 0, 0);
             this.lblToday.Name = "lblToday";
             this.lblToday.Text = "—";
+
+            // The live clock. Fixed size + its own 1-second timer, wholly separate from the
+            // data-refresh timer, so a tick here only ever repaints this one label — nothing
+            // else on the form is touched, and a fixed size means the tick can never trigger a
+            // layout pass on the AutoSize panels around it.
+            this.lblClock.AutoSize = false;
+            this.lblClock.Size = new System.Drawing.Size(112, 18);
+            this.lblClock.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lblClock.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold);
+            this.lblClock.ForeColor = UiTheme.Ink;
+            this.lblClock.Margin = new System.Windows.Forms.Padding(10, 6, 0, 0);
+            this.lblClock.Name = "lblClock";
+            this.lblClock.Text = "—";
+
+            // Hidden unless a query actually fails — an error/status message shown only when
+            // there is one, not a permanent technical indicator.
+            this.lblOffline.AutoSize = true;
+            this.lblOffline.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
+            this.lblOffline.ForeColor = UiTheme.Danger;
+            this.lblOffline.Margin = new System.Windows.Forms.Padding(0, 6, 0, 0);
+            this.lblOffline.Name = "lblOffline";
+            this.lblOffline.Text = "Unable to reach the database - showing the last known figures.";
+            this.lblOffline.Visible = false;
 
             this.headerRight.AutoSize = true;
             this.headerRight.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
@@ -158,35 +194,12 @@ namespace CROMS.Forms
             this.headerRight.WrapContents = false;
             this.headerRight.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.headerRight.Margin = new System.Windows.Forms.Padding(12, 0, 0, 0);
-            this.headerRight.Controls.Add(this.btnRefresh);
             this.headerRight.Controls.Add(this.pillUpdated);
-            this.headerRight.Controls.Add(this.pillConnection);
 
-            this.btnRefresh.AutoSize = true;
-            this.btnRefresh.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.btnRefresh.BackColor = UiTheme.Chrome;
-            this.btnRefresh.ForeColor = UiTheme.Ink;
-            this.btnRefresh.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnRefresh.FlatAppearance.BorderSize = 0;
-            this.btnRefresh.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.btnRefresh.Padding = new System.Windows.Forms.Padding(14, 7, 14, 7);
-            this.btnRefresh.Margin = new System.Windows.Forms.Padding(9, 0, 0, 0);
-            this.btnRefresh.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.btnRefresh.Name = "btnRefresh";
-            this.btnRefresh.Text = "Refresh";
-            this.btnRefresh.UseVisualStyleBackColor = false;
-            this.btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
-
-            this.pillUpdated.Margin = new System.Windows.Forms.Padding(9, 0, 0, 0);
+            this.pillUpdated.Margin = new System.Windows.Forms.Padding(0);
             this.pillUpdated.Anchor = System.Windows.Forms.AnchorStyles.None;
             this.pillUpdated.Name = "pillUpdated";
             this.pillUpdated.Text = "Updated —";
-
-            this.pillConnection.ShowDot = true;
-            this.pillConnection.Margin = new System.Windows.Forms.Padding(0);
-            this.pillConnection.Anchor = System.Windows.Forms.AnchorStyles.None;
-            this.pillConnection.Name = "pillConnection";
-            this.pillConnection.Text = "Database —";
 
             // ============================================================ KPI row
             this.kpiRow.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -569,9 +582,16 @@ namespace CROMS.Forms
             this.pnlInsights.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.pnlInsights.Name = "pnlInsights";
 
-            // ========================================================== timer
+            // ========================================================== timers
+            // Data refresh (windows every tick, the rest every 4th) — unchanged cadence.
             this.statusTimer.Interval = 3000;
             this.statusTimer.Tick += new System.EventHandler(this.statusTimer_Tick);
+
+            // The clock alone. Deliberately a SEPARATE timer from statusTimer: the clock must
+            // count seconds smoothly regardless of how the data refresh is paced, and a data
+            // refresh must never wait on — or be blamed for — the once-a-second clock tick.
+            this.clockTimer.Interval = 1000;
+            this.clockTimer.Tick += new System.EventHandler(this.clockTimer_Tick);
 
             // ====================================================== the form
             // Below this the screen cannot hold its own content, and a Dock=Fill child shrinks
@@ -595,12 +615,13 @@ namespace CROMS.Forms
         private System.Windows.Forms.TableLayoutPanel root;
         private System.Windows.Forms.TableLayoutPanel header;
         private System.Windows.Forms.TableLayoutPanel headerLeft;
-        private System.Windows.Forms.Label lblTitle;
+        private System.Windows.Forms.FlowLayoutPanel brandFlow;
+        private System.Windows.Forms.Panel picLogo;
         private System.Windows.Forms.Label lblToday;
+        private System.Windows.Forms.Label lblClock;
+        private System.Windows.Forms.Label lblOffline;
         private System.Windows.Forms.FlowLayoutPanel headerRight;
-        private CROMS.Modules.StatusPill pillConnection;
         private CROMS.Modules.StatusPill pillUpdated;
-        private System.Windows.Forms.Button btnRefresh;
 
         private System.Windows.Forms.TableLayoutPanel kpiRow;
         private CROMS.Modules.KpiCard cardWaiting;
@@ -648,5 +669,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.TableLayoutPanel pnlInsights;
 
         private System.Windows.Forms.Timer statusTimer;
+        private System.Windows.Forms.Timer clockTimer;
     }
 }

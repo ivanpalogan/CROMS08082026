@@ -45,7 +45,6 @@ namespace CROMS
             DarkenSidebarScrollbar();
             UiTheme.PolishButtons(this);   // hand cursor + hover on nav + header buttons
             StartWindowHeartbeat();
-            FormClosed += (s, e) => _lcroLogo?.Dispose();
             // Open on the first module (Dashboard) by default.
             if (ModuleRegistry.All.Count > 0)
                 ShowModule(ModuleRegistry.All[0].Key);
@@ -71,12 +70,12 @@ namespace CROMS
         // ================================================================
 
         private Panel _brandMark;
-        private Image _lcroLogo;
         private Label _brandSubtitle;
 
         /// <summary>
-        /// Loads the office's own seal from Assets\lcro_logo.png (next to the built exe) when one
-        /// has been supplied there; falls back to a drawn line-art mark (the same one Login and
+        /// Loads the office's own seal via <see cref="BrandAssets"/> (cached once per process,
+        /// shared with any other screen that shows it — e.g. the Dashboard header); falls back
+        /// to a drawn line-art mark (the same one Login and
         /// Launcher already use) so the sidebar never shows a blank hole while waiting for the
         /// office to hand over the real image. Drop the PNG in and it appears on the next launch
         /// — no rebuild needed. Laid out as seal + "CROMS" + "LCRO Peñablanca" (matching the
@@ -84,20 +83,6 @@ namespace CROMS
         /// </summary>
         private void SetupBrandMark()
         {
-            string path = System.IO.Path.Combine(Application.StartupPath, "Assets", "lcro_logo.png");
-            try
-            {
-                if (System.IO.File.Exists(path))
-                {
-                    // Clone the image into memory so Image.FromFile does not keep the deployed
-                    // PNG locked for the lifetime of the application. This lets a rebuild replace
-                    // the seal while CROMS is open without leaving the next launch with no logo.
-                    using (var source = Image.FromFile(path))
-                        _lcroLogo = new Bitmap(source);
-                }
-            }
-            catch { _lcroLogo = null; }
-
             brandPanel.Height = 68;
 
             var mark = new Panel
@@ -107,29 +92,9 @@ namespace CROMS
                 BackColor = Color.Transparent,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
-            mark.Paint += (s, e) =>
-            {
-                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                e.Graphics.Clear(brandPanel.BackColor);
-                if (_lcroLogo != null)
-                {
-                    using (var clip = new GraphicsPath())
-                    {
-                        clip.AddEllipse(0, 0, mark.Width - 1, mark.Height - 1);
-                        e.Graphics.SetClip(clip);
-                        e.Graphics.DrawImage(_lcroLogo, 0, 0, mark.Width, mark.Height);
-                        e.Graphics.ResetClip();
-                    }
-                }
-                else
-                {
-                    using (GraphicsPath path2 = CardPanel.RoundedRect(
-                               new Rectangle(0, 0, mark.Width - 1, mark.Height - 1), 10))
-                    using (var b = new SolidBrush(UiTheme.NavyHover))
-                        e.Graphics.FillPath(b, path2);
-                    DrawInstitutionIcon(e.Graphics, new RectangleF(9, 9, 22, 22), Color.White);
-                }
-            };
+            mark.Paint += (s, e) => BrandAssets.DrawMark(
+                e.Graphics, new Rectangle(0, 0, mark.Width - 1, mark.Height - 1),
+                brandPanel.BackColor, UiTheme.NavyHover, Color.White);
             brandPanel.Controls.Add(mark);
             mark.BringToFront();
 
@@ -149,28 +114,6 @@ namespace CROMS
             _brandSubtitle.BringToFront();
 
             _brandMark = mark;
-        }
-
-        /// <summary>Plain line-art municipal building — matches LoginForm/LauncherForm's mark.</summary>
-        private static void DrawInstitutionIcon(Graphics g, RectangleF r, Color stroke)
-        {
-            using (var pen = new Pen(stroke, 1.5f))
-            {
-                float cx = r.X + r.Width / 2f;
-                float roofBaseY = r.Y + r.Height * 0.32f;
-                float baseY = r.Bottom - r.Height * 0.06f;
-                float halfW = r.Width * 0.44f;
-
-                g.DrawLine(pen, cx, r.Y, cx - halfW, roofBaseY);
-                g.DrawLine(pen, cx, r.Y, cx + halfW, roofBaseY);
-                g.DrawLine(pen, cx - halfW, roofBaseY, cx + halfW, roofBaseY);
-
-                float colTop = roofBaseY + r.Height * 0.08f;
-                float[] colXs = { cx - halfW * 0.55f, cx, cx + halfW * 0.55f };
-                foreach (float x in colXs) g.DrawLine(pen, x, colTop, x, baseY);
-
-                g.DrawLine(pen, cx - halfW - 1.5f, baseY, cx + halfW + 1.5f, baseY);
-            }
         }
 
         // ================================================================

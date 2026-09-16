@@ -564,6 +564,7 @@
     <Compile Include="Modules\KpiCard.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Modules\BrandAssets.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Form1.resx">
