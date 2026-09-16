@@ -12,27 +12,30 @@ namespace CROMS.Forms
     /// <summary>
     /// Petitions (RA 9048 / RA 10172) plus the four TRACK-ONLY case types from backlog Phase 4 —
     /// Legitimation (RA 9858), Supplemental Report, Legal Instrument (RA 9255 Acknowledgment /
-    /// AUSF) and Court Order annotation. One generic tracker, not four near-copies, per the
-    /// backlog's own build-order note — researched (see Database/44_case_tracking_types.sql) and
-    /// the stage shape is the same for all six: Filed → the LCR reviews it → it is registered/
-    /// annotated → endorsed to PSA. The RA correction petitions keep their statutory 15-day
-    /// 'Posted' step; the four track-only types have no posting period and use 'Under Review'
-    /// instead. CROMS does not perform the legal procedure for the four new types (no
-    /// requirements checklist, no posting-clock engine like the marriage licence or delayed
-    /// birth registration) — it only tracks where a case the LCRO is handling stands.
-    /// Left: the case list (with the linked record's name resolved). Right: create / edit a
-    /// case and advance its stage. UI is declared in PetitionsForm.Designer.cs so every control
-    /// is visible/editable on the design canvas; this file holds only the data access + event
-    /// handlers. Backed by the `petitions` table.
+    /// AUSF) and Court Order annotation. One generic tracker, not four near-copies.
+    ///
+    /// Redesigned (2026-09-16) onto the app's card system: left card is a searchable/filterable
+    /// case list with stage-tinted badges and a small counts strip; right card is the case
+    /// editor, whose single most-emphasized action is always the one clear next step — "Advance
+    /// to &lt;next stage&gt;" while editing an existing case, or "Save Petition" while filing a
+    /// new one. Save/New/Delete are demoted to a secondary row so the screen never shows four
+    /// equal-weight buttons with no indication of which one to press. Data access, validation
+    /// rules and the RA-vs-track-only stage sequences are unchanged from the original build.
     /// </summary>
     public partial class PetitionsForm : Form, IRefreshable
     {
         private int? _editingId;
+        private DataTable _dt;
 
         // enum code <-> friendly label maps (DB stores the codes). Order MUST match the
-        // cboType item order set in the Designer.
+        // cboType item order added in BuildLayout.
         private static readonly string[] TypeCodes =
             { "RA9048", "RA10172", "Legitimation", "SupplementalReport", "LegalInstrument", "CourtOrder" };
+        private static readonly string[] TypeFilterLabels =
+        {
+            "RA 9048", "RA 10172", "Legitimation (RA 9858)",
+            "Supplemental Report", "Legal Instrument", "Court Order"
+        };
 
         // RA9048/RA10172 carry a real statutory 15-day public-posting requirement; the other
         // four case types have no posting period, so they get "Under Review" in its place.
@@ -45,13 +48,391 @@ namespace CROMS.Forms
         private static string[] StageCodesFor(string typeCode) => IsRa(typeCode) ? StageCodesRA : StageCodesTrack;
         private static string[] StageLabelsFor(string typeCode) => IsRa(typeCode) ? StageLabelsRA : StageLabelsTrack;
 
+        // ------------------------------------------------------------ controls (all built in code)
+        private DataGridView grid;
+        private TextBox txtSearch;
+        private ComboBox cboFilterType;
+        private Label lblCount;
+        private Panel tileTotal, tileReview, tileDecision, tilePsa;
+        private Label valTotal, valReview, valDecision, valPsa;
+
+        private Label lblSel;
+        private Label lblContextHint;
+        private ComboBox cboType;
+        private ComboBox cboRecordType;
+        private ComboBox cboRecord;
+        private DateTimePicker dtpFiled;
+        private ComboBox cboStage;
+        private Label lblStageInfo;
+        private TextBox txtRemarks;
+        private Label lblValidation;
+        private Button btnAdvance;
+        private Button btnSave;
+        private Button btnNew;
+        private Button btnDelete;
+
         public PetitionsForm()
         {
             InitializeComponent();
+            BuildLayout();
+            UiTheme.Polish(this);
             LoadGrid();
+            ClearForm();
         }
 
         public void RefreshData() => LoadGrid();
+
+        // ================================================================ layout
+        private void BuildLayout()
+        {
+            var titleLabel = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 20F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                Location = new Point(32, 24),
+                Text = "Petitions & Case Tracking",
+                UseMnemonic = false
+            };
+            var lblSubtitle = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F),
+                ForeColor = UiTheme.Muted,
+                Location = new Point(34, 60),
+                Text = "Correction petitions, plus tracked cases: legitimation, supplemental reports, legal instruments, court orders",
+                UseMnemonic = false
+            };
+            Controls.Add(lblSubtitle);
+            Controls.Add(titleLabel);
+
+            var root = new TableLayoutPanel
+            {
+                Location = new Point(24, 96),
+                Size = new Size(ClientSize.Width - 48, ClientSize.Height - 120),
+                Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+                ColumnCount = 2,
+                RowCount = 1,
+                BackColor = Color.Transparent
+            };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 62F));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 38F));
+            Controls.Add(root);
+
+            root.Controls.Add(BuildListCard(), 0, 0);
+            root.Controls.Add(BuildEditorCard(), 1, 0);
+        }
+
+        private Control BuildListCard()
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 12, 0) };
+            var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18), BackColor = Color.Transparent };
+            card.Controls.Add(body);
+
+            // The grid (Dock=Fill) is added FIRST and the fixed-height header block SECOND —
+            // this codebase's own Release & Claim fix (2026-08-04) found that a Fill child
+            // added AFTER an edge-docked one claims space before the edge dock reserves its
+            // own, so Fill goes first here to avoid the same overlap.
+            grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
+                ReadOnly = true,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect
+            };
+            grid.CellClick += grid_CellClick;
+            grid.CellFormatting += grid_CellFormatting;
+            body.Controls.Add(grid);
+
+            var topBlock = new Panel { Dock = DockStyle.Top, Height = 174, Margin = new Padding(0, 0, 0, 8) };
+            body.Controls.Add(topBlock);
+
+            var header = new Label
+            {
+                Text = "Cases",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                AutoSize = true,
+                Location = new Point(0, 0)
+            };
+            topBlock.Controls.Add(header);
+
+            // counts strip
+            int tileY = 34, tileW = 0;
+            tileTotal = MakeTile("TOTAL CASES", out valTotal);
+            tileReview = MakeTile("IN REVIEW / POSTED", out valReview);
+            tileDecision = MakeTile("AT DECISION", out valDecision);
+            tilePsa = MakeTile("PSA ENDORSED", out valPsa);
+            foreach (var t in new[] { tileTotal, tileReview, tileDecision, tilePsa })
+            {
+                t.Location = new Point(tileW, tileY);
+                topBlock.Controls.Add(t);
+                tileW += t.Width + 10;
+            }
+
+            txtSearch = new TextBox
+            {
+                Location = new Point(0, 104),
+                Width = 300,
+                Font = new Font("Segoe UI", 9.75F)
+            };
+            txtSearch.TextChanged += (s, e) => ApplyFilter();
+            var lblSearchHint = MakePlaceholder(txtSearch, "Search by name or case type...");
+            topBlock.Controls.Add(txtSearch);
+            topBlock.Controls.Add(lblSearchHint);
+
+            cboFilterType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(312, 104), Width = 200 };
+            cboFilterType.Items.Add("All case types");
+            cboFilterType.Items.AddRange(TypeFilterLabels);
+            cboFilterType.SelectedIndex = 0;
+            cboFilterType.SelectedIndexChanged += (s, e) => ApplyFilter();
+            topBlock.Controls.Add(cboFilterType);
+
+            lblCount = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = UiTheme.Faint,
+                Location = new Point(0, 134)
+            };
+            topBlock.Controls.Add(lblCount);
+
+            return card;
+        }
+
+        private Panel MakeTile(string caption, out Label value)
+        {
+            var p = new Panel { Size = new Size(150, 56), BackColor = UiTheme.PageBg };
+            var capL = new Label
+            {
+                Text = caption,
+                AutoSize = false,
+                Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                ForeColor = UiTheme.Faint,
+                Location = new Point(10, 8),
+                Size = new Size(130, 16)
+            };
+            var valL = new Label
+            {
+                Text = "0",
+                AutoSize = false,
+                Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                Location = new Point(10, 24),
+                Size = new Size(130, 26)
+            };
+            p.Controls.Add(capL);
+            p.Controls.Add(valL);
+            value = valL;
+            return p;
+        }
+
+        /// <summary>A Label overlaid on a TextBox that hides itself once the box has text or focus
+        /// — a lightweight cue text (WinForms TextBox has no PlaceholderText on .NET Framework
+        /// 4.8's control, per this project's own 2026-07-14 note).</summary>
+        private Label MakePlaceholder(TextBox host, string text)
+        {
+            var l = new Label
+            {
+                Text = text,
+                AutoSize = false,
+                Font = host.Font,
+                ForeColor = UiTheme.Faint,
+                BackColor = Color.Transparent,
+                Location = new Point(host.Left + 4, host.Top + 3),
+                Size = new Size(host.Width - 10, host.Height - 4),
+                Enabled = false
+            };
+            host.TextChanged += (s, e) => l.Visible = host.Text.Length == 0;
+            host.Enter += (s, e) => l.Visible = false;
+            host.Leave += (s, e) => l.Visible = host.Text.Length == 0;
+            return l;
+        }
+
+        private Control BuildEditorCard()
+        {
+            var card = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+
+            lblSel = new Label
+            {
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                AutoSize = true,
+                Location = new Point(20, 16),
+                Text = "New Petition"
+            };
+            lblContextHint = new Label
+            {
+                Font = new Font("Segoe UI", 8.75F),
+                ForeColor = UiTheme.Muted,
+                AutoSize = false,
+                Size = new Size(320, 32),
+                Location = new Point(20, 42),
+                Text = "Fill in the case details below, then Save."
+            };
+            card.Controls.Add(lblSel);
+            card.Controls.Add(lblContextHint);
+
+            int y = 84;
+            cboType = AddField(card, "Case type", ref y, out _);
+            cboType.DropDownStyle = ComboBoxStyle.DropDownList;
+            cboType.Items.AddRange(new object[]
+            {
+                "RA 9048 — Clerical Error / Change of First Name",
+                "RA 10172 — Day / Month / Sex Correction",
+                "RA 9858 — Legitimation (parents married after birth)",
+                "Supplemental Report — up to 2 missing entries",
+                "Legal Instrument — Acknowledgment / AUSF",
+                "Court Order — annotate per final decision"
+            });
+            cboType.SelectedIndexChanged += cboType_SelectedIndexChanged;
+
+            cboRecordType = AddField(card, "Record type", ref y, out _);
+            cboRecordType.DropDownStyle = ComboBoxStyle.DropDownList;
+            cboRecordType.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });
+            cboRecordType.SelectedIndexChanged += cboRecordType_SelectedIndexChanged;
+
+            cboRecord = AddField(card, "Record", ref y, out _);
+            cboRecord.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            dtpFiled = new DateTimePicker { Format = DateTimePickerFormat.Short, Location = new Point(20, y + 20), Width = 320 };
+            var lblFiled = FieldCaption("Filed date", y);
+            card.Controls.Add(lblFiled);
+            card.Controls.Add(dtpFiled);
+            y += 60;
+
+            var lblStage = FieldCaption("Current stage", y);
+            card.Controls.Add(lblStage);
+            cboStage = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(20, y + 20), Width = 320, Font = new Font("Segoe UI", 9.75F) };
+            cboStage.SelectedIndexChanged += cboStage_SelectedIndexChanged;
+            card.Controls.Add(cboStage);
+            lblStageInfo = new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 8F),
+                ForeColor = UiTheme.Faint,
+                Location = new Point(20, y + 48)
+            };
+            card.Controls.Add(lblStageInfo);
+            y += 70;
+
+            var lblRemarks = FieldCaption("Remarks (optional)", y);
+            card.Controls.Add(lblRemarks);
+            txtRemarks = new TextBox
+            {
+                Location = new Point(20, y + 20),
+                Width = 320,
+                Height = 56,
+                Multiline = true,
+                Font = new Font("Segoe UI", 9.75F)
+            };
+            card.Controls.Add(txtRemarks);
+            y += 86;
+
+            lblValidation = new Label
+            {
+                AutoSize = false,
+                Visible = false,
+                Location = new Point(20, y),
+                Size = new Size(320, 36),
+                BackColor = UiTheme.DangerTint,
+                ForeColor = UiTheme.Danger,
+                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(8, 0, 8, 0)
+            };
+            card.Controls.Add(lblValidation);
+            y += 44;
+
+            // Primary next-step action — the single most emphasized control on this card.
+            btnAdvance = new Button
+            {
+                Location = new Point(20, y),
+                Size = new Size(320, 46),
+                Text = "Advance to next stage",
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                BackColor = UiTheme.Accent,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnAdvance.Click += btnAdvance_Click;
+            card.Controls.Add(btnAdvance);
+            y += 58;
+
+            // Secondary actions — visibly lighter weight than Advance.
+            btnSave = new Button
+            {
+                Location = new Point(20, y),
+                Size = new Size(150, 38),
+                Text = "Save",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BackColor = UiTheme.Success,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnSave.Click += btnSave_Click;
+            card.Controls.Add(btnSave);
+
+            btnNew = new Button
+            {
+                Location = new Point(190, y),
+                Size = new Size(150, 38),
+                Text = "Clear / New",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BackColor = UiTheme.Chrome,
+                ForeColor = UiTheme.Ink,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnNew.Click += btnNew_Click;
+            card.Controls.Add(btnNew);
+            y += 50;
+
+            // Delete kept visually apart (own row, quieter until hovered) so it can't be
+            // mistaken for one of the equal-weight actions above it.
+            btnDelete = new Button
+            {
+                Location = new Point(20, y),
+                Size = new Size(150, 34),
+                Text = "Delete this case",
+                Font = new Font("Segoe UI", 8.75F, FontStyle.Bold),
+                BackColor = UiTheme.DangerTint,
+                ForeColor = UiTheme.Danger,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnDelete.Click += btnDelete_Click;
+            card.Controls.Add(btnDelete);
+
+            return card;
+        }
+
+        private Label FieldCaption(string text, int y)
+        {
+            return new Label
+            {
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = UiTheme.Muted,
+                Location = new Point(20, y)
+            };
+        }
+
+        private ComboBox AddField(Control parent, string caption, ref int y, out Label label)
+        {
+            label = FieldCaption(caption, y);
+            parent.Controls.Add(label);
+            var combo = new ComboBox { Location = new Point(20, y + 20), Width = 320, Font = new Font("Segoe UI", 9.75F) };
+            parent.Controls.Add(combo);
+            y += 46;
+            return combo;
+        }
 
         // ------------------------------------------------------------ event handlers
         private void cboRecordType_SelectedIndexChanged(object sender, EventArgs e) => LoadRecords();
@@ -65,12 +446,47 @@ namespace CROMS.Forms
             RepopulateStage(TypeCodes[cboType.SelectedIndex], 0);
         }
 
+        private void cboStage_SelectedIndexChanged(object sender, EventArgs e) => RefreshStageUi();
+
         private void RepopulateStage(string typeCode, int index)
         {
             var labels = StageLabelsFor(typeCode);
             cboStage.Items.Clear();
             cboStage.Items.AddRange(labels);
             cboStage.SelectedIndex = Math.Min(Math.Max(index, 0), labels.Length - 1);
+            // cboStage.SelectedIndexChanged already calls RefreshStageUi()
+        }
+
+        /// <summary>Keeps the "Step X of 4" caption and the primary Advance button's label,
+        /// colour and enabled state in sync with whatever stage is currently picked.</summary>
+        private void RefreshStageUi()
+        {
+            if (cboStage.SelectedIndex < 0 || cboStage.Items.Count == 0) return;
+            string[] labels = new string[cboStage.Items.Count];
+            for (int i = 0; i < labels.Length; i++) labels[i] = cboStage.Items[i].ToString();
+            int cur = cboStage.SelectedIndex;
+            lblStageInfo.Text = "Step " + (cur + 1) + " of " + labels.Length + " — " + string.Join(" › ", labels);
+
+            if (_editingId == null)
+            {
+                btnAdvance.Visible = false;
+                return;
+            }
+            btnAdvance.Visible = true;
+            if (cur >= labels.Length - 1)
+            {
+                btnAdvance.Enabled = false;
+                btnAdvance.Text = "✓ Final stage reached";
+                btnAdvance.BackColor = UiTheme.SuccessTint;
+                btnAdvance.ForeColor = UiTheme.Success;
+            }
+            else
+            {
+                btnAdvance.Enabled = true;
+                btnAdvance.Text = "Advance to \"" + labels[cur + 1] + "\"";
+                btnAdvance.BackColor = UiTheme.Accent;
+                btnAdvance.ForeColor = Color.White;
+            }
         }
 
         private void btnSave_Click(object sender, EventArgs e) => Save();
@@ -78,10 +494,24 @@ namespace CROMS.Forms
         private void btnNew_Click(object sender, EventArgs e) => ClearForm();
         private void btnDelete_Click(object sender, EventArgs e) => Delete();
 
+        private void ApplyFilter()
+        {
+            if (_dt == null) return;
+            string term = (txtSearch.Text ?? "").Trim().Replace("'", "''");
+            string typeText = cboFilterType.SelectedIndex > 0 ? cboFilterType.Text.Replace("'", "''") : null;
+
+            var parts = new List<string>();
+            if (term.Length > 0) parts.Add("([Type] LIKE '%" + term + "%' OR [Record] LIKE '%" + term + "%')");
+            if (typeText != null) parts.Add("[Type] = '" + typeText + "'");
+
+            _dt.DefaultView.RowFilter = string.Join(" AND ", parts);
+            lblCount.Text = _dt.DefaultView.Count + " of " + _dt.Rows.Count + " shown";
+        }
+
         // ---------------------------------------------------------------- data
         private void LoadGrid()
         {
-            grid.DataSource = Db.Pull(
+            _dt = Db.Pull(
                 "SELECT p.id, " +
                 "CASE p.petition_type " +
                 "  WHEN 'RA9048' THEN 'RA 9048' WHEN 'RA10172' THEN 'RA 10172' " +
@@ -100,7 +530,48 @@ namespace CROMS.Forms
                 "  ELSE p.stage END AS Stage, " +
                 "p.filed_date AS Filed, p.remarks AS Remarks " +
                 "FROM petitions p ORDER BY p.id DESC");
+
+            grid.DataSource = _dt.DefaultView;
             if (grid.Columns.Contains("id")) grid.Columns["id"].Visible = false;
+            if (grid.Columns.Contains("Remarks")) grid.Columns["Remarks"].Visible = false;
+
+            UpdateTiles();
+            ApplyFilter();
+        }
+
+        private void UpdateTiles()
+        {
+            int total = _dt.Rows.Count, review = 0, decision = 0, psa = 0;
+            foreach (DataRow r in _dt.Rows)
+            {
+                string stage = r["Stage"] as string ?? "";
+                if (stage == "Filed") continue;
+                else if (stage == "Posted" || stage == "Under Review") review++;
+                else if (stage == "Decision") decision++;
+                else if (stage == "PSA Endorsement") psa++;
+            }
+            valTotal.Text = total.ToString();
+            valReview.Text = review.ToString();
+            valDecision.Text = decision.ToString();
+            valPsa.Text = psa.ToString();
+        }
+
+        private void grid_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (grid.Columns[e.ColumnIndex].Name != "Stage" || e.Value == null) return;
+            string stage = e.Value.ToString();
+            Color tint, ink;
+            switch (stage)
+            {
+                case "Filed": tint = UiTheme.AccentTint; ink = UiTheme.Accent; break;
+                case "Posted":
+                case "Under Review": tint = UiTheme.WarningTint; ink = UiTheme.Warning; break;
+                case "PSA Endorsement": tint = UiTheme.SuccessTint; ink = UiTheme.Success; break;
+                default: tint = UiTheme.Chrome; ink = UiTheme.Ink; break; // Decision
+            }
+            e.CellStyle.BackColor = tint;
+            e.CellStyle.ForeColor = ink;
+            e.CellStyle.Font = new Font(grid.Font, FontStyle.Bold);
         }
 
         /// <summary>Fills the Record dropdown with records of the chosen type.</summary>
@@ -140,7 +611,6 @@ namespace CROMS.Forms
             if (dt.Rows.Count == 0) return;
             DataRow r = dt.Rows[0];
             _editingId = id;
-            lblSel.Text = "Editing Case #" + id;
 
             string typeCode = Str(r["petition_type"]);
             cboType.SelectedIndex = Array.IndexOf(TypeCodes, typeCode);   // triggers RepopulateStage(...,0)
@@ -149,16 +619,37 @@ namespace CROMS.Forms
             RepopulateStage(typeCode, Math.Max(0, Array.IndexOf(StageCodesFor(typeCode), Str(r["stage"]))));
             if (r["filed_date"] != DBNull.Value) dtpFiled.Value = Convert.ToDateTime(r["filed_date"]);
             txtRemarks.Text = Str(r["remarks"]);
+            HideValidation();
+
+            string label = TypeFilterLabelFor(typeCode);
+            lblSel.Text = "Editing Case #" + id;
+            lblContextHint.Text = label + " — filed " + dtpFiled.Value.ToString("MMM d, yyyy") + ". Advance it below, or edit and Save.";
+            RefreshStageUi();
         }
+
+        private static string TypeFilterLabelFor(string typeCode)
+        {
+            int i = Array.IndexOf(TypeCodes, typeCode);
+            return i >= 0 ? TypeFilterLabels[i] : typeCode;
+        }
+
+        private void ShowValidation(string message)
+        {
+            lblValidation.Text = "⚠ " + message;
+            lblValidation.Visible = true;
+        }
+
+        private void HideValidation() => lblValidation.Visible = false;
 
         private void Save()
         {
             if (cboType.SelectedIndex < 0 || cboRecordType.SelectedIndex < 0)
             {
-                MessageBox.Show("Choose a case type and a record type.", "Missing data",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                ShowValidation("Choose a case type and a record type before saving.");
                 return;
             }
+            HideValidation();
+
             string typeCode = TypeCodes[cboType.SelectedIndex];
             object recordId = cboRecord.SelectedValue is int rid ? (object)rid : DBNull.Value;
             var ps = new[]
@@ -178,7 +669,6 @@ namespace CROMS.Forms
                     Db.Push("INSERT INTO petitions (petition_type, record_type, record_id, stage, filed_date, remarks) " +
                             "VALUES (@pt, @rt, @rid, @stage, @filed, @remarks)", ps);
                     Audit.Write(Audit.Create, "petitions", null, typeCode + " on " + cboRecordType.SelectedItem);
-                    MessageBox.Show("Case filed.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 else
                 {
@@ -186,7 +676,6 @@ namespace CROMS.Forms
                     Db.Push("UPDATE petitions SET petition_type=@pt, record_type=@rt, record_id=@rid, " +
                             "stage=@stage, filed_date=@filed, remarks=@remarks WHERE id=@id", up.ToArray());
                     Audit.Write(Audit.Update, "petitions", _editingId.Value, null);
-                    MessageBox.Show("Case updated.", "Updated", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 ClearForm();
                 LoadGrid();
@@ -198,22 +687,13 @@ namespace CROMS.Forms
         /// go through Posted; the four track-only case types go through Under Review instead).</summary>
         private void AdvanceStage()
         {
-            if (_editingId == null || cboType.SelectedIndex < 0)
-            {
-                MessageBox.Show("Pick a case from the list first.", "Advance Stage",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            if (_editingId == null || cboType.SelectedIndex < 0) return;
             string typeCode = TypeCodes[cboType.SelectedIndex];
             string[] codes = StageCodesFor(typeCode);
             string[] labels = StageLabelsFor(typeCode);
             int cur = Math.Max(0, cboStage.SelectedIndex);
-            if (cur >= codes.Length - 1)
-            {
-                MessageBox.Show("This case is already at the final stage (PSA Endorsement).",
-                    "Advance Stage", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            if (cur >= codes.Length - 1) return; // Advance is already disabled at this point
+
             string next = codes[cur + 1];
             try
             {
@@ -221,10 +701,10 @@ namespace CROMS.Forms
                     new MySqlParameter("@s", next),
                     new MySqlParameter("@id", _editingId.Value));
                 Audit.Write(Audit.Update, "petitions", _editingId.Value, "Stage → " + labels[cur + 1]);
-                cboStage.SelectedIndex = cur + 1;
-                MessageBox.Show("Stage advanced to: " + labels[cur + 1], "Advance Stage",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                cboStage.SelectedIndex = cur + 1; // fires cboStage_SelectedIndexChanged -> RefreshStageUi
                 LoadGrid();
+                if (_editingId.HasValue)
+                    lblContextHint.Text = TypeFilterLabelFor(typeCode) + " — now at " + labels[cur + 1] + ".";
             }
             catch (Exception ex) { Fail(ex); }
         }
@@ -233,17 +713,15 @@ namespace CROMS.Forms
         {
             if (_editingId == null)
             {
-                MessageBox.Show("Pick a case from the list first.", "Delete",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ShowValidation("Pick a case from the list first, then Delete.");
                 return;
             }
-            if (MessageBox.Show("Delete this case?", "Confirm delete",
+            if (MessageBox.Show("Delete this case? This cannot be undone.", "Confirm delete",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             try
             {
                 Db.Push("DELETE FROM petitions WHERE id=@id", new MySqlParameter("@id", _editingId.Value));
                 Audit.Write(Audit.Delete, "petitions", _editingId.Value, null);
-                MessageBox.Show("Case deleted.", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadGrid();
             }
@@ -253,13 +731,16 @@ namespace CROMS.Forms
         private void ClearForm()
         {
             _editingId = null;
-            lblSel.Text = "New Case";
+            lblSel.Text = "New Petition";
+            lblContextHint.Text = "Fill in the case details below, then Save.";
             cboType.SelectedIndex = -1;
             cboRecordType.SelectedIndex = -1;
             cboRecord.DataSource = null;
             RepopulateStage("RA9048", 0);   // neutral default list until a type is chosen
             dtpFiled.Value = DateTime.Today;
             txtRemarks.Clear();
+            HideValidation();
+            RefreshStageUi(); // hides Advance — nothing to advance until this is saved
         }
 
         private static string Str(object v) => v == null || v == DBNull.Value ? "" : v.ToString();
