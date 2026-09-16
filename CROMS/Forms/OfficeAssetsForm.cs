@@ -217,6 +217,13 @@ namespace CROMS.Forms
                 _cboScope.Items.Add(new ScopeItem(d.FormCode,
                     d.FormName + " — Municipal Form No. " + d.MunicipalFormNo +
                     ", " + d.Revision));
+            // A1/A2/A3 Facts Certification letters (Data\Form3ACert/3BCert/3CCert) are a
+            // separate catalog from FormCatalog.All (those are registry certificates). Death's
+            // real letterhead uses a different municipal seal than marriage/birth's, so each
+            // needs its own scope option to be reachable at all.
+            _cboScope.Items.Add(new ScopeItem(Form3BCert.FormCode, Form3BCert.FormName + " (Civil Registry Form No. 1A)"));
+            _cboScope.Items.Add(new ScopeItem(Form3CCert.FormCode, Form3CCert.FormName + " (Form 2A)"));
+            _cboScope.Items.Add(new ScopeItem(Form3ACert.FormCode, Form3ACert.FormName + " (FORM 3A)"));
             _cboScope.SelectedIndex = 0;
         }
 

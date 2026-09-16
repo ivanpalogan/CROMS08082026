@@ -9,26 +9,27 @@ using MySql.Data.MySqlClient;
 namespace CROMS.Data
 {
     /// <summary>
-    /// Form 3C - CERTIFICATION (Death Available): the death-registry counterpart of
-    /// <see cref="Form3ACert"/> (Marriage) and <see cref="Form3BCert"/> (Birth) - together the
-    /// A1/A2/A3 "Facts Certification" family. A "TO WHOM IT MAY CONCERN" letter certifying facts
-    /// already entered in the Register of Deaths, Page X of Book No. Y. NOT a copy of the
-    /// Certificate of Death (MF-103) - a separate document, same kind as a Negative Certification.
+    /// Form 2A - CERTIFICATION (Death Available): the death-registry counterpart of
+    /// <see cref="Form3ACert"/> (marriage, printed "FORM 3A") and <see cref="Form3BCert"/>
+    /// (birth, printed "Civil Registry Form No. 1A"). A "TO WHOM IT MAY CONCERN" letter
+    /// certifying facts already entered in the Register of Deaths, Page X Book No. Y. NOT a
+    /// copy of the Certificate of Death (MF-103) - a separate document, same kind as a
+    /// Negative Certification.
     /// <para/>
-    /// The letterhead (logos, Republic/Province/Municipality/Office titles, contact line, rule,
-    /// date issued), the opening "We certify... appear in our Register of Deaths on Page __ of
-    /// Book No. __" sentence, and the registrar/verified-by/payment footer are laid out at the
-    /// EXACT SAME coordinates as Form3ACert and Form3BCert (see the shared reference points
-    /// documented on each cell below) - not by calling into shared code, but by using the same
-    /// numbers, so the three forms print as one coordinated certificate family per the office's
-    /// visual-standard requirement. Only the single-person facts table in the middle differs from
-    /// Form3BCert's, and the sentence noun ("death"/"deaths") differs from both.
+    /// UNLIKE the other two, Form 2A's letterhead is genuinely different - matched against the
+    /// office's own real issued copy (photographed sample, 2026-09-16), not assumed shared:
+    /// no Tel/Email contact line, "Municipality of Peñablanca" printed plain (not bold caps),
+    /// a single bold title line "OFFICE OF THE MUNICIPAL CIVIL REGISTRAR" (not the two-line
+    /// "MUNICIPALITY OF ... / LOCAL CIVIL REGISTRY OFFICE" the other two carry), only two logo
+    /// slots (the municipal seal left, the national badge right - no third badge), and no
+    /// footer banner. The opening sentence, facts table and REMARKS close still follow the same
+    /// per-cell layout convention as Form3ACert/Form3BCert (Kind Static/Field/Picture/Rule).
     /// <para/>
-    /// Every value is editable before printing, same rule as A1/A3: a wrong reading is corrected
-    /// on the printout, never silently written back to the saved record.
+    /// Every value is editable before printing, same rule as the other two: a wrong reading is
+    /// corrected on the printout, never silently written back to the saved record.
     /// <para/>
-    /// Coordinates are a reasonable first cut, not measured against an office blank (none on file
-    /// for this letter, same as A1/A3) - flagged rather than presented as exact.
+    /// Coordinates are a reasonable first cut, not measured against an office blank - flagged
+    /// rather than presented as exact.
     /// </summary>
     public static class Form3CCert
     {
@@ -57,21 +58,20 @@ namespace CROMS.Data
             Action<float, float, float> rule = (x, top, w) =>
                 c.Add(new Form3ACell { Kind = "Rule", X = x, Top = top, Width = w, Height = 1f });
 
-            // ---- shared letterhead - SAME coordinates as Form3ACert/Form3BCert (A1/A3).
-            pic(AssetKind.HeaderLogoLeft, 40f, 20f, 58f, 58f);
-            pic(AssetKind.HeaderLogoRight1, 452f, 20f, 54f, 54f);
-            pic(AssetKind.HeaderLogoRight2, 510f, 20f, 54f, 54f);
+            // ---- Form 2A's own letterhead: municipal seal + national badge only (no third
+            // logo slot), no contact line, one bold title line instead of two.
+            pic(AssetKind.HeaderLogoLeft, 40f, 20f, 62f, 62f);
+            pic(AssetKind.HeaderLogoRight1, 512f, 20f, 60f, 60f);
 
-            stat("FORM 3C", 8f, 4f, 90f, 11f, 7f, true);
+            stat("Form 2A", 8f, 4f, 90f, 11f, 7f, false);
             stat("(Death Available)", 8f, 15f, 90f, 10f, 6.5f, false);
             statC("Republic of the Philippines", 40f, 24f, 532f, 12f, 10f, false);
             statC("Province of Cagayan", 40f, 38f, 532f, 12f, 9f, false);
-            statC("MUNICIPALITY OF PENABLANCA", 40f, 54f, 532f, 16f, 14f, true);
-            statC("LOCAL CIVIL REGISTRY OFFICE", 40f, 72f, 532f, 14f, 11.5f, true);
-            field("office_contact_line", 40f, 90f, 532f, 11f, 8f, true);
-            rule(40f, 104f, 532f);
+            statC("Municipality of Penablanca", 40f, 52f, 532f, 12f, 10f, false);
+            statC("OFFICE OF THE MUNICIPAL CIVIL REGISTRAR", 40f, 72f, 532f, 14f, 11f, true);
+            rule(40f, 96f, 532f);
 
-            field("date_issued", 420f, 110f, 152f, 12f, 9f, false);
+            field("date_issued", 420f, 102f, 152f, 12f, 9f, false);
 
             // ---- shared opening sentence, "death(s)" in place of "marriage" / "birth(s)".
             stat("TO WHOM IT MAY CONCERN:", 40f, 138f, 250f, 12f, 9.5f, true);
@@ -90,25 +90,17 @@ namespace CROMS.Data
                 stat(":", 194f, y, 6f, 12f, 8.5f, false);
                 field(col, 200f, y, 372f, 12f, 9f, false);
             };
-            row("NAME OF DECEASED", "deceased_name", 196f);
-            row("SEX", "sex", 214f);
-            row("CIVIL STATUS", "civil_status", 232f);
-            row("DATE OF DEATH", "date_of_death", 250f);
-            row("PLACE OF DEATH", "place_of_death", 268f);
-            row("CAUSE OF DEATH", "cause_of_death", 286f);
-            row("CITIZENSHIP", "citizenship", 304f);
+            row("MCR REGISTRY NUMBER", "registry_number", 196f);
+            row("DATE OF REGISTRATION", "date_of_registration", 214f);
+            row("NAME OF DECEASED", "deceased_name", 232f);
+            row("SEX", "sex", 250f);
+            row("AGE", "age", 268f);
+            row("PLACE OF DEATH", "place_of_death", 286f);
+            row("DATE OF DEATH", "date_of_death", 304f);
+            row("CAUSE OF DEATH", "cause_of_death", 322f);
 
-            stat("REGISTRY NUMBER", 40f, 348f, 150f, 12f, 8.5f, false);
-            stat(":", 194f, 348f, 6f, 12f, 8.5f, false);
-            field("registry_number", 200f, 348f, 372f, 12f, 9f, false);
-
-            stat("DATE OF REGISTRATION", 40f, 366f, 150f, 12f, 8.5f, false);
-            stat(":", 194f, 366f, 6f, 12f, 8.5f, false);
-            field("date_of_registration", 200f, 366f, 372f, 12f, 9f, false);
-
-            stat("This certification is issued for", 40f, 400f, 170f, 12f, 9f, false);
-            field("purpose", 210f, 400f, 260f, 12f, 9f, false);
-            stat(".", 470f, 400f, 6f, 12f, 9f, false);
+            stat("REMARKS:", 40f, 348f, 120f, 12f, 9.5f, true);
+            field("remarks_text", 40f, 366f, 532f, 30f, 9f, false);
 
             // ---- shared footer: registrar / verified-by / payment / note / footer banner -
             // SAME coordinates as Form3ACert/Form3BCert.
@@ -132,8 +124,6 @@ namespace CROMS.Data
             noteItalic("Note: This certification is not valid if it has mark of erasure or alteration of any entry.",
                 40f, 660f, 532f, 11f, 7.5f);
 
-            pic(AssetKind.FooterBanner, 40f, 700f, 532f, 70f);
-
             return c;
         }
 
@@ -154,8 +144,8 @@ namespace CROMS.Data
             try
             {
                 DataTable rec = Db.Pull(
-                    "SELECT deceased_full_name, sex, civil_status, date_of_death, place_of_death, " +
-                    "immediate_cause, citizenship, registry_no, book_volume, book_page " +
+                    "SELECT deceased_full_name, sex, age, date_of_death, place_of_death, " +
+                    "immediate_cause, registry_no, book_volume, book_page " +
                     "FROM v_death_certificate WHERE record_id = @id",
                     new MySqlParameter("@id", deathId));
                 if (rec.Rows.Count > 0)
@@ -164,28 +154,22 @@ namespace CROMS.Data
                     string S(string col) => rec.Columns.Contains(col) && d[col] != DBNull.Value ? d[col].ToString() : "";
                     r["deceased_name"] = S("deceased_full_name");
                     r["sex"] = S("sex");
-                    r["civil_status"] = S("civil_status");
+                    r["age"] = S("age");
                     r["date_of_death"] = FmtDate(S("date_of_death"));
                     r["place_of_death"] = S("place_of_death");
                     r["cause_of_death"] = S("immediate_cause");
-                    r["citizenship"] = S("citizenship");
                     r["registry_number"] = S("registry_no");
                     r["registry_book"] = S("book_volume");
                     r["registry_page"] = S("book_page");
+
+                    r["remarks_text"] = "This certification is issued to Mr./Ms. _______________ upon his/her request.";
                 }
             }
             catch (Exception) { /* record not found, no DB, or a hiccup - leave blank, editable.
                 Broad on purpose: BuildTable(0) is also called with no live connection by
                 CROMS.ReportGen just to get the column shape for the Crystal datasource. */ }
 
-            r["office_contact_line"] = string.Join("   |   ", new[]
-            {
-                string.IsNullOrWhiteSpace(office.Contact) ? null : "Tel. No. " + office.Contact,
-                string.IsNullOrWhiteSpace(office.Email) ? null : "Email: " + office.Email,
-            }.Where(s => s != null));
             r["date_issued"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
-            r["date_of_registration"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
-            r["purpose"] = "general purpose/s";
             r["registrar_name"] = office.RegistrarName ?? "";
             r["verified_by_name"] = office.VerifyingOfficerName ?? "";
             r["verified_by_title"] = office.VerifyingOfficerTitle ?? "Registration Officer II";
@@ -284,7 +268,7 @@ namespace CROMS.Data
                     }
                     if (c.Kind == "Picture")
                     {
-                        Image img = OfficeAssets.Get(c.Asset);
+                        Image img = OfficeAssets.Get(c.Asset, FormCode);
                         if (img != null) g.DrawImage(img, c.Rect);
                         continue;
                     }

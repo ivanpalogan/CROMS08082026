@@ -338,7 +338,7 @@ namespace CROMS.Data
                     }
                     if (c.Kind == "Picture")
                     {
-                        Image img = OfficeAssets.Get(c.Asset);
+                        Image img = OfficeAssets.Get(c.Asset, FormCode);
                         if (img != null) g.DrawImage(img, c.Rect);
                         continue;
                     }

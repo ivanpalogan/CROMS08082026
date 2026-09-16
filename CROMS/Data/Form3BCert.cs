@@ -9,10 +9,15 @@ using MySql.Data.MySqlClient;
 namespace CROMS.Data
 {
     /// <summary>
-    /// Form 3B - CERTIFICATION (Birth Available): the birth-registry counterpart of
-    /// <see cref="Form3ACert"/> - a "TO WHOM IT MAY CONCERN" letter certifying facts already
-    /// entered in the Register of Births, Page X of Book No. Y. NOT a copy of the Certificate
-    /// of Live Birth (MF-102) - a separate document, same kind as a Negative Certification.
+    /// Civil Registry Form No. 1A - CERTIFICATION (Birth Available): the birth-registry
+    /// counterpart of <see cref="Form3ACert"/> (marriage, printed "FORM 3A") and
+    /// <see cref="Form3CCert"/> (death, printed "Form 2A") - a "TO WHOM IT MAY CONCERN" letter
+    /// certifying facts already entered in the Register of Births, Page X of Book No. Y. NOT a
+    /// copy of the Certificate of Live Birth (MF-102) - a separate document, same kind as a
+    /// Negative Certification. Matched against the office's own real issued copy (photographed
+    /// sample, 2026-09-16): "Civil Registry Form No. 1A", registry no/date first, then the
+    /// child/mother/father rows with CITIZENSHIP (not NATIONALITY) labels, the parents'
+    /// marriage date/place, and a REMARKS sentence naming the recipient by name.
     /// <para/>
     /// Single-person layout (the child), unlike Form 3A's husband/wife columns. Shares the
     /// office letterhead/footer assets and the "Verified by" officer added on migration 47 -
@@ -53,7 +58,7 @@ namespace CROMS.Data
             pic(AssetKind.HeaderLogoRight1, 452f, 20f, 54f, 54f);
             pic(AssetKind.HeaderLogoRight2, 510f, 20f, 54f, 54f);
 
-            stat("FORM 3B", 8f, 4f, 90f, 11f, 7f, true);
+            stat("Civil Registry Form No. 1A", 8f, 4f, 90f, 11f, 6.5f, false);
             stat("(Birth Available)", 8f, 15f, 90f, 10f, 6.5f, false);
             statC("Republic of the Philippines", 40f, 24f, 532f, 12f, 10f, false);
             statC("Province of Cagayan", 40f, 38f, 532f, 12f, 9f, false);
@@ -78,26 +83,21 @@ namespace CROMS.Data
                 stat(":", 194f, y, 6f, 12f, 8.5f, false);
                 field(col, 200f, y, 372f, 12f, 9f, false);
             };
-            row("NAME OF CHILD", "child_name", 196f);
-            row("SEX", "sex", 214f);
-            row("DATE OF BIRTH", "date_of_birth", 232f);
-            row("PLACE OF BIRTH", "place_of_birth", 250f);
-            row("NAME OF MOTHER", "mother_name", 268f);
-            row("NATIONALITY", "mother_nationality", 286f);
-            row("NAME OF FATHER", "father_name", 304f);
-            row("NATIONALITY", "father_nationality", 322f);
+            row("LCR REGISTRY NUMBER", "registry_number", 196f);
+            row("DATE OF REGISTRATION", "date_of_registration", 214f);
+            row("NAME OF CHILD", "child_name", 232f);
+            row("SEX", "sex", 250f);
+            row("DATE OF BIRTH", "date_of_birth", 268f);
+            row("PLACE OF BIRTH", "place_of_birth", 286f);
+            row("NAME OF MOTHER", "mother_name", 304f);
+            row("CITIZENSHIP OF MOTHER", "mother_nationality", 322f);
+            row("NAME OF FATHER", "father_name", 340f);
+            row("CITIZENSHIP OF FATHER", "father_nationality", 358f);
+            row("DATE OF MARRIAGE OF PARENTS", "parents_marriage_date", 376f);
+            row("PLACE OF MARRIAGE OF PARENTS", "parents_marriage_place", 394f);
 
-            stat("REGISTRY NUMBER", 40f, 348f, 150f, 12f, 8.5f, false);
-            stat(":", 194f, 348f, 6f, 12f, 8.5f, false);
-            field("registry_number", 200f, 348f, 372f, 12f, 9f, false);
-
-            stat("DATE OF REGISTRATION", 40f, 366f, 150f, 12f, 8.5f, false);
-            stat(":", 194f, 366f, 6f, 12f, 8.5f, false);
-            field("date_of_registration", 200f, 366f, 372f, 12f, 9f, false);
-
-            stat("This certification is issued for", 40f, 400f, 170f, 12f, 9f, false);
-            field("purpose", 210f, 400f, 260f, 12f, 9f, false);
-            stat(".", 470f, 400f, 6f, 12f, 9f, false);
+            stat("REMARKS:", 40f, 420f, 120f, 12f, 9.5f, true);
+            field("remarks_text", 40f, 438f, 532f, 30f, 9f, false);
 
             field("registrar_name", 380f, 470f, 192f, 12f, 9.5f, true);
             stat("Municipal Civil Registrar", 380f, 486f, 192f, 11f, 8f, false);
@@ -140,6 +140,7 @@ namespace CROMS.Data
                 DataTable rec = Db.Pull(
                     "SELECT child_full_name, sex, date_of_birth, place_of_birth, " +
                     "mother_maiden_name, mother_citizenship, father_full_name, father_citizenship, " +
+                    "parents_marriage_date, parents_marriage_place, " +
                     "registry_no, book_volume, book_page, created_at " +
                     "FROM v_birth_certificate WHERE record_id = @id",
                     new MySqlParameter("@id", birthId));
@@ -155,9 +156,16 @@ namespace CROMS.Data
                     r["mother_nationality"] = S("mother_citizenship");
                     r["father_name"] = S("father_full_name");
                     r["father_nationality"] = S("father_citizenship");
+                    r["parents_marriage_date"] = FmtDate(S("parents_marriage_date"));
+                    r["parents_marriage_place"] = S("parents_marriage_place");
                     r["registry_number"] = S("registry_no");
                     r["registry_book"] = S("book_volume");
                     r["registry_page"] = S("book_page");
+
+                    string sex = S("sex");
+                    string prefix = sex.Equals("Male", StringComparison.OrdinalIgnoreCase) ? "Mr." : "Ms.";
+                    r["remarks_text"] = string.Format("This certification is issued to {0} {1}, for {2}.",
+                        prefix, S("child_full_name"), "general purpose/s");
                 }
             }
             catch (Exception) { /* record not found, no DB, or a hiccup - leave blank, editable */ }
@@ -168,8 +176,6 @@ namespace CROMS.Data
                 string.IsNullOrWhiteSpace(office.Email) ? null : "Email: " + office.Email,
             }.Where(s => s != null));
             r["date_issued"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
-            r["date_of_registration"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
-            r["purpose"] = "general purpose/s";
             r["registrar_name"] = office.RegistrarName ?? "";
             r["verified_by_name"] = office.VerifyingOfficerName ?? "";
             r["verified_by_title"] = office.VerifyingOfficerTitle ?? "Registration Officer II";
@@ -268,7 +274,7 @@ namespace CROMS.Data
                     }
                     if (c.Kind == "Picture")
                     {
-                        Image img = OfficeAssets.Get(c.Asset);
+                        Image img = OfficeAssets.Get(c.Asset, FormCode);
                         if (img != null) g.DrawImage(img, c.Rect);
                         continue;
                     }

@@ -4401,3 +4401,71 @@ first cut, not measured against the office's own paper); and the pre-existing He
 classification quirk in `TemplateStore.ToElement` (`e.Y < 110 ? Header : ...`) puts the
 `date_issued` field at Y=110 into Body rather than Header on all three forms alike — inherited,
 unchanged, and correctable per-element via the existing Section dropdown in the properties panel.
+
+### 2026-09-16 (later) — A1/A2/A3 numbering and content corrected against three real issued copies
+User flagged the A1/A2/A3 family was mislabeled and sent three real photographed copies the
+office actually issues — settling, for the first time, what each one prints (previously
+"coordinates are a reasonable first cut, not measured against an office blank" per every earlier
+A1/A2/A3 entry). Confirmed mapping: **Birth = "Civil Registry Form No. 1A"**, **Death =
+"Form 2A"**, **Marriage = "FORM 3A"** — not the FORM-3A/3B/3C class-name letters that had leaked
+into the printed page. `Form3ACert` (marriage) already printed "FORM 3A" and was already
+correct; `Form3BCert` (birth, was printing "FORM 3B") and `Form3CCert` (death, was printing
+"FORM 3C") were wrong and are now fixed to match the photographed copies field-for-field.
+
+**Birth (`Data/Form3BCert.cs`):** title corrected to "Civil Registry Form No. 1A"; row order now
+matches the real copy — LCR REGISTRY NUMBER and DATE OF REGISTRATION lead (were appended after
+the child/parent rows), then NAME OF CHILD/SEX/DATE OF BIRTH/PLACE OF BIRTH/NAME OF MOTHER/
+**CITIZENSHIP OF MOTHER**/NAME OF FATHER/**CITIZENSHIP OF FATHER** (label corrected from
+"NATIONALITY", which the real form does not say), plus two rows the code never had at all —
+DATE OF MARRIAGE OF PARENTS and PLACE OF MARRIAGE OF PARENTS, sourced from
+`births.parents_marriage_date`/`parents_marriage_place` (already on the table since
+04_birth_form102.sql, already exposed on `v_birth_certificate`, just never reached this form).
+The purpose line was wrong in kind, not just wording — the real form's REMARKS names the
+recipient ("This certification is issued to Mr. JUSTINE AGA CALINA TALATTAD, for employment
+abroad."), the code only ever printed "This certification is issued for general purpose/s."
+with no name. Replaced with one composed `remarks_text` field, defaulted from the record's own
+sex (Mr./Ms.) and full name, fully editable before printing like every other value on this form.
+
+**Death (`Data/Form3CCert.cs`) needed a structurally different letterhead, not just relabeling**
+— confirmed by looking at the photo rather than assumed: no Tel/Email contact line at all;
+"Municipality of Peñablanca" printed plain, not bold caps; ONE bold title line "OFFICE OF THE
+MUNICIPAL CIVIL REGISTRAR" where the other two forms print two ("MUNICIPALITY OF ... " then
+"LOCAL CIVIL REGISTRY OFFICE"); and only two logo slots (a municipal seal left, the national
+badge right) — no third badge, and no footer banner at all (the real copy's page ends right
+after the erasure note). All rebuilt to match. Fields corrected to what the real form actually
+asks: MCR REGISTRY NUMBER, DATE OF REGISTRATION, NAME OF DECEASED, SEX, **AGE** (new — the code
+had no age row), PLACE OF DEATH, DATE OF DEATH, CAUSE OF DEATH — and CIVIL STATUS/CITIZENSHIP,
+which the code carried but the real form does not print, were dropped. REMARKS rewritten to the
+real wording ("This certification is issued to Mr./Ms. _______ upon his/her request.") — the
+requester's name is NOT derivable from the deceased's own record, so it is left as an explicit
+blank for staff to fill in on the editable printout, never guessed.
+
+**Per-form logos are now reachable, not just theoretically supported.** `OfficeAssets.Get`
+already took an optional `formCode` to let one form's letterhead differ from the office-wide
+default (built 2026-09-06), but none of the three `Draw()` methods ever passed it — so all three
+were always drawing from the SAME office-wide logo, which is exactly wrong now that Death's real
+municipal seal is a different image from Marriage/Birth's round LCR seal. All three `Draw()`
+calls now pass their own `FormCode`. That capability was also unreachable from the admin screen:
+`OfficeAssetsForm.LoadScopes` only listed `FormCatalog.All` (the registry certificates,
+MF-102/97/103) — the three Facts Certification letters had no scope option at all. Added them
+(reusing `TemplateStore.FactsCertificationFamily`'s three form codes) so Settings → Certificates
+& Forms → Office Assets can now target Death's seal separately from Marriage/Birth's.
+
+**Not done, on purpose:** no image was fetched from the internet for the header seals or footer
+banner, despite being asked to. Embedding a web-sourced image of a government seal into an
+official-looking printed certificate is a misattribution/impersonation risk this project's
+safety rules refuse regardless of source intent, and it would also very likely be the WRONG
+image (crest revisions, resolution, exact banner text all vary). The office's own three photos
+sent this session already contain every needed image at usable resolution — the seal in the top
+corners and the "PeñaSaya, Ma Kastam Peñablanca" banner strip along the bottom of the Marriage
+and Birth copies. Recommended path: crop those directly from the photos and upload them through
+the now-reachable Settings → Certificates & Forms → Office Assets screen, scoped per form
+(Death's own seal is visibly a DIFFERENT image — "Bayan ng Peñablanca" only, no round LCR
+seal — from Marriage/Birth's, so it needs its own upload, not the office-wide default). No blank
+scan exists for any of the three (same standing limitation as every earlier A1/A2/A3 entry), so
+coordinates remain a reasonable first cut, not pixel-measured against an office blank.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools, temp OutputPath) clean, 0 errors. Not run
+against the live database or rendered — no live `croms` connection or interactive desktop in
+this session. REBUILD IN VS to pick this up; the printed output should be checked against the
+three photographed copies before relying on it for a real certificate.
