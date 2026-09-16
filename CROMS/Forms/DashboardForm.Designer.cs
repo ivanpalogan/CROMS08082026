@@ -68,21 +68,17 @@ namespace CROMS.Forms
             this.btnAssignWindows = new System.Windows.Forms.Button();
             this.pnlWindows = new System.Windows.Forms.Panel();
 
-            this.cardMobile = new CROMS.Modules.CardPanel();
-            this.mobileHead = new System.Windows.Forms.TableLayoutPanel();
-            this.lblMobileTitle = new System.Windows.Forms.Label();
-            this.pillMobile = new CROMS.Modules.StatusPill();
-            this.pnlMobileConn = new System.Windows.Forms.Panel();
-            this.picMobileQr = new System.Windows.Forms.PictureBox();
-            this.lblMobileMsg = new System.Windows.Forms.Label();
-            this.lblMobileHint = new System.Windows.Forms.Label();
-            this.lblMobileUrl = new System.Windows.Forms.Label();
-
             this.cardAttention = new CROMS.Modules.CardPanel();
             this.attentionHead = new System.Windows.Forms.TableLayoutPanel();
             this.lblAttentionTitle = new System.Windows.Forms.Label();
             this.lblAttentionBasis = new System.Windows.Forms.Label();
             this.pnlAttention = new System.Windows.Forms.Panel();
+
+            this.cardRecent = new CROMS.Modules.CardPanel();
+            this.recentHead = new System.Windows.Forms.TableLayoutPanel();
+            this.lblRecentTitle = new System.Windows.Forms.Label();
+            this.lnkRecentAll = new System.Windows.Forms.LinkLabel();
+            this.pnlRecent = new System.Windows.Forms.Panel();
 
             this.insightsBlock = new System.Windows.Forms.TableLayoutPanel();
             this.insightsHead = new System.Windows.Forms.TableLayoutPanel();
@@ -93,33 +89,31 @@ namespace CROMS.Forms
 
             this.statusTimer = new System.Windows.Forms.Timer(this.components);
 
-            ((System.ComponentModel.ISupportInitialize)(this.picMobileQr)).BeginInit();
             this.SuspendLayout();
 
             // =============================================================== root
-            // 18/18/22 outer padding, 14px between every block. Row 3 is the only 100% row, so
-            // growth goes to the content grid rather than to a gap.
+            // A comfortable 24px page gutter and 16px rhythm keep every section distinct.
+            // The content row owns the remaining height, so the two dashboard columns grow
+            // together without squeezing their card headers or list rows.
             this.root.Dock = System.Windows.Forms.DockStyle.Fill;
             this.root.BackColor = UiTheme.PageBg;
-            this.root.Padding = new System.Windows.Forms.Padding(18, 18, 22, 0);
+            this.root.Padding = new System.Windows.Forms.Padding(24, 20, 24, 20);
             this.root.ColumnCount = 1;
-            this.root.RowCount = 4;
+            this.root.RowCount = 3;
             this.root.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 186F));
+            this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 178F));
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.root.Controls.Add(this.header, 0, 0);
             this.root.Controls.Add(this.kpiRow, 0, 1);
             this.root.Controls.Add(this.contentGrid, 0, 2);
-            this.root.Controls.Add(this.insightsBlock, 0, 3);
 
             // ============================================================= header
             this.header.Dock = System.Windows.Forms.DockStyle.Fill;
             this.header.AutoSize = true;
             this.header.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.header.BackColor = System.Drawing.Color.Transparent;
-            this.header.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
+            this.header.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
             this.header.ColumnCount = 2;
             this.header.RowCount = 1;
             this.header.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -197,7 +191,7 @@ namespace CROMS.Forms
             // ============================================================ KPI row
             this.kpiRow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.kpiRow.BackColor = System.Drawing.Color.Transparent;
-            this.kpiRow.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
+            this.kpiRow.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
             this.kpiRow.ColumnCount = 4;
             this.kpiRow.RowCount = 1;
             this.kpiRow.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 25F));
@@ -212,7 +206,7 @@ namespace CROMS.Forms
 
             // Card 1 — WAITING NOW → Queue Management
             this.cardWaiting.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardWaiting.Margin = new System.Windows.Forms.Padding(0, 0, 14, 0);
+            this.cardWaiting.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.cardWaiting.Name = "cardWaiting";
             this.cardWaiting.Tag = "queue";
             this.cardWaiting.IconKind = CROMS.Modules.KpiCard.Icon.QueuePerson;
@@ -223,12 +217,12 @@ namespace CROMS.Forms
             this.cardWaiting.Caption = "clients in queue — open Queue";
             this.cardWaiting.CaptionIsAction = true;
             this.cardWaiting.CaptionColor = UiTheme.Accent;
-            this.cardWaiting.SparkStyle = CROMS.Modules.KpiCard.Spark.Area;
+            this.cardWaiting.SparkStyle = CROMS.Modules.KpiCard.Spark.None;
             this.cardWaiting.SparkColor = UiTheme.Accent;
 
             // Card 2 — REGISTERED TODAY. No Tag: nothing to click through to.
             this.cardRegistered.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardRegistered.Margin = new System.Windows.Forms.Padding(0, 0, 14, 0);
+            this.cardRegistered.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.cardRegistered.Name = "cardRegistered";
             this.cardRegistered.IconKind = CROMS.Modules.KpiCard.Icon.DocumentTick;
             this.cardRegistered.Tint = UiTheme.SuccessTint;
@@ -238,12 +232,12 @@ namespace CROMS.Forms
             this.cardRegistered.Caption = "births + marriages + deaths";
             this.cardRegistered.CaptionIsAction = false;
             this.cardRegistered.CaptionColor = UiTheme.Faint;
-            this.cardRegistered.SparkStyle = CROMS.Modules.KpiCard.Spark.Bars;
+            this.cardRegistered.SparkStyle = CROMS.Modules.KpiCard.Spark.None;
             this.cardRegistered.SparkColor = UiTheme.Success;
 
             // Card 3 — COLLECTIONS TODAY → Fees & Payments
             this.cardCollections.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardCollections.Margin = new System.Windows.Forms.Padding(0, 0, 14, 0);
+            this.cardCollections.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.cardCollections.Name = "cardCollections";
             this.cardCollections.Tag = "fees";
             this.cardCollections.IconKind = CROMS.Modules.KpiCard.Icon.PesoCoin;
@@ -256,7 +250,7 @@ namespace CROMS.Forms
             this.cardCollections.Caption = "official receipts — open Fees";
             this.cardCollections.CaptionIsAction = true;
             this.cardCollections.CaptionColor = UiTheme.Accent;
-            this.cardCollections.SparkStyle = CROMS.Modules.KpiCard.Spark.Area;
+            this.cardCollections.SparkStyle = CROMS.Modules.KpiCard.Spark.None;
             this.cardCollections.SparkColor = UiTheme.Warning;
 
             // Card 4 — PENDING RELEASES → Release & Claim
@@ -272,33 +266,31 @@ namespace CROMS.Forms
             this.cardPending.Caption = "ready to hand over — open Release";
             this.cardPending.CaptionIsAction = true;
             this.cardPending.CaptionColor = UiTheme.Accent;
-            this.cardPending.SparkStyle = CROMS.Modules.KpiCard.Spark.Area;
+            this.cardPending.SparkStyle = CROMS.Modules.KpiCard.Spark.None;
             this.cardPending.SparkColor = UiTheme.Danger;
 
             // ======================================================= content grid
             this.contentGrid.Dock = System.Windows.Forms.DockStyle.Fill;
             this.contentGrid.BackColor = System.Drawing.Color.Transparent;
-            this.contentGrid.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
-            this.contentGrid.ColumnCount = 3;
+            this.contentGrid.Margin = new System.Windows.Forms.Padding(0);
+            this.contentGrid.ColumnCount = 2;
             this.contentGrid.RowCount = 1;
-            this.contentGrid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.contentGrid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.contentGrid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 300F));
+            this.contentGrid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 63F));
+            this.contentGrid.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 37F));
             this.contentGrid.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.contentGrid.Controls.Add(this.leftStack, 0, 0);
-            this.contentGrid.Controls.Add(this.rightStack, 2, 0);
-            this.contentGrid.SetColumnSpan(this.leftStack, 2);
+            this.contentGrid.Controls.Add(this.rightStack, 1, 0);
 
             this.leftStack.Dock = System.Windows.Forms.DockStyle.Fill;
             this.leftStack.BackColor = System.Drawing.Color.Transparent;
-            this.leftStack.Margin = new System.Windows.Forms.Padding(0, 0, 14, 0);
+            this.leftStack.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.leftStack.ColumnCount = 1;
             this.leftStack.RowCount = 2;
             this.leftStack.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.leftStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 236F));
-            this.leftStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.leftStack.Controls.Add(this.cardTrend, 0, 0);
-            this.leftStack.Controls.Add(this.cardWindows, 0, 1);
+            this.leftStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 66F));
+            this.leftStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 34F));
+            this.leftStack.Controls.Add(this.cardAttention, 0, 0);
+            this.leftStack.Controls.Add(this.cardRecent, 0, 1);
 
             this.rightStack.Dock = System.Windows.Forms.DockStyle.Fill;
             this.rightStack.BackColor = System.Drawing.Color.Transparent;
@@ -306,14 +298,14 @@ namespace CROMS.Forms
             this.rightStack.ColumnCount = 1;
             this.rightStack.RowCount = 2;
             this.rightStack.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.rightStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.rightStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.rightStack.Controls.Add(this.cardMobile, 0, 0);
-            this.rightStack.Controls.Add(this.cardAttention, 0, 1);
+            this.rightStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 58F));
+            this.rightStack.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 42F));
+            this.rightStack.Controls.Add(this.cardWindows, 0, 0);
+            this.rightStack.Controls.Add(this.cardTrend, 0, 1);
 
             // ========================================================= trend card
             this.cardTrend.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardTrend.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
+            this.cardTrend.Margin = new System.Windows.Forms.Padding(0);
             this.cardTrend.Name = "cardTrend";
             this.cardTrend.Controls.Add(this.pnlTrend);
             this.cardTrend.Controls.Add(this.trendHead);
@@ -322,25 +314,21 @@ namespace CROMS.Forms
             this.trendHead.AutoSize = true;
             this.trendHead.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.trendHead.BackColor = System.Drawing.Color.Transparent;
-            this.trendHead.ColumnCount = 2;
+            this.trendHead.ColumnCount = 1;
             this.trendHead.RowCount = 1;
             this.trendHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.trendHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             this.trendHead.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.trendHead.Controls.Add(this.trendTitles, 0, 0);
-            this.trendHead.Controls.Add(this.pnlTrendLegend, 1, 0);
 
             this.trendTitles.AutoSize = true;
             this.trendTitles.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.trendTitles.BackColor = System.Drawing.Color.Transparent;
             this.trendTitles.Margin = new System.Windows.Forms.Padding(0);
             this.trendTitles.ColumnCount = 1;
-            this.trendTitles.RowCount = 2;
+            this.trendTitles.RowCount = 1;
             this.trendTitles.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.trendTitles.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.trendTitles.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.trendTitles.Controls.Add(this.lblTrendTitle, 0, 0);
-            this.trendTitles.Controls.Add(this.lblTrendBasis, 0, 1);
 
             this.lblTrendTitle.AutoSize = true;
             this.lblTrendTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
@@ -371,7 +359,7 @@ namespace CROMS.Forms
 
             // ============================================== service windows card
             this.cardWindows.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardWindows.Margin = new System.Windows.Forms.Padding(0);
+            this.cardWindows.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
             this.cardWindows.Name = "cardWindows";
             this.cardWindows.Controls.Add(this.pnlWindows);
             this.cardWindows.Controls.Add(this.windowsHead);
@@ -380,13 +368,11 @@ namespace CROMS.Forms
             this.windowsHead.AutoSize = true;
             this.windowsHead.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.windowsHead.BackColor = System.Drawing.Color.Transparent;
-            this.windowsHead.ColumnCount = 2;
+            this.windowsHead.ColumnCount = 1;
             this.windowsHead.RowCount = 1;
             this.windowsHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.windowsHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             this.windowsHead.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.windowsHead.Controls.Add(this.windowsTitles, 0, 0);
-            this.windowsHead.Controls.Add(this.btnAssignWindows, 1, 0);
 
             this.windowsTitles.AutoSize = true;
             this.windowsTitles.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
@@ -435,87 +421,9 @@ namespace CROMS.Forms
             this.pnlWindows.Padding = new System.Windows.Forms.Padding(0, 8, 0, 8);
             this.pnlWindows.Name = "pnlWindows";
 
-            // ======================================================== mobile card
-            this.cardMobile.AutoSize = true;
-            this.cardMobile.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.cardMobile.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardMobile.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
-            this.cardMobile.Name = "cardMobile";
-            this.cardMobile.Controls.Add(this.pnlMobileConn);
-            this.cardMobile.Controls.Add(this.mobileHead);
-
-            this.mobileHead.Dock = System.Windows.Forms.DockStyle.Top;
-            this.mobileHead.AutoSize = true;
-            this.mobileHead.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.mobileHead.BackColor = System.Drawing.Color.Transparent;
-            this.mobileHead.ColumnCount = 2;
-            this.mobileHead.RowCount = 1;
-            this.mobileHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.mobileHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.mobileHead.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.mobileHead.Controls.Add(this.lblMobileTitle, 0, 0);
-            this.mobileHead.Controls.Add(this.pillMobile, 1, 0);
-
-            this.lblMobileTitle.AutoSize = true;
-            this.lblMobileTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            this.lblMobileTitle.ForeColor = UiTheme.Ink;
-            this.lblMobileTitle.Margin = new System.Windows.Forms.Padding(16, 14, 8, 0);
-            this.lblMobileTitle.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.lblMobileTitle.Name = "lblMobileTitle";
-            this.lblMobileTitle.Text = "Mobile app connection";
-
-            this.pillMobile.ShowDot = true;
-            this.pillMobile.Margin = new System.Windows.Forms.Padding(0, 12, 16, 0);
-            this.pillMobile.Anchor = System.Windows.Forms.AnchorStyles.Right;
-            this.pillMobile.Name = "pillMobile";
-            this.pillMobile.Text = "Connecting";
-
-            // Fixed height: the QR, the URL and the paired-phone lines come and go with the
-            // server's state, and letting the card resize itself would make the whole right
-            // column jump every time a phone connects.
-            this.pnlMobileConn.Dock = System.Windows.Forms.DockStyle.Top;
-            this.pnlMobileConn.Height = 270;
-            this.pnlMobileConn.BackColor = System.Drawing.Color.Transparent;
-            this.pnlMobileConn.Name = "pnlMobileConn";
-            this.pnlMobileConn.Controls.Add(this.picMobileQr);
-            this.pnlMobileConn.Controls.Add(this.lblMobileMsg);
-            this.pnlMobileConn.Controls.Add(this.lblMobileHint);
-            this.pnlMobileConn.Controls.Add(this.lblMobileUrl);
-
-            this.picMobileQr.BackColor = UiTheme.Surface;
-            this.picMobileQr.Size = new System.Drawing.Size(150, 150);
-            this.picMobileQr.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.picMobileQr.TabStop = false;
-            this.picMobileQr.Visible = false;
-            this.picMobileQr.Name = "picMobileQr";
-            this.picMobileQr.Click += new System.EventHandler(this.picMobileQr_Click);
-
-            this.lblMobileMsg.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.lblMobileMsg.ForeColor = UiTheme.Danger;
-            this.lblMobileMsg.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.lblMobileMsg.BackColor = System.Drawing.Color.Transparent;
-            this.lblMobileMsg.Visible = false;
-            this.lblMobileMsg.Name = "lblMobileMsg";
-            this.lblMobileMsg.Text = "Mobile App Connection Unavailable";
-
-            this.lblMobileHint.Font = new System.Drawing.Font("Segoe UI", 8.25F);
-            this.lblMobileHint.ForeColor = UiTheme.Faint;
-            this.lblMobileHint.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-            this.lblMobileHint.BackColor = System.Drawing.Color.Transparent;
-            this.lblMobileHint.Visible = false;
-            this.lblMobileHint.Name = "lblMobileHint";
-            this.lblMobileHint.Text = "Scan with the phone, or type this address in the phone browser.";
-
-            this.lblMobileUrl.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Bold);
-            this.lblMobileUrl.ForeColor = UiTheme.Accent;
-            this.lblMobileUrl.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            this.lblMobileUrl.BackColor = System.Drawing.Color.Transparent;
-            this.lblMobileUrl.Visible = false;
-            this.lblMobileUrl.Name = "lblMobileUrl";
-
             // ============================================== needs attention card
             this.cardAttention.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardAttention.Margin = new System.Windows.Forms.Padding(0);
+            this.cardAttention.Margin = new System.Windows.Forms.Padding(0, 0, 0, 16);
             this.cardAttention.Name = "cardAttention";
             this.cardAttention.Controls.Add(this.pnlAttention);
             this.cardAttention.Controls.Add(this.attentionHead);
@@ -524,35 +432,77 @@ namespace CROMS.Forms
             this.attentionHead.AutoSize = true;
             this.attentionHead.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.attentionHead.BackColor = System.Drawing.Color.Transparent;
-            this.attentionHead.ColumnCount = 1;
-            this.attentionHead.RowCount = 2;
+            this.attentionHead.ColumnCount = 2;
+            this.attentionHead.RowCount = 1;
             this.attentionHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.attentionHead.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.attentionHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             this.attentionHead.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             this.attentionHead.Controls.Add(this.lblAttentionTitle, 0, 0);
-            this.attentionHead.Controls.Add(this.lblAttentionBasis, 0, 1);
+            this.attentionHead.Controls.Add(this.lblAttentionBasis, 1, 0);
 
             this.lblAttentionTitle.AutoSize = true;
             this.lblAttentionTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblAttentionTitle.ForeColor = UiTheme.Ink;
-            this.lblAttentionTitle.Margin = new System.Windows.Forms.Padding(16, 13, 16, 0);
+            this.lblAttentionTitle.Margin = new System.Windows.Forms.Padding(18, 16, 16, 12);
             this.lblAttentionTitle.Name = "lblAttentionTitle";
-            this.lblAttentionTitle.Text = "Needs attention";
+            this.lblAttentionTitle.Text = "Tasks requiring attention";
 
-            this.lblAttentionBasis.AutoSize = false;
+            this.lblAttentionBasis.AutoSize = true;
             this.lblAttentionBasis.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             this.lblAttentionBasis.ForeColor = UiTheme.Faint;
-            this.lblAttentionBasis.Margin = new System.Windows.Forms.Padding(16, 2, 16, 0);
-            this.lblAttentionBasis.Height = 30;
-            this.lblAttentionBasis.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblAttentionBasis.Margin = new System.Windows.Forms.Padding(8, 17, 18, 12);
+            this.lblAttentionBasis.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.lblAttentionBasis.Name = "lblAttentionBasis";
-            this.lblAttentionBasis.Text = "Ignores the date filter — a backlog you filter is a backlog you hide";
+            this.lblAttentionBasis.Text = "0 items";
 
             this.pnlAttention.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlAttention.AutoScroll = true;
             this.pnlAttention.BackColor = System.Drawing.Color.Transparent;
-            this.pnlAttention.Padding = new System.Windows.Forms.Padding(0, 6, 0, 8);
+            this.pnlAttention.Padding = new System.Windows.Forms.Padding(0, 2, 0, 10);
             this.pnlAttention.Name = "pnlAttention";
+
+            // ============================================== recent transactions
+            this.cardRecent.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.cardRecent.Margin = new System.Windows.Forms.Padding(0);
+            this.cardRecent.Name = "cardRecent";
+            this.cardRecent.Controls.Add(this.pnlRecent);
+            this.cardRecent.Controls.Add(this.recentHead);
+
+            this.recentHead.Dock = System.Windows.Forms.DockStyle.Top;
+            this.recentHead.AutoSize = true;
+            this.recentHead.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.recentHead.BackColor = System.Drawing.Color.Transparent;
+            this.recentHead.ColumnCount = 2;
+            this.recentHead.RowCount = 1;
+            this.recentHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.recentHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.recentHead.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
+            this.recentHead.Controls.Add(this.lblRecentTitle, 0, 0);
+            this.recentHead.Controls.Add(this.lnkRecentAll, 1, 0);
+
+            this.lblRecentTitle.AutoSize = true;
+            this.lblRecentTitle.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.lblRecentTitle.ForeColor = UiTheme.Ink;
+            this.lblRecentTitle.Margin = new System.Windows.Forms.Padding(18, 16, 16, 12);
+            this.lblRecentTitle.Name = "lblRecentTitle";
+            this.lblRecentTitle.Text = "Recent transactions";
+
+            this.lnkRecentAll.AutoSize = true;
+            this.lnkRecentAll.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lnkRecentAll.LinkColor = UiTheme.Accent;
+            this.lnkRecentAll.ActiveLinkColor = UiTheme.Accent;
+            this.lnkRecentAll.VisitedLinkColor = UiTheme.Accent;
+            this.lnkRecentAll.Margin = new System.Windows.Forms.Padding(8, 17, 18, 12);
+            this.lnkRecentAll.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.lnkRecentAll.Name = "lnkRecentAll";
+            this.lnkRecentAll.Text = "View all  →";
+            this.lnkRecentAll.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkRecentAll_LinkClicked);
+
+            this.pnlRecent.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlRecent.AutoScroll = true;
+            this.pnlRecent.BackColor = System.Drawing.Color.Transparent;
+            this.pnlRecent.Padding = new System.Windows.Forms.Padding(0, 2, 0, 10);
+            this.pnlRecent.Name = "pnlRecent";
 
             // ==================================================== insights strip
             this.insightsBlock.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -624,14 +574,10 @@ namespace CROMS.Forms
             this.statusTimer.Tick += new System.EventHandler(this.statusTimer_Tick);
 
             // ====================================================== the form
-            // Below this the screen cannot hold its own content, and a Dock=Fill child SHRINKS
-            // rather than scrolling — at 1366x768 the service-window board, the mobile card and
-            // the backlog list vanished entirely instead of moving below the fold. AutoScroll
-            // alone does NOT fix that: a docked child adds nothing to the scroll extent, so the
-            // floor has to be stated here as AutoScrollMinSize (MinimumSize on the child is
-            // ignored by the layout and was measured doing nothing).
+            // Below this the screen cannot hold its own content, and a Dock=Fill child shrinks
+            // rather than scrolling. The floor keeps both columns usable on a 1366x768 display.
             this.AutoScroll = true;
-            this.AutoScrollMinSize = new System.Drawing.Size(1100, 940);
+            this.AutoScrollMinSize = new System.Drawing.Size(1100, 760);
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = UiTheme.PageBg;
@@ -640,7 +586,6 @@ namespace CROMS.Forms
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "DashboardForm";
             this.Text = "Dashboard";
-            ((System.ComponentModel.ISupportInitialize)(this.picMobileQr)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
         }
@@ -683,21 +628,17 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnAssignWindows;
         private System.Windows.Forms.Panel pnlWindows;
 
-        private CROMS.Modules.CardPanel cardMobile;
-        private System.Windows.Forms.TableLayoutPanel mobileHead;
-        private System.Windows.Forms.Label lblMobileTitle;
-        private CROMS.Modules.StatusPill pillMobile;
-        private System.Windows.Forms.Panel pnlMobileConn;
-        private System.Windows.Forms.PictureBox picMobileQr;
-        private System.Windows.Forms.Label lblMobileMsg;
-        private System.Windows.Forms.Label lblMobileHint;
-        private System.Windows.Forms.Label lblMobileUrl;
-
         private CROMS.Modules.CardPanel cardAttention;
         private System.Windows.Forms.TableLayoutPanel attentionHead;
         private System.Windows.Forms.Label lblAttentionTitle;
         private System.Windows.Forms.Label lblAttentionBasis;
         private System.Windows.Forms.Panel pnlAttention;
+
+        private CROMS.Modules.CardPanel cardRecent;
+        private System.Windows.Forms.TableLayoutPanel recentHead;
+        private System.Windows.Forms.Label lblRecentTitle;
+        private System.Windows.Forms.LinkLabel lnkRecentAll;
+        private System.Windows.Forms.Panel pnlRecent;
 
         private System.Windows.Forms.TableLayoutPanel insightsBlock;
         private System.Windows.Forms.TableLayoutPanel insightsHead;

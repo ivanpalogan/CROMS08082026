@@ -16,8 +16,8 @@ namespace CROMS.Forms
     /// Live operations dashboard for the front desk. Shows TODAY's actionable numbers —
     /// Waiting Now, Registered Today, Collections Today, Pending Releases — each on a card
     /// that (where it maps to a module) is clickable to jump straight there, plus a 7-day
-    /// stacked registrations trend, the live Service Windows board, the mobile-app QR, a
-    /// "Needs attention" backlog list and the three shared analytics insight widgets.
+    /// compact registration trend, the live Service Windows board, an actionable task list,
+    /// and the most recent transactions.
     ///
     /// The layout lives in the Designer as nested TableLayoutPanels; this code-behind fills
     /// values, paints the trend and the list rows, and refreshes on a timer so the numbers stay
@@ -60,30 +60,6 @@ namespace CROMS.Forms
             WireCard(cardCollections);  // → Fees & Payments
             WireCard(cardPending);      // → Release & Claim
 
-            // Mobile App Connection panel: reflect the auto-started Ionic servers live
-            // (both the scanner app and the claimapp ID-upload app).
-            IonicServerManager.Instance.Changed += OnIonicChanged;
-            IonicServerManager.ClaimApp.Changed += OnIonicChanged;
-            Disposed += (s, e) =>
-            {
-                IonicServerManager.Instance.Changed -= OnIonicChanged;
-                IonicServerManager.ClaimApp.Changed -= OnIonicChanged;
-            };
-
-            // Connected-devices list (paired phones), filled by polling the save-API.
-            lblDevices = new Label
-            {
-                Font = new Font("Segoe UI", 8.25F),
-                ForeColor = UiTheme.Faint,
-                BackColor = Color.Transparent,
-                TextAlign = ContentAlignment.TopCenter,
-                Text = "",
-            };
-            pnlMobileConn.Controls.Add(lblDevices);
-            SetupMobilePanel();
-
-            SetupInsights();
-
             lblTitle.Text = "Dashboard";
             RefreshData();
             statusTimer.Start();
@@ -95,9 +71,7 @@ namespace CROMS.Forms
             LoadTrend();
             LoadWindowStatus();
             LoadAttention();
-            UpdateMobileConn();
-            UpdateDevices();
-            LoadInsights(false);      // TTL-gated; see the Insights region
+            LoadRecentTransactions();
         }
 
         private void btnRefresh_Click(object sender, EventArgs e)
@@ -114,6 +88,11 @@ namespace CROMS.Forms
         private void btnAssignWindows_Click(object sender, EventArgs e)
         {
             Shell()?.GoToModule("settings");
+        }
+
+        private void lnkRecentAll_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            Shell()?.GoToModule("transactions");
         }
 
         // ------------------------------------------------------------------ insights
@@ -263,7 +242,13 @@ namespace CROMS.Forms
 
         // --------------------------------------------------- mobile connection (QR)
         private string _lastQrUrl = "";
-        private Label lblDevices;
+        private Panel pnlMobileConn = null;
+        private PictureBox picMobileQr = null;
+        private Label lblMobileMsg = null;
+        private Label lblMobileHint = null;
+        private Label lblMobileUrl = null;
+        private StatusPill pillMobile = null;
+        private Label lblDevices = null;
         private Label lblWifiInfo;
         private Label lblClaimApp;
         private static readonly System.Net.Http.HttpClient _http =
@@ -551,9 +536,6 @@ namespace CROMS.Forms
 
             cardPending.Value = pending.ToString();
             cardPending.ValueColor = pending > 0 ? UiTheme.Accent : UiTheme.Ink;              // something to hand over
-
-            LoadDeltas(waiting, registered);
-            LoadSparks();
 
             cardWaiting.Invalidate();
             cardRegistered.Invalidate();
@@ -850,8 +832,13 @@ namespace CROMS.Forms
         private void statusTimer_Tick(object sender, EventArgs e)
         {
             LoadWindowStatus();                              // Online/Offline is the fast-moving part
-            if (_tickCount % 2 == 0) UpdateDevices();        // paired phones (~6s)
-            if (++_tickCount % 4 == 0) { LoadKpis(); LoadTrend(); LoadAttention(); UpdateMobileConn(); }
+            if (++_tickCount % 4 == 0)
+            {
+                LoadKpis();
+                LoadTrend();
+                LoadAttention();
+                LoadRecentTransactions();
+            }
         }
 
         /// <summary>
@@ -922,10 +909,11 @@ namespace CROMS.Forms
                 var row = new ListRow
                 {
                     Dock = DockStyle.Top,
-                    Height = 46,
+                    Height = 54,
                     BadgeText = id.ToString(),
                     BadgeTint = UiTheme.AccentTint,
                     BadgeInk = UiTheme.Accent,
+                    ShowTicket = true,
                     Separator = i > 0,
                 };
                 pnlWindows.Controls.Add(row);
@@ -969,90 +957,208 @@ namespace CROMS.Forms
 
         // ------------------------------------------------------- needs attention
         /// <summary>
-        /// The three backlogs the KPI cards cannot show, read straight off the same tables the
-        /// Analytics module aggregates. A row whose count is 0 is REMOVED, not rendered as "0" —
-        /// same discipline as the analytics empty state: a list of zeros trains the operator to
-        /// stop reading the list.
+        /// The workflow backlogs an operator can act on now. A row whose count is 0 is removed,
+        /// not rendered as "0"; the card stays a short task list instead of becoming another
+        /// statistics panel.
         /// </summary>
         private void LoadAttention()
         {
             if (pnlAttention == null) return;
-            if (!Db.IsConnected()) return;
+            if (!Db.IsConnected())
+            {
+                lblAttentionBasis.Text = "Unavailable";
+                return;
+            }
 
-            int stale = 0, oldest = 0, delayed = 0, petitions = 0;
+            int readyLicenses = 0, expiringLicenses = 0, missingRequirements = 0;
+            int pendingReleases = 0, staleReleases = 0, pendingPsa = 0, delayedPostings = 0;
+
+            try { readyLicenses = Scalar("SELECT COUNT(*) FROM marriage_licenses WHERE status='Posting' AND earliest_issue_date <= CURDATE()"); }
+            catch { }
+            try { expiringLicenses = Scalar("SELECT COUNT(*) FROM marriage_licenses WHERE status='Issued' AND expiry_date BETWEEN CURDATE() AND (CURDATE() + INTERVAL 7 DAY)"); }
+            catch { }
             try
             {
-                DataTable dt = Db.Pull(
-                    "SELECT COUNT(*) AS n, COALESCE(MAX(DATEDIFF(CURDATE(), cr.created_at)), 0) AS oldest " +
-                    "FROM certificate_requests cr " +
-                    "LEFT JOIN releases r ON r.transaction_id = cr.transaction_id " +
-                    "WHERE r.id IS NULL AND DATEDIFF(CURDATE(), cr.created_at) > 30");
-                if (dt.Rows.Count > 0)
-                {
-                    stale = Convert.ToInt32(dt.Rows[0]["n"]);
-                    oldest = Convert.ToInt32(dt.Rows[0]["oldest"]);
-                }
+                missingRequirements = Scalar(
+                    "SELECT COUNT(DISTINCT owner_id) FROM marriage_requirements " +
+                    "WHERE owner_type='License' AND status IN ('Missing','Rejected')");
             }
             catch { }
-
-            // Computed from the dates, not read off births.is_delayed — on this database the flag
-            // is 0 on every row while DATEDIFF says otherwise, and reading the flag would hide
-            // that. Same call the analytics lag chart makes, for the same reason.
+            try { pendingReleases = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease'"); }
+            catch { }
+            try { staleReleases = Scalar("SELECT COUNT(*) FROM transactions WHERE status='ForRelease' AND updated_at < (NOW() - INTERVAL 3 DAY)"); }
+            catch { }
             try
             {
-                delayed = Scalar(
-                    "SELECT COUNT(*) FROM births WHERE date_of_birth IS NOT NULL " +
-                    "  AND DATEDIFF(created_at, date_of_birth) > 1825");
+                pendingPsa = Scalar(
+                    "SELECT COUNT(*) FROM marriages m WHERE m.status='Registered' AND NOT EXISTS (" +
+                    "SELECT 1 FROM psa_transmittal_items i WHERE i.record_table='marriages' AND i.record_id=m.id)");
             }
             catch { }
-
-            try { petitions = Scalar("SELECT COUNT(*) FROM petitions WHERE stage = 'Filed'"); }
+            try
+            {
+                delayedPostings = Scalar(
+                    "SELECT COUNT(*) FROM births WHERE delayed_posting_start IS NOT NULL " +
+                    "AND delayed_posting_end >= CURDATE() AND delayed_evaluation_at IS NULL");
+            }
             catch { }
 
             pnlAttention.SuspendLayout();
             ClearRows(pnlAttention);
 
-            var rows = new System.Collections.Generic.List<ListRow>();
-            if (stale > 0)
-                rows.Add(new ListRow
-                {
-                    BadgeText = "!",
-                    BadgeTint = UiTheme.DangerTint,
-                    BadgeInk = UiTheme.Danger,
-                    Title = stale + (stale == 1 ? " request" : " requests") + " over 30 days",
-                    Subtitle = "oldest " + oldest + " days",
-                });
-            if (delayed > 0)
-                rows.Add(new ListRow
-                {
-                    BadgeText = "!",
-                    BadgeTint = UiTheme.WarningTint,
-                    BadgeInk = UiTheme.Warning,
-                    Title = delayed + (delayed == 1 ? " birth" : " births") + " flagged delayed",
-                    Subtitle = "registered > 5 years after birth",
-                });
-            if (petitions > 0)
-                rows.Add(new ListRow
-                {
-                    BadgeText = petitions.ToString(),
-                    BadgeTint = UiTheme.AccentTint,
-                    BadgeInk = UiTheme.Accent,
-                    Title = petitions + (petitions == 1 ? " petition" : " petitions") + " awaiting posting",
-                    Subtitle = "RA 9048 — 10-day period",
-                });
+            var rows = new List<ListRow>();
+            if (readyLicenses > 0)
+                rows.Add(TaskRow("✓", UiTheme.SuccessTint, UiTheme.Success,
+                    readyLicenses + (readyLicenses == 1 ? " marriage license ready to issue" : " marriage licenses ready to issue"),
+                    "Posting complete — no license issued yet", "Review", "marriage"));
+            if (expiringLicenses > 0)
+                rows.Add(TaskRow("!", UiTheme.WarningTint, UiTheme.Warning,
+                    expiringLicenses + (expiringLicenses == 1 ? " marriage license expires within 7 days" : " marriage licenses expire within 7 days"),
+                    "120-day validity period ending soon", "View list", "marriage"));
+            if (missingRequirements > 0)
+                rows.Add(TaskRow("×", UiTheme.DangerTint, UiTheme.Danger,
+                    missingRequirements + (missingRequirements == 1 ? " application has missing requirements" : " applications have missing requirements"),
+                    "Required supporting documents need review", "Open", "marriage"));
+            if (pendingReleases > 0)
+                rows.Add(TaskRow("!", UiTheme.DangerTint, UiTheme.Danger,
+                    pendingReleases + (pendingReleases == 1 ? " document ready for release" : " documents ready for release") +
+                    (staleReleases > 0 ? ", " + staleReleases + " unclaimed 3+ days" : ""),
+                    "Certificate requests awaiting claimant", "Open", "release"));
+            if (pendingPsa > 0)
+                rows.Add(TaskRow("⇧", UiTheme.AccentTint, UiTheme.Accent,
+                    pendingPsa + (pendingPsa == 1 ? " registered marriage pending PSA transmittal" : " registered marriages pending PSA transmittal"),
+                    "Registered in CROMS — endorsement not yet batched", "Open", "marriage"));
+            if (delayedPostings > 0)
+                rows.Add(TaskRow("◐", UiTheme.AccentTint, UiTheme.Accent,
+                    delayedPostings + (delayedPostings == 1 ? " delayed birth registration in posting" : " delayed birth registrations in posting"),
+                    "Public posting period is still underway", "Open", "birth"));
+
+            lblAttentionBasis.Text = rows.Count + (rows.Count == 1 ? " item" : " items");
 
             if (rows.Count == 0)
-                pnlAttention.Controls.Add(EmptyLine("Nothing outstanding"));
+                pnlAttention.Controls.Add(EmptyLine("Nothing outstanding — you're caught up"));
             else
                 for (int i = rows.Count - 1; i >= 0; i--)      // Dock=Top stacks in reverse
                 {
                     rows[i].Dock = DockStyle.Top;
-                    rows[i].Height = 46;
+                    rows[i].Height = 58;
                     rows[i].Separator = i > 0;
                     pnlAttention.Controls.Add(rows[i]);
                 }
 
             pnlAttention.ResumeLayout();
+        }
+
+        private ListRow TaskRow(string badge, Color tint, Color ink, string title,
+            string subtitle, string action, string moduleKey)
+        {
+            var row = new ListRow
+            {
+                BadgeText = badge,
+                BadgeTint = tint,
+                BadgeInk = ink,
+                Title = title,
+                Subtitle = subtitle,
+                Tag = moduleKey,
+            };
+            row.SetStatus(action, UiTheme.Chrome, UiTheme.Ink);
+            WireCard(row);
+            return row;
+        }
+
+        // --------------------------------------------------- recent transactions
+        /// <summary>
+        /// Shows the four most recently changed client transactions. This is deliberately a
+        /// short dispatch list; the full searchable ledger remains in Transactions.
+        /// </summary>
+        private void LoadRecentTransactions()
+        {
+            if (pnlRecent == null) return;
+
+            pnlRecent.SuspendLayout();
+            ClearRows(pnlRecent);
+
+            if (!Db.IsConnected())
+            {
+                pnlRecent.Controls.Add(EmptyLine("Recent transactions are unavailable."));
+                pnlRecent.ResumeLayout();
+                return;
+            }
+
+            DataTable dt;
+            try
+            {
+                dt = Db.Pull(
+                    "SELECT txn_code, client_name, type, status, updated_at " +
+                    "FROM transactions ORDER BY updated_at DESC, id DESC LIMIT 4");
+            }
+            catch
+            {
+                pnlRecent.Controls.Add(EmptyLine("Recent transactions are unavailable."));
+                pnlRecent.ResumeLayout();
+                return;
+            }
+
+            if (dt.Rows.Count == 0)
+            {
+                pnlRecent.Controls.Add(EmptyLine("No transactions recorded yet."));
+                pnlRecent.ResumeLayout();
+                return;
+            }
+
+            var rows = new List<ListRow>();
+            foreach (DataRow r in dt.Rows)
+            {
+                string status = Convert.ToString(r["status"]);
+                string type = Convert.ToString(r["type"]);
+                string code = Convert.ToString(r["txn_code"]);
+                string client = Convert.ToString(r["client_name"]);
+                DateTime changed = r["updated_at"] == DBNull.Value
+                    ? DateTime.Now : Convert.ToDateTime(r["updated_at"]);
+
+                Color tint = UiTheme.Chrome;
+                Color ink = UiTheme.Muted;
+                string glyph = "•";
+                if (status == "Released") { tint = UiTheme.SuccessTint; ink = UiTheme.Success; glyph = "✓"; }
+                else if (status == "ForRelease") { tint = UiTheme.DangerTint; ink = UiTheme.Danger; glyph = "!"; }
+                else if (status == "ForPayment") { tint = UiTheme.WarningTint; ink = UiTheme.Warning; glyph = "₱"; }
+                else if (status == "Processing") { tint = UiTheme.AccentTint; ink = UiTheme.Accent; glyph = "…"; }
+
+                var row = new ListRow
+                {
+                    BadgeText = glyph,
+                    BadgeTint = tint,
+                    BadgeInk = ink,
+                    Title = code + " — " + type + (client.Length > 0 ? ", " + client : ""),
+                    Subtitle = FriendlyTransactionStatus(status),
+                    Tag = "transactions",
+                };
+                row.SetStatus(changed.ToString("h:mm tt"), UiTheme.Surface, UiTheme.Faint);
+                WireCard(row);
+                rows.Add(row);
+            }
+
+            for (int i = rows.Count - 1; i >= 0; i--)
+            {
+                rows[i].Dock = DockStyle.Top;
+                rows[i].Height = 44;
+                rows[i].Separator = i > 0;
+                pnlRecent.Controls.Add(rows[i]);
+            }
+            pnlRecent.ResumeLayout();
+        }
+
+        private static string FriendlyTransactionStatus(string status)
+        {
+            switch (status)
+            {
+                case "ForPayment": return "Ready for payment";
+                case "ForRelease": return "Ready for release";
+                case "Released": return "Released to claimant";
+                case "Processing": return "In progress";
+                case "Cancelled": return "Cancelled";
+                default: return string.IsNullOrWhiteSpace(status) ? "Status unavailable" : status;
+            }
         }
 
         // ------------------------------------------------------------------ rows
@@ -1101,6 +1207,7 @@ namespace CROMS.Forms
             public string Title = "";
             public string Subtitle = "";
             public string Ticket;
+            public bool ShowTicket;
             public bool Separator = true;
 
             private string _statusText;
@@ -1160,7 +1267,7 @@ namespace CROMS.Forms
                 }
 
                 // current ticket, or an em-dash when the window is idle
-                if (_statusText != null)
+                if (ShowTicket)
                 {
                     string t = string.IsNullOrEmpty(Ticket) ? "—" : Ticket;
                     Size m = TextRenderer.MeasureText(g, t, _ticket,

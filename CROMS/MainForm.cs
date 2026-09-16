@@ -62,76 +62,78 @@ namespace CROMS
         }
 
         /// <summary>
-        /// Shows who is signed in + a Logout button, right-aligned in the header. Laid out in a
-        /// right-docked, right-to-left FlowLayoutPanel so the button is always pinned to the
-        /// right edge and the (variable-length) name label flows to its left — they can never
-        /// overlap regardless of window width or how long the user's name is.
+        /// Shows who is signed in as a single clickable "user chip", right-aligned in the
+        /// header. Clicking it (or the little ▾) drops a menu with My Profile / Edit Profile /
+        /// Logout — same pattern as the reference mockup (click the name to get an account
+        /// menu) instead of always-visible Logout/Biodata buttons crowding the header.
+        /// Laid out in a right-docked, right-to-left FlowLayoutPanel so the chip is always
+        /// pinned to the right edge regardless of window width or name length.
         /// </summary>
+        private Label _lblUserChip;
+
         private void BuildUserBar()
         {
-            string who = Session.User != null
-                ? Session.User.FullName + "  ·  " + Session.User.Role
-                : "Not signed in";
-
             var bar = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right,
                 FlowDirection = FlowDirection.RightToLeft,
                 WrapContents = false,
                 AutoSize = false,
-                Width = 680,
+                Width = 480,
                 Padding = new Padding(0, 0, 20, 0),
                 BackColor = headerPanel.BackColor
             };
 
-            var btnLogout = new Button
+            var chip = new Panel
             {
-                Text = "Logout",
                 AutoSize = false,
-                Size = new Size(104, 36),
-                FlatStyle = FlatStyle.Flat,
-                ForeColor = Color.White,
-                BackColor = UiTheme.Danger,
-                Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
+                Size = new Size(260, 44),
+                Margin = new Padding(0, 6, 0, 6),
                 Cursor = Cursors.Hand,
-                Margin = new Padding(0, 10, 0, 10)
+                BackColor = UiTheme.PageBg
             };
-            btnLogout.FlatAppearance.BorderSize = 0;
-            btnLogout.FlatAppearance.MouseOverBackColor = Color.FromArgb(168, 40, 52);
-            btnLogout.Click += (s, e) => Logout();
-
-            var lblUser = new Label
+            chip.Paint += (s, e) =>
             {
-                Text = who,
-                AutoSize = true,
-                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(73, 80, 87),
-                TextAlign = ContentAlignment.MiddleRight,
-                Margin = new Padding(0, 18, 14, 0)   // top margin ≈ vertical-centre in the 56px header
+                using (var path = RoundedRectPath(chip.ClientRectangle, 8))
+                using (var brush = new SolidBrush(chip.BackColor))
+                    e.Graphics.FillPath(brush, path);
             };
 
-            bar.Controls.Add(btnLogout);   // RightToLeft flow → first child sits at the far right
-
-            var btnBiodata = new Button
+            _lblUserChip = new Label
             {
-                Text = "View My Biodata",
                 AutoSize = false,
-                Size = new Size(140, 36),
-                FlatStyle = FlatStyle.Flat,
-                ForeColor = Color.White,
-                BackColor = UiTheme.Navy,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(12, 0, 26, 0),
                 Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
-                Cursor = Cursors.Hand,
-                Margin = new Padding(0, 10, 10, 10)
+                ForeColor = UiTheme.Ink,
+                Cursor = Cursors.Hand
             };
-            btnBiodata.FlatAppearance.BorderSize = 0;
-            btnBiodata.FlatAppearance.MouseOverBackColor = UiTheme.NavyHover;
-            btnBiodata.Click += (s, e) =>
+            RefreshUserChipText();
+            chip.Controls.Add(_lblUserChip);
+
+            var caret = new Label
             {
-                using (var f = new Forms.StaffBiodataForm())
-                    f.ShowDialog(this);
+                Text = "▾",
+                AutoSize = false,
+                Size = new Size(20, 44),
+                Dock = DockStyle.Right,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = UiTheme.Muted,
+                Cursor = Cursors.Hand
             };
-            bar.Controls.Add(btnBiodata);   // flows to the left of Logout
+            chip.Controls.Add(caret);
+            caret.BringToFront();
+
+            EventHandler openMenu = (s, e) => ShowUserMenu(chip);
+            chip.Click += openMenu;
+            _lblUserChip.Click += openMenu;
+            caret.Click += openMenu;
+            chip.MouseEnter += (s, e) => { chip.BackColor = UiTheme.AccentTint; chip.Invalidate(); };
+            chip.MouseLeave += (s, e) => { chip.BackColor = UiTheme.PageBg; chip.Invalidate(); };
+
+            bar.Controls.Add(chip);   // pinned to the far right
 
             // "Update" button — only on client PCs (a server share to pull from
             // exists). Lets staff pull the latest app build from the server over
@@ -153,10 +155,8 @@ namespace CROMS
                 btnUpdate.FlatAppearance.BorderSize = 0;
                 btnUpdate.FlatAppearance.MouseOverBackColor = Color.FromArgb(11, 94, 215);
                 btnUpdate.Click += (s, e) => CheckForUpdate();
-                bar.Controls.Add(btnUpdate);   // flows to the left of Logout
+                bar.Controls.Add(btnUpdate);   // flows to the left of the chip
             }
-
-            bar.Controls.Add(lblUser);     // flows to its left
 
             headerPanel.Controls.Add(bar);
             bar.BringToFront();
@@ -168,6 +168,73 @@ namespace CROMS
                 Height = 1,
                 BackColor = Color.FromArgb(222, 226, 230)
             });
+        }
+
+        private void RefreshUserChipText()
+        {
+            if (_lblUserChip == null) return;
+            _lblUserChip.Text = Session.User != null
+                ? Session.User.FullName + "\n" + Session.User.Role
+                : "Not signed in";
+        }
+
+        private static System.Drawing.Drawing2D.GraphicsPath RoundedRectPath(Rectangle r, int radius)
+        {
+            int d = radius * 2;
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            if (d >= r.Height || d >= r.Width) { path.AddRectangle(r); return path; }
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        /// <summary>
+        /// The account dropdown: signed-in name/role header, then My Profile / Edit Profile /
+        /// Logout — opened by clicking the header user chip.
+        /// </summary>
+        private void ShowUserMenu(Control anchor)
+        {
+            var menu = new ContextMenuStrip { Font = new Font("Segoe UI", 9.5F) };
+            UiTheme.StyleMenu(menu);
+
+            var header = new ToolStripMenuItem(
+                (Session.User?.FullName ?? "Not signed in") + "  ·  " + (Session.User?.Role ?? ""))
+            {
+                Enabled = false,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+            };
+            menu.Items.Add(header);
+            menu.Items.Add(new ToolStripSeparator());
+
+            var viewProfile = new ToolStripMenuItem("View My Profile");
+            viewProfile.Click += (s, e) =>
+            {
+                using (var f = new Forms.StaffBiodataForm())
+                    f.ShowDialog(this);
+            };
+            menu.Items.Add(viewProfile);
+
+            var editProfile = new ToolStripMenuItem("Edit Profile");
+            editProfile.Click += (s, e) =>
+            {
+                using (var f = new Forms.EditProfileForm())
+                {
+                    if (f.ShowDialog(this) == DialogResult.OK)
+                        RefreshUserChipText();
+                }
+            };
+            menu.Items.Add(editProfile);
+
+            menu.Items.Add(new ToolStripSeparator());
+
+            var logout = new ToolStripMenuItem("Logout") { ForeColor = UiTheme.Danger };
+            logout.Click += (s, e) => Logout();
+            menu.Items.Add(logout);
+
+            menu.Show(anchor, new Point(0, anchor.Height));
         }
 
         /// <summary>

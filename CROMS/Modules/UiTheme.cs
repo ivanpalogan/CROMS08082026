@@ -288,7 +288,7 @@ namespace CROMS.Modules
         private static readonly ToolStripProfessionalRenderer MenuRenderer =
             new ToolStripProfessionalRenderer(new MenuColors());
 
-        private static void StyleMenu(ContextMenuStrip menu)
+        internal static void StyleMenu(ContextMenuStrip menu)
         {
             if (menu.Renderer == MenuRenderer) return;   // already styled
             menu.Renderer = MenuRenderer;
