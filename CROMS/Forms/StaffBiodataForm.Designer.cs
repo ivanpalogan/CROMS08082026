@@ -16,6 +16,19 @@ namespace CROMS.Forms
         {
             this.titleLabel = new System.Windows.Forms.Label();
             this.subtitleLabel = new System.Windows.Forms.Label();
+            this.pnlAccount = new System.Windows.Forms.Panel();
+            this.lblFullNameCap = new System.Windows.Forms.Label();
+            this.txtFullName = new System.Windows.Forms.TextBox();
+            this.lblUsernameCap = new System.Windows.Forms.Label();
+            this.lblUsernameValue = new System.Windows.Forms.Label();
+            this.lblPwNote = new System.Windows.Forms.Label();
+            this.lblCurPass = new System.Windows.Forms.Label();
+            this.txtCurPass = new System.Windows.Forms.TextBox();
+            this.lblNewPass = new System.Windows.Forms.Label();
+            this.txtNewPass = new System.Windows.Forms.TextBox();
+            this.lblConfirmPass = new System.Windows.Forms.Label();
+            this.txtConfirmPass = new System.Windows.Forms.TextBox();
+            this.lblWorkHeader = new System.Windows.Forms.Label();
             this.pnlForm = new System.Windows.Forms.Panel();
             this.lblEmployeeNo = new System.Windows.Forms.Label();
             this.txtEmployeeNo = new System.Windows.Forms.TextBox();
@@ -44,6 +57,7 @@ namespace CROMS.Forms
             this.lblUpdated = new System.Windows.Forms.Label();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnClose = new System.Windows.Forms.Button();
+            this.pnlAccount.SuspendLayout();
             this.pnlForm.SuspendLayout();
             this.SuspendLayout();
             //
@@ -56,7 +70,7 @@ namespace CROMS.Forms
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Size = new System.Drawing.Size(150, 30);
             this.titleLabel.TabIndex = 0;
-            this.titleLabel.Text = "My Biodata";
+            this.titleLabel.Text = "Edit Profile";
             this.titleLabel.UseMnemonic = false;
             //
             // subtitleLabel
@@ -68,18 +82,161 @@ namespace CROMS.Forms
             this.subtitleLabel.Name = "subtitleLabel";
             this.subtitleLabel.Size = new System.Drawing.Size(400, 15);
             this.subtitleLabel.TabIndex = 1;
-            this.subtitleLabel.Text = "Fill in your own personnel record. Only you can edit this.";
+            this.subtitleLabel.Text = "Update your name or password below. Ask an admin to change your work details.";
             this.subtitleLabel.UseMnemonic = false;
+            //
+            // pnlAccount
+            //
+            this.pnlAccount.BackColor = System.Drawing.Color.White;
+            this.pnlAccount.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.pnlAccount.Location = new System.Drawing.Point(24, 82);
+            this.pnlAccount.Name = "pnlAccount";
+            this.pnlAccount.Size = new System.Drawing.Size(552, 222);
+            this.pnlAccount.TabIndex = 2;
+            this.pnlAccount.Controls.Add(this.lblFullNameCap);
+            this.pnlAccount.Controls.Add(this.txtFullName);
+            this.pnlAccount.Controls.Add(this.lblUsernameCap);
+            this.pnlAccount.Controls.Add(this.lblUsernameValue);
+            this.pnlAccount.Controls.Add(this.lblPwNote);
+            this.pnlAccount.Controls.Add(this.lblCurPass);
+            this.pnlAccount.Controls.Add(this.txtCurPass);
+            this.pnlAccount.Controls.Add(this.lblNewPass);
+            this.pnlAccount.Controls.Add(this.txtNewPass);
+            this.pnlAccount.Controls.Add(this.lblConfirmPass);
+            this.pnlAccount.Controls.Add(this.txtConfirmPass);
+            //
+            // lblFullNameCap
+            //
+            this.lblFullNameCap.AutoSize = true;
+            this.lblFullNameCap.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblFullNameCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblFullNameCap.Location = new System.Drawing.Point(20, 16);
+            this.lblFullNameCap.Name = "lblFullNameCap";
+            this.lblFullNameCap.Size = new System.Drawing.Size(63, 15);
+            this.lblFullNameCap.TabIndex = 0;
+            this.lblFullNameCap.Text = "Full Name";
+            //
+            // txtFullName
+            //
+            this.txtFullName.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtFullName.Location = new System.Drawing.Point(20, 36);
+            this.txtFullName.Name = "txtFullName";
+            this.txtFullName.Size = new System.Drawing.Size(250, 25);
+            this.txtFullName.TabIndex = 1;
+            //
+            // lblUsernameCap
+            //
+            this.lblUsernameCap.AutoSize = true;
+            this.lblUsernameCap.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblUsernameCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblUsernameCap.Location = new System.Drawing.Point(286, 16);
+            this.lblUsernameCap.Name = "lblUsernameCap";
+            this.lblUsernameCap.Size = new System.Drawing.Size(63, 15);
+            this.lblUsernameCap.TabIndex = 2;
+            this.lblUsernameCap.Text = "Username";
+            //
+            // lblUsernameValue
+            //
+            this.lblUsernameValue.AutoSize = false;
+            this.lblUsernameValue.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.lblUsernameValue.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(27)))), ((int)(((byte)(36)))));
+            this.lblUsernameValue.Location = new System.Drawing.Point(286, 36);
+            this.lblUsernameValue.Name = "lblUsernameValue";
+            this.lblUsernameValue.Size = new System.Drawing.Size(220, 25);
+            this.lblUsernameValue.TabIndex = 3;
+            this.lblUsernameValue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
+            // lblPwNote
+            //
+            this.lblPwNote.AutoSize = true;
+            this.lblPwNote.Font = new System.Drawing.Font("Segoe UI", 8.75F, System.Drawing.FontStyle.Bold);
+            this.lblPwNote.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblPwNote.Location = new System.Drawing.Point(20, 82);
+            this.lblPwNote.Name = "lblPwNote";
+            this.lblPwNote.Size = new System.Drawing.Size(350, 15);
+            this.lblPwNote.TabIndex = 4;
+            this.lblPwNote.Text = "Change Password (leave blank to keep your current password)";
+            //
+            // lblCurPass
+            //
+            this.lblCurPass.AutoSize = true;
+            this.lblCurPass.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblCurPass.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblCurPass.Location = new System.Drawing.Point(20, 106);
+            this.lblCurPass.Name = "lblCurPass";
+            this.lblCurPass.Size = new System.Drawing.Size(100, 15);
+            this.lblCurPass.TabIndex = 5;
+            this.lblCurPass.Text = "Current Password";
+            //
+            // txtCurPass
+            //
+            this.txtCurPass.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtCurPass.Location = new System.Drawing.Point(20, 126);
+            this.txtCurPass.Name = "txtCurPass";
+            this.txtCurPass.Size = new System.Drawing.Size(250, 25);
+            this.txtCurPass.TabIndex = 6;
+            this.txtCurPass.UseSystemPasswordChar = true;
+            //
+            // lblNewPass
+            //
+            this.lblNewPass.AutoSize = true;
+            this.lblNewPass.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblNewPass.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblNewPass.Location = new System.Drawing.Point(20, 162);
+            this.lblNewPass.Name = "lblNewPass";
+            this.lblNewPass.Size = new System.Drawing.Size(90, 15);
+            this.lblNewPass.TabIndex = 7;
+            this.lblNewPass.Text = "New Password";
+            //
+            // txtNewPass
+            //
+            this.txtNewPass.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtNewPass.Location = new System.Drawing.Point(20, 182);
+            this.txtNewPass.Name = "txtNewPass";
+            this.txtNewPass.Size = new System.Drawing.Size(220, 25);
+            this.txtNewPass.TabIndex = 8;
+            this.txtNewPass.UseSystemPasswordChar = true;
+            //
+            // lblConfirmPass
+            //
+            this.lblConfirmPass.AutoSize = true;
+            this.lblConfirmPass.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblConfirmPass.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblConfirmPass.Location = new System.Drawing.Point(286, 162);
+            this.lblConfirmPass.Name = "lblConfirmPass";
+            this.lblConfirmPass.Size = new System.Drawing.Size(140, 15);
+            this.lblConfirmPass.TabIndex = 9;
+            this.lblConfirmPass.Text = "Confirm New Password";
+            //
+            // txtConfirmPass
+            //
+            this.txtConfirmPass.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtConfirmPass.Location = new System.Drawing.Point(286, 182);
+            this.txtConfirmPass.Name = "txtConfirmPass";
+            this.txtConfirmPass.Size = new System.Drawing.Size(220, 25);
+            this.txtConfirmPass.TabIndex = 10;
+            this.txtConfirmPass.UseSystemPasswordChar = true;
+            //
+            // lblWorkHeader
+            //
+            this.lblWorkHeader.AutoSize = true;
+            this.lblWorkHeader.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            this.lblWorkHeader.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(27)))), ((int)(((byte)(36)))));
+            this.lblWorkHeader.Location = new System.Drawing.Point(24, 316);
+            this.lblWorkHeader.Name = "lblWorkHeader";
+            this.lblWorkHeader.Size = new System.Drawing.Size(150, 19);
+            this.lblWorkHeader.TabIndex = 3;
+            this.lblWorkHeader.Text = "Work Details (view only)";
             //
             // pnlForm
             //
             this.pnlForm.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
             this.pnlForm.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pnlForm.Location = new System.Drawing.Point(24, 82);
+            this.pnlForm.Location = new System.Drawing.Point(24, 344);
             this.pnlForm.Name = "pnlForm";
             this.pnlForm.Padding = new System.Windows.Forms.Padding(20);
             this.pnlForm.Size = new System.Drawing.Size(552, 520);
-            this.pnlForm.TabIndex = 2;
+            this.pnlForm.TabIndex = 4;
             this.pnlForm.Controls.Add(this.lblEmployeeNo);
             this.pnlForm.Controls.Add(this.txtEmployeeNo);
             this.pnlForm.Controls.Add(this.lblEmploymentStatus);
@@ -371,12 +528,13 @@ namespace CROMS.Forms
             this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(24, 614);
+            this.btnSave.Location = new System.Drawing.Point(24, 876);
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(140, 40);
-            this.btnSave.TabIndex = 3;
-            this.btnSave.Text = "Save My Biodata";
+            this.btnSave.Size = new System.Drawing.Size(160, 40);
+            this.btnSave.TabIndex = 5;
+            this.btnSave.Text = "Save Changes";
             this.btnSave.UseVisualStyleBackColor = false;
+            this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             //
             // btnClose
             //
@@ -384,10 +542,10 @@ namespace CROMS.Forms
             this.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnClose.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnClose.ForeColor = System.Drawing.Color.White;
-            this.btnClose.Location = new System.Drawing.Point(174, 614);
+            this.btnClose.Location = new System.Drawing.Point(194, 876);
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(100, 40);
-            this.btnClose.TabIndex = 4;
+            this.btnClose.TabIndex = 6;
             this.btnClose.Text = "Close";
             this.btnClose.UseVisualStyleBackColor = false;
             this.btnClose.Click += new System.EventHandler(this.btnClose_Click);
@@ -397,9 +555,11 @@ namespace CROMS.Forms
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.ClientSize = new System.Drawing.Size(600, 674);
+            this.ClientSize = new System.Drawing.Size(600, 936);
             this.Controls.Add(this.titleLabel);
             this.Controls.Add(this.subtitleLabel);
+            this.Controls.Add(this.pnlAccount);
+            this.Controls.Add(this.lblWorkHeader);
             this.Controls.Add(this.pnlForm);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.btnClose);
@@ -408,7 +568,9 @@ namespace CROMS.Forms
             this.MinimizeBox = false;
             this.Name = "StaffBiodataForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "My Biodata";
+            this.Text = "Edit Profile";
+            this.pnlAccount.ResumeLayout(false);
+            this.pnlAccount.PerformLayout();
             this.pnlForm.ResumeLayout(false);
             this.pnlForm.PerformLayout();
             this.ResumeLayout(false);
@@ -419,6 +581,19 @@ namespace CROMS.Forms
 
         private System.Windows.Forms.Label titleLabel;
         private System.Windows.Forms.Label subtitleLabel;
+        private System.Windows.Forms.Panel pnlAccount;
+        private System.Windows.Forms.Label lblFullNameCap;
+        private System.Windows.Forms.TextBox txtFullName;
+        private System.Windows.Forms.Label lblUsernameCap;
+        private System.Windows.Forms.Label lblUsernameValue;
+        private System.Windows.Forms.Label lblPwNote;
+        private System.Windows.Forms.Label lblCurPass;
+        private System.Windows.Forms.TextBox txtCurPass;
+        private System.Windows.Forms.Label lblNewPass;
+        private System.Windows.Forms.TextBox txtNewPass;
+        private System.Windows.Forms.Label lblConfirmPass;
+        private System.Windows.Forms.TextBox txtConfirmPass;
+        private System.Windows.Forms.Label lblWorkHeader;
         private System.Windows.Forms.Panel pnlForm;
         private System.Windows.Forms.Label lblEmployeeNo;
         private System.Windows.Forms.TextBox txtEmployeeNo;

@@ -265,19 +265,18 @@ namespace CROMS
             var viewProfile = new ToolStripMenuItem("View My Profile");
             viewProfile.Click += (s, e) =>
             {
-                using (var f = new Forms.StaffBiodataForm())
+                using (var f = new Forms.ProfileViewForm())
                     f.ShowDialog(this);
+                RefreshUserChipText();   // picks up any name change made from inside the view
             };
             menu.Items.Add(viewProfile);
 
             var editProfile = new ToolStripMenuItem("Edit Profile");
             editProfile.Click += (s, e) =>
             {
-                using (var f = new Forms.EditProfileForm())
-                {
-                    if (f.ShowDialog(this) == DialogResult.OK)
-                        RefreshUserChipText();
-                }
+                using (var f = new Forms.StaffBiodataForm())
+                    f.ShowDialog(this);
+                RefreshUserChipText();
             };
             menu.Items.Add(editProfile);
 

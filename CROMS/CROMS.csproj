@@ -329,7 +329,7 @@
     <Compile Include="Forms\TemplateDesignerForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Forms\EditProfileForm.cs">
+    <Compile Include="Forms\ProfileViewForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Forms\AdminVerificationForm.cs">
