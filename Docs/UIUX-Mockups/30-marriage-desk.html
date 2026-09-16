@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .kpi-row-6{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;}
+  @media (max-width:1180px){ .kpi-row-6{grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:680px){ .kpi-row-6{grid-template-columns:repeat(2,1fr);} }
+  .kpi-row-6 .kpi{padding:13px 14px;}
+  .kpi-row-6 .kpi-label{font-size:9.5px;}
+  .kpi-row-6 .kpi-value{font-size:19px;}
+  .tab-filter-row{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--row-line);gap:12px;flex-wrap:wrap;}
+  .search-inline{display:flex;align-items:center;gap:8px;background:var(--chrome);border-radius:var(--r-input);padding:0 10px;height:34px;flex:1;max-width:280px;}
+  .search-inline input{border:none;background:transparent;height:32px;padding:0;}
+</style>
+</head>
+<body>
+<div id="shell-mount"></div>
+
+<template id="page-body-template">
+  <div class="content-head">
+    <div>
+      <h1>Marriage — Window 1: the Marriage Desk</h1>
+      <div class="sub">Overview of every license application and registered marriage. Click a task card to filter the list below.</div>
+    </div>
+    <div class="content-actions">
+      <button class="btn btn-secondary btn-sm">Marriage records ▾</button>
+      <button class="btn btn-secondary btn-sm">PSA transmittal</button>
+      <a href="31-marriage-wizard.html" class="btn btn-primary btn-sm">+ New application</a>
+    </div>
+  </div>
+
+  <div class="kpi-row-6" style="margin-bottom:16px">
+    <div class="kpi" data-filter="posting"><div class="kpi-label">In posting</div><div class="kpi-value">4</div><div class="kpi-caption">10-day period</div></div>
+    <div class="kpi" data-filter="ready" style="border-color:#B9D8C6"><div class="kpi-label" style="color:var(--success)">Ready to issue</div><div class="kpi-value" style="color:var(--success)">3</div><div class="kpi-caption">Posting complete</div></div>
+    <div class="kpi" data-filter="valid"><div class="kpi-label">Valid licences</div><div class="kpi-value">11</div><div class="kpi-caption">Not yet used</div></div>
+    <div class="kpi" data-filter="expiring" style="border-color:#F0D6A8"><div class="kpi-label" style="color:var(--warning)">Expiring soon</div><div class="kpi-value" style="color:var(--warning)">2</div><div class="kpi-caption">Within 7 days</div></div>
+    <div class="kpi" data-filter="form97"><div class="kpi-label">Awaiting Form 97</div><div class="kpi-value">5</div><div class="kpi-caption">Wedding held, not received</div></div>
+    <div class="kpi" data-filter="psa"><div class="kpi-label">Pending PSA transmittal</div><div class="kpi-value">4</div><div class="kpi-caption">Registered, not sent</div></div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" style="padding-left:14px">
+      <div class="tab active">Licence applications</div>
+      <div class="tab">Registered marriages</div>
+      <div class="tab">Case tracking (delayed / exempt)</div>
+    </div>
+    <div class="tab-filter-row">
+      <div class="search-inline">🔍<input placeholder="Application no. or applicant name…"></div>
+      <div class="chip-toggle">
+        <span class="chip active">All</span>
+        <span class="chip">Posting</span>
+        <span class="chip">Ready to issue</span>
+        <span class="chip">Issued</span>
+        <span class="chip">Expiring</span>
+        <span class="chip">Expired</span>
+      </div>
+    </div>
+    <table class="dt">
+      <thead><tr><th>Application no.</th><th>Applicants</th><th>Date filed</th><th>Posting</th><th>Status</th><th>Expiration</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono dt-name">ML-2026-00128</td>
+          <td>R. Talosig &amp; S. Baloso</td>
+          <td>Sep 6, 2026</td>
+          <td>Day 4 of 10</td>
+          <td><span class="pill pill-info"><span class="dot"></span>Posting in progress</span></td>
+          <td class="text-faint">—</td>
+          <td class="dt-actions"><button class="btn btn-ghost btn-sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="mono dt-name">ML-2026-00127</td>
+          <td>G. Macanang &amp; T. Cadava</td>
+          <td>Sep 1, 2026</td>
+          <td>Complete</td>
+          <td><span class="pill pill-success"><span class="dot"></span>Ready to issue</span></td>
+          <td class="text-faint">—</td>
+          <td class="dt-actions"><button class="btn btn-secondary btn-sm">Issue licence</button></td>
+        </tr>
+        <tr>
+          <td class="mono dt-name">ML-2026-00119</td>
+          <td>E. Panlilio &amp; M. Quilang</td>
+          <td>Jul 22, 2026</td>
+          <td>Complete</td>
+          <td><span class="pill pill-warning"><span class="dot"></span>Expiring in 5 days</span></td>
+          <td>Sep 21, 2026</td>
+          <td class="dt-actions"><button class="btn btn-ghost btn-sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="mono dt-name">ML-2026-00108</td>
+          <td>J. Bautista &amp; A. Reyes</td>
+          <td>Jun 3, 2026</td>
+          <td>Complete</td>
+          <td><span class="pill pill-danger"><span class="dot"></span>Expired</span></td>
+          <td>Aug 15, 2026</td>
+          <td class="dt-actions"><button class="btn btn-ghost btn-sm">Open</button></td>
+        </tr>
+        <tr>
+          <td class="mono dt-name">ML-2026-00131</td>
+          <td>C. Ramos &amp; L. Fernandez</td>
+          <td>Sep 15, 2026</td>
+          <td>Not started</td>
+          <td><span class="pill pill-danger"><span class="dot"></span>Missing requirement</span></td>
+          <td class="text-faint">—</td>
+          <td class="dt-actions"><button class="btn btn-ghost btn-sm">Open</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-head"><h3>ML-2026-00128 — quick preview</h3><span class="hint">Selected from the list above</span></div>
+    <div class="card-pad" style="display:flex;gap:28px;flex-wrap:wrap">
+      <div><div style="font-size:11px;color:var(--faint);margin-bottom:3px">Applicants</div><b style="font-size:12.5px">Ryan Talosig &amp; Sheila Baloso</b></div>
+      <div><div style="font-size:11px;color:var(--faint);margin-bottom:3px">Filed</div><b style="font-size:12.5px">September 6, 2026</b></div>
+      <div><div style="font-size:11px;color:var(--faint);margin-bottom:3px">Posting period</div><b style="font-size:12.5px">Day 4 of 10 — completes Sep 16, 2026</b></div>
+      <div><div style="font-size:11px;color:var(--faint);margin-bottom:3px">Requirements</div><b style="font-size:12.5px;color:var(--success)">6 of 6 verified</b></div>
+      <div style="margin-left:auto;align-self:center"><button class="btn btn-primary btn-sm">Open full record</button></div>
+    </div>
+    <div class="card-pad" style="padding-top:0">
+      <div class="next-step"><span>→</span><span>Posting is not yet complete. The license cannot be issued until <b>September 16, 2026</b>.</span></div>
+    </div>
+  </div>
+</template>
+
+<script src="assets/shell.js"></script>
+<script>window.CROMS_PAGE = {navKey:'marriage', crumbs:['Marriage','Marriage desk'], title:'Marriage desk', notifCount:6};</script>
+</body>
+</html>

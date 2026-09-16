@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>CROMS Kiosk</title>
+<link rel="stylesheet" href="assets/design-system.css"><link rel="stylesheet" href="assets/kiosk.css">
+<style>
+  .claim-band{max-width:960px;margin:26px auto 0;width:100%;background:var(--surface);border:1.5px dashed #C9D2E0;border-radius:18px;padding:20px 26px;display:flex;align-items:center;gap:18px;}
+  .claim-band .k-ic{width:48px;height:48px;border-radius:13px;background:var(--warning-tint);color:var(--warning);display:flex;align-items:center;justify-content:center;font-size:20px;flex:0 0 auto;}
+  .claim-band b{font-size:14.5px;display:block;}
+  .claim-band span{font-size:12px;color:var(--faint);}
+</style></head>
+<body class="kiosk-body">
+  <div class="kiosk-topbar"><div class="mark">C</div><b>CROMS</b><span>LCRO Peñablanca · Self-service kiosk</span><div class="clock">Wed, Sep 16 · 9:41 AM</div></div>
+  <div class="kiosk-stage">
+    <div class="kiosk-title">What would you like to do today?</div>
+    <div class="kiosk-sub">Choose the category that matches your request.</div>
+    <div class="k-grid">
+      <a href="#" style="text-decoration:none;color:inherit"><div class="k-card"><div class="k-ic">👶</div><b>Birth</b><span>Registration &amp; certificates</span></div></a>
+      <a href="12-kiosk-service.html" style="text-decoration:none;color:inherit"><div class="k-card"><div class="k-ic">💍</div><b>Marriage &amp; family</b><span>License, registration, PSA copy</span></div></a>
+      <a href="#" style="text-decoration:none;color:inherit"><div class="k-card"><div class="k-ic">🕊</div><b>Death</b><span>Registration &amp; certificates</span></div></a>
+      <a href="#" style="text-decoration:none;color:inherit"><div class="k-card"><div class="k-ic">📄</div><b>Certifications</b><span>CTC &amp; negative certification</span></div></a>
+      <a href="#" style="text-decoration:none;color:inherit"><div class="k-card"><div class="k-ic">⚖</div><b>Petitions &amp; legal instruments</b><span>RA 9048, RA 10172, RA 9255, court orders</span></div></a>
+      <a href="#" style="text-decoration:none;color:inherit"><div class="k-card"><div class="k-ic">⋯</div><b>Other services</b><span>Everything else CROMS supports</span></div></a>
+    </div>
+
+    <a href="15-kiosk-claim.html" style="text-decoration:none;color:inherit">
+      <div class="claim-band">
+        <div class="k-ic">🎫</div>
+        <div style="flex:1"><b>Already filed a request and just picking it up?</b><span>Use Claim / Release instead — you won't need to fill out a new form.</span></div>
+        <div style="color:var(--accent);font-weight:700;font-size:20px">→</div>
+      </div>
+    </a>
+
+    <div class="kiosk-foot">
+      <a href="10-kiosk-welcome.html" class="k-btn k-btn-ghost" style="text-decoration:none;display:flex;align-items:center">← Start over</a>
+      <div></div>
+    </div>
+  </div>
+</body></html>

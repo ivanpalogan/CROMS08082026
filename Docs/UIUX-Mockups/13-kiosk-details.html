@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>CROMS Kiosk</title>
+<link rel="stylesheet" href="assets/design-system.css"><link rel="stylesheet" href="assets/kiosk.css">
+<style>
+  .k-form-wrap{max-width:760px;margin:0 auto;width:100%;}
+  .k-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .k-photo{width:100%;aspect-ratio:4/3;background:#0D1B33;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#9AA9C6;font-size:13px;}
+  .k-photo .cam{font-size:34px;margin-bottom:8px;}
+</style></head>
+<body class="kiosk-body">
+  <div class="kiosk-topbar"><div class="mark">C</div><b>CROMS</b><span>LCRO Peñablanca · Self-service kiosk</span><div class="clock">Wed, Sep 16 · 9:42 AM</div></div>
+  <div class="kiosk-stage">
+    <div class="kiosk-step"><div class="dot2 on"></div><div class="dot2 on"></div><div class="dot2 on"></div></div>
+    <div class="kiosk-title">Tell us who's applying</div>
+    <div class="kiosk-sub">Step 3 of 3 — Marriage license application. Only what's needed to line you up is asked here; the rest is completed with staff.</div>
+
+    <div class="k-form-wrap">
+      <div class="k-form-grid" style="margin-bottom:18px">
+        <div class="k-field"><label>Groom's full name</label><input type="text" placeholder="Juan Dela Cruz"></div>
+        <div class="k-field"><label>Bride's full name</label><input type="text" placeholder="Maria Santos"></div>
+        <div class="k-field"><label>Contact number</label><input type="text" placeholder="09XX XXX XXXX"></div>
+        <div class="k-field"><label>Valid ID type</label><select><option>Philippine National ID</option><option>Driver's license</option><option>Passport</option><option>Other</option></select></div>
+      </div>
+
+      <div class="k-field">
+        <label>Priority lane (if applicable)</label>
+        <div class="k-priority">
+          <div class="k-pchip">👴 Senior citizen</div>
+          <div class="k-pchip">♿ PWD</div>
+          <div class="k-pchip">🤰 Pregnant</div>
+        </div>
+      </div>
+
+      <div class="k-field" style="margin-top:18px">
+        <label>Photo (optional — speeds up verification at the counter)</label>
+        <div class="k-photo"><div class="cam">📷</div>Tap to take a photo</div>
+      </div>
+    </div>
+
+    <div class="kiosk-foot">
+      <a href="12-kiosk-service.html" class="k-btn k-btn-ghost" style="text-decoration:none;display:flex;align-items:center">← Back</a>
+      <a href="14-kiosk-ticket.html" class="k-btn k-btn-primary" style="text-decoration:none;display:flex;align-items:center">Confirm &amp; get queue number →</a>
+    </div>
+  </div>
+</body></html>

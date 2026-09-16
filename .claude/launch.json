@@ -6,6 +6,12 @@
       "runtimeExecutable": "cmd",
       "runtimeArgs": ["/c", "cd /d C:\\Users\\IVANPA~1\\AppData\\Local\\Temp\\claude\\C--Users-ivan-palogan-OneDrive-Documents-Capstone-CROMS\\788d5804-1d61-4956-98d8-77e12a667b14\\scratchpad\\ionictest && C:\\nvm4w\\nodejs\\node.exe node_modules\\@angular\\cli\\bin\\ng.js serve --port=4300"],
       "port": 4300
+    },
+    {
+      "name": "uiux-mockups",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "4500", "--directory", "Docs/UIUX-Mockups"],
+      "port": 4500
     }
   ]
 }

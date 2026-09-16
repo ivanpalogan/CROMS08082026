@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>CROMS Kiosk</title>
+<link rel="stylesheet" href="assets/design-system.css"><link rel="stylesheet" href="assets/kiosk.css">
+<style>
+  .k-form-wrap{max-width:520px;margin:0 auto;width:100%;}
+  .found-card{max-width:520px;margin:20px auto 0;background:var(--surface);border:1.5px solid var(--card-line);border-radius:16px;padding:20px 22px;display:none;}
+  .found-card.show{display:block;}
+  .found-card .row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--row-line);}
+  .found-card .row:last-child{border-bottom:none;}
+</style></head>
+<body class="kiosk-body">
+  <div class="kiosk-topbar"><div class="mark">C</div><b>CROMS</b><span>LCRO Peñablanca · Self-service kiosk</span><div class="clock">Wed, Sep 16 · 9:44 AM</div></div>
+  <div class="kiosk-stage">
+    <span class="pill pill-warning" style="align-self:center;margin-bottom:10px">Claim / release — not a new request</span>
+    <div class="kiosk-title">Picking up a document?</div>
+    <div class="kiosk-sub">Enter the reference or claim stub number from your earlier visit. You won't fill out any new forms.</div>
+
+    <div class="k-form-wrap">
+      <div class="k-field"><label>Reference / claim stub number</label><input type="text" placeholder="e.g. CTC-2026-0231" style="text-align:center;font-family:var(--font-mono);font-size:18px" value="CTC-2026-0231"></div>
+      <div style="text-align:center;color:var(--faint);font-size:12px;margin:8px 0 4px">— or —</div>
+      <div class="k-field"><label>Full name on the request</label><input type="text" placeholder="Juan Dela Cruz"></div>
+    </div>
+
+    <div class="found-card show">
+      <div class="row"><span class="text-faint">Request</span><b>Certified copy of birth certificate</b></div>
+      <div class="row"><span class="text-faint">For</span><b>Maria Santos</b></div>
+      <div class="row"><span class="text-faint">Status</span><span class="pill pill-success"><span class="dot"></span>Ready for release</span></div>
+    </div>
+
+    <div class="kiosk-foot" style="max-width:520px">
+      <a href="11-kiosk-category.html" class="k-btn k-btn-ghost" style="text-decoration:none;display:flex;align-items:center">← Back</a>
+      <a href="14-kiosk-ticket.html" class="k-btn k-btn-primary" style="text-decoration:none;display:flex;align-items:center">Get queue number →</a>
+    </div>
+  </div>
+</body></html>

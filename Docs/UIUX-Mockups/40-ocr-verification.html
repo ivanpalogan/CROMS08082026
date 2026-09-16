@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .ocr-wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+  @media (max-width:1180px){ .ocr-wrap{grid-template-columns:1fr;} .scan-view{height:360px;} }
+  .scan-view{background:#1B2536;border-radius:var(--r-card);height:560px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+  .scan-view .placeholder-doc{width:78%;height:88%;background:#fff;border-radius:4px;position:relative;box-shadow:0 8px 24px rgba(0,0,0,.4);}
+  .scan-view .hl{position:absolute;border:2px solid var(--accent);border-radius:2px;background:rgba(29,78,216,.08);}
+  .scan-toolbar{position:absolute;top:12px;right:12px;display:flex;gap:6px;}
+  .scan-toolbar button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;width:32px;height:32px;border-radius:7px;cursor:pointer;}
+  .field-row{display:grid;grid-template-columns:1.3fr 1.4fr 60px 90px;gap:8px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--row-line);}
+  .field-row.active{background:var(--accent-tint);border-radius:6px;}
+  .field-row label{font-size:11.5px;font-weight:600;color:var(--muted);}
+  .field-row input{height:32px;font-size:12.5px;}
+  .field-row .conf{font-size:11px;font-weight:700;text-align:center;}
+  .conf-hi{color:var(--success);}
+  .conf-mid{color:var(--warning);}
+  .conf-lo{color:var(--danger);}
+  .ocr-batch-row{display:flex;align-items:center;gap:10px;padding:8px 14px;border-bottom:1px solid var(--row-line);font-size:12px;}
+</style>
+</head>
+<body>
+<div id="shell-mount"></div>
+
+<template id="page-body-template">
+  <div class="content-head">
+    <div>
+      <h1>Intelligent document processing</h1>
+      <div class="sub">MF-102 (2007) — Certificate of Live Birth · classified 99% confidence</div>
+    </div>
+    <div class="content-actions">
+      <span class="pill pill-warning"><span class="dot"></span>Needs review — 3 fields</span>
+    </div>
+  </div>
+
+  <div class="ocr-wrap">
+    <div class="card card-pad">
+      <div class="card-head" style="margin:-18px -20px 14px;padding:14px 18px"><h3>Scanned document</h3><span class="hint">Field selected below is outlined on the scan</span></div>
+      <div class="scan-view">
+        <div class="scan-toolbar"><button>−</button><button>+</button><button>⟳</button></div>
+        <div class="placeholder-doc">
+          <div class="hl" style="top:14%;left:12%;width:34%;height:5%"></div>
+          <div class="hl" style="top:22%;left:12%;width:50%;height:5%;border-color:var(--warning);background:rgba(180,83,9,.08)"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-secondary btn-sm">↻ Re-OCR</button>
+        <button class="btn btn-secondary btn-sm">Deskew</button>
+        <button class="btn btn-ghost btn-sm">Replace scan</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>Extracted fields — review required</h3><span class="hint">87% overall confidence</span></div>
+      <div class="card-pad" style="padding-top:10px;max-height:400px;overflow-y:auto">
+        <div class="field-row active"><label>Child's first name</label><input value="Gilvan"><span class="conf conf-lo">52%</span><span class="pill pill-warning" style="font-size:9.5px">Needs review</span></div>
+        <div class="field-row"><label>Child's last name</label><input value="Talosig"><span class="conf conf-hi">92%</span><span class="pill pill-success" style="font-size:9.5px">Ok</span></div>
+        <div class="field-row"><label>Date of birth</label><input value="2018-06-13"><span class="conf conf-hi">96%</span><span class="pill pill-success" style="font-size:9.5px">Ok</span></div>
+        <div class="field-row"><label>Sex</label><input value="Male"><span class="conf conf-hi">88%</span><span class="pill pill-success" style="font-size:9.5px">Ok</span></div>
+        <div class="field-row"><label>Weight (grams)</label><input value="2835"><span class="conf conf-mid">61%</span><span class="pill pill-warning" style="font-size:9.5px">Needs review</span></div>
+        <div class="field-row"><label>Mother's maiden name</label><input value="Baloso"><span class="conf conf-hi">82%</span><span class="pill pill-success" style="font-size:9.5px">Ok</span></div>
+        <div class="field-row"><label>Father's name</label><input value="Panlilio"><span class="conf conf-mid">55%</span><span class="pill pill-warning" style="font-size:9.5px">Needs review</span></div>
+        <div class="field-row"><label>Place of birth</label><input value="Peñablanca, Cagayan"><span class="conf conf-hi">90%</span><span class="pill pill-success" style="font-size:9.5px">Ok</span></div>
+        <div class="field-row"><label>Registry no.</label><input value="" placeholder="Handwritten — type from scan"><span class="conf conf-lo">—</span><span class="pill pill-danger" style="font-size:9.5px">Missing</span></div>
+      </div>
+      <div class="hr" style="margin:6px 20px"></div>
+      <div style="padding:0 18px 18px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-secondary btn-sm">Save as draft</button>
+        <button class="btn btn-navy btn-sm">Preview on form</button>
+        <button class="btn btn-primary btn-sm" style="margin-left:auto">Commit to birth registry</button>
+        <button class="btn btn-success btn-sm">Auto-fill registration form</button>
+      </div>
+      <div style="padding:0 18px 16px">
+        <div class="next-step warn"><span>!</span><span>3 fields need review before this can be committed. Correcting a value re-checks it instantly — no need to re-scan.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-head"><h3>OCR batch — today</h3></div>
+    <div class="ocr-batch-row"><span class="mono">09:12 AM</span><span style="flex:1">Birth — MF-102 (2007)</span><span class="pill pill-success" style="font-size:10px">Committed</span></div>
+    <div class="ocr-batch-row"><span class="mono">09:31 AM</span><span style="flex:1">Marriage — MF-97</span><span class="pill pill-warning" style="font-size:10px">Draft — needs review</span></div>
+    <div class="ocr-batch-row"><span class="mono">09:44 AM</span><span style="flex:1">Birth — MF-102 (2007) — current</span><span class="pill pill-info" style="font-size:10px">In review</span></div>
+  </div>
+</template>
+
+<script src="assets/shell.js"></script>
+<script>window.CROMS_PAGE = {navKey:'ocr', crumbs:['Document processing','Intelligent document processing'], title:'Intelligent document processing', notifCount:6};</script>
+</body>
+</html>
