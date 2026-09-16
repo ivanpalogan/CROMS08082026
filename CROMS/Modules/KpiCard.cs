@@ -21,7 +21,7 @@ namespace CROMS.Modules
         public enum Icon { QueuePerson, DocumentTick, PesoCoin, InboxTray }
         public enum Spark { None, Area, Bars }
 
-        private static readonly Padding Inset = new Padding(16, 14, 16, 13);
+        private static readonly Padding Inset = new Padding(16, 9, 16, 8);
 
         private readonly Font _labelFont = new Font("Segoe UI", 8.25F, FontStyle.Bold);
         private readonly Font _valueFont = new Font("Segoe UI", 24F, FontStyle.Bold);
@@ -156,11 +156,11 @@ namespace CROMS.Modules
             }
 
             // ---- label
-            int y = chip.Bottom + 12;
+            int y = chip.Bottom + 8;
             int labelH = LineHeight(g, _labelFont);
             DrawTracked(g, (Label ?? "").ToUpperInvariant(), _labelFont, UiTheme.Muted,
                         inner.X, y, 0.7f);
-            y += labelH + 3;
+            y += labelH + 2;
 
             // ---- value, with prefix/suffix on the SAME baseline
             int bigAscent = Ascent(g, _valueFont);
@@ -176,7 +176,7 @@ namespace CROMS.Modules
 
             // Only the ascent + a little descent, not the full line box: the 24pt line box is
             // ~44px and the card is 172px tall, which leaves no room for the sparkline.
-            y += bigAscent + 4 + 3;
+            y += bigAscent + 3 + 2;
 
             // ---- caption
             Font capFont = CaptionIsAction ? _capBoldFont : _captionFont;

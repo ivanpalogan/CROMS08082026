@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Modules;
@@ -32,6 +34,9 @@ namespace CROMS
         public MainForm()
         {
             InitializeComponent();
+            SetupBrandMark();
+            SetupSidebarToggle();
+            DarkenSidebarScrollbar();
             RegisterNavButtons();
             BuildUserBar();
             ApplyRoleAccess();
@@ -40,6 +45,97 @@ namespace CROMS
             // Open on the first module (Dashboard) by default.
             if (ModuleRegistry.All.Count > 0)
                 ShowModule(ModuleRegistry.All[0].Key);
+        }
+
+        [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+        private static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
+
+        /// <summary>
+        /// The nav list's own scrollbar is the OS's default light one, which reads as a stray
+        /// white stripe against the navy sidebar. This is the standard Win10/11 trick for a
+        /// dark-mode scrollbar on a plain control's own non-client area — best-effort only
+        /// (older Windows builds just keep the light scrollbar; nothing else breaks either way).
+        /// </summary>
+        private void DarkenSidebarScrollbar()
+        {
+            if (navFlow.IsHandleCreated) SetWindowTheme(navFlow.Handle, "DarkMode_Explorer", null);
+            else navFlow.HandleCreated += (s, e) => SetWindowTheme(navFlow.Handle, "DarkMode_Explorer", null);
+        }
+
+        /// <summary>
+        /// Small institution mark beside the "CROMS" wordmark — the same line-icon language
+        /// already used on the Login and Launcher screens, so all three read as one brand.
+        /// </summary>
+        private void SetupBrandMark()
+        {
+            var mark = new Panel
+            {
+                Size = new Size(34, 34),
+                Location = new Point(16, 15),
+                BackColor = Color.Transparent,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left
+            };
+            mark.Paint += (s, e) =>
+            {
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                e.Graphics.Clear(brandPanel.BackColor);
+                using (GraphicsPath path = CardPanel.RoundedRect(
+                           new Rectangle(0, 0, mark.Width - 1, mark.Height - 1), 8))
+                using (var b = new SolidBrush(UiTheme.NavyHover))
+                    e.Graphics.FillPath(b, path);
+                DrawInstitutionIcon(e.Graphics, new RectangleF(7, 7, 20, 20), Color.White);
+            };
+            brandPanel.Controls.Add(mark);
+            mark.BringToFront();
+            brandLabel.Location = new Point(mark.Right + 10, brandLabel.Location.Y);
+        }
+
+        /// <summary>Plain line-art municipal building — matches LoginForm/LauncherForm's mark.</summary>
+        private static void DrawInstitutionIcon(Graphics g, RectangleF r, Color stroke)
+        {
+            using (var pen = new Pen(stroke, 1.5f))
+            {
+                float cx = r.X + r.Width / 2f;
+                float roofBaseY = r.Y + r.Height * 0.32f;
+                float baseY = r.Bottom - r.Height * 0.06f;
+                float halfW = r.Width * 0.44f;
+
+                g.DrawLine(pen, cx, r.Y, cx - halfW, roofBaseY);
+                g.DrawLine(pen, cx, r.Y, cx + halfW, roofBaseY);
+                g.DrawLine(pen, cx - halfW, roofBaseY, cx + halfW, roofBaseY);
+
+                float colTop = roofBaseY + r.Height * 0.08f;
+                float[] colXs = { cx - halfW * 0.55f, cx, cx + halfW * 0.55f };
+                foreach (float x in colXs) g.DrawLine(pen, x, colTop, x, baseY);
+
+                g.DrawLine(pen, cx - halfW - 1.5f, baseY, cx + halfW + 1.5f, baseY);
+            }
+        }
+
+        /// <summary>
+        /// A collapse button lives in the HEADER (not the sidebar itself) so it stays reachable
+        /// even while the sidebar is hidden — collapsing frees the full width for the module's
+        /// own content on a small screen, and the same button brings it back.
+        /// </summary>
+        private void SetupSidebarToggle()
+        {
+            var btn = new Button
+            {
+                Text = "≡",
+                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                FlatStyle = FlatStyle.Flat,
+                ForeColor = UiTheme.Ink,
+                BackColor = Color.White,
+                Size = new Size(36, 34),
+                Location = new Point(12, 11),
+                Cursor = Cursors.Hand,
+                TabStop = false
+            };
+            btn.FlatAppearance.BorderSize = 0;
+            btn.Click += (s, e) => sidebarPanel.Visible = !sidebarPanel.Visible;
+            headerPanel.Controls.Add(btn);
+            btn.BringToFront();
+            headerLabel.Location = new Point(btn.Right + 12, headerLabel.Location.Y);
         }
 
         /// <summary>

@@ -98,9 +98,10 @@ namespace CROMS.Forms
             this.layoutRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.layoutRoot.RowCount = 8;
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 66F));   // header
-            // 148, not 116: a KpiCard draws chip(32) + label + value ascent + caption inside its
-            // own inset, and at 116 the number ran into the card edge and the caption never drew.
-            this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 148F));  // KPI tiles
+            // 128: tightened from 148 (KpiCard's own insets/gaps were tightened to match — see
+            // Modules/KpiCard.cs) so the KPI strip stops crowding the queue table beneath it,
+            // while still leaving room for chip(32) + label + value ascent + caption.
+            this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 128F));  // KPI tiles
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28F));   // my-window heading
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 152F));  // window card
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 52F));   // workflow bar
@@ -443,15 +444,16 @@ namespace CROMS.Forms
             this.pnlQueueHead.Controls.Add(this._txtSearch, 2, 0);
 
             //
-            // pnlQueueArea — the regular queue grows with the window; the PRIORITY LANE keeps a
-            // fixed band underneath it so it is on screen at all times. It is a lane the law
-            // requires be served first (RA 11261), so it must never be something to navigate to.
+            // pnlQueueArea — the PRIORITY LANE keeps a fixed band ON TOP, always on screen with
+            // no scrolling needed: it is a lane the law requires be served first (RA 11261), so
+            // it must be the first thing staff see, not something found by scrolling past the
+            // regular queue. The regular queue grows to fill the rest.
             //
             this.pnlQueueArea.ColumnCount = 1;
             this.pnlQueueArea.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.pnlQueueArea.RowCount = 2;
-            this.pnlQueueArea.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.pnlQueueArea.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 168F));
+            this.pnlQueueArea.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.pnlQueueArea.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlQueueArea.Margin = new System.Windows.Forms.Padding(0);
             this.pnlQueueArea.BackColor = System.Drawing.Color.Transparent;
@@ -461,7 +463,7 @@ namespace CROMS.Forms
             // cardQueue + dgvQueue
             //
             this.cardQueue.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardQueue.Margin = new System.Windows.Forms.Padding(0, 4, 0, 6);
+            this.cardQueue.Margin = new System.Windows.Forms.Padding(0, 6, 0, 4);
             this.cardQueue.Padding = new System.Windows.Forms.Padding(8, 8, 8, 8);
             this.cardQueue.Radius = 12;
             this.cardQueue.Name = "cardQueue";
@@ -484,7 +486,7 @@ namespace CROMS.Forms
             // lists read as one table split by lane rather than as two different screens.
             //
             this.cardPriority.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.cardPriority.Margin = new System.Windows.Forms.Padding(0, 0, 0, 6);
+            this.cardPriority.Margin = new System.Windows.Forms.Padding(0, 0, 0, 4);
             this.cardPriority.Padding = new System.Windows.Forms.Padding(8, 6, 8, 8);
             this.cardPriority.Radius = 12;
             this.cardPriority.LineColor = CROMS.Modules.UiTheme.Mix(CROMS.Modules.UiTheme.WarningTint, CROMS.Modules.UiTheme.Warning, 0.35F);
@@ -516,8 +518,8 @@ namespace CROMS.Forms
             this.cardPriority.Controls.Add(this.dgvPriority);        // fill first
             this.cardPriority.Controls.Add(this.lblPriorityHead);    // then the heading above it
 
-            this.pnlQueueArea.Controls.Add(this.cardQueue, 0, 0);
-            this.pnlQueueArea.Controls.Add(this.cardPriority, 0, 1);
+            this.pnlQueueArea.Controls.Add(this.cardPriority, 0, 0);
+            this.pnlQueueArea.Controls.Add(this.cardQueue, 0, 1);
 
             //
             // pnlFooter — legend on the left (it explains the colours above it), actions right.

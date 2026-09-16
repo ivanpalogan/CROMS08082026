@@ -4557,3 +4557,54 @@ seals, the footer banner) is therefore still open and still needs those photos r
 header seals and footer banner are also still not uploaded: every `Picture` cell resolves to
 nothing today, so all three render with empty logo areas until the office uploads them through
 Settings -> Certificates & Forms (now possible at all, since migration 47 is applied).
+
+### 2026-09-16 (later) — Queue Management layout fixes + shell scrollbar/collapse/logo
+Six items reported from a screenshot of the running Queue Management screen plus the sidebar.
+
+KPI ROW SHRUNK 148 -> 128px. `KpiCard`'s own internal insets/gaps (Modules/KpiCard.cs) were
+tightened in step (top/bottom inset 14/13 -> 9/8, the gap under the icon chip 12 -> 8, the gap
+under the value 4+3 -> 3+2) so the label/value/caption still clear the card edge at the shorter
+height — the row was never just "148 is what fits", it fits with the padding it has, so shrinking
+one without the other would have reproduced the exact clipping bug the original 116 -> 148 change
+was fixing (2026-09-XX comment already in the Designer). Frees ~20px for the queue table below.
+Affects Dashboard's KpiCards too (shared class) — strictly more breathing room there, not less.
+
+PRIORITY LANE MOVED ABOVE THE REGULAR QUEUE, kept STACKED rather than side-by-side. RA 11261
+requires the priority lane be served first, so it should be the first thing staff see, not
+something scrolled past or found in a second column; and stacked keeps each grid at full width —
+the priority table alone shows 8 columns (Queue No/Type/Issued/Wait/Priority/Recalls/Proc. Time/
+Status), which side-by-side halving would have squeezed unreadable. `pnlQueueArea`'s row order and
+Controls.Add order swapped (priority = Absolute 168 first, regular = Percent 100 second); margins
+adjusted so the two cards still sit flush.
+
+MY WINDOW CARD BORDER "CUT" LOOK — root cause was `NextStepGlow`'s pulsing ring drawing on a
+DIFFERENT inset rect `(1,1,w-3,h-3)` than the card's own hairline border `(0,0,w-1,h-1)`
+(CardPanel.OnPaint). Same radius, different rect size, so the two rounded-rect arcs don't
+coincide — most visible at the corners, reading as the border breaking into a straight cut instead
+of curving. `NextStepGlow.DrawGlow` now uses the identical rect the card's own border uses, so the
+glow overlays it exactly instead of drawing a slightly-offset second outline.
+
+SIDEBAR SCROLLBAR DARKENED. `navFlow`'s AutoScroll scrollbar was the OS default light one, a stray
+white stripe against the navy sidebar. Applied the standard Win10/11 `SetWindowTheme(hwnd,
+"DarkMode_Explorer", null)` trick to its handle (`MainForm.DarkenSidebarScrollbar`) — best-effort,
+degrades silently to the light scrollbar on older Windows, no other behaviour changes.
+
+SIDEBAR COLLAPSE. New small "≡" button in the HEADER (not the sidebar itself, so it stays
+reachable even while the sidebar is hidden) toggles `sidebarPanel.Visible`; `mainPanel` is
+Dock=Fill so it reclaims the full width automatically when the sidebar goes invisible (WinForms
+docking skips invisible docked children). `headerLabel` shifted right to clear the new button.
+
+GROUP HEADER SPACING TIGHTENED under the brand mark: `lblGrpClient`'s top margin (the very first
+"CLIENT SERVICES" label) 10 -> 6, so the gap between the logo and the first section reads slightly
+tighter than the gaps BETWEEN sections — the other five group headers (Certification/Record/
+Document/Operations/Admin) keep their 10px margin, which is the actual section-to-section rhythm.
+
+LCRO MARK ADDED BESIDE "CROMS". A small owner-drawn institution icon (the same "classical
+building" line-mark already used on Login and Launcher, so all three screens read as one brand)
+in a rounded `NavyHover`-tinted chip, added to `brandPanel` beside the wordmark; `brandLabel`
+shifted right to make room. Not an uploaded office logo image (none supplied) — a drawn mark
+consistent with the two other screens that already carry it.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors (temp OutputPath, removed after). GUI
+not clicked (no interactive desktop) — the border-alignment and spacing fixes are reasoned from
+the exact paint/layout code, not eyeballed; rebuild in VS and confirm on the running app.

@@ -151,7 +151,7 @@
             //
             this.lblGrpClient.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
             this.lblGrpClient.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpClient.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpClient.Margin = new System.Windows.Forms.Padding(12, 6, 0, 2);
             this.lblGrpClient.Name = "lblGrpClient";
             this.lblGrpClient.Size = new System.Drawing.Size(200, 24);
             this.lblGrpClient.TabIndex = 0;

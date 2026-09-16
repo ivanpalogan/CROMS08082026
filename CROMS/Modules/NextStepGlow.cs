@@ -71,7 +71,11 @@ namespace CROMS.Modules
             g.SmoothingMode = SmoothingMode.AntiAlias;
             int r;
             if (!_radius.TryGetValue(c, out r)) r = 8;
-            var rect = new Rectangle(1, 1, c.Width - 3, c.Height - 3);
+            // Same rect a CardPanel draws its own hairline border on (0,0,Width-1,Height-1) —
+            // using a different inset here left the pulsing ring a pixel inside the card's own
+            // border, and at the corners the two differently-sized arcs didn't line up, reading
+            // as the border being "cut" rather than a clean rounded rectangle.
+            var rect = new Rectangle(0, 0, c.Width - 1, c.Height - 1);
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
             using (GraphicsPath path = CardPanel.RoundedRect(rect, r))
