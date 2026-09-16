@@ -212,6 +212,8 @@ namespace CROMS.Data
 
         public static void Show(DataTable t, System.Windows.Forms.IWin32Window owner)
         {
+            if (TemplateReportBridge.TryShow(FormCode, FormName, t, owner)) return;
+
             string rpt = System.IO.Path.Combine(CertificateReport.ReportsFolder, RptFile);
             if (CertificateReport.CrystalAvailable && System.IO.File.Exists(rpt))
             {

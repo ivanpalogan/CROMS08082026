@@ -454,6 +454,7 @@
     <Compile Include="Data\CertTemplate.cs" />
     <Compile Include="Data\TemplateStore.cs" />
     <Compile Include="Data\TemplateRenderer.cs" />
+    <Compile Include="Data\TemplateReportBridge.cs" />
     <Compile Include="Data\Mf90Form.cs" />
     <Compile Include="Data\ConsentForm.cs" />
     <Compile Include="Data\AdviceForm.cs" />

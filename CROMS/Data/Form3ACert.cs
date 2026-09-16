@@ -282,6 +282,8 @@ namespace CROMS.Data
         /// own either, so CROMS builds the one row itself and the report only places it.</summary>
         public static void Show(DataTable t, System.Windows.Forms.IWin32Window owner)
         {
+            if (TemplateReportBridge.TryShow(FormCode, FormName, t, owner)) return;
+
             string rpt = System.IO.Path.Combine(CertificateReport.ReportsFolder, RptFile);
             if (CertificateReport.CrystalAvailable && System.IO.File.Exists(rpt))
             {

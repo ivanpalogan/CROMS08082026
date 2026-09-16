@@ -4250,3 +4250,63 @@ are entered on Birth/Marriage/Death Registration, where the record's other facts
 on a separate catalogue screen); Birth's Book/Volume box is still free text exactly as
 Marriage's and Death's now are (nothing validates it against an actual physical book count or
 enforces one page per record).
+
+### 2026-09-16 — Certificate Templates (A1/A3): the visual editor now actually drives printing
+Found, on picking up a user proposal for "editable A1/A2/A3 certificate templates," that most of
+it already exists and was never logged here: `Forms/TemplateManagementForm.cs` (the "Certificate
+Templates" admin screen — one card per known form, Edit/Preview/Restore Default, admin
+re-verification to enter edit mode), `Forms/TemplateDesignerForm.cs` (the visual editor — add
+Text/Field/Image/Line/Rectangle, drag/resize/reorder via `Modules/TemplateCanvas.cs`, font/size/
+bold/italic/underline/align, Header/Body/Footer section tag per element, undo/redo, Preview with
+Sample Data or an actual record), and `Data/TemplateStore.cs` (one default row + one active row
+per form in `certificate_templates`, seeded from the form's existing hardcoded C# layout on first
+open, `Save`/`RestoreDefault`/image storage). `KnownForms` covers A1 (`Form3ACert`, Marriage Facts
+Certification) and A3 (`Form3BCert`, Birth Facts Certification, currently named Form 3B) — no A2
+(Death) entry exists yet.
+
+THE GAP THAT MATTERED: the editor was fully wired to itself but not to printing. `Form3ACertForm`/
+`Form3BCertForm`'s Preview/Print buttons called `Form3ACert.Show`/`Form3BCert.Show`, which only
+ever chose between Crystal (`FORM-3A.rpt`/`FORM-3B.rpt`, neither exists) and the form's own
+hardcoded `Cells` list drawn straight to `Graphics` — `TemplateStore`/`TemplateRenderer` were
+referenced nowhere outside the designer itself. So an operator could edit and Save a template and
+nothing they typed would ever print; the designer was a fully-built preview tool with no output.
+
+FIXED with new `Data/TemplateReportBridge.cs`, one shared bridge both cert classes now call FIRST:
+`TemplateReportBridge.TryShow(formCode, formName, dataTable, owner)` loads
+`TemplateStore.GetActive(formCode)`, converts the built `DataTable`'s one row into the
+`IDictionary<string,string>` `TemplateRenderer.Draw` expects (same signature the designer's canvas
+and its Preview dialog already use — literally the same drawing code, so what was approved in the
+editor is pixel-for-pixel what prints), builds a `PrintDocument` sized off the template's own
+`PageWidth`/`PageHeight`/`Orientation`, and shows it through the existing `ZoomPrintPreviewForm`.
+Returns false (having drawn nothing) whenever there is no active template, or the elements list is
+empty, or rendering throws for any reason — `Form3ACert.Show`/`Form3BCert.Show` then fall through
+to their UNCHANGED legacy path (Crystal-if-present, else the hardcoded `Cells` renderer), so a
+broken or missing template can never leave the operator with no certificate to hand the client.
+This satisfies the proposal's own stated rule directly: the published editable template is now the
+PRIMARY print layout, and the old hard-coded/Crystal path is only the emergency fallback.
+
+NOT A NEW RENDERER: no new drawing code was written for print — `TemplateRenderer.Draw` (already
+used by the canvas at `designMode=true`) is called again here at `designMode=false, selectedId=
+null`, which is what makes preview and print provably consistent rather than two implementations
+that could quietly drift apart.
+
+VERIFIED: `MSBuild` (VS2022 BuildTools, since this env has no VS2019 msbuild.exe) `CROMS.csproj`
+clean, 0 errors, temp OutputPath (removed after). Not exercised against a live database or the
+real print dialog (no interactive desktop / live `croms` connection in this session) — the bridge
+was reasoned from `TemplateDesignerForm`'s own working `LoadTemplateImage` pattern (decode-and-
+cache from `TemplateStore.LoadImage`'s `byte[]`) and the two forms' existing, already-proven
+`BuiltInDocument` print-setup code (page-unit Point, hard-margin translate for the real printer vs.
+preview). Rebuild in VS to pick it up.
+
+STILL OPEN, matching the proposal's own delivery plan and not touched this pass: no A2/Death Facts
+Certification entry (no default layout, no Form 2A data builder/print-before-print window, no
+"Facts Certification (Form 2A)" action on Death Registration, no death fields in the field picker —
+needs the office's approved Form 2A sample before its default wording/positions can be called
+final, same prerequisite this project has hit for every other blank-form question); no draft-vs-
+published distinction or version history (`TemplateStore.Save` writes straight to the live active
+row — there is exactly one "default" to restore to, not a list of prior published versions to pick
+from); no inline paragraph placeholders (`{{full_name}}` embedded in a sentence) — a Field element
+is always its own separate positioned box, never text mixed with a placeholder token; and Staff
+role gating on Preview/Print vs. Admin-only Edit was not audited in this pass (the designer's own
+`TryEnterEditMode` already requires `AdminVerificationForm`, but whether the Print buttons on
+`Form3ACertForm`/`Form3BCertForm` are reachable by non-admin roles at all was not checked).
