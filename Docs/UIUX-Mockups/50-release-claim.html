@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .rc-wrap{display:grid;grid-template-columns:360px 1fr;gap:16px;align-items:start;position:relative;}
+  @media (max-width:900px){ .rc-wrap{grid-template-columns:1fr;} }
+  .rc-list-item{padding:12px 14px;border-bottom:1px solid var(--row-line);cursor:pointer;}
+  .rc-list-item.selected{background:var(--accent-tint);border-left:3px solid var(--accent);}
+  .rc-list-item b{font-size:12.5px;display:block;}
+  .rc-list-item span{font-size:11px;color:var(--faint);}
+  .photo-pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .photo-box{background:#EEF1F6;border-radius:var(--r-card);aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--faint);font-size:12px;border:1px solid var(--card-line);}
+  .photo-box .big{font-size:26px;margin-bottom:6px;}
+  .check-list .ck{display:flex;align-items:center;gap:9px;padding:8px 0;font-size:12.5px;}
+  .check-list .ck .tick{width:18px;height:18px;border-radius:5px;background:var(--success);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+</style>
+</head>
+<body>
+<div id="shell-mount"></div>
+
+<template id="page-body-template">
+  <div class="content-head">
+    <div>
+      <h1>Release &amp; claim</h1>
+      <div class="sub">Window 4 — Releasing</div>
+    </div>
+    <div class="content-actions">
+      <span class="pill pill-success" style="font-size:10.5px">9 ready</span>
+      <span class="pill pill-warning" style="font-size:10.5px">3 unclaimed 3+ days</span>
+    </div>
+  </div>
+
+  <div class="rc-wrap">
+    <div class="card">
+      <div class="card-head"><h3>Find the request</h3></div>
+      <div style="padding:10px 14px"><div class="search-inline" style="max-width:none"><input placeholder="Txn no., queue no., or name…"></div></div>
+      <div class="tabs" style="padding-left:10px">
+        <div class="tab active">For release (9)</div>
+        <div class="tab">Waiting to release</div>
+      </div>
+      <div>
+        <div class="rc-list-item selected"><b>CTC-2026-0231</b><span>Maria Santos — Certified copy of birth</span></div>
+        <div class="rc-list-item"><b>ML-2026-00127</b><span>G. Macanang &amp; T. Cadava — Marriage license</span></div>
+        <div class="rc-list-item"><b>CTC-2026-0229</b><span>R. Bautista — Certified copy of death</span></div>
+        <div class="rc-list-item"><b>NEG-2026-0044</b><span>J. Reyes — Negative certification</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h3>CTC-2026-0231</h3><span class="hint">Certified copy of birth certificate — Maria Santos</span></div>
+        <span class="pill pill-success"><span class="dot"></span>Ready for release</span>
+      </div>
+      <div class="card-pad">
+        <div class="fieldset-title">Claimant</div>
+        <div class="form-grid cols-2" style="margin-bottom:6px">
+          <div class="field"><label>Claiming as</label><select><option>The record owner</option><option>Authorized representative</option></select></div>
+          <div class="field"><label>Valid ID presented</label><select><option>Philippine National ID</option></select></div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="fieldset-title">Verification</div>
+        <div class="photo-pair" style="margin-bottom:16px">
+          <div class="photo-box"><div class="big">🪪</div>Uploaded ID photo<br><span style="color:var(--ink);font-weight:600;margin-top:4px">Reads: Maria Santos</span></div>
+          <div class="photo-box"><div class="big">🧑</div>Kiosk photo on file<br><span style="color:var(--ink);font-weight:600;margin-top:4px">Captured at intake</span></div>
+        </div>
+
+        <div class="fieldset-title">Before releasing</div>
+        <div class="check-list">
+          <div class="ck"><div class="tick">✓</div>Release selected</div>
+          <div class="ck"><div class="tick">✓</div>Claimant name entered</div>
+          <div class="ck"><div class="tick">✓</div>Kiosk photo on file</div>
+          <div class="ck"><div class="tick">✓</div>Uploaded ID on file</div>
+        </div>
+
+        <div class="hr"></div>
+        <button class="btn btn-success btn-lg" style="width:100%" onclick="document.getElementById('confirmScrim').style.display='flex'">Verify &amp; release…</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-scrim" id="confirmScrim" style="display:none;position:fixed;">
+    <div class="modal">
+      <div class="modal-head"><h3>Release this document to Maria Santos?</h3></div>
+      <div class="modal-body">This will mark the transaction as <b>CLAIMED</b> and record the current date, time, and your name as the releasing officer. This cannot be easily undone.</div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('confirmScrim').style.display='none'">Cancel</button>
+        <button class="btn btn-success btn-sm">Confirm release</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="assets/shell.js"></script>
+<script>window.CROMS_PAGE = {navKey:'release', crumbs:['Release & claim'], title:'Release & claim', notifCount:6};</script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .wiz-shell{max-width:980px;margin:0 auto;}
+  .party-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media (max-width:900px){ .party-cols{grid-template-columns:1fr;} .kv-grid{grid-template-columns:1fr 1fr;} }
+  .party-head{display:flex;align-items:center;gap:9px;margin-bottom:14px;}
+  .party-head .av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;}
+  .party-head b{font-size:13px;}
+  .party-head span{font-size:11px;color:var(--faint);display:block;}
+  .wizard-foot{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--card-line);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;margin:0 -1px -1px;border-radius:0 0 var(--r-card) var(--r-card);}
+  .wiz-step-panel{display:none;}
+  .wiz-step-panel.active{display:block;}
+  .autofill-note{font-size:10.5px;color:var(--faint);margin-top:3px;}
+  .consent-card{border:1px solid #F0D6A8;background:var(--warning-tint);border-radius:var(--r-card);padding:16px 18px;}
+  .consent-card.advice{border-color:#CBDCFB;background:var(--accent-tint);}
+  .consent-card h4{font-size:12.5px;margin-bottom:3px;}
+  .consent-card .why{font-size:11.5px;color:var(--muted);margin-bottom:12px;}
+  .na-card{border:1px dashed var(--card-line);border-radius:var(--r-card);padding:16px 18px;display:flex;align-items:center;gap:10px;color:var(--faint);font-size:12px;}
+  .review-block{margin-bottom:18px;}
+  .review-block h4{font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between;}
+  .review-block h4 a{font-size:11px;color:var(--accent);text-transform:none;font-weight:600;letter-spacing:0;}
+  .kv-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 18px;}
+  .kv-grid .kv span{display:block;font-size:10.5px;color:var(--faint);}
+  .kv-grid .kv b{font-size:12.5px;}
+  .savebar{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--faint);}
+  .savebar .dot{width:6px;height:6px;border-radius:50%;background:var(--success);}
+</style>
+</head>
+<body>
+<div id="shell-mount"></div>
+
+<template id="page-body-template">
+  <div class="wiz-shell">
+    <div class="content-head" style="margin-bottom:10px">
+      <div>
+        <h1>New marriage license application</h1>
+        <div class="sub">Form 90 — Application for Marriage License</div>
+      </div>
+      <div class="savebar" id="saveIndicator"><span class="dot"></span><span>Saved as draft · a few seconds ago</span></div>
+    </div>
+
+    <div class="card">
+      <div class="stepper" id="stepper">
+        <div class="step current" data-step="1"><div class="num">1</div><div class="lbl">Applicant information</div></div>
+        <div class="step" data-step="2"><div class="line"></div><div class="num">2</div><div class="lbl">Address &amp; family</div></div>
+        <div class="step" data-step="3"><div class="line"></div><div class="num">3</div><div class="lbl">Requirements</div></div>
+        <div class="step" data-step="4"><div class="line"></div><div class="num">4</div><div class="lbl">Consent / advice</div></div>
+        <div class="step" data-step="5"><div class="line"></div><div class="num">5</div><div class="lbl">Review &amp; submit</div></div>
+      </div>
+      <div class="hr" style="margin:0"></div>
+
+      <div class="card-pad">
+
+        <!-- STEP 1 -->
+        <div class="wiz-step-panel active" data-panel="1">
+          <div class="party-cols">
+            <div>
+              <div class="party-head"><div class="av" style="background:var(--accent)">G</div><div><b>Groom</b><span>Party 1</span></div></div>
+              <div class="fieldset" style="margin-bottom:0">
+                <div class="form-grid cols-2">
+                  <div class="field span-2"><label>First name <span class="req">*</span></label><input type="text" value="Ryan"></div>
+                  <div class="field"><label>Middle name</label><input type="text" value="Panlilio"></div>
+                  <div class="field"><label>Last name <span class="req">*</span></label><input type="text" value="Talosig"></div>
+                  <div class="field"><label>Sex</label><select><option>Male</option><option>Female</option></select></div>
+                  <div class="field"><label>Date of birth <span class="req">*</span></label><input type="date" value="2007-08-14"></div>
+                  <div class="field"><label>Age (computed)</label><input type="text" value="19" disabled></div>
+                  <div class="field"><label>Citizenship</label><input type="text" value="Filipino"></div>
+                  <div class="field span-2"><label>Civil status</label><select><option>Single</option><option>Widowed</option><option>Annulled</option><option>Divorced</option></select></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="party-head"><div class="av" style="background:#D4537E">B</div><div><b>Bride</b><span>Party 2</span></div></div>
+              <div class="fieldset" style="margin-bottom:0">
+                <div class="form-grid cols-2">
+                  <div class="field span-2"><label>First name <span class="req">*</span></label><input type="text" value="Sheila"></div>
+                  <div class="field"><label>Middle name</label><input type="text" value="Articulo"></div>
+                  <div class="field"><label>Last name <span class="req">*</span></label><input type="text" value="Baloso"></div>
+                  <div class="field"><label>Sex</label><select><option>Female</option><option>Male</option></select></div>
+                  <div class="field"><label>Date of birth <span class="req">*</span></label><input type="date" value="2003-02-02"></div>
+                  <div class="field"><label>Age (computed)</label><input type="text" value="23" disabled></div>
+                  <div class="field"><label>Citizenship</label><input type="text" value="Filipino"></div>
+                  <div class="field span-2"><label>Civil status</label><select><option selected>Single</option><option>Widowed</option><option>Annulled</option><option>Divorced</option></select></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="autofill-note">Ages are computed automatically from date of birth and determine whether parental consent or advice applies in step 4 — nothing to set manually.</div>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="wiz-step-panel" data-panel="2">
+          <div class="party-cols">
+            <div>
+              <div class="fieldset-title">Place of birth — groom</div>
+              <div class="form-grid cols-2" style="margin-bottom:14px">
+                <div class="field"><label>Country</label><select><option>Philippines</option><option>Other…</option></select></div>
+                <div class="field"><label>Province</label><select><option>Cagayan</option></select></div>
+                <div class="field span-2"><label>City / municipality</label><select><option>Peñablanca</option></select></div>
+              </div>
+              <div class="fieldset-title">Residence</div>
+              <div class="field" style="margin-bottom:14px"><input type="text" value="Bical, Peñablanca, Cagayan"></div>
+              <div class="fieldset-title">Father</div>
+              <div class="form-grid cols-2" style="margin-bottom:10px">
+                <div class="field span-2"><label>Full name</label><input type="text" value="Alberto Talosig"></div>
+                <div class="field"><label>Citizenship</label><input type="text" value="Filipino"></div>
+                <div class="field"><label>Residence</label><input type="text" value="Peñablanca, Cagayan"></div>
+              </div>
+              <div class="fieldset-title">Mother</div>
+              <div class="form-grid cols-2">
+                <div class="field span-2"><label>Full name</label><input type="text" value="Elena Panlilio"></div>
+                <div class="field"><label>Citizenship</label><input type="text" value="Filipino"></div>
+                <div class="field"><label>Residence</label><input type="text" value="Peñablanca, Cagayan"></div>
+              </div>
+            </div>
+            <div>
+              <div class="fieldset-title">Place of birth — bride</div>
+              <div class="form-grid cols-2" style="margin-bottom:14px">
+                <div class="field"><label>Country</label><select><option>Philippines</option><option>Other…</option></select></div>
+                <div class="field"><label>Province</label><select><option>Cagayan</option></select></div>
+                <div class="field span-2"><label>City / municipality</label><select><option>Tuguegarao City</option></select></div>
+              </div>
+              <div class="fieldset-title">Residence</div>
+              <div class="field" style="margin-bottom:14px"><input type="text" value="Carig, Tuguegarao City, Cagayan"></div>
+              <div class="fieldset-title">Father</div>
+              <div class="form-grid cols-2" style="margin-bottom:10px">
+                <div class="field span-2"><label>Full name</label><input type="text" value="George Baloso"></div>
+                <div class="field"><label>Citizenship</label><input type="text" value="Filipino"></div>
+                <div class="field"><label>Residence</label><input type="text" value="Tuguegarao City, Cagayan"></div>
+              </div>
+              <div class="fieldset-title">Mother</div>
+              <div class="form-grid cols-2">
+                <div class="field span-2"><label>Full name</label><input type="text" value="Sheilian Clear Articulo"></div>
+                <div class="field"><label>Citizenship</label><input type="text" value="Filipino"></div>
+                <div class="field"><label>Residence</label><input type="text" value="Tuguegarao City, Cagayan"></div>
+              </div>
+            </div>
+          </div>
+          <div class="hr"></div>
+          <div class="next-step" style="background:var(--chrome);border-color:var(--card-line);color:var(--muted)">
+            <span>ℹ</span><span>The "previously married" section only appears for a party whose civil status is Widowed, Annulled, or Divorced — both parties here are Single, so it's hidden rather than shown empty.</span>
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="wiz-step-panel" data-panel="3">
+          <div class="fieldset-title">Requirements checklist</div>
+          <table class="dt">
+            <thead><tr><th>Requirement</th><th>Applies to</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="dt-name">CENOMAR</td><td>Both parties</td><td><span class="pill pill-success"><span class="dot"></span>Verified</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr><td class="dt-name">Valid government ID</td><td>Both parties</td><td><span class="pill pill-success"><span class="dot"></span>Verified</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr><td class="dt-name">Certificate of no marriage record</td><td>Both parties</td><td><span class="pill pill-success"><span class="dot"></span>Verified</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+              <tr><td class="dt-name">Parental consent — groom (18–20)</td><td>Ryan Talosig</td><td><span class="pill pill-warning"><span class="dot"></span>Pending</span></td><td class="dt-actions"><button class="btn btn-secondary btn-sm">Attach</button></td></tr>
+              <tr><td class="dt-name">Parental advice — bride (21–25)</td><td>Sheila Baloso</td><td><span class="pill pill-warning"><span class="dot"></span>Pending</span></td><td class="dt-actions"><button class="btn btn-secondary btn-sm">Attach</button></td></tr>
+              <tr><td class="dt-name">Out-of-province license (if applicable)</td><td>Optional</td><td><span class="pill pill-neutral"><span class="dot"></span>Not applicable</span></td><td class="dt-actions text-faint">—</td></tr>
+            </tbody>
+          </table>
+          <div class="next-step warn" style="margin-top:14px"><span>!</span><span>2 requirements are still pending. You can continue and attach them before submitting in step 5.</span></div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="wiz-step-panel" data-panel="4">
+          <div class="autofill-note" style="margin-bottom:14px;font-size:11.5px">Consent (ages 18–20) and advice (ages 21–25) are shown automatically based on each applicant's computed age. A party outside both bands shows no section here — nothing to fill in or skip.</div>
+          <div class="party-cols">
+            <div>
+              <div class="consent-card">
+                <span class="pill pill-warning" style="margin-bottom:8px"><span class="dot"></span>Age 19 — parental consent required</span>
+                <h4>Parental consent — Ryan Talosig</h4>
+                <div class="why">Family Code Art. 14 — required for applicants aged 18 to 20.</div>
+                <div class="form-grid cols-2">
+                  <div class="field span-2"><label>Consenting parent / guardian</label><input type="text" value="Alberto Talosig"></div>
+                  <div class="field"><label>Relationship</label><select><option>Father</option><option>Mother</option><option>Legal guardian</option></select></div>
+                  <div class="field"><label>Document</label><button class="btn btn-secondary btn-sm" style="width:100%">📎 Attach consent form</button></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="consent-card advice">
+                <span class="pill pill-info" style="margin-bottom:8px"><span class="dot"></span>Age 23 — parental advice required</span>
+                <h4>Parental advice — Sheila Baloso</h4>
+                <div class="why">Family Code Art. 15 — required for applicants aged 21 to 25. Absent or unfavorable advice defers issuance 3 months after posting.</div>
+                <div class="form-grid cols-2">
+                  <div class="field span-2"><label>Advising parent / guardian</label><input type="text" value="Sheilian Clear Articulo"></div>
+                  <div class="field"><label>Relationship</label><select><option>Mother</option><option>Father</option><option>Legal guardian</option></select></div>
+                  <div class="field"><label>Document</label><button class="btn btn-secondary btn-sm" style="width:100%">📎 Attach advice form</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="wiz-step-panel" data-panel="5">
+          <div class="review-block">
+            <h4>Applicants <a href="#" onclick="goStep(1);return false;">Edit</a></h4>
+            <div class="kv-grid">
+              <div class="kv"><span>Groom</span><b>Ryan Panlilio Talosig</b></div>
+              <div class="kv"><span>Age</span><b>19</b></div>
+              <div class="kv"><span>Citizenship</span><b>Filipino</b></div>
+              <div class="kv"><span>Bride</span><b>Sheila Articulo Baloso</b></div>
+              <div class="kv"><span>Age</span><b>23</b></div>
+              <div class="kv"><span>Citizenship</span><b>Filipino</b></div>
+            </div>
+          </div>
+          <div class="review-block">
+            <h4>Requirements <a href="#" onclick="goStep(3);return false;">Edit</a></h4>
+            <div class="kv-grid">
+              <div class="kv"><span>Verified</span><b style="color:var(--success)">3 of 5</b></div>
+              <div class="kv"><span>Pending</span><b style="color:var(--warning)">Consent, Advice</b></div>
+            </div>
+          </div>
+          <div class="review-block">
+            <h4>Consent &amp; advice <a href="#" onclick="goStep(4);return false;">Edit</a></h4>
+            <div class="kv-grid">
+              <div class="kv"><span>Groom — consent</span><b>Alberto Talosig (Father)</b></div>
+              <div class="kv"><span>Bride — advice</span><b>Sheilian Clear Articulo (Mother)</b></div>
+            </div>
+          </div>
+          <div class="next-step" style="margin-top:4px"><span>→</span><span>Submitting starts the statutory <b>10-day posting period</b>. The license cannot be issued until posting completes and every requirement is verified.</span></div>
+        </div>
+
+      </div>
+
+      <div class="wizard-foot">
+        <div>
+          <button class="btn btn-ghost" id="btnBack" onclick="prevStep()">← Previous</button>
+        </div>
+        <div style="display:flex;gap:8px">
+          <a href="30-marriage-desk.html" class="btn btn-ghost">Cancel</a>
+          <button class="btn btn-secondary">Save draft</button>
+          <button class="btn btn-primary" id="btnNext" onclick="nextStep()">Continue →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="assets/shell.js"></script>
+<script>
+window.CROMS_PAGE = {navKey:'marriage', crumbs:['Marriage','Marriage desk','New application'], title:'New marriage license application', notifCount:6};
+let currentStep = 1;
+const TOTAL_STEPS = 5;
+function goStep(n){
+  currentStep = n;
+  document.querySelectorAll('.wiz-step-panel').forEach(p=>p.classList.toggle('active', +p.dataset.panel===n));
+  document.querySelectorAll('.step').forEach(s=>{
+    const sn = +s.dataset.step;
+    s.classList.toggle('current', sn===n);
+    s.classList.toggle('done', sn<n);
+  });
+  const btnNext = document.getElementById('btnNext');
+  const btnBack = document.getElementById('btnBack');
+  btnBack.style.visibility = n===1 ? 'hidden' : 'visible';
+  btnNext.innerText = n===TOTAL_STEPS ? 'Submit application →' : 'Continue →';
+  btnNext.className = n===TOTAL_STEPS ? 'btn btn-success' : 'btn btn-primary';
+  window.scrollTo(0,0);
+}
+function nextStep(){
+  if(currentStep < TOTAL_STEPS){ goStep(currentStep+1); }
+  else { window.location.href = '30-marriage-desk.html'; }
+}
+function prevStep(){ if(currentStep>1) goStep(currentStep-1); }
+window.onShellReady = ()=> goStep(1);
+</script>
+</body>
+</html>

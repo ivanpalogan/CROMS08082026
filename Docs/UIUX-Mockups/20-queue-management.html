@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .serving-card{display:flex;align-items:center;gap:22px;padding:20px 22px;}
+  .serving-num{font-family:var(--font-mono);font-size:38px;font-weight:700;color:var(--accent);background:var(--accent-tint);border-radius:14px;padding:14px 26px;text-align:center;}
+  .serving-meta b{font-size:14px;display:block;}
+  .serving-meta span{font-size:12px;color:var(--faint);}
+  .wf-row{display:flex;align-items:center;gap:10px;padding:14px 18px;}
+  .wf-row .btn{min-width:130px;}
+  .queue-wrap{display:grid;grid-template-columns:2.2fr 1fr;gap:16px;align-items:start;}
+  @media (max-width:1180px){ .queue-wrap{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div id="shell-mount"></div>
+
+<template id="page-body-template">
+  <div class="content-head">
+    <div>
+      <h1>Queue management</h1>
+      <div class="sub">Window 1 — Receiving · <span class="pill pill-success" style="font-size:10px"><span class="dot"></span>Live</span></div>
+    </div>
+    <div class="content-actions">
+      <button class="btn btn-ghost btn-sm">Open queue display ↗</button>
+    </div>
+  </div>
+
+  <div class="kpi-row" style="margin-bottom:16px">
+    <div class="kpi"><div class="kpi-label">Waiting now</div><div class="kpi-value">6</div><div class="kpi-caption">2 in the priority lane</div></div>
+    <div class="kpi"><div class="kpi-label">Average wait</div><div class="kpi-value">12<small>min</small></div><div class="kpi-caption">Issued to called, today</div></div>
+    <div class="kpi"><div class="kpi-label">Served today</div><div class="kpi-value">24</div><div class="kpi-caption">Across 4 windows</div></div>
+    <div class="kpi"><div class="kpi-label" style="color:var(--danger)">Longest wait</div><div class="kpi-value" style="color:var(--danger)">31<small>min</small></div><div class="kpi-caption">M-002 — call next</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="serving-card">
+      <div class="serving-num">A-023</div>
+      <div class="serving-meta" style="flex:1"><b>New birth registration</b><span>Called 9:44 AM · waited 8 min</span></div>
+      <button class="btn btn-secondary btn-sm">Transfer</button>
+      <button class="btn btn-danger-ghost btn-sm">Skip</button>
+      <button class="btn btn-success btn-sm">Complete</button>
+    </div>
+    <div class="hr" style="margin:0"></div>
+    <div class="wf-row">
+      <button class="btn btn-primary">Call next →</button>
+      <button class="btn btn-secondary">Call again</button>
+      <div class="next-step" style="flex:1;margin:0"><span>→</span><span>Currently serving A-023. Press <b>Complete</b> when the client's request is fully handled at this window.</span></div>
+    </div>
+  </div>
+
+  <div class="queue-wrap">
+    <div class="card">
+      <div class="card-head">
+        <h3>Today's queue</h3>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="search-inline" style="height:32px"><input placeholder="Search queue no. or type…" style="height:30px"></div>
+        </div>
+      </div>
+      <div style="padding:10px 18px 0" class="chip-toggle">
+        <span class="chip active">All (6)</span>
+        <span class="chip">New reg. (2)</span>
+        <span class="chip">Certificates (2)</span>
+        <span class="chip">Marriage (1)</span>
+        <span class="chip">Claim (1)</span>
+      </div>
+      <table class="dt" style="margin-top:8px">
+        <thead><tr><th>Queue no.</th><th>Type</th><th>Issued</th><th>Wait</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="mono dt-name">A-024</td><td>New birth registration</td><td>9:39 AM</td><td>8 min</td><td><span class="pill pill-neutral"><span class="dot"></span>Waiting</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">⋮</button></td></tr>
+          <tr><td class="mono dt-name">C-019</td><td>Certificate release</td><td>9:41 AM</td><td>6 min</td><td><span class="pill pill-neutral"><span class="dot"></span>Waiting</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">⋮</button></td></tr>
+          <tr><td class="mono dt-name">A-025</td><td>Death registration</td><td>9:45 AM</td><td>2 min</td><td><span class="pill pill-neutral"><span class="dot"></span>Waiting</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">⋮</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="border-color:#F0D6A8">
+      <div class="card-head" style="background:var(--warning-tint);border-radius:10px 10px 0 0"><h3 style="color:#8A4106">Priority lane</h3><span class="hint" style="color:#8A4106">2 tickets</span></div>
+      <table class="dt">
+        <thead><tr><th>No.</th><th>Reason</th><th>Wait</th></tr></thead>
+        <tbody>
+          <tr><td class="mono dt-name">M-002</td><td>Senior citizen</td><td style="color:var(--danger);font-weight:700">31 min</td></tr>
+          <tr><td class="mono dt-name">A-026</td><td>PWD</td><td>4 min</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<script src="assets/shell.js"></script>
+<script>window.CROMS_PAGE = {navKey:'queue', crumbs:['Queue management'], title:'Queue management', notifCount:6};</script>
+</body>
+</html>

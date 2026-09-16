@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS — Sign in</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  body{background:var(--navy);min-height:100vh;display:flex;align-items:center;justify-content:center;}
+  .login-wrap{width:1000px;max-width:94vw;min-height:600px;background:var(--surface);border-radius:16px;box-shadow:var(--shadow-pop);display:flex;overflow:hidden;}
+  .login-side{flex:1;background:linear-gradient(180deg,#132441,#0D1B33);color:#fff;padding:48px 42px;display:flex;flex-direction:column;justify-content:space-between;}
+  .login-side .mark{width:46px;height:46px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:19px;margin-bottom:22px;}
+  .login-side h2{font-size:22px;color:#fff;line-height:1.35;font-weight:600;}
+  .login-side p{color:#9AA9C6;font-size:12.5px;margin-top:10px;line-height:1.6;}
+  .login-side .foot{font-size:11px;color:#7E8FB3;}
+  .login-main{flex:1;padding:56px 52px;display:flex;flex-direction:column;justify-content:center;}
+  .login-main h1{font-size:22px;margin-bottom:6px;}
+  .login-main .sub{color:var(--muted);font-size:12.5px;margin-bottom:28px;}
+  .field-host{margin-bottom:16px;}
+  .field-host label{font-size:11.5px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px;}
+  .field-host .box{position:relative;}
+  .field-host input{height:44px;font-size:13.5px;}
+  .field-host .eye{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--faint);cursor:pointer;font-size:12px;}
+  .caps-warn{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--warning);margin:-8px 0 14px;}
+  .btn-signin{width:100%;height:46px;margin-top:6px;font-size:13.5px;}
+  .badge-secure{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);color:#B7C2DD;font-size:10.5px;font-weight:600;padding:5px 11px;border-radius:999px;margin-bottom:16px;width:fit-content;}
+</style>
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-side">
+      <div>
+        <div class="mark">C</div>
+        <div class="badge-secure">🔒 Secure access</div>
+        <h2>Civil Registry Operations Management System</h2>
+        <p>LGU Peñablanca, Cagayan — Local Civil Registry Office. One system for the front desk, the registrar, the cashier and the releasing officer, tied to one transaction ID with a full audit trail.</p>
+      </div>
+      <div class="foot">v2026.09 · Office use only</div>
+    </div>
+    <div class="login-main">
+      <h1>Sign in to CROMS</h1>
+      <div class="sub">Use your office account to continue.</div>
+
+      <div class="field-host">
+        <label>Username</label>
+        <div class="box"><input type="text" placeholder="j.delacruz"></div>
+      </div>
+      <div class="field-host" style="margin-bottom:8px">
+        <label>Password</label>
+        <div class="box"><input type="password" value="••••••••"><span class="eye">👁</span></div>
+      </div>
+      <div class="caps-warn">⚠ Caps Lock is on</div>
+
+      <button class="btn btn-primary btn-signin">Sign in</button>
+      <div style="display:flex;justify-content:space-between;margin-top:14px">
+        <button class="btn btn-ghost btn-sm" style="border:none;padding-left:0;color:var(--muted)">Exit</button>
+        <span style="font-size:11.5px;color:var(--faint);align-self:center">Forgot your password? Ask an administrator.</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

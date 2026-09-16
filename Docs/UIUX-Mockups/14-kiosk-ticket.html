@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>CROMS Kiosk</title>
+<link rel="stylesheet" href="assets/design-system.css"><link rel="stylesheet" href="assets/kiosk.css">
+<style>
+  .ticket .svc{font-size:13px;color:var(--muted);margin-top:2px;}
+  .ticket .hr{border-top:1px dashed var(--card-line);margin:18px 0;}
+  .ticket .row{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);padding:4px 0;}
+  .ticket .row b{color:var(--ink);}
+  .wait-est{background:var(--accent-tint);color:#14369E;border-radius:12px;padding:10px 14px;font-size:12.5px;margin-top:16px;}
+</style></head>
+<body class="kiosk-body">
+  <div class="kiosk-topbar"><div class="mark">C</div><b>CROMS</b><span>LCRO Peñablanca · Self-service kiosk</span><div class="clock">Wed, Sep 16 · 9:43 AM</div></div>
+  <div class="kiosk-stage" style="justify-content:center">
+    <div class="kiosk-title" style="color:var(--success)">✓ You're in the queue</div>
+    <div class="kiosk-sub">Please take your ticket and have a seat. Watch the display for your number.</div>
+
+    <div class="ticket">
+      <span class="pill pill-info">Marriage license application</span>
+      <div class="num">M-005</div>
+      <div class="svc">Window 2 — Marriage / New registration</div>
+      <div class="hr"></div>
+      <div class="row"><span>Applicants</span><b>Talosig / Baloso</b></div>
+      <div class="row"><span>Issued</span><b>9:43 AM, Sep 16, 2026</b></div>
+      <div class="row"><span>Ahead of you</span><b>3 clients</b></div>
+      <div class="wait-est">Estimated wait: about 12 minutes</div>
+    </div>
+
+    <div class="kiosk-foot" style="justify-content:center">
+      <a href="10-kiosk-welcome.html" class="k-btn k-btn-primary" style="text-decoration:none">Done</a>
+    </div>
+  </div>
+</body></html>

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS Design System</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .ds-wrap{max-width:1180px;margin:0 auto;padding:32px 28px 80px;}
+  .ds-head{margin-bottom:28px;}
+  .ds-head .tag{display:inline-block;background:var(--navy);color:#fff;font-size:11px;font-weight:700;letter-spacing:.5px;padding:4px 10px;border-radius:999px;margin-bottom:10px;}
+  .ds-head h1{font-size:26px;}
+  .ds-head p{color:var(--muted);font-size:13px;margin-top:6px;max-width:640px;}
+  .ds-section{margin-bottom:44px;}
+  .ds-section h2{font-size:16px;margin-bottom:4px;}
+  .ds-section .desc{color:var(--muted);font-size:12.5px;margin-bottom:16px;}
+  .swatch-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;}
+  .swatch{border-radius:10px;overflow:hidden;border:1px solid var(--card-line);}
+  .swatch .fill{height:56px;}
+  .swatch .lab{background:var(--surface);padding:8px 10px;}
+  .swatch .lab b{display:block;font-size:11.5px;}
+  .swatch .lab span{font-size:10.5px;color:var(--faint);font-family:var(--font-mono);}
+  .type-row{display:flex;align-items:baseline;gap:16px;padding:12px 0;border-bottom:1px solid var(--row-line);}
+  .type-row .meta{width:180px;flex:0 0 auto;font-size:11px;color:var(--faint);font-family:var(--font-mono);}
+  .sp-row{display:flex;align-items:center;gap:14px;padding:8px 0;}
+  .sp-row .bar{background:var(--accent);height:16px;border-radius:3px;}
+  .sp-row .lab{width:70px;font-size:11.5px;color:var(--muted);font-family:var(--font-mono);}
+  .btn-grid{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+  .pill-grid{display:flex;gap:10px;flex-wrap:wrap;}
+  .ic{width:16px;height:16px;display:inline-block;background:currentColor;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .principle{background:var(--surface);border:1px solid var(--card-line);border-radius:var(--r-card);padding:16px 18px;box-shadow:var(--shadow-card);}
+  .principle h4{font-size:12.5px;margin-bottom:6px;}
+  .principle p{font-size:12px;color:var(--muted);}
+  .principle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+</style>
+</head>
+<body>
+<div class="ds-wrap">
+  <div class="ds-head">
+    <span class="tag">CROMS DESIGN SYSTEM · v2</span>
+    <h1>The same CROMS, refined</h1>
+    <p>Every token below is carried forward from the live <span class="mono">UiTheme.cs</span> — the navy sidebar, the accent blue, Segoe UI, 8px button / 10px card radii, the soft two-layer card shadow. Nothing here is a new visual identity; it is the existing one made consistent, given breathing room, and extended with the pieces the current app doesn't have yet (status system, stepper, side panels).</p>
+  </div>
+
+  <div class="ds-section">
+    <h2>Design philosophy</h2>
+    <div class="desc">Four rules every screen in this plan follows.</div>
+    <div class="principle-grid">
+      <div class="principle"><h4>One task per screen</h4><p>Show only what the user needs for the step they're on. Everything else moves to a dialog, side panel, or a later step.</p></div>
+      <div class="principle"><h4>Status tells the story</h4><p>One color+label vocabulary (below) used identically in Marriage, Birth, BREQS, Petitions and Queue — a color never means something different in two modules.</p></div>
+      <div class="principle"><h4>Say the next step</h4><p>Every workspace states, in plain words, what happens if the primary button is pressed — never a bare "Submit".</p></div>
+      <div class="principle"><h4>Never fake "done"</h4><p>A disabled control, a blank field and a greyed-out section always mean exactly what they look like — matching CROMS's own long-standing rule against false green ticks.</p></div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Color</h2>
+    <div class="desc">Core surfaces &amp; ink</div>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="fill" style="background:var(--navy)"></div><div class="lab"><b style="color:#fff;background:var(--navy);display:block;padding:2px 0 0;margin:-8px -10px 6px;padding-left:10px">Navy</b><span>#132441</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--accent)"></div><div class="lab"><b>Accent</b><span>#1D4ED8</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--page-bg);border-bottom:1px solid var(--card-line)"></div><div class="lab"><b>Page bg</b><span>#F4F6F9</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--surface);border-bottom:1px solid var(--card-line)"></div><div class="lab"><b>Surface</b><span>#FFFFFF</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--ink)"></div><div class="lab"><b>Ink</b><span>#171B24</span></div></div>
+    </div>
+    <div class="desc" style="margin-top:18px">Status ramp — one meaning, everywhere</div>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="fill" style="background:var(--success)"></div><div class="lab"><b>Success</b><span>#2E9457</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--warning)"></div><div class="lab"><b>Warning</b><span>#B45309</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--danger)"></div><div class="lab"><b>Danger</b><span>#C6323F</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--info)"></div><div class="lab"><b>Info</b><span>#1D4ED8</span></div></div>
+      <div class="swatch"><div class="fill" style="background:var(--chrome)"></div><div class="lab"><b>Neutral</b><span>#EEF1F6</span></div></div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Typography — Segoe UI, unchanged</h2>
+    <div class="desc">Labels stay 9pt, inputs 9.75pt (the existing app's own snap rule) — web sizes shown here are the point-to-pixel equivalent.</div>
+    <div class="type-row"><div class="meta">h1 / 20px / 600</div><div style="font-size:20px;font-weight:600">Marriage License Applications</div></div>
+    <div class="type-row"><div class="meta">h2 / 16px / 600</div><div style="font-size:16px;font-weight:600">Applicant information</div></div>
+    <div class="type-row"><div class="meta">h3 / 13.5px / 600</div><div style="font-size:13.5px;font-weight:600">Requirements checklist</div></div>
+    <div class="type-row"><div class="meta">body / 13px / 400</div><div style="font-size:13px">Standard reading text and form values, Segoe UI regular.</div></div>
+    <div class="type-row"><div class="meta">label / 11.5px / 600 muted</div><div style="font-size:11.5px;font-weight:600;color:var(--muted)">FIELD LABEL</div></div>
+    <div class="type-row"><div class="meta">caption / 11px / faint</div><div style="font-size:11px;color:var(--faint)">Supporting hint text, timestamps, counts</div></div>
+    <div class="type-row"><div class="meta">mono / queue &amp; numbers</div><div style="font-family:var(--font-mono);font-size:15px;font-weight:700">A-023 &nbsp; ML-2026-00128</div></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Spacing scale</h2>
+    <div class="desc">4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48 — no value outside this list is used anywhere in these mockups.</div>
+    <div class="sp-row"><div class="lab">4</div><div class="bar" style="width:4px"></div></div>
+    <div class="sp-row"><div class="lab">8</div><div class="bar" style="width:8px"></div></div>
+    <div class="sp-row"><div class="lab">12</div><div class="bar" style="width:12px"></div></div>
+    <div class="sp-row"><div class="lab">16</div><div class="bar" style="width:16px"></div></div>
+    <div class="sp-row"><div class="lab">20</div><div class="bar" style="width:20px"></div></div>
+    <div class="sp-row"><div class="lab">24</div><div class="bar" style="width:24px"></div></div>
+    <div class="sp-row"><div class="lab">32</div><div class="bar" style="width:32px"></div></div>
+    <div class="sp-row"><div class="lab">40</div><div class="bar" style="width:40px"></div></div>
+    <div class="sp-row"><div class="lab">48</div><div class="bar" style="width:48px"></div></div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Buttons — hierarchy is mandatory</h2>
+    <div class="desc">Every screen has exactly one primary button. Everything else is secondary, ghost, or danger.</div>
+    <div class="btn-grid">
+      <button class="btn btn-primary">Save &amp; continue</button>
+      <button class="btn btn-secondary">Save draft</button>
+      <button class="btn btn-ghost">Cancel</button>
+      <button class="btn btn-success">Confirm release</button>
+      <button class="btn btn-danger">Reject application</button>
+      <button class="btn btn-danger-ghost">Delete record</button>
+      <button class="btn btn-navy">Print certificate</button>
+      <button class="btn btn-primary" disabled>Continue</button>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Status system</h2>
+    <div class="desc">Draft/neutral → in-progress/info → needs-attention/warning → completed/success → expired-rejected/danger. This exact ramp is reused by Marriage licenses, BREQS, Petitions, Birth/Death registration status and Queue tickets.</div>
+    <div class="pill-grid">
+      <span class="pill pill-neutral"><span class="dot"></span>Draft</span>
+      <span class="pill pill-info"><span class="dot"></span>Posting in progress</span>
+      <span class="pill pill-info"><span class="dot"></span>Processing</span>
+      <span class="pill pill-warning"><span class="dot"></span>Needs attention</span>
+      <span class="pill pill-warning"><span class="dot"></span>Expiring soon</span>
+      <span class="pill pill-success"><span class="dot"></span>Ready for release</span>
+      <span class="pill pill-success"><span class="dot"></span>Completed</span>
+      <span class="pill pill-danger"><span class="dot"></span>Expired</span>
+      <span class="pill pill-danger"><span class="dot"></span>Rejected</span>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Cards &amp; KPI tiles</h2>
+    <div class="grid2">
+      <div class="card card-pad">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Standard card</div>
+        <p style="font-size:12.5px;color:var(--muted)">White surface, 1px hairline border, 10px radius, soft shadow — the one card style used everywhere.</p>
+      </div>
+      <div class="kpi">
+        <div class="kpi-top"><div class="kpi-ic" style="background:var(--accent-tint);color:var(--accent)">◆</div><span class="pill pill-info" style="font-size:10px">+3 today</span></div>
+        <div class="kpi-label">Waiting now</div>
+        <div class="kpi-value">6</div>
+        <div class="kpi-caption">2 in the priority lane</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Forms</h2>
+    <div class="card card-pad">
+      <div class="form-grid cols-2">
+        <div class="field"><label>Full name <span class="req">*</span></label><input type="text" placeholder="Juan Dela Cruz"></div>
+        <div class="field has-error"><label>Date of birth <span class="req">*</span></label><input type="date"><span class="errtext">Date of birth is required.</span></div>
+        <div class="field"><label>Sex</label><select><option>Male</option><option>Female</option></select></div>
+        <div class="field"><label>Civil status</label><select><option>Single</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Stepper (wizard progress)</h2>
+    <div class="card card-pad">
+      <div class="stepper">
+        <div class="step done"><div class="num">✓</div><div class="lbl">Applicants</div></div>
+        <div class="step done"><div class="line"></div><div class="num">✓</div><div class="lbl">Addresses</div></div>
+        <div class="step current"><div class="line"></div><div class="num">3</div><div class="lbl">Requirements</div></div>
+        <div class="step"><div class="line"></div><div class="num">4</div><div class="lbl">Consent / advice</div></div>
+        <div class="step"><div class="line"></div><div class="num">5</div><div class="lbl">Review</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Tables</h2>
+    <div class="card">
+      <table class="dt">
+        <thead><tr><th>Application no.</th><th>Applicants</th><th>Filed</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="mono">ML-2026-00128</td><td class="dt-name">R. Talosig &amp; S. Baloso</td><td>Sep 6, 2026</td><td><span class="pill pill-info"><span class="dot"></span>Posting — day 4 of 10</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+          <tr><td class="mono">ML-2026-00127</td><td class="dt-name">G. Macanang &amp; T. Cadava</td><td>Sep 1, 2026</td><td><span class="pill pill-success"><span class="dot"></span>Ready to issue</span></td><td class="dt-actions"><button class="btn btn-ghost btn-sm">View</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="ds-section">
+    <h2>Next-step banner &amp; empty state</h2>
+    <div class="grid2">
+      <div class="next-step"><span>→</span><span>Posting completes <b>September 16, 2026</b>. The license cannot be issued before then.</span></div>
+      <div class="card"><div class="empty"><div class="ic">＋</div><h4>No applications yet</h4><p>New marriage license applications will appear here.</p><button class="btn btn-primary btn-sm">New application</button></div></div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

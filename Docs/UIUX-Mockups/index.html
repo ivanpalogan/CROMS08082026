@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CROMS — UI/UX redesign mockups</title>
+<link rel="stylesheet" href="assets/design-system.css">
+<style>
+  .idx-wrap{max-width:900px;margin:0 auto;padding:36px 28px 80px;}
+  .idx-wrap h1{font-size:24px;margin-bottom:6px;}
+  .idx-wrap .lead{color:var(--muted);font-size:13px;margin-bottom:30px;max-width:640px;}
+  .idx-phase{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--faint);margin:30px 0 10px;}
+  .idx-list{display:flex;flex-direction:column;gap:8px;}
+  .idx-item{display:flex;align-items:center;gap:14px;padding:13px 16px;background:var(--surface);border:1px solid var(--card-line);border-radius:var(--r-card);box-shadow:var(--shadow-card);text-decoration:none;color:var(--ink);}
+  .idx-item:hover{border-color:var(--accent);}
+  .idx-item .n{width:26px;height:26px;border-radius:7px;background:var(--accent-tint);color:var(--accent);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+  .idx-item b{font-size:13px;display:block;}
+  .idx-item span{font-size:11.5px;color:var(--faint);}
+  .idx-item .arrow{margin-left:auto;color:var(--faint);}
+</style>
+</head>
+<body>
+<div class="idx-wrap">
+  <h1>CROMS — UI/UX redesign, phase 1</h1>
+  <p class="lead">Click through in order — this is a real, working prototype (not static images). The design system, then the client journey, then the flagship Marriage module end to end. See <a href="../../CROMS — UI-UX Redesign Master Plan.md" style="color:var(--accent)">the master plan</a> for the full screen-by-screen spec covering every module, including the ones not yet mocked up here.</p>
+
+  <div class="idx-phase">0 · Foundation</div>
+  <div class="idx-list">
+    <a class="idx-item" href="00-design-system.html"><div class="n">DS</div><div><b>Design system</b><span>Color, type, spacing, components — derived from the live UiTheme.cs</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="01-login.html"><div class="n">01</div><div><b>Login</b><span>Staff sign-in</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="02-shell-dashboard.html"><div class="n">02</div><div><b>Main shell &amp; dashboard</b><span>Sidebar, header, global search, notifications, tasks requiring attention</span></div><span class="arrow">→</span></a>
+  </div>
+
+  <div class="idx-phase">1 · Client journey (kiosk → queue)</div>
+  <div class="idx-list">
+    <a class="idx-item" href="10-kiosk-welcome.html"><div class="n">10</div><div><b>Kiosk — welcome</b><span>Attract screen</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="11-kiosk-category.html"><div class="n">11</div><div><b>Kiosk — choose a category</b><span>Progressive disclosure; Claim/Release clearly separated</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="12-kiosk-service.html"><div class="n">12</div><div><b>Kiosk — choose a service</b><span>Marriage &amp; family example</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="13-kiosk-details.html"><div class="n">13</div><div><b>Kiosk — your details</b><span>Minimal intake + priority lane + photo</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="14-kiosk-ticket.html"><div class="n">14</div><div><b>Kiosk — queue ticket</b><span>Confirmation &amp; wait estimate</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="15-kiosk-claim.html"><div class="n">15</div><div><b>Kiosk — claim / release</b><span>The differentiated returning-client path</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="16-queue-display.html"><div class="n">16</div><div><b>Public queue display</b><span>"Now serving" monitor</span></div><span class="arrow">→</span></a>
+  </div>
+
+  <div class="idx-phase">2 · Staff queue workflow</div>
+  <div class="idx-list">
+    <a class="idx-item" href="20-queue-management.html"><div class="n">20</div><div><b>Queue management</b><span>Call next, serving card, priority lane, filters</span></div><span class="arrow">→</span></a>
+  </div>
+
+  <div class="idx-phase">3 · Marriage module (flagship)</div>
+  <div class="idx-list">
+    <a class="idx-item" href="30-marriage-desk.html"><div class="n">30</div><div><b>Marriage desk</b><span>Window 1 — task-driven overview, not a form wall</span></div><span class="arrow">→</span></a>
+    <a class="idx-item" href="31-marriage-wizard.html"><div class="n">31</div><div><b>New application wizard</b><span>5 steps, conditional consent/advice, review &amp; submit</span></div><span class="arrow">→</span></a>
+  </div>
+
+  <div class="idx-phase">4 · Document processing</div>
+  <div class="idx-list">
+    <a class="idx-item" href="40-ocr-verification.html"><div class="n">40</div><div><b>Intelligent document processing</b><span>Side-by-side scan vs. extracted fields, confidence-scored</span></div><span class="arrow">→</span></a>
+  </div>
+
+  <div class="idx-phase">5 · Release</div>
+  <div class="idx-list">
+    <a class="idx-item" href="50-release-claim.html"><div class="n">50</div><div><b>Release &amp; claim</b><span>Claimant verification, confirmation dialog</span></div><span class="arrow">→</span></a>
+  </div>
+
+  <div class="idx-phase">Not yet mocked up (see the master plan)</div>
+  <div class="idx-list">
+    <div class="idx-item" style="opacity:.6;cursor:default"><div class="n" style="background:var(--chrome);color:var(--faint)">–</div><div><b>Birth, Death, Petitions, Payments, Records, Reports, Administration</b><span>Fully specified in the master plan document — phase 2 of this redesign</span></div></div>
+  </div>
+</div>
+</body>
+</html>
