@@ -58,11 +58,17 @@ namespace CROMS.Data
             pic(AssetKind.HeaderLogoRight1, 452f, 20f, 54f, 54f);
             pic(AssetKind.HeaderLogoRight2, 510f, 20f, 54f, 54f);
 
+            // Office identity is READ, never hardcoded: the literal "PENABLANCA" printed here
+            // dropped the tilde that migration 26 stored correctly, and locked the letterhead
+            // to one LGU. Profile falls back to its own defaults when there is no database
+            // (CROMS.ReportGen renders the blank background that way).
+            OfficeProfile head = OfficeAssets.Profile;
+
             stat("Civil Registry Form No. 1A", 8f, 4f, 90f, 11f, 6.5f, false);
             stat("(Birth Available)", 8f, 15f, 90f, 10f, 6.5f, false);
             statC("Republic of the Philippines", 40f, 24f, 532f, 12f, 10f, false);
-            statC("Province of Cagayan", 40f, 38f, 532f, 12f, 9f, false);
-            statC("MUNICIPALITY OF PENABLANCA", 40f, 54f, 532f, 16f, 14f, true);
+            statC("Province of " + head.ProvinceForPrint, 40f, 38f, 532f, 12f, 9f, false);
+            statC("MUNICIPALITY OF " + head.MunicipalityForPrint.ToUpperInvariant(), 40f, 54f, 532f, 16f, 14f, true);
             statC("LOCAL CIVIL REGISTRY OFFICE", 40f, 72f, 532f, 14f, 11.5f, true);
             field("office_contact_line", 40f, 90f, 532f, 11f, 8f, true);
             rule(40f, 104f, 532f);
@@ -137,30 +143,36 @@ namespace CROMS.Data
 
             try
             {
+                // date_registered, NOT created_at: created_at is when the ROW was made, which
+                // for a digitized backlog scan is the scanning date, not the date the birth
+                // was registered (established 2026-09-08). The old query selected created_at
+                // and then never used it, so DATE OF REGISTRATION printed blank.
                 DataTable rec = Db.Pull(
                     "SELECT child_full_name, sex, date_of_birth, place_of_birth, " +
                     "mother_maiden_name, mother_citizenship, father_full_name, father_citizenship, " +
                     "parents_marriage_date, parents_marriage_place, " +
-                    "registry_no, book_volume, book_page, created_at " +
+                    "registry_no, book_volume, book_page, date_registered " +
                     "FROM v_birth_certificate WHERE record_id = @id",
                     new MySqlParameter("@id", birthId));
                 if (rec.Rows.Count > 0)
                 {
                     DataRow b = rec.Rows[0];
                     string S(string col) => rec.Columns.Contains(col) && b[col] != DBNull.Value ? b[col].ToString() : "";
+                    string D(string col) => FmtDateCell(rec, b, col);
                     r["child_name"] = S("child_full_name");
                     r["sex"] = S("sex");
-                    r["date_of_birth"] = FmtDate(S("date_of_birth"));
+                    r["date_of_birth"] = D("date_of_birth");
                     r["place_of_birth"] = S("place_of_birth");
                     r["mother_name"] = S("mother_maiden_name");
                     r["mother_nationality"] = S("mother_citizenship");
                     r["father_name"] = S("father_full_name");
                     r["father_nationality"] = S("father_citizenship");
-                    r["parents_marriage_date"] = FmtDate(S("parents_marriage_date"));
+                    r["parents_marriage_date"] = D("parents_marriage_date");
                     r["parents_marriage_place"] = S("parents_marriage_place");
                     r["registry_number"] = S("registry_no");
                     r["registry_book"] = S("book_volume");
                     r["registry_page"] = S("book_page");
+                    r["date_of_registration"] = D("date_registered");
 
                     string sex = S("sex");
                     string prefix = sex.Equals("Male", StringComparison.OrdinalIgnoreCase) ? "Mr." : "Ms.";
@@ -185,12 +197,8 @@ namespace CROMS.Data
             return t;
         }
 
-        private static string FmtDate(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return "";
-            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt)
-                ? dt.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture) : s;
-        }
+        internal static string FmtDateCell(DataTable t, DataRow r, string col) =>
+            Form3ACert.FmtDateCell(t, r, col);
 
         /// <summary>Same technique as Form3ACert.RenderBlankTemplate - the Crystal report's
         /// background is generated from this class's own Static/Picture cells, so it and the

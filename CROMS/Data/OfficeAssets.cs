@@ -31,6 +31,23 @@ namespace CROMS.Data
         public string HeaderLine =>
             string.Join(", ", new[] { OfficeName, Municipality, Province }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+        /// <summary>
+        /// The municipality as it should be PRINTED. The letterhead of every certification
+        /// used to carry the literal "PENABLANCA" — ASCII, no tilde — which threw away the
+        /// exact spelling migration 26 went out of its way to store correctly, and meant a
+        /// second LGU could not use the app without a rebuild. The fallback spells the
+        /// tilde as ñ rather than as a literal character: a .cs file without a BOM can
+        /// be read in the machine's own code page, which is the same class of mistake that
+        /// corrupted this name once already.
+        /// </summary>
+        public string MunicipalityForPrint =>
+            string.IsNullOrWhiteSpace(Municipality) ? "Peñablanca" : Municipality.Trim();
+
+        /// <summary>The province as it should be printed, with the same fallback reasoning
+        /// as <see cref="MunicipalityForPrint"/>.</summary>
+        public string ProvinceForPrint =>
+            string.IsNullOrWhiteSpace(Province) ? "Cagayan" : Province.Trim();
     }
 
     /// <summary>
@@ -206,7 +223,12 @@ namespace CROMS.Data
                                                  ? p.VerifyingOfficerTitle : S("verifying_officer_title");
                     }
                 }
-                catch (MySqlException) { /* pre-migration: keep the defaults */ }
+                // Broad on purpose. The letterhead of every certification is now built from
+                // this profile, and CROMS.ReportGen renders those blank backgrounds with no
+                // database and no connection string at all — where the failure is a config
+                // error, not a MySqlException. Falling back to the defaults must never be
+                // able to stop a form from being drawn.
+                catch (Exception) { /* pre-migration, or no database at all: keep the defaults */ }
                 return _profile = p;
             }
         }

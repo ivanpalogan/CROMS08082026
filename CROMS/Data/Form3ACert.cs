@@ -82,8 +82,9 @@ namespace CROMS.Data
             stat("FORM 3A", 8f, 4f, 90f, 11f, 7f, true);
             stat("(Marriage Available)", 8f, 15f, 90f, 10f, 6.5f, false);
             statC("Republic of the Philippines", 40f, 24f, 532f, 12f, 10f, false);
-            statC("Province of Cagayan", 40f, 38f, 532f, 12f, 9f, false);
-            statC("MUNICIPALITY OF PENABLANCA", 40f, 54f, 532f, 16f, 14f, true);
+            statC("Province of " + OfficeAssets.Profile.ProvinceForPrint, 40f, 38f, 532f, 12f, 9f, false);
+            statC("MUNICIPALITY OF " + OfficeAssets.Profile.MunicipalityForPrint.ToUpperInvariant(),
+                40f, 54f, 532f, 16f, 14f, true);
             statC("LOCAL CIVIL REGISTRY OFFICE", 40f, 72f, 532f, 14f, 11.5f, true);
             field("office_contact_line", 40f, 90f, 532f, 11f, 8f, true);
             rule(40f, 104f, 532f);
@@ -184,27 +185,31 @@ namespace CROMS.Data
                     "SELECT husband_full_name, wife_full_name, husband_age, wife_age, " +
                     "husband_date_of_birth, wife_date_of_birth, husband_civil_status, wife_civil_status, " +
                     "husband_citizenship, wife_citizenship, place_of_marriage, date_of_marriage, " +
-                    "registry_no, book_volume, book_page " +
+                    "registry_no, book_volume, book_page, date_registered " +
                     "FROM v_marriage_certificate WHERE record_id = @id",
                     new MySqlParameter("@id", marriageId));
                 if (rec.Rows.Count > 0)
                 {
                     DataRow m = rec.Rows[0];
                     string S(string col) => rec.Columns.Contains(col) && m[col] != DBNull.Value ? m[col].ToString() : "";
+                    string D(string col) => FmtDateCell(rec, m, col);
                     r["husband_full_name"] = S("husband_full_name");
                     r["wife_full_name"] = S("wife_full_name");
-                    r["husband_dob_age"] = JoinDobAge(S("husband_date_of_birth"), S("husband_age"));
-                    r["wife_dob_age"] = JoinDobAge(S("wife_date_of_birth"), S("wife_age"));
+                    r["husband_dob_age"] = JoinDobAge(D("husband_date_of_birth"), S("husband_age"));
+                    r["wife_dob_age"] = JoinDobAge(D("wife_date_of_birth"), S("wife_age"));
                     r["husband_civil_status"] = S("husband_civil_status");
                     r["wife_civil_status"] = S("wife_civil_status");
                     r["husband_nationality"] = S("husband_citizenship");
                     r["wife_nationality"] = S("wife_citizenship");
                     r["place_of_marriage"] = S("place_of_marriage");
-                    string dom = S("date_of_marriage");
-                    r["date_of_marriage"] = FmtDate(dom);
+                    r["date_of_marriage"] = D("date_of_marriage");
                     r["mcr_registry_number"] = S("registry_no");
                     r["registry_book"] = S("book_volume");
                     r["registry_page"] = S("book_page");
+                    // The date this marriage was actually registered. It used to be stamped
+                    // with DateTime.Today below, which asserted on an official certification
+                    // that every record was registered on the day the copy was printed.
+                    r["date_of_registration"] = D("date_registered");
                 }
             }
             catch (Exception) { /* record not found, no DB, or a hiccup - leave blank, editable.
@@ -216,8 +221,10 @@ namespace CROMS.Data
                 string.IsNullOrWhiteSpace(office.Contact) ? null : "Tel. No. " + office.Contact,
                 string.IsNullOrWhiteSpace(office.Email) ? null : "Email: " + office.Email,
             }.Where(s => s != null));
+            // date_issued is genuinely today — this copy is being issued now. date_of_registration
+            // is NOT: it is a fact about the record and is read from it above, left blank (and
+            // editable) when the record does not state one.
             r["date_issued"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
-            r["date_of_registration"] = DateTime.Today.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
             r["purpose"] = "general purpose/s";
             r["registrar_name"] = office.RegistrarName ?? "";
             r["verified_by_name"] = office.VerifyingOfficerName ?? "";
@@ -228,20 +235,46 @@ namespace CROMS.Data
             return t;
         }
 
+        /// <summary><paramref name="dob"/> is already formatted by <see cref="FmtDateCell"/>;
+        /// this only joins it to the age.</summary>
         private static string JoinDobAge(string dob, string age)
         {
-            string d = FmtDate(dob);
-            if (string.IsNullOrWhiteSpace(d) && string.IsNullOrWhiteSpace(age)) return "";
-            if (string.IsNullOrWhiteSpace(age)) return d;
-            if (string.IsNullOrWhiteSpace(d)) return age;
-            return d + " / " + age;
+            if (string.IsNullOrWhiteSpace(dob) && string.IsNullOrWhiteSpace(age)) return "";
+            if (string.IsNullOrWhiteSpace(age)) return dob;
+            if (string.IsNullOrWhiteSpace(dob)) return age;
+            return dob + " / " + age;
         }
 
-        private static string FmtDate(string s)
+        /// <summary>
+        /// Formats a date column WITHOUT round-tripping it through a culture-dependent string.
+        /// Shared by all three Facts Certifications (1A / 2A / 3A).
+        /// <para/>
+        /// THE BUG THIS REPLACES, because it printed wrong dates on issued certificates rather
+        /// than merely ugly ones. The old code did <c>row[col].ToString()</c>, which renders a
+        /// DateTime in the machine's CURRENT culture — dd/MM/yyyy on this office's en-PH PCs —
+        /// and then parsed it back as InvariantCulture, which reads MM/dd/yyyy. Measured on the
+        /// live database: a husband born <c>2003-03-12</c> printed "December 3, 2003", and a
+        /// marriage of <c>2025-08-12</c> printed "December 8, 2025" — both plausible, both
+        /// wrong, neither flagged. Where the day was past 12 the parse simply failed and the
+        /// raw "16/12/1983 12:00:00 am" leaked onto the page instead.
+        /// <para/>
+        /// A date column comes back typed, so it is formatted directly and no parse happens at
+        /// all. A genuinely string-typed column is accepted only in unambiguous ISO form;
+        /// anything else is returned EXACTLY as read, because printing a guessed day on a civil
+        /// registry certification is worse than printing something that visibly needs fixing.
+        /// </summary>
+        internal static string FmtDateCell(DataTable t, DataRow r, string col)
         {
-            if (string.IsNullOrWhiteSpace(s)) return "";
-            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt)
-                ? dt.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture) : s;
+            if (t == null || r == null || !t.Columns.Contains(col) || r[col] == DBNull.Value) return "";
+            if (r[col] is DateTime dt) return dt.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture);
+
+            string s = r[col].ToString().Trim();
+            if (s.Length == 0) return "";
+            return DateTime.TryParseExact(s,
+                       new[] { "yyyy-MM-dd", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss" },
+                       CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime iso)
+                   ? iso.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)
+                   : s;
         }
 
         /// <summary>

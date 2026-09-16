@@ -4469,3 +4469,85 @@ VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools, temp OutputPath) clean, 0 e
 against the live database or rendered — no live `croms` connection or interactive desktop in
 this session. REBUILD IN VS to pick this up; the printed output should be checked against the
 three photographed copies before relying on it for a real certificate.
+
+### 2026-09-16 (later still) — Migration 47 applied; birth search crash; A1/A2/A3 printed WRONG DATES
+Three reported problems, and rendering the certifications to find the third one turned up a
+defect far more serious than the two that were reported.
+
+**MIGRATION 47 HAD NEVER BEEN APPLIED.** Reported from the running app: saving a header logo on
+Form 3A answered "Could not save: Data truncated for column 'asset_kind' at row 1". The code was
+right — `OfficeAssets.Save` sends `kind.ToString()`, and migration 47 widens the enum to carry
+the four letterhead slots — but the live `croms` still had `enum('Logo','Stamp')`, so MySQL
+refused `HeaderLogoLeft` as an out-of-range enum value. Applied 47 (idempotent); verified the
+column is now `enum('Logo','Stamp','HeaderLogoLeft','HeaderLogoRight1','HeaderLogoRight2',
+'FooterBanner')` and that `office_profile.verifying_officer_name/title` exist. No code change —
+the fix was entirely that the migration was never run.
+
+**THE BIRTH SEARCH CRASHED ON EVERY KEYSTROKE, and the cause is worth remembering.** The search
+box added earlier today threw `SyntaxErrorException: Cannot interpret token 'Child' at position
+29`. `Child` is a RESERVED WORD in DataColumn expression syntax — it addresses a DataRelation, as
+in `Child.Column` — so an unbracketed `Child` in a RowFilter is parsed as a relation reference,
+not as the column of that name. Reproduced both ways on a stand-alone DataTable with the same
+columns before changing anything: the old expression fails with the identical message, the
+bracketed one returns the right rows. Every column name is now bracketed (`Parent` has the same
+weakness), the column list is built from what the table actually contains, and typed text goes
+through a new `EscapeFilterValue` so a quote is doubled and `%`, `*`, `[` are escaped to their
+literal selves instead of silently widening the match. Verified against a table holding
+`O'Brien, 100% Sure`.
+
+**THE CERTIFICATIONS WERE PRINTING WRONG DATES.** Nobody reported this; it showed up because the
+three forms were rendered against live records to compare them with the office's photographed
+copies. `FmtDate` took `row[col].ToString()` — which renders a DateTime in the machine's CURRENT
+culture, `dd/MM/yyyy` on this office's en-PH PCs — and parsed it back with `InvariantCulture`,
+which reads `MM/dd/yyyy`. Measured on the live database:
+      stored 2003-03-12 (husband's birth)  ->  printed "December 3, 2003"
+      stored 2025-08-12 (date of marriage) ->  printed "December 8, 2025"
+      stored 1983-12-16 (child's birth)    ->  printed "16/12/1983 12:00:00 am"
+A day of 12 or less is silently transposed and looks entirely plausible; past 12 the parse fails
+and the raw string leaks onto the page. The first kind is the dangerous one — a wrong date on a
+civil-registry certification that nothing flags. Same family as the three fabrications already
+fixed here (CorrectDate 2026-09-04, the marriage licence date 2026-09-10, the "202026" year
+2026-09-13), and the same root cause each time: a date being rebuilt from a string instead of
+being carried as a date.
+  Replaced by one shared `Form3ACert.FmtDateCell(table, row, column)` used by all three forms. A
+date column comes back TYPED, so it is formatted directly and no parse happens at all; a
+genuinely string-typed column is accepted only in unambiguous ISO form and otherwise returned
+EXACTLY as read, because a visibly unformatted date can be corrected while a confidently wrong
+one cannot. The old per-file `FmtDate` is deleted from all three.
+
+**DATE OF REGISTRATION was blank on two forms and INVENTED on the third.** Form 3A set it to
+`DateTime.Today`, so every marriage certification asserted the marriage was registered on the day
+the copy happened to be printed. Form 1A selected `created_at` and then never used it, printing
+blank. Both now read `date_registered` from their view — never `created_at`, which for a
+digitized backlog scan is the scanning date, not the registration date (established 2026-09-08).
+Form 2A is left BLANK and editable on purpose: `v_death_certificate` carries no `date_registered`
+column at all, so the office's registration date for a death is not recorded anywhere this can
+read, and filling it with the print date would state a fact nothing supports.
+
+**THE LETTERHEAD THREW AWAY THE TILDE MIGRATION 26 PROTECTED.** All three forms printed the
+literal `PENABLANCA` / `Penablanca`, hardcoded, while `office_profile.municipality` holds
+`Peñablanca` correctly (verified by HEX: `5065C3B161626C616E6361`). The header now reads the
+profile, so the office's own spelling prints and a second LGU no longer needs a rebuild. New
+`OfficeProfile.MunicipalityForPrint` / `ProvinceForPrint` carry the fallback, and the fallback
+spells the tilde as `ñ` rather than as a literal character — a `.cs` file without a BOM can
+be read in the machine's own code page, which is the same class of mistake that corrupted this
+exact name once already.
+  RISK THIS INTRODUCED, and closed: `BuildCells` now touches the database, and `CROMS.ReportGen`
+calls it with no connection string at all to render the blank Crystal backgrounds. `OfficeAssets.
+Profile` caught only `MySqlException`, which a missing config is not, so the whole form would
+have failed to draw. Widened to catch everything and keep the defaults — branding must never be
+able to stop a form being drawn. Both projects rebuilt to confirm.
+
+MEASURED AFTER, by re-rendering the same three live records: birth 1983-12-16 prints
+"December 16, 1983" and its registration date "September 15, 2026" (was blank); marriage prints
+"March 12, 2003" / "September 14, 2009" / "August 12, 2025" and leaves the registration date
+blank (that record states none); death prints "August 29, 1999". All three letterheads read
+PEÑABLANCA. MSBuild clean, 0 errors, on CROMS and CROMS.ReportGen.
+
+NOT DONE, and the reason is worth stating: the office's three photographed copies were supplied
+in an EARLIER session and were never saved to disk, so they are not available to compare against
+now — searched Downloads, Docs\AgencyForms, Assets and Pictures. The look-alike work (spacing,
+seals, the footer banner) is therefore still open and still needs those photos re-supplied. The
+header seals and footer banner are also still not uploaded: every `Picture` cell resolves to
+nothing today, so all three render with empty logo areas until the office uploads them through
+Settings -> Certificates & Forms (now possible at all, since migration 47 is applied).

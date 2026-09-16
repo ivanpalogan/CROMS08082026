@@ -657,14 +657,47 @@ namespace CROMS.Forms
         /// Filters the already-loaded grid by Registry No / Child name / Sex / Status —
         /// client-side over the bound DataTable's DataView, so typing never re-queries the
         /// database. Column names in the filter are the SQL aliases from LoadBirths.
+        /// <para/>
+        /// Every column name is BRACKETED, including ones that look harmless: `Child` and
+        /// `Parent` are reserved words in DataColumn expression syntax (they address a
+        /// DataRelation, as in Child.Column), so an unbracketed `Child` throws
+        /// SyntaxErrorException rather than matching the column of that name.
         /// </summary>
         private void ApplySearchFilter()
         {
             if (!(dgvBirths.DataSource is DataTable dt)) return;
-            string q = (txtSearch?.Text ?? "").Trim().Replace("'", "''");
-            dt.DefaultView.RowFilter = q.Length == 0 ? "" :
-                "[Registry No] LIKE '%" + q + "%' OR Child LIKE '%" + q + "%' " +
-                "OR Sex LIKE '%" + q + "%' OR Status LIKE '%" + q + "%'";
+
+            string q = EscapeFilterValue((txtSearch?.Text ?? "").Trim());
+            if (q.Length == 0) { dt.DefaultView.RowFilter = ""; return; }
+
+            var parts = new List<string>();
+            foreach (string col in new[] { "Registry No", "Child", "Sex", "Status" })
+                if (dt.Columns.Contains(col))
+                    parts.Add("[" + col + "] LIKE '%" + q + "%'");
+
+            dt.DefaultView.RowFilter = parts.Count == 0 ? "" : string.Join(" OR ", parts);
+        }
+
+        /// <summary>
+        /// Makes typed text safe inside a DataView RowFilter LIKE pattern. A quote has to be
+        /// doubled, and the wildcard characters have to be wrapped in brackets so that typing
+        /// one searches for that literal character instead of silently widening the match.
+        /// </summary>
+        private static string EscapeFilterValue(string s)
+        {
+            var sb = new System.Text.StringBuilder(s.Length + 8);
+            foreach (char c in s)
+            {
+                switch (c)
+                {
+                    case '\'': sb.Append("''"); break;
+                    case '[': sb.Append("[[]"); break;
+                    case '%': sb.Append("[%]"); break;
+                    case '*': sb.Append("[*]"); break;
+                    default: sb.Append(c); break;
+                }
+            }
+            return sb.ToString();
         }
 
         private void txtSearch_TextChanged(object sender, EventArgs e) => ApplySearchFilter();

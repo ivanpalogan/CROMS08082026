@@ -68,8 +68,8 @@ namespace CROMS.Data
             stat("Form 2A", 8f, 4f, 90f, 11f, 7f, false);
             stat("(Death Available)", 8f, 15f, 90f, 10f, 6.5f, false);
             statC("Republic of the Philippines", 40f, 24f, 532f, 12f, 10f, false);
-            statC("Province of Cagayan", 40f, 38f, 532f, 12f, 9f, false);
-            statC("Municipality of Penablanca", 40f, 52f, 532f, 12f, 10f, false);
+            statC("Province of " + OfficeAssets.Profile.ProvinceForPrint, 40f, 38f, 532f, 12f, 9f, false);
+            statC("Municipality of " + OfficeAssets.Profile.MunicipalityForPrint, 40f, 52f, 532f, 12f, 10f, false);
             statC("OFFICE OF THE MUNICIPAL CIVIL REGISTRAR", 40f, 72f, 532f, 14f, 11f, true);
             rule(40f, 96f, 532f);
 
@@ -163,7 +163,12 @@ namespace CROMS.Data
                     r["deceased_name"] = S("deceased_full_name");
                     r["sex"] = S("sex");
                     r["age"] = S("age");
-                    r["date_of_death"] = FmtDate(S("date_of_death"));
+                    r["date_of_death"] = Form3ACert.FmtDateCell(rec, d, "date_of_death");
+                    // DATE OF REGISTRATION is deliberately NOT filled: v_death_certificate
+                    // carries no date_registered column (births and marriages do), so the
+                    // office's own registration date for a death is not recorded anywhere
+                    // this can read. It prints blank and stays editable rather than being
+                    // filled with the print date, which would state a fact nothing supports.
                     r["place_of_death"] = S("place_of_death");
                     r["cause_of_death"] = S("immediate_cause");
                     r["registry_number"] = S("registry_no");
@@ -187,12 +192,6 @@ namespace CROMS.Data
             return t;
         }
 
-        private static string FmtDate(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return "";
-            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dt)
-                ? dt.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture) : s;
-        }
 
         /// <summary>Same technique as Form3ACert.RenderBlankTemplate / Form3BCert.RenderBlankTemplate
         /// - the Crystal report's background is generated from this class's own Static/Picture
