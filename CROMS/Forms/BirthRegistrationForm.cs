@@ -314,11 +314,11 @@ namespace CROMS.Forms
             mnuFactsCert.Enabled = _editingId != null;
         }
 
-        /// <summary>Form 3B - CERTIFICATION (Birth Available), the birth counterpart of the
-        /// marriage desk's Form 3A: a "TO WHOM IT MAY CONCERN" letter certifying facts already
-        /// in the Register of Births - not a copy of the Certificate of Live Birth. Like Print
-        /// Certificate, this is a saved-record action; if opened with no record selected the
-        /// screen still opens and lets the operator search for one.</summary>
+        /// <summary>Civil Registry Form No. 1A - CERTIFICATION (Birth Available), the birth
+        /// counterpart of the marriage desk's Form 3A: a "TO WHOM IT MAY CONCERN" letter
+        /// certifying facts already in the Register of Births - not a copy of the Certificate of
+        /// Live Birth. Like Print Certificate, this is a saved-record action; if opened with no
+        /// record selected the screen still opens and lets the operator search for one.</summary>
         private void mnuFactsCert_Click(object sender, EventArgs e)
         {
             using (Form3BCertForm f = _editingId != null ? new Form3BCertForm(_editingId.Value) : new Form3BCertForm())

@@ -20,10 +20,12 @@ namespace CROMS.Data
     /// office's own real issued copy (photographed sample, 2026-09-16), not assumed shared:
     /// no Tel/Email contact line, "Municipality of Peñablanca" printed plain (not bold caps),
     /// a single bold title line "OFFICE OF THE MUNICIPAL CIVIL REGISTRAR" (not the two-line
-    /// "MUNICIPALITY OF ... / LOCAL CIVIL REGISTRY OFFICE" the other two carry), only two logo
-    /// slots (the municipal seal left, the national badge right - no third badge), and no
-    /// footer banner. The opening sentence, facts table and REMARKS close still follow the same
-    /// per-cell layout convention as Form3ACert/Form3BCert (Kind Static/Field/Picture/Rule).
+    /// "MUNICIPALITY OF ... / LOCAL CIVIL REGISTRY OFFICE" the other two carry), and only two
+    /// logo slots (the municipal seal left, the national badge right - no third badge, since the
+    /// real form does not print one). A footer banner slot IS included, at the same coordinates
+    /// Form 3A/Form 1A use, below the note and well inside the page. The opening sentence, facts
+    /// table and REMARKS close still follow the same per-cell layout convention as
+    /// Form3ACert/Form3BCert (Kind Static/Field/Picture/Rule).
     /// <para/>
     /// Every value is editable before printing, same rule as the other two: a wrong reading is
     /// corrected on the printout, never silently written back to the saved record.
@@ -123,6 +125,12 @@ namespace CROMS.Data
 
             noteItalic("Note: This certification is not valid if it has mark of erasure or alteration of any entry.",
                 40f, 660f, 532f, 11f, 7.5f);
+
+            // Footer banner, added per the office's Header/Footer Images setup - the same
+            // slot Form 3A/Form 1A carry, placed below the note (671pt) with room to spare
+            // before the page ends (792pt) so it never overlaps the certification text,
+            // signatures, payment fields or the note above it.
+            pic(AssetKind.FooterBanner, 40f, 700f, 532f, 70f);
 
             return c;
         }

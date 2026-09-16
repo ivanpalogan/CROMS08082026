@@ -115,10 +115,10 @@ namespace CROMS.Forms
             bool inFamily = TemplateStore.FactsCertificationFamily.Contains(_info.FormCode);
             if (inFamily)
             {
-                _btnApplyFooter = Btn("Apply Footer to A1/A2/A3", UiTheme.Chrome, UiTheme.Ink);
+                _btnApplyFooter = Btn("Apply Footer to 1A/2A/3A", UiTheme.Chrome, UiTheme.Ink);
                 _btnApplyFooter.Width = 172;
                 _btnApplyFooter.Click += (s, e) => ApplyBandToFamily("Footer");
-                _btnApplyHeader = Btn("Apply Header to A1/A2/A3", UiTheme.Chrome, UiTheme.Ink);
+                _btnApplyHeader = Btn("Apply Header to 1A/2A/3A", UiTheme.Chrome, UiTheme.Ink);
                 _btnApplyHeader.Width = 172;
                 _btnApplyHeader.Click += (s, e) => ApplyBandToFamily("Header");
                 bar.Controls.Add(_btnApplyFooter);
@@ -736,7 +736,7 @@ namespace CROMS.Forms
                 "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        /// <summary>"Apply Header/Footer to A1, A2 and A3": takes this form's CURRENT (possibly
+        /// <summary>"Apply Header/Footer to 1A, 2A and 3A": takes this form's CURRENT (possibly
         /// unsaved) elements of the given band and overwrites that band on every OTHER form in the
         /// family, so the office's letterhead/footer stay one coordinated design across Marriage,
         /// Death and Birth Facts Certifications. Confirms first — this rewrites data the operator
@@ -762,7 +762,7 @@ namespace CROMS.Forms
                 " with the " + band.ToLowerInvariant() + " shown here" +
                 (IsDirty() ? " (including your unsaved changes)" : "") +
                 ".\n\nThis cannot be undone from this screen. Continue?",
-                "Apply " + band + " to A1, A2 and A3", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                "Apply " + band + " to 1A, 2A and 3A", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
                 MessageBoxDefaultButton.Button2);
             if (confirm != DialogResult.Yes) return;
 

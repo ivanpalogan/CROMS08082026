@@ -48,7 +48,8 @@ namespace CROMS.ReportGen
                 }
                 else Console.WriteLine("skip MF-90: blank form not found: " + Mf90Form.BlankPath);
 
-                // FORM 3A / 3B / 3C (the A1/A2/A3 Facts Certification family) have no scanned
+                // FORM 3A / Civil Registry Form No. 1A / Form 2A (the 1A/2A/3A Facts
+                // Certification family) have no scanned
                 // blank to embed - each is generated from its own class's Static + Picture
                 // cells, so the Crystal report and the no-runtime fallback can never draw a
                 // label in a different place. All three share one letterhead/footer geometry
@@ -158,13 +159,14 @@ namespace CROMS.ReportGen
         }
 
         /// <summary>
-        /// Builds one "letter" report (Form 3A, Form 3B, ...) the same way BuildMf90 builds a
-        /// scanned-form report - the only difference is the background is a GENERATED image
-        /// (<c>RenderBlankTemplate</c> on the calling class), not a scan, because neither
-        /// letter has an office blank on file. Every Field cell becomes one FieldObject on top
-        /// of it; Static/Picture cells are already baked into the background so they are not
-        /// repeated here. Shared by <c>Form3ACert</c> and <c>Form3BCert</c> - both use the same
-        /// <c>Form3ACell</c> shape, so one generator serves any class built on that shape.
+        /// Builds one "letter" report (Form 3A, Civil Registry Form No. 1A, Form 2A) the same way
+        /// BuildMf90 builds a scanned-form report - the only difference is the background is a
+        /// GENERATED image (<c>RenderBlankTemplate</c> on the calling class), not a scan, because
+        /// none of the three letters has an office blank on file. Every Field cell becomes one
+        /// FieldObject on top of it; Static/Picture cells are already baked into the background
+        /// so they are not repeated here. Shared by <c>Form3ACert</c>, <c>Form3BCert</c> and
+        /// <c>Form3CCert</c> - all three use the same <c>Form3ACell</c> shape, so one generator
+        /// serves any class built on that shape.
         /// </summary>
         private static void BuildLetterReport(string seed, string outDir, string rptFile,
             float pageWidthPt, float pageHeightPt, System.Collections.Generic.IReadOnlyList<Form3ACell> cells,

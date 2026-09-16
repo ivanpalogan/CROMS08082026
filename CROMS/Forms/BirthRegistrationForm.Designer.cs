@@ -229,7 +229,7 @@ namespace CROMS.Forms
             //
             this.mnuFactsCert.Name = "mnuFactsCert";
             this.mnuFactsCert.Size = new System.Drawing.Size(219, 22);
-            this.mnuFactsCert.Text = "Facts Certification (Form 3B)...";
+            this.mnuFactsCert.Text = "Facts Certification (Form 1A)...";
             this.mnuFactsCert.Click += new System.EventHandler(this.mnuFactsCert_Click);
             // 
             // btnCertificate

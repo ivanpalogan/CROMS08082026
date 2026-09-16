@@ -2,8 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.IO;
-using System.Linq;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 using CROMS.Data;
@@ -97,7 +95,18 @@ namespace CROMS.Forms
             _dgvResults.CellDoubleClick += (s, e) => LoadSelected();
             _btnPreview.Click += (s, e) => PrintOrPreview(false);
             _btnPrint.Click += (s, e) => PrintOrPreview(true);
-            _btnAssets.Click += (s, e) => { using (var f = new Form3AAssetsDialog()) f.ShowDialog(this); };
+            _btnAssets.Click += (s, e) =>
+            {
+                using (var f = new HeaderFooterImagesForm(Form3ACert.FormCode, "Form 3A - Marriage Available",
+                    new[]
+                    {
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoLeft, "Header logo - left (LCRO seal)"),
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoRight1, "Header badge - right 1"),
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoRight2, "Header badge - right 2"),
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.FooterBanner, "Footer banner"),
+                    }))
+                    f.ShowDialog(this);
+            };
 
             Controls.Add(_txtSearch);
             Controls.Add(_btnSearch);
@@ -189,58 +198,6 @@ namespace CROMS.Forms
                     (string.IsNullOrWhiteSpace(r["or_number"] as string) ? "" : ", OR " + r["or_number"]));
                 _lblStatus.Text = "Printed - logged to the audit trail.";
             }
-        }
-    }
-
-    /// <summary>Small admin dialog to upload/replace the four Form 3A letterhead images
-    /// (office-wide). Reuses <see cref="OfficeAssets.Save"/> - the same store the main
-    /// Certificates &amp; Forms branding manager uses for the Logo/Stamp kinds.</summary>
-    internal class Form3AAssetsDialog : Form
-    {
-        public Form3AAssetsDialog()
-        {
-            Text = "Form 3A - Header & Footer Images";
-            Width = 480; Height = 260;
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
-
-            int y = 16;
-            AddRow("Header logo - left (LCRO seal)", AssetKind.HeaderLogoLeft, ref y);
-            AddRow("Header badge - right 1", AssetKind.HeaderLogoRight1, ref y);
-            AddRow("Header badge - right 2", AssetKind.HeaderLogoRight2, ref y);
-            AddRow("Footer banner", AssetKind.FooterBanner, ref y);
-
-            var btnClose = new Button { Left = 360, Top = y + 10, Width = 90, Text = "Close" };
-            btnClose.Click += (s, e) => Close();
-            Controls.Add(btnClose);
-        }
-
-        private void AddRow(string caption, AssetKind kind, ref int y)
-        {
-            var lbl = new Label { Left = 16, Top = y + 4, Width = 300, Text = caption };
-            var btn = new Button { Left = 330, Top = y, Width = 120, Text = "Upload..." };
-            btn.Click += (s, e) =>
-            {
-                using (var dlg = new OpenFileDialog { Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp" })
-                {
-                    if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                    try
-                    {
-                        byte[] bytes = File.ReadAllBytes(dlg.FileName);
-                        OfficeAssets.Save(kind, caption, bytes, mimeType: "image/" + Path.GetExtension(dlg.FileName).TrimStart('.').ToLowerInvariant());
-                        MessageBox.Show(this, "Saved.", "Form 3A images", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(this, "Could not save: " + ex.Message, "Form 3A images",
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            };
-            Controls.Add(lbl);
-            Controls.Add(btn);
-            y += 40;
         }
     }
 }

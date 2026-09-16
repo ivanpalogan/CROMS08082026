@@ -42,8 +42,8 @@ namespace CROMS.Data
                 () => Form3BCert.Cells.Select(ToElement).ToList()),
         };
 
-        /// <summary>The A1/A2/A3 "Facts Certification" family, in that order — the set every
-        /// "Apply Header/Footer to A1, A2 and A3" action propagates across. Listed here once so
+        /// <summary>The 1A/2A/3A "Facts Certification" family, in that order — the set every
+        /// "Apply Header/Footer to 1A, 2A and 3A" action propagates across. Listed here once so
         /// the designer's propagate buttons and this class's own ApplyBand agree on membership.</summary>
         public static readonly string[] FactsCertificationFamily =
         {
@@ -177,7 +177,7 @@ namespace CROMS.Data
         }
 
         /// <summary>
-        /// "Apply Header/Footer to A1, A2 and A3": replaces every element of <paramref name="band"/>
+        /// "Apply Header/Footer to 1A, 2A and 3A": replaces every element of <paramref name="band"/>
         /// ("Header" or "Footer") on each target form's ACTIVE template with a copy of
         /// <paramref name="bandElements"/> — the elements the operator is looking at right now on
         /// the source form (whether or not they have been Saved yet), so the propagation always

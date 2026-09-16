@@ -9,10 +9,10 @@ using CROMS.Data;
 namespace CROMS.Forms
 {
     /// <summary>
-    /// Prints Form 3B - CERTIFICATION (Birth Available) for an already-registered birth.
-    /// Same editable-before-print rule and search/grid layout as <see cref="Form3ACertForm"/>
-    /// (its marriage counterpart) - a wrong reading on the saved record can be corrected for
-    /// THIS printout without touching the row itself.
+    /// Prints Civil Registry Form No. 1A - CERTIFICATION (Birth Available) for an
+    /// already-registered birth. Same editable-before-print rule and search/grid layout as
+    /// <see cref="Form3ACertForm"/> (its marriage counterpart, Form 3A) - a wrong reading on
+    /// the saved record can be corrected for THIS printout without touching the row itself.
     /// </summary>
     public class Form3BCertForm : Form
     {
@@ -58,6 +58,7 @@ namespace CROMS.Forms
         };
         private readonly Button _btnPreview = new Button { Left = 16, Top = 580, Width = 160, Text = "Preview" };
         private readonly Button _btnPrint = new Button { Left = 184, Top = 580, Width = 160, Text = "Print" };
+        private readonly Button _btnAssets = new Button { Left = 460, Top = 580, Width = 276, Text = "Header/Footer Images..." };
         private readonly Label _lblStatus = new Label { Left = 16, Top = 616, Width = 720, Height = 20, ForeColor = Color.DimGray };
 
         private int? _birthId;
@@ -65,7 +66,7 @@ namespace CROMS.Forms
 
         public Form3BCertForm()
         {
-            Text = "Print Certification (Form 3B - Birth Available)";
+            Text = "Print Certification (Form 1A - Birth Available)";
             Width = 780; Height = 700;
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -80,6 +81,18 @@ namespace CROMS.Forms
             _dgvResults.CellDoubleClick += (s, e) => LoadSelected();
             _btnPreview.Click += (s, e) => PrintOrPreview(false);
             _btnPrint.Click += (s, e) => PrintOrPreview(true);
+            _btnAssets.Click += (s, e) =>
+            {
+                using (var f = new HeaderFooterImagesForm(Form3BCert.FormCode, "Form 1A - Birth Available",
+                    new[]
+                    {
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoLeft, "Header logo - left (LCRO seal)"),
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoRight1, "Header badge - right 1"),
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoRight2, "Header badge - right 2"),
+                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.FooterBanner, "Footer banner"),
+                    }))
+                    f.ShowDialog(this);
+            };
 
             Controls.Add(_txtSearch);
             Controls.Add(_btnSearch);
@@ -87,6 +100,7 @@ namespace CROMS.Forms
             Controls.Add(_dgvFields);
             Controls.Add(_btnPreview);
             Controls.Add(_btnPrint);
+            Controls.Add(_btnAssets);
             Controls.Add(_lblStatus);
 
             RunSearch();
@@ -164,7 +178,7 @@ namespace CROMS.Forms
             {
                 DataRow r = t.Rows[0];
                 Audit.Write("Create", "births", _birthId.Value,
-                    "Printed Form 3B Birth Facts Certification" +
+                    "Printed Form 1A Birth Facts Certification" +
                     (string.IsNullOrWhiteSpace(r["or_number"] as string) ? "" : ", OR " + r["or_number"]));
                 _lblStatus.Text = "Printed - logged to the audit trail.";
             }

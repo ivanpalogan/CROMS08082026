@@ -68,8 +68,8 @@ namespace CROMS.Forms
             BuildFactsCertButton();
         }
 
-        /// <summary>Form 3C - CERTIFICATION (Death Available), the death counterpart of the
-        /// marriage desk's Form 3A / birth's Form 3B: a "TO WHOM IT MAY CONCERN" letter
+        /// <summary>Form 2A - CERTIFICATION (Death Available), the death counterpart of the
+        /// marriage desk's Form 3A / birth's Form 1A: a "TO WHOM IT MAY CONCERN" letter
         /// certifying facts already in the Register of Deaths - not a copy of the Certificate of
         /// Death. Same saved-record action as the other two; if opened with no record selected
         /// the screen still opens and lets the operator search for one. Built in code (like
@@ -79,13 +79,14 @@ namespace CROMS.Forms
 
         private void BuildFactsCertButton()
         {
+            const int width = 220;
             btnFactsCert = new Button
             {
-                Text = "Facts Cert. (3C)",
+                Text = "Facts Certification (Form 2A)",
                 Font = new System.Drawing.Font("Segoe UI", 9F),
                 FlatStyle = FlatStyle.Flat,
-                Size = new System.Drawing.Size(140, btnPrint.Height),
-                Location = new System.Drawing.Point(btnPrint.Left - 6 - 140, btnPrint.Top),
+                Size = new System.Drawing.Size(width, btnPrint.Height),
+                Location = new System.Drawing.Point(btnPrint.Left - 6 - width, btnPrint.Top),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right
             };
             btnFactsCert.Click += (s, e) =>
