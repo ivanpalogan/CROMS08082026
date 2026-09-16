@@ -48,9 +48,12 @@ namespace CROMS.ReportGen
                 }
                 else Console.WriteLine("skip MF-90: blank form not found: " + Mf90Form.BlankPath);
 
-                // FORM 3A / 3B have no scanned blank to embed - each is generated from its own
-                // class's Static + Picture cells, so the Crystal report and the no-runtime
-                // fallback can never draw a label in a different place.
+                // FORM 3A / 3B / 3C (the A1/A2/A3 Facts Certification family) have no scanned
+                // blank to embed - each is generated from its own class's Static + Picture
+                // cells, so the Crystal report and the no-runtime fallback can never draw a
+                // label in a different place. All three share one letterhead/footer geometry
+                // (see Form3CCert's class doc), so their generated backgrounds line up as one
+                // coordinated family.
                 string form3aBlank = Form3ACert.RenderBlankTemplate(outDir);
                 Console.WriteLine("blank : " + form3aBlank + " (generated)");
                 BuildLetterReport(seed, outDir, Form3ACert.RptFile, Form3ACert.PageWidth, Form3ACert.PageHeight,
@@ -62,6 +65,12 @@ namespace CROMS.ReportGen
                 BuildLetterReport(seed, outDir, Form3BCert.RptFile, Form3BCert.PageWidth, Form3BCert.PageHeight,
                     Form3BCert.Cells, Form3BCert.BuildTable(0), form3bBlank);
                 Console.WriteLine("wrote : " + Path.Combine(outDir, Form3BCert.RptFile));
+
+                string form3cBlank = Form3CCert.RenderBlankTemplate(outDir);
+                Console.WriteLine("blank : " + form3cBlank + " (generated)");
+                BuildLetterReport(seed, outDir, Form3CCert.RptFile, Form3CCert.PageWidth, Form3CCert.PageHeight,
+                    Form3CCert.Cells, Form3CCert.BuildTable(0), form3cBlank);
+                Console.WriteLine("wrote : " + Path.Combine(outDir, Form3CCert.RptFile));
                 return 0;
             }
             catch (Exception ex) { Console.WriteLine("FAILED: " + ex); return 1; }

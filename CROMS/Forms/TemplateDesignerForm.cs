@@ -36,6 +36,7 @@ namespace CROMS.Forms
         private Panel _propsHost;
         private Label _lblMode;
         private Button _btnSave, _btnUndo, _btnRedo, _btnDataSource, _btnEditToggle;
+        private Button _btnApplyHeader, _btnApplyFooter;
         private string _realRecordLabel;
 
         public TemplateDesignerForm(TemplateFormInfo info, bool startInEditMode)
@@ -91,9 +92,11 @@ namespace CROMS.Forms
             var bar = new FlowLayoutPanel
             {
                 Dock = DockStyle.Right,
-                Width = 620,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 FlowDirection = FlowDirection.RightToLeft,
                 Padding = new Padding(10),
+                WrapContents = false,
             };
             var btnClose = Btn("Close", UiTheme.Chrome, UiTheme.Ink);
             btnClose.Click += (s, e) => Close();
@@ -108,6 +111,19 @@ namespace CROMS.Forms
             _btnRedo.Click += (s, e) => DoRedo();
             _btnUndo = Btn("↶ Undo", UiTheme.Chrome, UiTheme.Ink);
             _btnUndo.Click += (s, e) => DoUndo();
+
+            bool inFamily = TemplateStore.FactsCertificationFamily.Contains(_info.FormCode);
+            if (inFamily)
+            {
+                _btnApplyFooter = Btn("Apply Footer to A1/A2/A3", UiTheme.Chrome, UiTheme.Ink);
+                _btnApplyFooter.Width = 172;
+                _btnApplyFooter.Click += (s, e) => ApplyBandToFamily("Footer");
+                _btnApplyHeader = Btn("Apply Header to A1/A2/A3", UiTheme.Chrome, UiTheme.Ink);
+                _btnApplyHeader.Width = 172;
+                _btnApplyHeader.Click += (s, e) => ApplyBandToFamily("Header");
+                bar.Controls.Add(_btnApplyFooter);
+                bar.Controls.Add(_btnApplyHeader);
+            }
 
             bar.Controls.Add(btnClose);
             bar.Controls.Add(_btnSave);
@@ -205,6 +221,8 @@ namespace CROMS.Forms
             _btnSave.Visible = _editable;
             _btnUndo.Visible = _editable;
             _btnRedo.Visible = _editable;
+            if (_btnApplyHeader != null) _btnApplyHeader.Visible = _editable;
+            if (_btnApplyFooter != null) _btnApplyFooter.Visible = _editable;
             _btnEditToggle.Visible = !_editable;
             _canvas.ReadOnly = !_editable;
             foreach (Control c in ((Panel)Controls.Cast<Control>().First(x => x.Dock == DockStyle.Left)).Controls)
@@ -629,11 +647,12 @@ namespace CROMS.Forms
 
         private void PickRealRecord()
         {
-            bool marriage = _info.FormCode == Form3ACert.FormCode;
-            string view = marriage ? "v_marriage_certificate" : "v_birth_certificate";
-            string nameExpr = marriage
-                ? "CONCAT(husband_full_name, ' & ', wife_full_name)"
-                : "child_full_name";
+            string view = _info.FormCode == Form3ACert.FormCode ? "v_marriage_certificate"
+                        : _info.FormCode == Form3CCert.FormCode ? "v_death_certificate"
+                        : "v_birth_certificate";
+            string nameExpr = _info.FormCode == Form3ACert.FormCode ? "CONCAT(husband_full_name, ' & ', wife_full_name)"
+                             : _info.FormCode == Form3CCert.FormCode ? "deceased_full_name"
+                             : "child_full_name";
 
             DataTable dt;
             try
@@ -680,9 +699,9 @@ namespace CROMS.Forms
 
         private void ApplyRealRecord(int recordId, string who)
         {
-            DataTable table = _info.FormCode == Form3ACert.FormCode
-                ? Form3ACert.BuildTable(recordId)
-                : Form3BCert.BuildTable(recordId);
+            DataTable table = _info.FormCode == Form3ACert.FormCode ? Form3ACert.BuildTable(recordId)
+                             : _info.FormCode == Form3CCert.FormCode ? Form3CCert.BuildTable(recordId)
+                             : Form3BCert.BuildTable(recordId);
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (table.Rows.Count > 0)
                 foreach (DataColumn col in table.Columns)
@@ -715,6 +734,52 @@ namespace CROMS.Forms
             _savedJson = _json.Serialize(_current.Elements);
             MessageBox.Show(this, "Template saved. New certificates for this form will use this layout.",
                 "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>"Apply Header/Footer to A1, A2 and A3": takes this form's CURRENT (possibly
+        /// unsaved) elements of the given band and overwrites that band on every OTHER form in the
+        /// family, so the office's letterhead/footer stay one coordinated design across Marriage,
+        /// Death and Birth Facts Certifications. Confirms first — this rewrites data the operator
+        /// is not currently looking at. Does not touch this form's own template or its Save state.</summary>
+        private void ApplyBandToFamily(string band)
+        {
+            List<TemplateElement> bandElements = _current.Elements
+                .Where(e => string.Equals(e.Band, band, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (bandElements.Count == 0)
+            {
+                MessageBox.Show(this, "There is nothing in the " + band + " section of this page to apply.",
+                    "Nothing to apply", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string[] others = TemplateStore.FactsCertificationFamily
+                .Where(f => f != _info.FormCode).ToArray();
+            string otherNames = string.Join(" and ", others.Select(f => TemplateStore.FindForm(f)?.FormName ?? f));
+
+            DialogResult confirm = MessageBox.Show(this,
+                "This will replace the " + band + " section on " + otherNames +
+                " with the " + band.ToLowerInvariant() + " shown here" +
+                (IsDirty() ? " (including your unsaved changes)" : "") +
+                ".\n\nThis cannot be undone from this screen. Continue?",
+                "Apply " + band + " to A1, A2 and A3", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+            if (confirm != DialogResult.Yes) return;
+
+            try
+            {
+                TemplateStore.ApplyBand(bandElements, band, others, Session.User?.Id);
+                Audit.Write("Update", "certificate_templates", 0,
+                    "Applied " + band + " from " + _info.FormCode + " to " + string.Join(", ", others));
+                MessageBox.Show(this,
+                    "The " + band.ToLowerInvariant() + " has been applied to " + otherNames + ".",
+                    "Applied", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Could not apply the " + band.ToLowerInvariant() + ": " + ex.Message,
+                    "Apply failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private bool IsDirty() => _editable && _json.Serialize(_current.Elements) != _savedJson;

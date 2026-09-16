@@ -34,9 +34,20 @@ namespace CROMS.Data
             new TemplateFormInfo(Form3ACert.FormCode, Form3ACert.FormName,
                 "Marriage", Form3ACert.PageWidth, Form3ACert.PageHeight,
                 () => Form3ACert.Cells.Select(ToElement).ToList()),
+            new TemplateFormInfo(Form3CCert.FormCode, Form3CCert.FormName,
+                "Death", Form3CCert.PageWidth, Form3CCert.PageHeight,
+                () => Form3CCert.Cells.Select(ToElement).ToList()),
             new TemplateFormInfo(Form3BCert.FormCode, Form3BCert.FormName,
                 "Birth", Form3BCert.PageWidth, Form3BCert.PageHeight,
                 () => Form3BCert.Cells.Select(ToElement).ToList()),
+        };
+
+        /// <summary>The A1/A2/A3 "Facts Certification" family, in that order — the set every
+        /// "Apply Header/Footer to A1, A2 and A3" action propagates across. Listed here once so
+        /// the designer's propagate buttons and this class's own ApplyBand agree on membership.</summary>
+        public static readonly string[] FactsCertificationFamily =
+        {
+            Form3ACert.FormCode, Form3CCert.FormCode, Form3BCert.FormCode
         };
 
         public static TemplateFormInfo FindForm(string formCode) =>
@@ -165,6 +176,37 @@ namespace CROMS.Data
             Save(def, userId);
         }
 
+        /// <summary>
+        /// "Apply Header/Footer to A1, A2 and A3": replaces every element of <paramref name="band"/>
+        /// ("Header" or "Footer") on each target form's ACTIVE template with a copy of
+        /// <paramref name="bandElements"/> — the elements the operator is looking at right now on
+        /// the source form (whether or not they have been Saved yet), so the propagation always
+        /// carries exactly what is on screen. Every other band on the target (its own Body facts
+        /// table) is left untouched. New GUIDs are assigned to the copies so the three templates
+        /// never share an element identity, and X/Y/Width/Height are copied verbatim — every form
+        /// in the family already shares one page size (612x792 pt), so a Header/Footer element sits
+        /// at the same point on every page it lands on.
+        /// </summary>
+        public static void ApplyBand(List<TemplateElement> bandElements, string band,
+            IEnumerable<string> targetFormCodes, int? userId)
+        {
+            if (bandElements == null) return;
+            foreach (string formCode in targetFormCodes)
+            {
+                CertTemplate target = GetActive(formCode);
+                if (target == null) continue;
+                target.Elements.RemoveAll(e => string.Equals(e.Band, band, StringComparison.OrdinalIgnoreCase));
+                foreach (TemplateElement src in bandElements)
+                {
+                    TemplateElement copy = src.Clone();
+                    copy.Id = Guid.NewGuid().ToString("N");
+                    copy.Band = band;
+                    target.Elements.Add(copy);
+                }
+                Save(target, userId);
+            }
+        }
+
         // ===================================================================
         // Template-owned images (uploaded logos/seals/etc, not the office-wide slots)
         // ===================================================================
@@ -247,6 +289,7 @@ namespace CROMS.Data
         {
             DataTable shape = formCode == Form3ACert.FormCode ? Form3ACert.BuildTable(0)
                              : formCode == Form3BCert.FormCode ? Form3BCert.BuildTable(0)
+                             : formCode == Form3CCert.FormCode ? Form3CCert.BuildTable(0)
                              : new DataTable();
 
             var list = new List<TemplateFieldOption>();

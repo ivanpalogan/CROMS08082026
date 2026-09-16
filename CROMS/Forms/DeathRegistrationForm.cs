@@ -65,6 +65,36 @@ namespace CROMS.Forms
             LearningLibrary.Attach(txtDispPlace, LearningLibrary.Cemetery);
             LearningLibrary.Attach(txtCertifier, LearningLibrary.Officer);
             BuildSoftcopyButton();
+            BuildFactsCertButton();
+        }
+
+        /// <summary>Form 3C - CERTIFICATION (Death Available), the death counterpart of the
+        /// marriage desk's Form 3A / birth's Form 3B: a "TO WHOM IT MAY CONCERN" letter
+        /// certifying facts already in the Register of Deaths - not a copy of the Certificate of
+        /// Death. Same saved-record action as the other two; if opened with no record selected
+        /// the screen still opens and lets the operator search for one. Built in code (like
+        /// btnViewScan above) rather than in the Designer, since this form's Designer file has
+        /// been regenerated out from under hand edits before.</summary>
+        private Button btnFactsCert;
+
+        private void BuildFactsCertButton()
+        {
+            btnFactsCert = new Button
+            {
+                Text = "Facts Cert. (3C)",
+                Font = new System.Drawing.Font("Segoe UI", 9F),
+                FlatStyle = FlatStyle.Flat,
+                Size = new System.Drawing.Size(140, btnPrint.Height),
+                Location = new System.Drawing.Point(btnPrint.Left - 6 - 140, btnPrint.Top),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right
+            };
+            btnFactsCert.Click += (s, e) =>
+            {
+                using (Form3CCertForm f = _editingId != null ? new Form3CCertForm(_editingId.Value) : new Form3CCertForm())
+                    f.ShowDialog(this);
+            };
+            btnPrint.Parent.Controls.Add(btnFactsCert);
+            btnFactsCert.BringToFront();
         }
 
         // Softcopy of the source certificate (scan from Document AI), saved with the record.
