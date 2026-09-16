@@ -10,33 +10,33 @@ CROMS replaces the paper-and-spreadsheet workflow of the LCRO with a single inte
 
 
 
-Git Collaboration Workflow (permanent — Kim's laptop)
+Git Collaboration Workflow (permanent — single-laptop, solo workflow)
 
-Identity: Kim. Personal branch `kim-work`. Gilvan's branch `gilvan-work`. Shared integration/testing branch `dev`. Stable branch `main`.
+2026-09-16: Consolidated from a two-laptop (Kim/Gilvan) branch split to solo, single-branch
+work — only one laptop is active now. `origin/gilvan-work`'s outstanding work (the
+2026-09-16 UI/UX mockups, the fresh-machine build fix vendoring the Crystal Reports DLLs, and
+CLAUDE.md updates) was merged into `kim-work` then fast-forwarded into `main` with no
+conflicts. `main`, `dev`, `kim-work` and `gilvan-work` all point at content that is now on
+`main`; the old branch names are left on origin, untouched, not deleted, purely as a
+historical fallback — nothing should be pushed to them going forward.
+
+Identity: solo developer. Working branch: `main`.
 
 Rules:
-- Before editing, check current branch. Normal dev work happens on `kim-work`.
-- If on `main` or `dev` when asked to edit code: STOP, confirm with Kim before touching files.
-- Never develop directly on `main`. Never auto-push to `main`.
-- Kim may work on any part of CROMS.
-- After a requested task is done and verified: review `git status`/`git diff`, commit only files belonging to that task (clear message), push to `origin/kim-work`.
-- Do NOT commit after every small edit mid-task. Commit/push only when a logical task completes or Kim explicitly says to save/push.
+- Work directly on `main`. No more per-person branches, no more `dev` sync step.
+- After a requested task is done and verified: review `git status`/`git diff`, commit only
+  files belonging to that task (clear message), push to `origin/main`.
+- Do NOT commit after every small edit mid-task. Commit/push only when a logical task
+  completes or the user explicitly says to save/push.
 - No unrelated, temp, generated, secret, or accidental files in commits.
+- Never force push. Never run destructive git commands (reset --hard, clean -f, branch -D,
+  discarding uncommitted work, etc.) without explicit approval for that specific instance.
 
-Getting Gilvan's latest work: fetch from origin, integrate the relevant `origin/gilvan-work` changes into the current work as needed.
-
-Sync `dev` (triggers: "merge our work to dev" / "sync dev" / "combine our work"):
-1. Ensure `kim-work` changes are committed and pushed.
-2. Fetch all remote branches.
-3. Update local `dev` from `origin/dev`.
-4. Merge in latest completed work from `origin/gilvan-work` and `origin/kim-work`.
-5. No conflicts -> push `dev` to `origin/dev`.
-6. Switch back to `kim-work`.
-7. Report what was integrated.
-
-Conflict safety: never blindly resolve, never delete either person's work. Inspect conflicting files, explain what each side changed. Propose a resolution only if obviously correct and preserves both intents; otherwise STOP and ask Kim.
-
-Main branch safety: never merge `dev` into `main` unless Kim explicitly says release/merge dev to main. Never force push. Never run destructive git commands (reset --hard, discarding others' work, etc.) without explicit approval.
+Note on Claude Code session history: this workflow is about git branches only. Claude Code's
+own conversation/session history is stored per-machine and is NOT affected by branches or
+`git fetch` — a session created on a different laptop stays on that laptop's disk and cannot
+be pulled into this one's history. If a past conversation from the other laptop needs to be
+consulted, it has to be exported/shared from that machine directly.
 
 The 15 modules
 
@@ -108,55 +108,9 @@ Auditable. Every transaction has one ID, one owner, one signature trail — impo
 
 ---
 
-Git Collaboration Workflow (permanent — follow every session)
-
-IDENTITY
-- Gilvan's personal working branch: gilvan-work
-- Kim's working branch: kim-work
-- Shared integration/testing branch: dev
-- Stable branch: main
-
-CORE RULES
-1. Before making changes, verify which branch is currently checked out.
-2. Normal development work happens on gilvan-work.
-3. If currently on main or dev when asked to modify code, STOP and switch/check with Gilvan before editing — do not edit code in place on those branches.
-4. Never directly develop on main.
-5. Never automatically push to main.
-6. Never force push. Never run destructive Git commands (reset --hard, clean -f, branch -D, etc.) that could discard either person's work unless explicitly approved for that specific instance.
-
-WHEN ASKED TO MODIFY THE SYSTEM
-- Work normally on the requested files (any part of CROMS — not limited to UI).
-- After successfully completing and verifying the requested task:
-  - review git diff/status;
-  - commit ONLY the files related to that completed task (never unrelated, temporary, generated, secret, or accidental files);
-  - use a clear, descriptive commit message;
-  - push the commit to origin/gilvan-work.
-- Do NOT commit after every tiny edit while still working on the same request. Commit/push only when a logical task is complete or Gilvan explicitly asks to save/push progress.
-
-COLLABORATION WITH KIM
-- Kim works simultaneously on his own local copy using kim-work.
-- When Gilvan needs Kim's latest completed work, fetch from origin and safely integrate the relevant changes.
-
-SYNCING TO DEV
-When told something like "merge our work to dev" / "sync dev" / "combine our work":
-1. Ensure gilvan-work changes are committed and pushed.
-2. Fetch the latest remote branches.
-3. Update dev from origin/dev.
-4. Integrate the latest completed work from origin/gilvan-work and origin/kim-work.
-5. If no conflicts, push the updated dev branch to origin/dev.
-6. Return to gilvan-work afterward.
-7. Report what was integrated.
-
-CONFLICT SAFETY
-If Git reports a merge conflict:
-- Do NOT blindly resolve it.
-- Do NOT delete either person's work.
-- Inspect the conflicting changes and explain which files conflict and what each person changed.
-- If the correct resolution is obvious and preserves both people's intended changes, propose it.
-- If there is any uncertainty, STOP and ask before resolving.
-
-MAIN BRANCH SAFETY
-- Never merge dev into main unless explicitly told to release/merge dev to main.
+(Superseded 2026-09-16 — see the single Git Collaboration Workflow section near the top of
+this file. This was Gilvan's copy of the now-retired two-laptop branch workflow, kept here
+only so the progress log below reads in order; do not follow it.)
 
 ---
 
