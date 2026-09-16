@@ -544,7 +544,9 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\UiTheme.cs" />
-    <Compile Include="Modules\TemplateCanvas.cs" />
+    <Compile Include="Modules\TemplateCanvas.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Modules\HoverFade.cs" />
     <Compile Include="Modules\SplitButton.cs">
       <SubType>Component</SubType>
