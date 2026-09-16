@@ -34,14 +34,18 @@ namespace CROMS
         public MainForm()
         {
             InitializeComponent();
-            SetupBrandMark();
-            SetupSidebarToggle();
-            DarkenSidebarScrollbar();
             RegisterNavButtons();
+            SetupNavIcons();
             BuildUserBar();
             ApplyRoleAccess();
+            CaptureAllowedNavButtons();
+            SetupGroupAccordion();
+            SetupSidebarRail();
+            SetupBrandMark();
+            DarkenSidebarScrollbar();
             UiTheme.PolishButtons(this);   // hand cursor + hover on nav + header buttons
             StartWindowHeartbeat();
+            FormClosed += (s, e) => _lcroLogo?.Dispose();
             // Open on the first module (Dashboard) by default.
             if (ModuleRegistry.All.Count > 0)
                 ShowModule(ModuleRegistry.All[0].Key);
@@ -62,12 +66,26 @@ namespace CROMS
             else navFlow.HandleCreated += (s, e) => SetWindowTheme(navFlow.Handle, "DarkMode_Explorer", null);
         }
 
+        // ================================================================
+        //  Brand mark — the LCRO seal beside "CROMS".
+        // ================================================================
+
+        private Panel _brandMark;
+        private Image _lcroLogo;
+
         /// <summary>
-        /// Small institution mark beside the "CROMS" wordmark — the same line-icon language
-        /// already used on the Login and Launcher screens, so all three read as one brand.
+        /// Loads the office's own seal from Assets\lcro_logo.png (next to the built exe) when one
+        /// has been supplied there; falls back to a drawn line-art mark (the same one Login and
+        /// Launcher already use) so the sidebar never shows a blank hole while waiting for the
+        /// office to hand over the real image. Drop the PNG in and it appears on the next launch
+        /// — no rebuild needed.
         /// </summary>
         private void SetupBrandMark()
         {
+            string path = System.IO.Path.Combine(Application.StartupPath, "Assets", "lcro_logo.png");
+            try { if (System.IO.File.Exists(path)) _lcroLogo = Image.FromFile(path); }
+            catch { _lcroLogo = null; }
+
             var mark = new Panel
             {
                 Size = new Size(34, 34),
@@ -79,15 +97,29 @@ namespace CROMS
             {
                 e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
                 e.Graphics.Clear(brandPanel.BackColor);
-                using (GraphicsPath path = CardPanel.RoundedRect(
-                           new Rectangle(0, 0, mark.Width - 1, mark.Height - 1), 8))
-                using (var b = new SolidBrush(UiTheme.NavyHover))
-                    e.Graphics.FillPath(b, path);
-                DrawInstitutionIcon(e.Graphics, new RectangleF(7, 7, 20, 20), Color.White);
+                if (_lcroLogo != null)
+                {
+                    using (var clip = new GraphicsPath())
+                    {
+                        clip.AddEllipse(0, 0, mark.Width - 1, mark.Height - 1);
+                        e.Graphics.SetClip(clip);
+                        e.Graphics.DrawImage(_lcroLogo, 0, 0, mark.Width, mark.Height);
+                        e.Graphics.ResetClip();
+                    }
+                }
+                else
+                {
+                    using (GraphicsPath path2 = CardPanel.RoundedRect(
+                               new Rectangle(0, 0, mark.Width - 1, mark.Height - 1), 8))
+                    using (var b = new SolidBrush(UiTheme.NavyHover))
+                        e.Graphics.FillPath(b, path2);
+                    DrawInstitutionIcon(e.Graphics, new RectangleF(7, 7, 20, 20), Color.White);
+                }
             };
             brandPanel.Controls.Add(mark);
             mark.BringToFront();
             brandLabel.Location = new Point(mark.Right + 10, brandLabel.Location.Y);
+            _brandMark = mark;
         }
 
         /// <summary>Plain line-art municipal building — matches LoginForm/LauncherForm's mark.</summary>
@@ -112,30 +144,241 @@ namespace CROMS
             }
         }
 
-        /// <summary>
-        /// A collapse button lives in the HEADER (not the sidebar itself) so it stays reachable
-        /// even while the sidebar is hidden — collapsing frees the full width for the module's
-        /// own content on a small screen, and the same button brings it back.
-        /// </summary>
-        private void SetupSidebarToggle()
+        // ================================================================
+        //  Nav icons — one line-art glyph per module key, drawn by the shared
+        //  button painter (Modules/UiTheme.SetIcon).
+        // ================================================================
+
+        private readonly Dictionary<Button, int> _navButtonHeight = new Dictionary<Button, int>();
+        private readonly Dictionary<Button, string> _navButtonText = new Dictionary<Button, string>();
+
+        private void SetupNavIcons()
         {
-            var btn = new Button
+            foreach (var pair in _navButtons)
             {
-                Text = "≡",
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
+                Button b = pair.Value;
+                // The Designer text carries manual leading spaces ("   Dashboard") as a stand-in
+                // indent for the icon that didn't exist yet — the icon now provides that gap.
+                b.Text = (b.Text ?? "").TrimStart();
+                _navButtonText[b] = b.Text;
+                _navButtonHeight[b] = b.Height;
+                UiTheme.SetIcon(b, NavIcons.For(pair.Key));
+            }
+        }
+
+        // ================================================================
+        //  Group accordion — clicking a section header (CLIENT SERVICES, CERTIFICATION, ...)
+        //  shows/hides its buttons with a short slide, instead of every group always being
+        //  fully expanded down a long scrolling list.
+        // ================================================================
+
+        private sealed class NavGroup
+        {
+            public Label Header;
+            public readonly List<Button> Members = new List<Button>();
+            public bool Expanded = true;
+        }
+
+        private readonly List<NavGroup> _navGroups = new List<NavGroup>();
+        // Buttons the signed-in role is actually allowed to see (ApplyRoleAccess already decided
+        // this once) — the accordion must never make a role-hidden button visible again.
+        private readonly HashSet<Button> _navAllowed = new HashSet<Button>();
+
+        private void CaptureAllowedNavButtons()
+        {
+            foreach (var pair in _navButtons)
+                if (pair.Value.Visible) _navAllowed.Add(pair.Value);
+        }
+
+        /// <summary>Groups the flat nav list by the Label headers already placed between runs of buttons.</summary>
+        private void SetupGroupAccordion()
+        {
+            NavGroup current = null;
+            foreach (Control c in navFlow.Controls)
+            {
+                if (c is Label lbl)
+                {
+                    var group = new NavGroup { Header = lbl, Expanded = true };
+                    _navGroups.Add(group);
+                    current = group;
+                    lbl.Cursor = Cursors.Hand;
+                    lbl.Click += (s, e) => ToggleGroup(group);
+                    lbl.Paint += (s, e) => DrawChevron(lbl, e.Graphics, group);
+                }
+                else if (c is Button btn && current != null)
+                {
+                    current.Members.Add(btn);
+                }
+            }
+        }
+
+        private static void DrawChevron(Label lbl, Graphics g, NavGroup group)
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            float x = lbl.Width - 14, y = lbl.Height - 13;
+            using (var pen = new Pen(lbl.ForeColor, 1.6f)
+                   { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+            {
+                if (group.Expanded)   // pointing down
+                    g.DrawLines(pen, new[] { new PointF(x - 4, y - 2), new PointF(x, y + 2), new PointF(x + 4, y - 2) });
+                else                  // pointing right
+                    g.DrawLines(pen, new[] { new PointF(x - 2, y - 4), new PointF(x + 2, y), new PointF(x - 2, y + 4) });
+            }
+        }
+
+        private void ToggleGroup(NavGroup group)
+        {
+            if (_railCollapsed) return;   // the collapsed icon-rail has no groups to fold
+            bool expand = !group.Expanded;
+            group.Expanded = expand;
+            group.Header.Invalidate();
+
+            var members = new List<Button>();
+            foreach (var b in group.Members)
+                if (_navAllowed.Contains(b)) members.Add(b);
+            AnimateGroup(members, expand);
+        }
+
+        /// <summary>
+        /// Slides a group open/closed by animating each button's own Height (a FlowLayoutPanel
+        /// reflows around whatever height a child currently reports, so this reads as a real
+        /// expand/collapse instead of an instant show/hide).
+        /// </summary>
+        private void AnimateGroup(List<Button> members, bool expand)
+        {
+            if (members.Count == 0) return;
+            if (expand)
+                foreach (var b in members) { b.Visible = true; b.Height = 0; }
+
+            var timer = new Timer { Interval = 15 };
+            int steps = 8, i = 0;
+            timer.Tick += (s, e) =>
+            {
+                i++;
+                float t = Math.Min(1f, (float)i / steps);
+                float frac = expand ? t : 1f - t;
+                foreach (var b in members)
+                {
+                    int natural;
+                    if (!_navButtonHeight.TryGetValue(b, out natural)) natural = 34;
+                    b.Height = Math.Max(expand ? 1 : 0, (int)(natural * frac));
+                }
+                navFlow.PerformLayout();
+                if (i >= steps)
+                {
+                    timer.Stop();
+                    timer.Dispose();
+                    foreach (var b in members)
+                    {
+                        int natural;
+                        if (!_navButtonHeight.TryGetValue(b, out natural)) natural = 34;
+                        if (expand) b.Height = natural;
+                        else { b.Height = 0; b.Visible = false; }
+                    }
+                    navFlow.PerformLayout();
+                }
+            };
+            timer.Start();
+        }
+
+        // ================================================================
+        //  Collapse to an icon-only rail — pinned at the BOTTOM of the sidebar (matching the
+        //  approved mockup), narrows the sidebar to just the icons and widens the module area,
+        //  reacting to screen size the same way as always (both panels stay Dock-based).
+        // ================================================================
+
+        private const int SidebarExpandedWidth = 220;
+        private const int SidebarCollapsedWidth = 64;
+        private bool _railCollapsed;
+        private ToolTip _navTip;
+        private Button _railButton;
+
+        private void SetupSidebarRail()
+        {
+            _navTip = new ToolTip();
+
+            _railButton = new Button
+            {
+                Text = "«  Collapse",
+                Dock = DockStyle.Bottom,
+                Height = 42,
                 FlatStyle = FlatStyle.Flat,
-                ForeColor = UiTheme.Ink,
-                BackColor = Color.White,
-                Size = new Size(36, 34),
-                Location = new Point(12, 11),
+                BackColor = UiTheme.NavyHover,
+                ForeColor = NavIdleFore,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleCenter,
                 Cursor = Cursors.Hand,
                 TabStop = false
             };
-            btn.FlatAppearance.BorderSize = 0;
-            btn.Click += (s, e) => sidebarPanel.Visible = !sidebarPanel.Visible;
-            headerPanel.Controls.Add(btn);
-            btn.BringToFront();
-            headerLabel.Location = new Point(btn.Right + 12, headerLabel.Location.Y);
+            _railButton.FlatAppearance.BorderSize = 0;
+            _railButton.Click += (s, e) => ToggleRail();
+            sidebarPanel.Controls.Add(_railButton);
+            _railButton.BringToFront();
+        }
+
+        private void ToggleRail()
+        {
+            _railCollapsed = !_railCollapsed;
+
+            if (_railCollapsed)
+            {
+                // The rail shows every allowed icon flat, ignoring whatever the accordion state
+                // was — there is no room for section headers at this width, and an icon rail is
+                // meant to be a complete, ungrouped list of everything reachable.
+                foreach (var group in _navGroups)
+                {
+                    group.Header.Visible = false;
+                    foreach (var b in group.Members)
+                    {
+                        if (!_navAllowed.Contains(b)) continue;
+                        int natural;
+                        b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
+                        b.Visible = true;
+                    }
+                }
+                foreach (var pair in _navButtons)
+                {
+                    Button b = pair.Value;
+                    _navTip.SetToolTip(b, ModuleTitle(pair.Key));
+                    b.Text = "";
+                }
+                brandLabel.Visible = false;
+                if (_brandMark != null) _brandMark.Location = new Point((SidebarCollapsedWidth - _brandMark.Width) / 2, 15);
+                sidebarPanel.Width = SidebarCollapsedWidth;
+                _railButton.Text = "»";
+            }
+            else
+            {
+                foreach (var pair in _navButtons)
+                {
+                    Button b = pair.Value;
+                    _navTip.SetToolTip(b, null);
+                    string original;
+                    b.Text = _navButtonText.TryGetValue(b, out original) ? original : b.Text;
+                }
+                foreach (var group in _navGroups)
+                {
+                    group.Header.Visible = true;
+                    foreach (var b in group.Members)
+                    {
+                        if (!_navAllowed.Contains(b)) continue;
+                        int natural;
+                        b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
+                        b.Visible = group.Expanded;
+                    }
+                }
+                brandLabel.Visible = true;
+                if (_brandMark != null) _brandMark.Location = new Point(16, 15);
+                sidebarPanel.Width = SidebarExpandedWidth;
+                _railButton.Text = "«  Collapse";
+            }
+            navFlow.PerformLayout();
+        }
+
+        private static string ModuleTitle(string key)
+        {
+            foreach (var m in ModuleRegistry.All) if (m.Key == key) return m.Title;
+            return key;
         }
 
         /// <summary>

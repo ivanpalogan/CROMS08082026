@@ -1,4 +1,6 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 
@@ -147,6 +149,19 @@ namespace CROMS.Modules
         private static readonly Color DisabledBack = Color.FromArgb(217, 220, 227);
         private static readonly Color DisabledInk  = Faint;
 
+        // A button with a registered icon draws it before its text (or centered alone, when the
+        // button's Text is empty — the sidebar's collapsed icon-rail state uses exactly that).
+        // Keyed by reference so only buttons that opt in (the sidebar nav, so far) are affected.
+        private static readonly Dictionary<Button, Action<Graphics, RectangleF, Color>> _icons =
+            new Dictionary<Button, Action<Graphics, RectangleF, Color>>();
+
+        public static void SetIcon(Button b, Action<Graphics, RectangleF, Color> draw)
+        {
+            _icons[b] = draw;
+            b.Disposed += (s, e) => _icons.Remove(b);
+            b.Invalidate();
+        }
+
         /// <summary>
         /// Gives EVERY button one consistent flat style so nothing shows the native grey chrome:
         /// colored buttons keep their colour (solid, white text); plain/"white"/native buttons
@@ -233,11 +248,27 @@ namespace CROMS.Modules
                 using (var brush = new SolidBrush(fill))
                     g.FillPath(brush, path);
 
-                // Respect the button's own TextAlign (nav buttons are left-aligned/indented).
-                var textRect = new Rectangle(10, 0, b.Width - 20, b.Height);
-                TextRenderer.DrawText(g, b.Text, b.Font, textRect,
-                    b.Enabled ? b.ForeColor : DisabledInk,
-                    AlignFlags(b.TextAlign) | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                Color ink = b.Enabled ? b.ForeColor : DisabledInk;
+                Action<Graphics, RectangleF, Color> icon;
+                bool hasIcon = _icons.TryGetValue(b, out icon);
+                // A blank Text with an icon registered is the "icon-only" state (the sidebar's
+                // collapsed rail) — the icon centers itself instead of sitting at a fixed left
+                // indent, since there is no label beside it to leave room for.
+                bool iconOnly = hasIcon && string.IsNullOrEmpty(b.Text);
+                const int iconBox = 18;
+                int iconX = iconOnly ? (b.Width - iconBox) / 2 : 14;
+                int iconY = (b.Height - iconBox) / 2;
+                int textStart = hasIcon ? iconX + iconBox + 10 : 10;
+
+                if (hasIcon) icon(g, new RectangleF(iconX, iconY, iconBox, iconBox), ink);
+
+                if (!iconOnly)
+                {
+                    // Respect the button's own TextAlign (nav buttons are left-aligned/indented).
+                    var textRect = new Rectangle(textStart, 0, b.Width - textStart - 10, b.Height);
+                    TextRenderer.DrawText(g, b.Text, b.Font, textRect, ink,
+                        AlignFlags(b.TextAlign) | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+                }
             };
             b.Invalidate();
         }

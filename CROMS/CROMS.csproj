@@ -554,6 +554,7 @@
     </Compile>
     <Compile Include="Modules\HoverFade.cs" />
     <Compile Include="Modules\NextStepGlow.cs" />
+    <Compile Include="Modules\NavIcons.cs" />
     <Compile Include="Modules\SplitButton.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -659,6 +660,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Include="Assets\Form102Blank.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\lcro_logo.png" Condition="Exists('Assets\lcro_logo.png')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Assets\Form90Blank.png">

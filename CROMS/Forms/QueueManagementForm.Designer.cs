@@ -103,7 +103,12 @@ namespace CROMS.Forms
             // while still leaving room for chip(32) + label + value ascent + caption.
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 128F));  // KPI tiles
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 28F));   // my-window heading
-            this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 152F));  // window card
+            // 172, not 152: the window card's own MinimumSize (132) plus its 6px top+bottom
+            // margin (144), plus cardServing's 10/12 top/bottom padding and 6px bottom margin
+            // (172), is what the card actually needs — at 152 the card was taller than the
+            // space it was given and got clipped by cardServing's own bounds, which is what
+            // made its border look "cut" rather than a clean closed rectangle.
+            this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 172F));  // window card
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 52F));   // workflow bar
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 46F));   // queue heading + filters
             this.layoutRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));   // queue list

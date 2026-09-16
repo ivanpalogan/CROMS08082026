@@ -4608,3 +4608,75 @@ consistent with the two other screens that already carry it.
 VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors (temp OutputPath, removed after). GUI
 not clicked (no interactive desktop) — the border-alignment and spacing fixes are reasoned from
 the exact paint/layout code, not eyeballed; rebuild in VS and confirm on the running app.
+
+### 2026-09-16 (later still) — Sidebar rebuilt: real cause of the border cut, nav icons,
+### accordion groups, collapse-to-icon-rail, LCRO seal support
+
+Reported from a screenshot that the border-cut fix, icons, grouping and collapse from the prior
+entry either weren't visible or weren't actually built. First two were true bugs; the icon set,
+accordion grouping and icon-rail collapse genuinely hadn't been built yet (only a header
+hide/show toggle had, which the user correctly rejected as not what was asked for) — built now.
+
+THE BORDER WAS NEVER A RECT-ALIGNMENT PROBLEM. Re-derived the real numbers: the window card's
+`MinimumSize` is 132px, but the row that holds it (`layoutRoot`'s "window card" row) only left
+about 112-124px after `cardServing`'s own Padding/Margin and the card's own Margin(6) were
+subtracted. The card was rendered TALLER than the space it was given, and — because a child
+window is always clipped to its parent's client area at the OS level — the bottom slice of the
+card (including the closing edge of its own border and the pulsing glow) was cut off by
+`cardServing`'s bounds. The earlier rect-alignment change to `NextStepGlow` was real but not
+the cause of the visible cut. Fixed by correcting the row height 152 -> 172, which is exactly
+what the existing 132/6/6/10/12/6 numbers already assumed — the row was the one wrong number.
+
+NAV ICONS — new `Modules/NavIcons.cs`, one hand-drawn line-art glyph per module key (dashboard
+grid, queue/person, transactions list, inbox, check-circle, layered stack, document, heart,
+plus-circle, flag, book, magnifier, scan-frame, wallet, bar chart, database cylinder, layout,
+gear, shield-person, archive box) — matching the reference screenshot's icon set and the
+existing app convention (no emoji, single-color line art, same style as Login/Launcher/Kiosk).
+`Modules/UiTheme.cs` gained `SetIcon(Button, drawer)`, read by the SAME shared `RoundButton`
+paint routine every button in the app already goes through — so nav buttons (which were already
+being owner-drawn by this exact code path) just gained an icon slot with no second rendering
+path to keep in sync. A button with an icon and BLANK text centers the icon (the collapsed-rail
+state); with text, the icon sits at a fixed left indent and the text starts after it — the old
+hand-typed leading spaces ("   Dashboard") used as a fake indent are stripped now that the icon
+provides one for real.
+
+ACCORDION GROUPS. Each section header (CLIENT SERVICES, CERTIFICATION, ...) is now a click
+target: `MainForm.SetupGroupAccordion` walks `navFlow.Controls` once, bucketing the buttons that
+follow each Label into a `NavGroup`, and wires a chevron (drawn on the label, ▾ expanded / ▸
+collapsed) plus a click handler. Toggling animates every member button's own `Height` from 0 to
+its natural size over 8 ticks (`AnimateGroup`) — a `FlowLayoutPanel` reflows around whatever
+height a child currently reports, so shrinking/growing a button's `Height` reads as a real slide
+rather than an instant show/hide. Buttons a role isn't allowed to see (`ApplyRoleAccess`) are
+captured into `_navAllowed` right after role gating runs and are never touched by the accordion,
+so a Cashier's hidden buttons can't be accidentally revealed by expanding their group.
+
+COLLAPSE-TO-ICON-RAIL, pinned at the BOTTOM of the sidebar (`_railButton`, "« Collapse" / "»"),
+matching the approved mockup rather than the header toggle built (and rightly rejected) earlier
+today. Collapsing sets `sidebarPanel.Width` from 220 to 64 — both panels stay Dock-based
+(`sidebarPanel` Dock=Left, `mainPanel` Dock=Fill), so the module area reclaims the freed width
+automatically and the whole shell keeps reacting to window resizes exactly as before; nothing
+about the collapse is a fixed/absolute layout. While collapsed: every allowed button is forced
+fully visible at its natural height regardless of accordion state (a rail is meant to be one
+flat list of everything reachable, not a set of collapsed groups with nothing to click into),
+each button's text is blanked (triggering the icon-only centered paint) and given a tooltip of
+its full module title (`ModuleTitle`, read from `ModuleRegistry`), the "CROMS" wordmark hides,
+and the logo mark re-centers in the narrow rail. Expanding restores everything from the two
+dictionaries (`_navButtonText`, `_navButtonHeight`) captured once at startup, and re-applies
+each group's last expand/collapse state.
+
+LCRO SEAL. `MainForm.SetupBrandMark` now looks for `Assets\lcro_logo.png` next to the built exe
+and draws it circularly clipped in place of the hand-drawn building icon when present; falls
+back to the drawn mark otherwise so the sidebar is never blank while waiting on the file. Added
+a guarded csproj entry (`Condition="Exists(...)"`) so the moment that PNG is dropped into
+`CROMS\Assets\lcro_logo.png` it copies to the build output automatically — no code change,
+just rebuild. The actual seal image supplied in chat could not be saved to disk directly (no
+image-write tool in this environment) — the user needs to save that PNG themselves to
+`CROMS\Assets\lcro_logo.png`.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, three times across this pass (icons +
+accordion + rail, then the csproj asset guard). GUI not clicked (no interactive desktop) — the
+row-height fix is derived from the exact padding/margin numbers already in the Designer, and the
+accordion/rail logic was traced by hand for the FlowLayoutPanel reflow and Dock resolution rules
+it depends on, but none of it has been seen rendered. Rebuild in VS and confirm: the window card
+border now closes fully, every nav button shows an icon, clicking a group header slides its
+buttons, and the bottom "« Collapse" button shrinks the sidebar to an icon rail with tooltips.
