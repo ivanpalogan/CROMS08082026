@@ -126,10 +126,11 @@ namespace CROMS.Forms
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            // 340 could not carry four columns: at that width "TXN-2026-000037" and
-            // "Aug 27, 2026" both truncated, and a worklist you cannot read is not a
-            // worklist. 400 fits them and still leaves the workspace ~960 at 1400.
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 400));
+            // Halved from 400 per request (the rail was eating space the workspace needed
+            // and the queue number wasn't shown at all). Long values now truncate — mitigated
+            // by a full-text tooltip per cell (see LoadPending) and by the fact that clicking
+            // a row already shows every detail in the center Claim Details card.
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             // --- title row (spans both columns) ---
@@ -1632,40 +1633,48 @@ namespace CROMS.Forms
             MySqlParameter[] ps = new MySqlParameter[0];
             if (!string.IsNullOrWhiteSpace(filter))
             {
-                where += " AND (txn_code LIKE @f OR client_name LIKE @f OR parked_ticket LIKE @f)";
+                where += " AND (txn_code LIKE @f OR client_name LIKE @f OR parked_ticket LIKE @f OR ticket_code LIKE @f)";
                 ps = new[] { new MySqlParameter("@f", "%" + filter.Trim() + "%") };
             }
 
-            string ticketCol = _listMode == 1
-                ? "COALESCE(parked_ticket, '—') AS 'Queue Ticket', "
-                : "";
+            // Queue No. shown in BOTH tabs now — ticket_code covers a transaction that
+            // came straight off a live ticket, parked_ticket covers one that was later
+            // parked to Waiting-to-Release; either can be the only one set.
             dgvPending.DataSource = Db.Pull(
-                "SELECT id, txn_code AS 'Txn Code', client_name AS Client, " + ticketCol +
+                "SELECT id, txn_code AS 'Txn Code', client_name AS Client, " +
+                "COALESCE(ticket_code, parked_ticket, '—') AS 'Queue No', " +
                 "type AS Type, DATE_FORMAT(created_at, '%b %d, %Y') AS Requested " +
                 "FROM transactions WHERE " + where + " ORDER BY created_at DESC, id DESC", ps);
             if (dgvPending.Columns.Contains("id")) dgvPending.Columns["id"].Visible = false;
             SizeWorklistColumns();
+            AttachWorklistTooltips();
             UpdateSummary();
         }
 
         /// <summary>
-        /// The rail is 340px wide, so four equal columns gave every one of them ~73px —
-        /// the header "Txn Code" wrapped onto two lines and every code rendered as
-        /// "TXN-2026-...". A worklist row only has to let the officer RECOGNISE the
-        /// request; the document type and everything else about it is in the workspace
-        /// header the moment the row is clicked, so Type is dropped here rather than
-        /// squeezed, and the remaining columns are weighted by how much each needs.
+        /// The rail is only 200px wide, so every column gets squeezed — a worklist row
+        /// only has to let the officer RECOGNISE the request; the full detail shows in
+        /// the center Claim Details card the moment a row is clicked. Type is dropped
+        /// entirely (not squeezed) and the rest are weighted by how much each needs,
+        /// with the queue number kept readable since it's what a client quotes at the
+        /// counter.
         /// </summary>
         private void SizeWorklistColumns()
         {
             var cols = dgvPending.Columns;
             if (cols.Contains("Type")) cols["Type"].Visible = false;
-            if (cols.Contains("Txn Code")) { cols["Txn Code"].FillWeight = 34; cols["Txn Code"].HeaderText = "Transaction"; }
-            if (cols.Contains("Client")) cols["Client"].FillWeight = 30;
-            if (cols.Contains("Requested")) cols["Requested"].FillWeight = 22;
-            // Waiting mode adds the parked queue ticket — the one thing a returning
-            // client can actually quote at the counter, so it keeps real room.
-            if (cols.Contains("Queue Ticket")) cols["Queue Ticket"].FillWeight = 20;
+            if (cols.Contains("Txn Code")) { cols["Txn Code"].FillWeight = 28; cols["Txn Code"].HeaderText = "Transaction"; cols["Txn Code"].MinimumWidth = 40; }
+            if (cols.Contains("Client")) { cols["Client"].FillWeight = 26; cols["Client"].MinimumWidth = 40; }
+            if (cols.Contains("Queue No")) { cols["Queue No"].FillWeight = 26; cols["Queue No"].MinimumWidth = 40; }
+            if (cols.Contains("Requested")) { cols["Requested"].FillWeight = 20; cols["Requested"].MinimumWidth = 40; }
+        }
+
+        /// <summary>Full cell text on hover — several columns here now truncate at 200px.</summary>
+        private void AttachWorklistTooltips()
+        {
+            foreach (DataGridViewRow row in dgvPending.Rows)
+                foreach (DataGridViewCell cell in row.Cells)
+                    cell.ToolTipText = cell.Value == null || cell.Value == DBNull.Value ? "" : cell.Value.ToString();
         }
 
         private void LoadReleased()
