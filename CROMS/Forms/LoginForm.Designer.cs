@@ -23,8 +23,6 @@ namespace CROMS.Forms
         /// </summary>
         private void InitializeComponent()
         {
-            this.pnlLogo = new System.Windows.Forms.Panel();
-            this.lblTitle = new System.Windows.Forms.Label();
             this.pnlBadge = new System.Windows.Forms.Panel();
             this.lblHeadline = new System.Windows.Forms.Label();
             this.lblSubtitle = new System.Windows.Forms.Label();
@@ -40,28 +38,12 @@ namespace CROMS.Forms
             this.lblMsg = new System.Windows.Forms.Label();
             this.btnSignIn = new System.Windows.Forms.Button();
             this.btnExit = new System.Windows.Forms.Button();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.panel2 = new System.Windows.Forms.Panel();
+            this.pnlLogo = new System.Windows.Forms.Panel();
             this.pnlUserHost.SuspendLayout();
             this.pnlPassHost.SuspendLayout();
             this.SuspendLayout();
-            // 
-            // pnlLogo
-            // 
-            this.pnlLogo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.pnlLogo.Location = new System.Drawing.Point(27, 21);
-            this.pnlLogo.Name = "pnlLogo";
-            this.pnlLogo.Size = new System.Drawing.Size(24, 24);
-            this.pnlLogo.TabIndex = 0;
-            // 
-            // lblTitle
-            // 
-            this.lblTitle.AutoSize = true;
-            this.lblTitle.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
-            this.lblTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(36)))));
-            this.lblTitle.Location = new System.Drawing.Point(57, 21);
-            this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Size = new System.Drawing.Size(66, 21);
-            this.lblTitle.TabIndex = 1;
-            this.lblTitle.Text = "CROMS";
             // 
             // pnlBadge
             // 
@@ -230,6 +212,36 @@ namespace CROMS.Forms
             this.btnExit.UseVisualStyleBackColor = false;
             this.btnExit.Click += new System.EventHandler(this.btnExit_Click);
             // 
+            // panel1
+            // 
+            this.panel1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
+            this.panel1.BackgroundImage = global::CROMS.Properties.Resources.images__1_;
+            this.panel1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.panel1.Location = new System.Drawing.Point(63, 5);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(50, 47);
+            this.panel1.TabIndex = 14;
+            // 
+            // panel2
+            // 
+            this.panel2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
+            this.panel2.BackgroundImage = global::CROMS.Properties.Resources.images;
+            this.panel2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.panel2.Location = new System.Drawing.Point(7, 5);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(50, 47);
+            this.panel2.TabIndex = 15;
+            // 
+            // pnlLogo
+            // 
+            this.pnlLogo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
+            this.pnlLogo.BackgroundImage = global::CROMS.Properties.Resources.images;
+            this.pnlLogo.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
+            this.pnlLogo.Location = new System.Drawing.Point(367, 355);
+            this.pnlLogo.Name = "pnlLogo";
+            this.pnlLogo.Size = new System.Drawing.Size(10, 10);
+            this.pnlLogo.TabIndex = 0;
+            // 
             // LoginForm
             // 
             this.AcceptButton = this.btnSignIn;
@@ -237,8 +249,9 @@ namespace CROMS.Forms
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.ClientSize = new System.Drawing.Size(377, 364);
+            this.Controls.Add(this.panel2);
+            this.Controls.Add(this.panel1);
             this.Controls.Add(this.pnlLogo);
-            this.Controls.Add(this.lblTitle);
             this.Controls.Add(this.pnlBadge);
             this.Controls.Add(this.lblHeadline);
             this.Controls.Add(this.lblSubtitle);
@@ -267,9 +280,6 @@ namespace CROMS.Forms
         }
 
         #endregion
-
-        private System.Windows.Forms.Panel pnlLogo;
-        private System.Windows.Forms.Label lblTitle;
         private System.Windows.Forms.Panel pnlBadge;
         private System.Windows.Forms.Label lblHeadline;
         private System.Windows.Forms.Label lblSubtitle;
@@ -285,5 +295,8 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblMsg;
         private System.Windows.Forms.Button btnSignIn;
         private System.Windows.Forms.Button btnExit;
+        private System.Windows.Forms.Panel panel1;
+        private System.Windows.Forms.Panel panel2;
+        private System.Windows.Forms.Panel pnlLogo;
     }
 }
