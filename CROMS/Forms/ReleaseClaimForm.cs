@@ -126,12 +126,12 @@ namespace CROMS.Forms
             };
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 68));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            // Halved from 400 per request (the rail was eating space the workspace needed
-            // and the queue number wasn't shown at all). Long values now truncate — mitigated
-            // by a full-text tooltip per cell (see LoadPending) and by the fact that clicking
-            // a row already shows every detail in the center Claim Details card.
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 200));
-            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            // A real half-the-screen split per request (400 fixed was too narrow to read
+            // the new Queue No. column; going to a fixed 200 was the wrong direction
+            // entirely). Percent/Percent so the rail keeps ~half the width at any window
+            // size instead of a fixed pixel count.
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
 
             // --- title row (spans both columns) ---
             var titleBar = new Panel { Dock = DockStyle.Fill, BackColor = Bg };
