@@ -47,10 +47,6 @@ namespace CROMS.Forms
         private bool _suppressDelayedRecompute;
 
         // Step-by-step registration wizard
-        private FlowLayoutPanel _stepNavigation;
-        private Label _lblStep;
-        private Button _btnBackStep;
-        private Button _btnNextStep;
         private Button _btnAddAnotherBirth;
         private Button _btnDelayedCase;
 
@@ -296,7 +292,6 @@ namespace CROMS.Forms
             // the record says "Others" and what the paper actually says is lost.
             OthersBox.Bind(cboAttType, txtAttTypeOther, lblAttTypeOther);
             OthersBox.Bind(_cboInfRel, txtInfRelOther, lblInfRelOther);
-            InitializeStepNavigation();
             InitializeAddAnotherBirthButton();
             InitializeDelayedCaseButton();
             InitializeWizardChrome();
@@ -1576,58 +1571,6 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Adds a simple wizard navigation bar below the tabs.
-        /// Existing tab pages remain the seven registration steps.
-        /// </summary>
-        private void InitializeStepNavigation()
-        {
-            if (_stepNavigation != null) return;
-
-            _stepNavigation = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Bottom,
-                Height = 52,
-                Padding = new Padding(8),
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false
-            };
-
-            _lblStep = new Label
-            {
-                AutoSize = false,
-                Width = 170,
-                Height = 32,
-                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
-                Font = new System.Drawing.Font("Segoe UI", 9.75F)
-            };
-
-            _btnBackStep = new Button
-            {
-                Width = 95,
-                Height = 32,
-                Text = "← Back",
-                Enabled = false
-            };
-
-            _btnNextStep = new Button
-            {
-                Width = 95,
-                Height = 32,
-                Text = "Next →"
-            };
-
-            _btnBackStep.Click += delegate { GoToStep(tabControl.SelectedIndex - 1); };
-            _btnNextStep.Click += delegate { GoToStep(tabControl.SelectedIndex + 1); };
-            tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); };
-
-            _stepNavigation.Controls.Add(_lblStep);
-            _stepNavigation.Controls.Add(_btnBackStep);
-            _stepNavigation.Controls.Add(_btnNextStep);
-
-            cardForm.Controls.Add(_stepNavigation);
-        }
-
-        /// <summary>
         /// Rebuilds the entry panel around a numbered step strip (top) and an "at a glance"
         /// summary rail (right) - the same StepStrip / IssueList / Banner pieces the marriage
         /// license window (Municipal Form 90) already uses, reused rather than reinvented so
@@ -1668,6 +1611,7 @@ namespace CROMS.Forms
             for (int i = 0; i < pages.Length; i++)
                 _stepStrip.AddStep(pages[i].Text, i < subs.Length ? subs[i] : "");
             _stepStrip.StepClicked += i => GoToStep(i);
+            tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); };
 
             _railPanel = new Panel
             {
@@ -1818,15 +1762,16 @@ namespace CROMS.Forms
 
         private void InitializeAddAnotherBirthButton()
         {
-            if (_btnAddAnotherBirth != null || _stepNavigation == null) return;
+            if (_btnAddAnotherBirth != null || pnlRecordActions == null) return;
             _btnAddAnotherBirth = new Button
             {
                 Width = 190,
-                Height = 32,
-                Text = "+ Add Another Birth Form"
+                Height = 30,
+                Text = "+ Add Another Birth Form",
+                Margin = btnNew.Margin
             };
             _btnAddAnotherBirth.Click += btnAddAnotherBirth_Click;
-            _stepNavigation.Controls.Add(_btnAddAnotherBirth);
+            pnlRecordActions.Controls.Add(_btnAddAnotherBirth);
         }
 
         /// <summary>
@@ -1944,17 +1889,7 @@ namespace CROMS.Forms
 
         private void UpdateStepNavigation()
         {
-            if (_stepNavigation == null || _lblStep == null) return;
             if (tabControl.SelectedIndex < 0) return;
-
-            int step = tabControl.SelectedIndex + 1;
-            int total = tabControl.TabPages.Count;
-
-            _lblStep.Text = "Step " + step + " of " + total +
-                            "  •  " + tabControl.TabPages[tabControl.SelectedIndex].Text;
-
-            _btnBackStep.Enabled = step > 1;
-            _btnNextStep.Text = step == total ? "Finish ✓" : "Next →";
 
             if (_stepStrip != null)
             {
