@@ -1716,9 +1716,17 @@ namespace CROMS.Forms
             wizardBody.Controls.Add(_tabHost, 0, 0);
             wizardBody.Controls.Add(_railPanel, 1, 0);
 
+            // An explicit row (not a Dock=Top/Fill stack) so the step strip's own 54px
+            // height is never squeezed by however Dock stacking resolves add order -
+            // the strip rendered as a near-invisible sliver under the old Dock stack.
+            var wizardRoot = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = new Padding(0) };
+            wizardRoot.RowStyles.Add(new RowStyle(SizeType.Absolute, _stepStrip.Height));
+            wizardRoot.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            wizardRoot.Controls.Add(_stepStrip, 0, 0);
+            wizardRoot.Controls.Add(wizardBody, 0, 1);
+
             _wizardHost = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
-            _wizardHost.Controls.Add(wizardBody);
-            _wizardHost.Controls.Add(_stepStrip);
+            _wizardHost.Controls.Add(wizardRoot);
             cardForm.Controls.Add(_wizardHost);
 
             PositionHiddenTabHeader();
