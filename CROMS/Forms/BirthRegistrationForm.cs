@@ -48,7 +48,14 @@ namespace CROMS.Forms
 
         // Step-by-step registration wizard
         private Button _btnAddAnotherBirth;
-        private Button _btnDelayedCase;
+
+        // Popup wizard shell (opened by New Registration / Open Record) and the inline
+        // Requirements step it hosts for a delayed registration - see OpenEntryDialog and
+        // RefreshRequirementsTab.
+        private Form _entryDialog;
+        private TabPage tabRequirements;
+        private Panel _reqHost;
+        private int _reqStepIndex = -1;
 
         // Form-90-style wizard chrome: a numbered step strip above the tabs and an
         // "at a glance" summary rail beside them, built in code (like the rest of this
@@ -293,9 +300,8 @@ namespace CROMS.Forms
             OthersBox.Bind(cboAttType, txtAttTypeOther, lblAttTypeOther);
             OthersBox.Bind(_cboInfRel, txtInfRelOther, lblInfRelOther);
             InitializeAddAnotherBirthButton();
-            InitializeDelayedCaseButton();
             InitializeWizardChrome();
-            chkDelayed.CheckedChanged += (s, e) => RefreshDelayedCaseButton();
+            chkDelayed.CheckedChanged += (s, e) => RefreshRequirementsTab();
 
             this.Resize += new EventHandler(this.BirthRegistrationForm_Resize);
             CenterContent();
@@ -324,7 +330,9 @@ namespace CROMS.Forms
         // to zero height, the same RowStyle-swap technique CenterContent already uses on
         // the column dimension.
 
-        /// <summary>Shows the records list; hides the full registration panel.</summary>
+        /// <summary>Shows the records list; hides the full registration panel. If the entry
+        /// wizard is currently open in its own popup window, closes it - this is what a
+        /// successful Save Draft/Submit and the "Back to List" button both fall through to.</summary>
         private void ShowListView()
         {
             cardRecords.Visible = true;
@@ -340,17 +348,19 @@ namespace CROMS.Forms
             btnBackToList.Visible = false;
             chkDelayed.Visible = false;
             lblSubtitle.Text = "Search recent registrations, or start a new one.";
+
+            if (_entryDialog != null) _entryDialog.Close();
         }
 
-        /// <summary>Shows the full registration panel; hides the records list.</summary>
+        /// <summary>Prepares the full registration panel and opens it in its own popup window
+        /// (Municipal Form 90's own "Marriage License Application" window is the model this
+        /// follows) - a numbered step strip across the top, the at-a-glance rail on the
+        /// right, and the header/action buttons that already exist on this module reparented
+        /// into the popup for the duration. Blocks until the popup closes.</summary>
         private void ShowEntryView()
         {
             cardForm.Visible = true;
             cardRecords.Visible = false;
-            layoutMain.RowStyles[1].SizeType = SizeType.Percent;
-            layoutMain.RowStyles[1].Height = 100F;
-            layoutMain.RowStyles[2].SizeType = SizeType.Absolute;
-            layoutMain.RowStyles[2].Height = 0F;
 
             btnSaveDraft.Visible = true;
             btnSubmit.Visible = true;
@@ -363,14 +373,77 @@ namespace CROMS.Forms
             // showing - matters whether we arrived here fresh (New Registration) or with
             // a record just loaded (Open Record / a queue ticket / an OCR auto-fill).
             UpdateStepNavigation();
+            OpenEntryDialog();
+        }
+
+        /// <summary>
+        /// Reparents the header (pnlHeader - title/subtitle/Delayed toggle/Save Draft/Submit/
+        /// OCR/Back to List) and the wizard panel (cardForm - the record-action toolbar plus
+        /// the numbered step strip, tab content and "at a glance" rail) out of the embedded
+        /// module and into a stand-alone popup window, following the same pattern the
+        /// Marriage License Application window (Municipal Form 90) already uses: one modal
+        /// window per record, closed by saving or by "Back to List". Blocks until closed,
+        /// then hands everything back to the embedded module so the list view is intact.
+        /// </summary>
+        private void OpenEntryDialog()
+        {
+            if (_entryDialog != null) { _entryDialog.Activate(); return; }
+
+            layoutMain.Controls.Remove(pnlHeader);
+            layoutMain.Controls.Remove(cardForm);
+
+            var body = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(20, 16, 20, 18),
+                BackColor = UiTheme.PageBg
+            };
+            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+            body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            body.Controls.Add(pnlHeader, 0, 0);
+            body.Controls.Add(cardForm, 0, 1);
+
+            var dlg = new Form
+            {
+                Text = "Birth Registration - Municipal Form 102",
+                StartPosition = FormStartPosition.CenterParent,
+                ClientSize = new System.Drawing.Size(1245, 900),
+                MinimumSize = new System.Drawing.Size(1040, 720),
+                MaximizeBox = true,
+                MinimizeBox = true,
+                ShowIcon = false,
+                BackColor = UiTheme.PageBg
+            };
+            dlg.Controls.Add(body);
+            _entryDialog = dlg;
+
+            // Stand-alone popup, not passed through MainForm.ShowModule's polish pass - it
+            // has to style itself, same convention as every other dialog in Forms/
+            // (MarriageLicenseForm, DelayedBirthCaseForm).
+            UiTheme.Polish(dlg);
+
+            dlg.ShowDialog(this);
+
+            // ShowDialog blocks until the popup is closed - by a successful Save/Submit
+            // routing through ShowListView, by "Back to List", or by the window's own
+            // controls - so by the time it returns the popup is gone. Hand the header and
+            // wizard content back to the embedded module immediately.
+            body.Controls.Remove(pnlHeader);
+            body.Controls.Remove(cardForm);
+            layoutMain.Controls.Add(pnlHeader, 0, 0);
+            layoutMain.Controls.Add(cardForm, 0, 1);
+            _entryDialog = null;
+            dlg.Dispose();
+            if (!cardRecords.Visible) ShowListView();
         }
 
         private void btnNewRegistration_Click(object sender, EventArgs e)
         {
             ClearForm();
-            ShowEntryView();
             tabControl.SelectedTab = tabChild;
-            txtFirstName.Focus();
+            ShowEntryView();
         }
 
         private void btnOpenRecord_Click(object sender, EventArgs e)
@@ -1009,7 +1082,7 @@ namespace CROMS.Forms
             // leaving the stored determination itself untouched.
             _suppressDelayedRecompute = false;
             UpdateDelayedLabel();
-            RefreshDelayedCaseButton();
+            RefreshRequirementsTab();
         }
 
         // ---------- UPDATE ----------
@@ -1329,7 +1402,7 @@ namespace CROMS.Forms
         private void ClearForm()
         {
             _editingId = null;
-            RefreshDelayedCaseButton();
+            RefreshRequirementsTab();
             _scanImage = null;
             // A new record is on the revision the office issues today. Without this reset
             // the form would keep the revision of the last scan it was primed from.
@@ -1596,6 +1669,15 @@ namespace CROMS.Forms
             tabControl.Multiline = false;
             tabControl.SizeMode = TabSizeMode.Fixed;
 
+            // "Requirements" - PSA MC 2024-17's checklist for a delayed registration, shown
+            // inline the same way the marriage licence's own Requirements step shows its
+            // documents (see RefreshRequirementsTab). Inserted before Certification so the
+            // wizard reads facts -> requirements -> signatures/registry.
+            tabRequirements = new TabPage("Requirements");
+            _reqHost = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(20), BackColor = System.Drawing.Color.White };
+            tabRequirements.Controls.Add(_reqHost);
+            tabControl.TabPages.Insert(tabControl.TabPages.IndexOf(tabCert), tabRequirements);
+
             _stepStrip = new StepStrip(true);
             string[] subs =
             {
@@ -1605,11 +1687,13 @@ namespace CROMS.Forms
                 "Family Code Art. 164-176",
                 "who attended the birth",
                 "who is reporting it",
+                "PSA MC 2024-17 checklist",
                 "signatures & registry"
             };
-            var pages = new[] { tabChild, tabMother, tabFather, tabMarriage, tabAttendant, tabInformant, tabCert };
+            var pages = new[] { tabChild, tabMother, tabFather, tabMarriage, tabAttendant, tabInformant, tabRequirements, tabCert };
             for (int i = 0; i < pages.Length; i++)
                 _stepStrip.AddStep(pages[i].Text, i < subs.Length ? subs[i] : "");
+            _reqStepIndex = Array.IndexOf(pages, tabRequirements);
             _stepStrip.StepClicked += i => GoToStep(i);
             tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); };
 
@@ -1775,28 +1859,88 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Only relevant for a SAVED record that is actually over the reglementary period - a
-        /// blank form or a timely one has no delayed-registration case to open. Built in code
-        /// (not the Designer) so a future VS designer regeneration cannot silently drop it, the
-        /// same trap that repeatedly deleted hand-added controls in this form.
+        /// The "Requirements" wizard step - PSA MC 2024-17's checklist for a delayed
+        /// registration, shown inline the same way the marriage licence's own Requirements
+        /// step shows its documents (RequirementsGrid, DelayedBirthRules/DelayedBirthService
+        /// are already generic on owner type, reused unchanged). Only meaningful once the
+        /// record is marked delayed AND saved; the deeper posting/evaluation/admin-override
+        /// screen stays the separate DelayedBirthCaseForm dialog rather than being duplicated
+        /// here - this step surfaces the checklist and a button into that dialog.
         /// </summary>
-        private void InitializeDelayedCaseButton()
+        private void RefreshRequirementsTab()
         {
-            if (_btnDelayedCase != null || pnlRecordActions == null) return;
-            _btnDelayedCase = new Button { Width = 220, Height = 30, Text = "Delayed Birth Registration...", Margin = btnNew.Margin };
-            _btnDelayedCase.Click += (s, e) =>
-            {
-                if (_editingId == null) return;
-                using (var f = new DelayedBirthCaseForm(_editingId.Value)) f.ShowDialog(this);
-            };
-            pnlRecordActions.Controls.Add(_btnDelayedCase);
-            RefreshDelayedCaseButton();
-        }
+            if (_reqHost == null) return;
+            _reqHost.SuspendLayout();
+            var stale = new List<Control>();
+            foreach (Control c in _reqHost.Controls) stale.Add(c);
+            foreach (Control c in stale) c.Dispose();
+            _reqHost.Controls.Clear();
 
-        private void RefreshDelayedCaseButton()
-        {
-            if (_btnDelayedCase == null) return;
-            _btnDelayedCase.Enabled = _editingId != null && chkDelayed.Checked;
+            int missing = 0;
+
+            if (!chkDelayed.Checked)
+            {
+                var note = MUi.Txt(
+                    "Requirements tracking applies only to a delayed registration (the event " +
+                    "was more than 30 days ago). Tick \"Delayed Registration\" above if this one is late.",
+                    9.5F, System.Drawing.FontStyle.Regular, UiTheme.Muted);
+                note.Dock = DockStyle.Top; note.AutoSize = false; note.Height = 60;
+                _reqHost.Controls.Add(note);
+            }
+            else if (_editingId == null)
+            {
+                var note = MUi.Txt(
+                    "Save this registration first (Save Draft) to start tracking its delayed-registration requirements.",
+                    9.5F, System.Drawing.FontStyle.Regular, UiTheme.Muted);
+                note.Dock = DockStyle.Top; note.AutoSize = false; note.Height = 40;
+                var save = MUi.Btn("Save Draft", MUi.Kind.Primary, 140);
+                save.Dock = DockStyle.Top; save.Margin = new Padding(0, 10, 0, 0);
+                save.Click += btnSaveDraft_Click;
+                StackRail(_reqHost, note, save);
+            }
+            else
+            {
+                DelayedBirthCase c = DelayedBirthService.Load(_editingId.Value);
+                if (c == null) { _reqHost.ResumeLayout(); return; }
+
+                List<ReqType> catalog = DelayedBirthService.Catalog();
+                List<Need> needs = DelayedBirthRules.Needs(c, catalog);
+                List<ReqRow> rows = DelayedBirthService.Requirements(_editingId.Value);
+                int have, need;
+                bool groupOk = DelayedBirthRules.EvidenceGroupSatisfied(rows, catalog, DelayedBirthService.EvidenceGroup, out have, out need);
+                bool all = DelayedBirthRules.AllSatisfied(needs, rows, catalog, DelayedBirthService.EvidenceGroup);
+                missing = all ? 0 : Math.Max(1, needs.Count - have);
+
+                var head = MUi.Txt("PSA MC 2024-17 CHECKLIST", 9F, System.Drawing.FontStyle.Bold, UiTheme.Muted);
+                head.Dock = DockStyle.Top; head.Height = 22;
+
+                var banner = new Banner();
+                banner.Set(all ? RuleSeverity.Info : RuleSeverity.Warning,
+                    all ? "Every checklist item is on file." : "The checklist is not yet complete.",
+                    "Whether to proceed is the registrar's own finding - open the full case for " +
+                    "posting and the registrar's evaluation.", all);
+
+                var evidence = MUi.Txt(
+                    "Evidence of birth (item c): " + have + " of " + need + " required verified" + (groupOk ? " - satisfied" : ""),
+                    9.5F, System.Drawing.FontStyle.Bold, groupOk ? UiTheme.Success : UiTheme.Warning);
+                evidence.Dock = DockStyle.Top; evidence.AutoSize = false; evidence.Height = 22; evidence.Margin = new Padding(0, 0, 0, 6);
+
+                var grid = new RequirementsGrid { Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 12) };
+                grid.Bind("Birth", _editingId.Value, needs);
+
+                var openCase = MUi.Btn("Open Full Case (Posting & Evaluation)...", MUi.Kind.Secondary, 260);
+                openCase.Dock = DockStyle.Top;
+                openCase.Click += (s, e) =>
+                {
+                    using (var f = new DelayedBirthCaseForm(_editingId.Value)) f.ShowDialog(_entryDialog ?? this);
+                    RefreshRequirementsTab();
+                };
+
+                StackRail(_reqHost, head, banner, evidence, grid, openCase);
+            }
+
+            _reqHost.ResumeLayout();
+            if (_stepStrip != null && _reqStepIndex >= 0) _stepStrip.SetBadge(_reqStepIndex, missing);
         }
 
         private void btnAddAnotherBirth_Click(object sender, EventArgs e)

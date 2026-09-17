@@ -181,11 +181,11 @@ namespace CROMS.Forms
             this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
             this.btnNewRegistration = new System.Windows.Forms.Button();
             this.btnOpenRecord = new System.Windows.Forms.Button();
+            this.button1 = new System.Windows.Forms.Button();
             this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnClearSearch = new System.Windows.Forms.Button();
             this.dgvBirths = new System.Windows.Forms.DataGridView();
-            this.button1 = new System.Windows.Forms.Button();
             this.certificateMenu.SuspendLayout();
             this.layoutRoot.SuspendLayout();
             this.layoutMain.SuspendLayout();
@@ -611,7 +611,7 @@ namespace CROMS.Forms
             this.cboSex.Items.AddRange(new object[] {
             "Male",
             "Female"});
-            this.cboSex.Location = new System.Drawing.Point(745, 53);
+            this.cboSex.Location = new System.Drawing.Point(745, 55);
             this.cboSex.Name = "cboSex";
             this.cboSex.Size = new System.Drawing.Size(200, 25);
             this.cboSex.TabIndex = 7;
@@ -659,7 +659,7 @@ namespace CROMS.Forms
             "Twin",
             "Triplet",
             "Quadruplet"});
-            this.cboTypeOfBirth.Location = new System.Drawing.Point(181, 141);
+            this.cboTypeOfBirth.Location = new System.Drawing.Point(181, 143);
             this.cboTypeOfBirth.Name = "cboTypeOfBirth";
             this.cboTypeOfBirth.Size = new System.Drawing.Size(240, 25);
             this.cboTypeOfBirth.TabIndex = 13;
@@ -1410,7 +1410,7 @@ namespace CROMS.Forms
             "Midwife",
             "Hilot (Traditional)",
             "Others"});
-            this.cboAttType.Location = new System.Drawing.Point(181, 9);
+            this.cboAttType.Location = new System.Drawing.Point(181, 11);
             this.cboAttType.Name = "cboAttType";
             this.cboAttType.Size = new System.Drawing.Size(260, 25);
             this.cboAttType.TabIndex = 1;
@@ -1796,7 +1796,7 @@ namespace CROMS.Forms
             "Pending Approval",
             "Registered",
             "Delayed Posting"});
-            this.cboStatus.Location = new System.Drawing.Point(181, 53);
+            this.cboStatus.Location = new System.Drawing.Point(181, 55);
             this.cboStatus.Name = "cboStatus";
             this.cboStatus.Size = new System.Drawing.Size(240, 25);
             this.cboStatus.TabIndex = 5;
@@ -2187,6 +2187,19 @@ namespace CROMS.Forms
             this.btnOpenRecord.UseVisualStyleBackColor = true;
             this.btnOpenRecord.Click += new System.EventHandler(this.btnOpenRecord_Click);
             // 
+            // button1
+            // 
+            this.button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.button1.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.button1.Location = new System.Drawing.Point(6, 6);
+            this.button1.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(173, 30);
+            this.button1.TabIndex = 2;
+            this.button1.Text = "OCR";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
+            // 
             // pnlSearch
             // 
             this.pnlSearch.ColumnCount = 2;
@@ -2244,19 +2257,6 @@ namespace CROMS.Forms
             this.dgvBirths.Size = new System.Drawing.Size(1168, 226);
             this.dgvBirths.TabIndex = 3;
             this.dgvBirths.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvBirths_CellDoubleClick);
-            // 
-            // button1
-            // 
-            this.button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.button1.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.button1.Location = new System.Drawing.Point(6, 6);
-            this.button1.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(173, 30);
-            this.button1.TabIndex = 2;
-            this.button1.Text = "OCR";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // BirthRegistrationForm
             // 
