@@ -23,32 +23,30 @@
             this.headerLabel = new System.Windows.Forms.Label();
             this.sidebarPanel = new System.Windows.Forms.Panel();
             this.navFlow = new System.Windows.Forms.FlowLayoutPanel();
-            this.lblGrpClient = new System.Windows.Forms.Label();
+            this.lblGrpDashboard = new System.Windows.Forms.Label();
             this.btnDashboard = new System.Windows.Forms.Button();
             this.btnQueue = new System.Windows.Forms.Button();
             this.btnTransactions = new System.Windows.Forms.Button();
             this.btnCertRequest = new System.Windows.Forms.Button();
             this.btnRelease = new System.Windows.Forms.Button();
             this.btnBreqs = new System.Windows.Forms.Button();
-            this.lblGrpCertification = new System.Windows.Forms.Label();
-            this.lblGrpRecord = new System.Windows.Forms.Label();
+            this.lblGrpTransactions = new System.Windows.Forms.Label();
+            this.lblGrpCivil = new System.Windows.Forms.Label();
+            this.lblGrpPetitions = new System.Windows.Forms.Label();
             this.btnBirth = new System.Windows.Forms.Button();
             this.btnMarriage = new System.Windows.Forms.Button();
             this.btnDeath = new System.Windows.Forms.Button();
             this.btnPetitions = new System.Windows.Forms.Button();
             this.btnBooks = new System.Windows.Forms.Button();
             this.btnSearch = new System.Windows.Forms.Button();
-            this.lblGrpDocument = new System.Windows.Forms.Label();
+            this.lblGrpRecords = new System.Windows.Forms.Label();
             this.btnOcr = new System.Windows.Forms.Button();
-            this.lblGrpOperations = new System.Windows.Forms.Label();
+            this.lblGrpReports = new System.Windows.Forms.Label();
             this.btnFees = new System.Windows.Forms.Button();
             this.btnReports = new System.Windows.Forms.Button();
-            this.lblGrpAdmin = new System.Windows.Forms.Label();
-            this.btnMaster = new System.Windows.Forms.Button();
-            this.btnUsers = new System.Windows.Forms.Button();
+            this.lblGrpSystem = new System.Windows.Forms.Label();
             this.btnArchive = new System.Windows.Forms.Button();
-            this.btnCertTemplates = new System.Windows.Forms.Button();
-            this.btnWindows = new System.Windows.Forms.Button();
+            this.btnSettings = new System.Windows.Forms.Button();
             this.brandPanel = new System.Windows.Forms.Panel();
             this.brandLabel = new System.Windows.Forms.Label();
             this.mainPanel.SuspendLayout();
@@ -113,32 +111,30 @@
             // navFlow
             //
             this.navFlow.AutoScroll = true;
-            this.navFlow.Controls.Add(this.lblGrpClient);
+            this.navFlow.Controls.Add(this.lblGrpDashboard);
             this.navFlow.Controls.Add(this.btnDashboard);
+            this.navFlow.Controls.Add(this.lblGrpTransactions);
             this.navFlow.Controls.Add(this.btnQueue);
-            this.navFlow.Controls.Add(this.btnTransactions);
-            this.navFlow.Controls.Add(this.lblGrpCertification);
             this.navFlow.Controls.Add(this.btnCertRequest);
-            this.navFlow.Controls.Add(this.btnRelease);
             this.navFlow.Controls.Add(this.btnBreqs);
+            this.navFlow.Controls.Add(this.btnRelease);
+            this.navFlow.Controls.Add(this.btnFees);
+            this.navFlow.Controls.Add(this.lblGrpCivil);
             this.navFlow.Controls.Add(this.btnBirth);
             this.navFlow.Controls.Add(this.btnMarriage);
             this.navFlow.Controls.Add(this.btnDeath);
-            this.navFlow.Controls.Add(this.lblGrpRecord);
+            this.navFlow.Controls.Add(this.lblGrpPetitions);
             this.navFlow.Controls.Add(this.btnPetitions);
-            this.navFlow.Controls.Add(this.btnBooks);
+            this.navFlow.Controls.Add(this.lblGrpRecords);
             this.navFlow.Controls.Add(this.btnSearch);
-            this.navFlow.Controls.Add(this.lblGrpDocument);
-            this.navFlow.Controls.Add(this.btnOcr);
-            this.navFlow.Controls.Add(this.lblGrpOperations);
-            this.navFlow.Controls.Add(this.btnFees);
-            this.navFlow.Controls.Add(this.btnReports);
-            this.navFlow.Controls.Add(this.lblGrpAdmin);
-            this.navFlow.Controls.Add(this.btnMaster);
-            this.navFlow.Controls.Add(this.btnWindows);
-            this.navFlow.Controls.Add(this.btnUsers);
+            this.navFlow.Controls.Add(this.btnBooks);
             this.navFlow.Controls.Add(this.btnArchive);
-            this.navFlow.Controls.Add(this.btnCertTemplates);
+            this.navFlow.Controls.Add(this.btnOcr);
+            this.navFlow.Controls.Add(this.lblGrpReports);
+            this.navFlow.Controls.Add(this.btnReports);
+            this.navFlow.Controls.Add(this.btnTransactions);
+            this.navFlow.Controls.Add(this.lblGrpSystem);
+            this.navFlow.Controls.Add(this.btnSettings);
             this.navFlow.Dock = System.Windows.Forms.DockStyle.Fill;
             this.navFlow.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.navFlow.Location = new System.Drawing.Point(0, 64);
@@ -147,16 +143,17 @@
             this.navFlow.TabIndex = 1;
             this.navFlow.WrapContents = false;
             //
-            // lblGrpClient
+            // lblGrpDashboard
             //
-            this.lblGrpClient.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpClient.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpClient.Margin = new System.Windows.Forms.Padding(12, 6, 0, 2);
-            this.lblGrpClient.Name = "lblGrpClient";
-            this.lblGrpClient.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpClient.TabIndex = 0;
-            this.lblGrpClient.Text = "CLIENT SERVICES";
-            this.lblGrpClient.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpDashboard.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpDashboard.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpDashboard.Margin = new System.Windows.Forms.Padding(12, 6, 0, 2);
+            this.lblGrpDashboard.Name = "lblGrpDashboard";
+            this.lblGrpDashboard.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpDashboard.TabIndex = 0;
+            this.lblGrpDashboard.Text = "DASHBOARD";
+            this.lblGrpDashboard.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpDashboard.UseMnemonic = false;
             //
             // btnDashboard
             //
@@ -171,7 +168,7 @@
             this.btnDashboard.Size = new System.Drawing.Size(204, 38);
             this.btnDashboard.TabIndex = 1;
             this.btnDashboard.Tag = "dashboard";
-            this.btnDashboard.Text = "   Dashboard";
+            this.btnDashboard.Text = "Dashboard";
             this.btnDashboard.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnDashboard.UseVisualStyleBackColor = false;
             this.btnDashboard.Click += new System.EventHandler(this.NavButton_Click);
@@ -189,7 +186,7 @@
             this.btnQueue.Size = new System.Drawing.Size(204, 38);
             this.btnQueue.TabIndex = 2;
             this.btnQueue.Tag = "queue";
-            this.btnQueue.Text = "   Queue Management";
+            this.btnQueue.Text = "Queue Management";
             this.btnQueue.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnQueue.UseVisualStyleBackColor = false;
             this.btnQueue.Click += new System.EventHandler(this.NavButton_Click);
@@ -207,7 +204,7 @@
             this.btnTransactions.Size = new System.Drawing.Size(204, 38);
             this.btnTransactions.TabIndex = 3;
             this.btnTransactions.Tag = "transactions";
-            this.btnTransactions.Text = "   Transactions";
+            this.btnTransactions.Text = "Transaction History";
             this.btnTransactions.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnTransactions.UseVisualStyleBackColor = false;
             this.btnTransactions.Click += new System.EventHandler(this.NavButton_Click);
@@ -225,7 +222,7 @@
             this.btnCertRequest.Size = new System.Drawing.Size(204, 38);
             this.btnCertRequest.TabIndex = 4;
             this.btnCertRequest.Tag = "certrequest";
-            this.btnCertRequest.Text = "   Certificate Request";
+            this.btnCertRequest.Text = "Certificate Request";
             this.btnCertRequest.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnCertRequest.UseVisualStyleBackColor = false;
             this.btnCertRequest.Click += new System.EventHandler(this.NavButton_Click);
@@ -243,7 +240,7 @@
             this.btnRelease.Size = new System.Drawing.Size(204, 38);
             this.btnRelease.TabIndex = 5;
             this.btnRelease.Tag = "release";
-            this.btnRelease.Text = "   Release && Claim";
+            this.btnRelease.Text = "Release && Claim";
             this.btnRelease.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnRelease.UseVisualStyleBackColor = false;
             this.btnRelease.Click += new System.EventHandler(this.NavButton_Click);
@@ -261,32 +258,46 @@
             this.btnBreqs.Size = new System.Drawing.Size(204, 38);
             this.btnBreqs.TabIndex = 5;
             this.btnBreqs.Tag = "breqs";
-            this.btnBreqs.Text = "   PSA Copies (BREQS)";
+            this.btnBreqs.Text = "PSA Copies (BREQS)";
             this.btnBreqs.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnBreqs.UseVisualStyleBackColor = false;
             this.btnBreqs.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // lblGrpCertification
+            // lblGrpTransactions
             //
-            this.lblGrpCertification.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpCertification.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpCertification.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
-            this.lblGrpCertification.Name = "lblGrpCertification";
-            this.lblGrpCertification.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpCertification.TabIndex = 6;
-            this.lblGrpCertification.Text = "CERTIFICATION";
-            this.lblGrpCertification.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpTransactions.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpTransactions.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpTransactions.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpTransactions.Name = "lblGrpTransactions";
+            this.lblGrpTransactions.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpTransactions.TabIndex = 6;
+            this.lblGrpTransactions.Text = "TRANSACTIONS";
+            this.lblGrpTransactions.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpTransactions.UseMnemonic = false;
             //
-            // lblGrpRecord
+            // lblGrpCivil
             //
-            this.lblGrpRecord.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpRecord.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpRecord.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
-            this.lblGrpRecord.Name = "lblGrpRecord";
-            this.lblGrpRecord.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpRecord.TabIndex = 10;
-            this.lblGrpRecord.Text = "PETITIONS & SEARCH";
-            this.lblGrpRecord.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpCivil.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpCivil.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpCivil.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpCivil.Name = "lblGrpCivil";
+            this.lblGrpCivil.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpCivil.TabIndex = 10;
+            this.lblGrpCivil.Text = "CIVIL REGISTRATION";
+            this.lblGrpCivil.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpCivil.UseMnemonic = false;
+            //
+            // lblGrpPetitions
+            //
+            this.lblGrpPetitions.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpPetitions.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpPetitions.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpPetitions.Name = "lblGrpPetitions";
+            this.lblGrpPetitions.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpPetitions.TabIndex = 10;
+            this.lblGrpPetitions.Text = "PETITIONS & CASES";
+            this.lblGrpPetitions.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpPetitions.UseMnemonic = false;
             //
             // btnBirth
             //
@@ -301,7 +312,7 @@
             this.btnBirth.Size = new System.Drawing.Size(204, 38);
             this.btnBirth.TabIndex = 7;
             this.btnBirth.Tag = "birth";
-            this.btnBirth.Text = "   Birth Registration";
+            this.btnBirth.Text = "Birth Registration";
             this.btnBirth.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnBirth.UseVisualStyleBackColor = false;
             this.btnBirth.Click += new System.EventHandler(this.NavButton_Click);
@@ -319,7 +330,7 @@
             this.btnMarriage.Size = new System.Drawing.Size(204, 38);
             this.btnMarriage.TabIndex = 8;
             this.btnMarriage.Tag = "marriage";
-            this.btnMarriage.Text = "   Marriage Registration";
+            this.btnMarriage.Text = "Marriage Registration";
             this.btnMarriage.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnMarriage.UseVisualStyleBackColor = false;
             this.btnMarriage.Click += new System.EventHandler(this.NavButton_Click);
@@ -337,7 +348,7 @@
             this.btnDeath.Size = new System.Drawing.Size(204, 38);
             this.btnDeath.TabIndex = 9;
             this.btnDeath.Tag = "death";
-            this.btnDeath.Text = "   Death Registration";
+            this.btnDeath.Text = "Death Registration";
             this.btnDeath.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnDeath.UseVisualStyleBackColor = false;
             this.btnDeath.Click += new System.EventHandler(this.NavButton_Click);
@@ -355,7 +366,7 @@
             this.btnPetitions.Size = new System.Drawing.Size(204, 38);
             this.btnPetitions.TabIndex = 11;
             this.btnPetitions.Tag = "petitions";
-            this.btnPetitions.Text = "   Petitions";
+            this.btnPetitions.Text = "Case Tracking";
             this.btnPetitions.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnPetitions.UseVisualStyleBackColor = false;
             this.btnPetitions.Click += new System.EventHandler(this.NavButton_Click);
@@ -373,7 +384,7 @@
             this.btnSearch.Size = new System.Drawing.Size(204, 38);
             this.btnSearch.TabIndex = 12;
             this.btnSearch.Tag = "search";
-            this.btnSearch.Text = "   Record Search";
+            this.btnSearch.Text = "Record Search";
             this.btnSearch.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnSearch.UseVisualStyleBackColor = false;
             this.btnSearch.Click += new System.EventHandler(this.NavButton_Click);
@@ -391,21 +402,22 @@
             this.btnBooks.Size = new System.Drawing.Size(204, 38);
             this.btnBooks.TabIndex = 13;
             this.btnBooks.Tag = "books";
-            this.btnBooks.Text = "   Registry Books";
+            this.btnBooks.Text = "Registry Books";
             this.btnBooks.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnBooks.UseVisualStyleBackColor = false;
             this.btnBooks.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // lblGrpDocument
+            // lblGrpRecords
             //
-            this.lblGrpDocument.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpDocument.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpDocument.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
-            this.lblGrpDocument.Name = "lblGrpDocument";
-            this.lblGrpDocument.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpDocument.TabIndex = 13;
-            this.lblGrpDocument.Text = "DOCUMENT WORKFLOW";
-            this.lblGrpDocument.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpRecords.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpRecords.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpRecords.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpRecords.Name = "lblGrpRecords";
+            this.lblGrpRecords.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpRecords.TabIndex = 13;
+            this.lblGrpRecords.Text = "RECORDS & DOCUMENTS";
+            this.lblGrpRecords.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpRecords.UseMnemonic = false;
             //
             // btnOcr
             //
@@ -420,21 +432,22 @@
             this.btnOcr.Size = new System.Drawing.Size(204, 38);
             this.btnOcr.TabIndex = 15;
             this.btnOcr.Tag = "ocr";
-            this.btnOcr.Text = "   Intelligent Document Processing";
+            this.btnOcr.Text = "Document Processing";
             this.btnOcr.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnOcr.UseVisualStyleBackColor = false;
             this.btnOcr.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // lblGrpOperations
+            // lblGrpReports
             //
-            this.lblGrpOperations.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpOperations.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpOperations.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
-            this.lblGrpOperations.Name = "lblGrpOperations";
-            this.lblGrpOperations.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpOperations.TabIndex = 16;
-            this.lblGrpOperations.Text = "OPERATIONS";
-            this.lblGrpOperations.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpReports.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpReports.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpReports.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpReports.Name = "lblGrpReports";
+            this.lblGrpReports.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpReports.TabIndex = 16;
+            this.lblGrpReports.Text = "REPORTS";
+            this.lblGrpReports.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpReports.UseMnemonic = false;
             //
             // btnFees
             //
@@ -449,7 +462,7 @@
             this.btnFees.Size = new System.Drawing.Size(204, 38);
             this.btnFees.TabIndex = 17;
             this.btnFees.Tag = "fees";
-            this.btnFees.Text = "   Fees && Payments";
+            this.btnFees.Text = "Fees && Payments";
             this.btnFees.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnFees.UseVisualStyleBackColor = false;
             this.btnFees.Click += new System.EventHandler(this.NavButton_Click);
@@ -467,57 +480,22 @@
             this.btnReports.Size = new System.Drawing.Size(204, 38);
             this.btnReports.TabIndex = 18;
             this.btnReports.Tag = "reports";
-            this.btnReports.Text = "   Reports && Analytics";
+            this.btnReports.Text = "Reports && Analytics";
             this.btnReports.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnReports.UseVisualStyleBackColor = false;
             this.btnReports.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // lblGrpAdmin
+            // lblGrpSystem
             //
-            this.lblGrpAdmin.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
-            this.lblGrpAdmin.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
-            this.lblGrpAdmin.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
-            this.lblGrpAdmin.Name = "lblGrpAdmin";
-            this.lblGrpAdmin.Size = new System.Drawing.Size(200, 24);
-            this.lblGrpAdmin.TabIndex = 19;
-            this.lblGrpAdmin.Text = "ADMINISTRATION";
-            this.lblGrpAdmin.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
-            //
-            // btnMaster
-            //
-            this.btnMaster.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnMaster.FlatAppearance.BorderSize = 0;
-            this.btnMaster.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnMaster.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnMaster.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnMaster.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnMaster.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnMaster.Name = "btnMaster";
-            this.btnMaster.Size = new System.Drawing.Size(204, 38);
-            this.btnMaster.TabIndex = 19;
-            this.btnMaster.Tag = "masterfiles";
-            this.btnMaster.Text = "   Master Files";
-            this.btnMaster.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnMaster.UseVisualStyleBackColor = false;
-            this.btnMaster.Click += new System.EventHandler(this.NavButton_Click);
-            //
-            // btnUsers
-            //
-            this.btnUsers.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnUsers.FlatAppearance.BorderSize = 0;
-            this.btnUsers.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnUsers.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnUsers.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnUsers.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnUsers.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnUsers.Name = "btnUsers";
-            this.btnUsers.Size = new System.Drawing.Size(204, 38);
-            this.btnUsers.TabIndex = 20;
-            this.btnUsers.Tag = "users";
-            this.btnUsers.Text = "   Users && Audit Trail";
-            this.btnUsers.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnUsers.UseVisualStyleBackColor = false;
-            this.btnUsers.Click += new System.EventHandler(this.NavButton_Click);
+            this.lblGrpSystem.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
+            this.lblGrpSystem.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(140)))), ((int)(((byte)(154)))), ((int)(((byte)(182)))));
+            this.lblGrpSystem.Margin = new System.Windows.Forms.Padding(12, 10, 0, 2);
+            this.lblGrpSystem.Name = "lblGrpSystem";
+            this.lblGrpSystem.Size = new System.Drawing.Size(200, 24);
+            this.lblGrpSystem.TabIndex = 19;
+            this.lblGrpSystem.Text = "SYSTEM";
+            this.lblGrpSystem.TextAlign = System.Drawing.ContentAlignment.BottomLeft;
+            this.lblGrpSystem.UseMnemonic = false;
             //
             // btnArchive
             //
@@ -532,46 +510,28 @@
             this.btnArchive.Size = new System.Drawing.Size(204, 38);
             this.btnArchive.TabIndex = 22;
             this.btnArchive.Tag = "archive";
-            this.btnArchive.Text = "   Records Archive";
+            this.btnArchive.Text = "Records Archive";
             this.btnArchive.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.btnArchive.UseVisualStyleBackColor = false;
             this.btnArchive.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // btnCertTemplates
+            // btnSettings
             //
-            this.btnCertTemplates.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnCertTemplates.FlatAppearance.BorderSize = 0;
-            this.btnCertTemplates.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnCertTemplates.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnCertTemplates.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnCertTemplates.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnCertTemplates.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnCertTemplates.Name = "btnCertTemplates";
-            this.btnCertTemplates.Size = new System.Drawing.Size(204, 38);
-            this.btnCertTemplates.TabIndex = 23;
-            this.btnCertTemplates.Tag = "certtemplates";
-            this.btnCertTemplates.Text = "   Certificate Templates";
-            this.btnCertTemplates.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnCertTemplates.UseVisualStyleBackColor = false;
-            this.btnCertTemplates.Click += new System.EventHandler(this.NavButton_Click);
-            //
-            // btnWindows
-            //
-            this.btnWindows.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnWindows.FlatAppearance.BorderSize = 0;
-            this.btnWindows.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnWindows.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnWindows.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnWindows.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnWindows.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnWindows.Name = "btnWindows";
-            this.btnWindows.Size = new System.Drawing.Size(204, 38);
-            this.btnWindows.TabIndex = 21;
-            this.btnWindows.Tag = "settings";
-            this.btnWindows.Text = "   Settings";
-            this.btnWindows.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnWindows.UseVisualStyleBackColor = false;
-            this.btnWindows.Click += new System.EventHandler(this.NavButton_Click);
+            this.btnSettings.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
+            this.btnSettings.FlatAppearance.BorderSize = 0;
+            this.btnSettings.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
+            this.btnSettings.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSettings.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.btnSettings.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
+            this.btnSettings.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
+            this.btnSettings.Name = "btnSettings";
+            this.btnSettings.Size = new System.Drawing.Size(204, 38);
+            this.btnSettings.TabIndex = 21;
+            this.btnSettings.Tag = "settings";
+            this.btnSettings.Text = "Settings";
+            this.btnSettings.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.btnSettings.UseVisualStyleBackColor = false;
+            this.btnSettings.Click += new System.EventHandler(this.NavButton_Click);
             //
             // brandPanel
             //
@@ -624,32 +584,30 @@
         private System.Windows.Forms.Label headerLabel;
         private System.Windows.Forms.Panel sidebarPanel;
         private System.Windows.Forms.FlowLayoutPanel navFlow;
-        private System.Windows.Forms.Label lblGrpClient;
+        private System.Windows.Forms.Label lblGrpDashboard;
         private System.Windows.Forms.Button btnDashboard;
         private System.Windows.Forms.Button btnQueue;
         private System.Windows.Forms.Button btnTransactions;
         private System.Windows.Forms.Button btnCertRequest;
         private System.Windows.Forms.Button btnRelease;
         private System.Windows.Forms.Button btnBreqs;
-        private System.Windows.Forms.Label lblGrpCertification;
-        private System.Windows.Forms.Label lblGrpRecord;
+        private System.Windows.Forms.Label lblGrpTransactions;
+        private System.Windows.Forms.Label lblGrpCivil;
+        private System.Windows.Forms.Label lblGrpPetitions;
         private System.Windows.Forms.Button btnBirth;
         private System.Windows.Forms.Button btnMarriage;
         private System.Windows.Forms.Button btnDeath;
         private System.Windows.Forms.Button btnPetitions;
         private System.Windows.Forms.Button btnBooks;
         private System.Windows.Forms.Button btnSearch;
-        private System.Windows.Forms.Label lblGrpDocument;
+        private System.Windows.Forms.Label lblGrpRecords;
         private System.Windows.Forms.Button btnOcr;
-        private System.Windows.Forms.Label lblGrpOperations;
+        private System.Windows.Forms.Label lblGrpReports;
         private System.Windows.Forms.Button btnFees;
         private System.Windows.Forms.Button btnReports;
-        private System.Windows.Forms.Label lblGrpAdmin;
-        private System.Windows.Forms.Button btnMaster;
-        private System.Windows.Forms.Button btnUsers;
+        private System.Windows.Forms.Label lblGrpSystem;
         private System.Windows.Forms.Button btnArchive;
-        private System.Windows.Forms.Button btnCertTemplates;
-        private System.Windows.Forms.Button btnWindows;
+        private System.Windows.Forms.Button btnSettings;
         private System.Windows.Forms.Panel brandPanel;
         private System.Windows.Forms.Label brandLabel;
     }

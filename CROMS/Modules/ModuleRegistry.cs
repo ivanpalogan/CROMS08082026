@@ -4,88 +4,101 @@ using CROMS.Forms;
 namespace CROMS.Modules
 {
     /// <summary>
-    /// Central list of every module CROMS exposes, in sidebar order and grouped
-    /// exactly as documented in CLAUDE.md. The MainForm builds its navigation
-    /// from this list, so adding a module here is all that is needed to wire it up.
+    /// Central list of every module CROMS exposes, in sidebar order and grouped by the
+    /// office's own workflow (what a client visit actually goes through) rather than by
+    /// the database tables underneath. The MainForm builds its navigation from this list,
+    /// so adding a module here is all that is needed to wire it up.
+    ///
+    /// Administration tools (Master Files, Users &amp; Access, Certificate Templates) are
+    /// still registered here — cross-module hand-offs and ModuleTitle() resolve through
+    /// this list — but they no longer carry their own sidebar button: they are pages of
+    /// the Settings screen. Settings itself is Admin-only (MainForm.AllowedKeys), so
+    /// hosting them there does not widen anybody's access.
     /// </summary>
     public static class ModuleRegistry
     {
         // Group labels shown as sidebar section headers.
-        public const string GroupClientServices = "Client Services";
-        public const string GroupCertification = "Certification";
-        public const string GroupRecordManagement = "Petitions & Search";
-        public const string GroupDocumentWorkflow = "Document Workflow";
-        public const string GroupOperations = "Operations";
-        public const string GroupAdministration = "Administration";
+        public const string GroupDashboard = "Dashboard";
+        public const string GroupTransactions = "Transactions";
+        public const string GroupCivilRegistration = "Civil Registration";
+        public const string GroupPetitions = "Petitions & Cases";
+        public const string GroupRecords = "Records & Documents";
+        public const string GroupReports = "Reports";
+        public const string GroupSystem = "System";
 
         public static IReadOnlyList<ModuleInfo> All { get; } = new List<ModuleInfo>
         {
-            // Client Services
-            new ModuleInfo("dashboard", "Dashboard", GroupClientServices,
+            new ModuleInfo("dashboard", "Dashboard", GroupDashboard,
                 () => new DashboardForm()),
-            new ModuleInfo("queue", "Queue Management", GroupClientServices,
-                () => new QueueManagementForm()),
-            new ModuleInfo("transactions", "Transactions", GroupClientServices,
-                () => new TransactionsForm()),
 
-            // Certification — register the event, then issue/release its certificate.
-            // Birth/Marriage/Death are the source records; Certificate Request/Release &
-            // Claim are how a copy of one of those records is issued to a client. One
-            // pipeline, one group.
-            new ModuleInfo("certrequest", "Certificate Request", GroupCertification,
+            // Transactions — the front desk, in the order a client passes through it:
+            // take a number, lodge the request, submit it to PSA if it is a BREQS copy,
+            // pay, collect.
+            new ModuleInfo("queue", "Queue Management", GroupTransactions,
+                () => new QueueManagementForm()),
+            new ModuleInfo("certrequest", "Certificate Request", GroupTransactions,
                 () => new CertificateRequestForm()),
-            new ModuleInfo("release", "Release & Claim", GroupCertification,
-                () => new ReleaseClaimForm()),
             // PSA-issued copies requested through BREQS: logged here or at the kiosk, submitted
             // to PSA, collected, scanned through OCR and released.
-            new ModuleInfo("breqs", "PSA Copies (BREQS)", GroupCertification,
+            new ModuleInfo("breqs", "PSA Copies (BREQS)", GroupTransactions,
                 () => new BreqsForm()),
-            new ModuleInfo("birth", "Birth Registration", GroupCertification,
+            new ModuleInfo("release", "Release & Claim", GroupTransactions,
+                () => new ReleaseClaimForm()),
+            new ModuleInfo("fees", "Fees & Payments", GroupTransactions,
+                () => new FeesPaymentsForm()),
+
+            // Civil Registration — registering the EVENT itself (Municipal Forms 102/97/103).
+            // Deliberately separate from the certification counter above: these create the
+            // registry record, they do not issue a copy of one.
+            new ModuleInfo("birth", "Birth Registration", GroupCivilRegistration,
                 () => new BirthRegistrationForm()),
-            new ModuleInfo("marriage", "Marriage Registration", GroupCertification,
+            new ModuleInfo("marriage", "Marriage Registration", GroupCivilRegistration,
                 () => new MarriageRegistrationForm()),
-            new ModuleInfo("death", "Death Registration", GroupCertification,
+            new ModuleInfo("death", "Death Registration", GroupCivilRegistration,
                 () => new DeathRegistrationForm()),
 
-            // Petitions & Search — post-registration correction (RA 9048 / RA 10172 /
-            // RA 9255 legitimation) and cross-record lookup. Separate from Certification:
-            // this group AMENDS a record already registered, it doesn't create/issue one.
-            new ModuleInfo("petitions", "Petitions", GroupRecordManagement,
+            // Petitions & Cases — one screen for every post-registration case type
+            // (RA 9048 / RA 10172 correction, legitimation, supplemental report, legal
+            // instrument, court order). The case type is picked inside the screen, which
+            // is why there is one button here and not six.
+            new ModuleInfo("petitions", "Petition & Case Tracking", GroupPetitions,
                 () => new PetitionsForm()),
-            new ModuleInfo("books", "Registry Books", GroupRecordManagement,
-                () => new RegistryBooksForm()),
-            new ModuleInfo("search", "Record Search", GroupRecordManagement,
-                () => new RecordSearchForm()),
 
-            // Document Workflow
-            new ModuleInfo("ocr", "Intelligent Document Processing", GroupDocumentWorkflow,
+            // Records & Documents — finding and handling records that already exist.
+            new ModuleInfo("search", "Record Search", GroupRecords,
+                () => new RecordSearchForm()),
+            new ModuleInfo("books", "Registry Books", GroupRecords,
+                () => new RegistryBooksForm()),
+            // Admin-only browser over every saved record/form/image in the system.
+            // Not in OperationalKeys in MainForm, so only Admin sees the button.
+            new ModuleInfo("archive", "Records Archive", GroupRecords,
+                () => new RecordsArchiveForm()),
+            new ModuleInfo("ocr", "Document Processing", GroupRecords,
                 () => new OcrDigitizationForm()),
 
-            // Operations
-            new ModuleInfo("fees", "Fees & Payments", GroupOperations,
-                () => new FeesPaymentsForm()),
+            // Reports — reading what the office has done, never changing it.
             // Reports & Analytics: six tabbed domains. The PSA / statutory report is
             // rehosted unchanged inside its own tab (ReportsPsaForm), so statutory output
             // stays separate from analytical output.
-            new ModuleInfo("reports", "Reports & Analytics", GroupOperations,
+            new ModuleInfo("reports", "Reports & Analytics", GroupReports,
                 () => new ReportsAnalyticsForm()),
+            // Read-only master ledger of every client visit — a history list, not a desk.
+            new ModuleInfo("transactions", "Transaction History", GroupReports,
+                () => new TransactionsForm()),
 
-            // Administration
-            new ModuleInfo("masterfiles", "Master Files", GroupAdministration,
+            // System
+            new ModuleInfo("settings", "Settings", GroupSystem,
+                () => new SettingsForm()),
+
+            // ---- Registered but not on the sidebar: pages of Settings (see class note) ----
+            new ModuleInfo("masterfiles", "Master Files", GroupSystem,
                 () => new MasterFilesForm()),
             // Visual, non-technical editor for how a certificate PRINTS — logo/text/field
             // position, font, lines. Never touches a civil registry record's own data.
-            new ModuleInfo("certtemplates", "Certificate Templates", GroupAdministration,
+            new ModuleInfo("certtemplates", "Certificate Templates", GroupSystem,
                 () => new TemplateManagementForm()),
-            new ModuleInfo("settings", "Settings", GroupAdministration,
-                () => new SettingsForm()),
-            new ModuleInfo("users", "Users & Audit Trail", GroupAdministration,
+            new ModuleInfo("users", "Users & Access", GroupSystem,
                 () => new UsersAuditForm()),
-            // Admin-only browser over every saved record/form/image in the system,
-            // grouped by type (birth/marriage/death/petitions/court order/etc).
-            // Not in any role's AllowedKeys list in MainForm, so only Admin sees it.
-            new ModuleInfo("archive", "Records Archive", GroupAdministration,
-                () => new RecordsArchiveForm()),
         };
     }
 }

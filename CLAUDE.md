@@ -4863,3 +4863,113 @@ inside OneDrive, so the recovery is right-click -> Version history -> restore th
 no code change is needed, the loader and the guarded csproj entry are already in place. Lesson:
 verify what a clipboard/undirected source actually contains BEFORE writing it over an existing
 path, and treat an untracked file as unrecoverable by git.
+
+### 2026-09-17 — Sidebar regrouped around the office's workflow; Settings becomes a page list
+
+The sidebar was grouped the way the DATABASE is (Client Services / Certification / Petitions &
+Search / Document Workflow / Operations / Administration), so Birth/Marriage/Death Registration
+sat under "Certification" beside Certificate Request, Record Search and Registry Books sat under
+"Petitions", "Document Workflow" existed to hold one button, and five administration modules
+each took a sidebar line. Regrouped by what a client visit actually passes through. Every module
+key, form, factory and permission is unchanged — this pass moves, renames and regroups
+navigation, it does not rebuild a module.
+
+OLD -> NEW, in full:
+  CLIENT SERVICES   Dashboard / Queue / Transactions
+  CERTIFICATION     Certificate Request / Release & Claim / PSA Copies / Birth / Marriage / Death
+  PETITIONS & SEARCH  Petitions / Registry Books / Record Search
+  DOCUMENT WORKFLOW Intelligent Document Processing
+  OPERATIONS        Fees & Payments / Reports & Analytics
+  ADMINISTRATION    Master Files / Settings / Users & Audit Trail / Records Archive / Certificate Templates
+becomes
+  DASHBOARD            Dashboard
+  TRANSACTIONS         Queue Management / Certificate Request / PSA Copies (BREQS) /
+                       Release & Claim / Fees & Payments
+  CIVIL REGISTRATION   Birth / Marriage / Death Registration
+  PETITIONS & CASES    Case Tracking
+  RECORDS & DOCUMENTS  Record Search / Registry Books / Records Archive / Document Processing
+  REPORTS              Reports & Analytics / Transaction History
+  SYSTEM               Settings
+
+INSPECTED BEFORE MOVING, because two of the items were decisions rather than placements.
+  * Transactions (TransactionsForm) is 58 lines and every one of them is a SELECT — a filterable,
+    searchable list of transactions with a Refresh button and nothing that writes. That is a
+    history report, not a desk, so it is "Transaction History" under REPORTS. Not deleted.
+  * Registry Books (RegistryBooksForm) is real and current: one row per book/volume per registry
+    with its record and page counts, a second grid of the records in the selected book, and a
+    double-click hand-off into the registration module. Kept, moved to RECORDS & DOCUMENTS.
+  * Petitions already holds all six case types behind its own type picker (RA 9048, RA 10172,
+    legitimation, supplemental report, legal instrument, court order — migration 44), so it stays
+    ONE button. Six sidebar buttons onto one form would have been six ways to open the same screen.
+
+AUDIT TRAIL AND ACTIVITY MONITORING WERE THE SAME LOG, AND ONE IS NOW GONE. Users & Audit Trail's
+"Audit Trail" tab was `SELECT ... FROM audit_log ORDER BY id DESC LIMIT 500` into a grid — no
+filter, no export, no drill-down. Settings' "Activity Monitoring" reads the same table with a
+date range, a user filter, a free-text search, the bypass/failed-sign-in flagging, a row detail
+dialog and CSV export, plus the waived rows of marriage_history. The richer one is a strict
+superset, so the thin tab (and its grid and LoadAudit) was removed and the survivor is now the
+"Audit Trail" page of Settings. The module is renamed "Users & Access", which is what it now is.
+
+SETTINGS IS A PAGE LIST, NOT A TAB STRIP. Left list (General / Users & Access / Master Files /
+Forms & Templates / Window Management / Audit Trail / App Updates / User Manual), selected page
+on the right. The pages themselves are not rewritten: each existing TabPage's controls are
+RE-PARENTED into a panel, so every grid, handler and anchor still works. Users & Access and
+Master Files are the real modules hosted inside the page (TopLevel=false, the same way MainForm
+embeds one), built on FIRST SELECTION — Master Files opens on 42,029 barangays and building it
+for a visit to App Updates would cost that for nothing. New General page: office identity from
+office_profile, the database server and whether it is reachable, who is signed in, and the
+administrator-verification state with a button to do it up front.
+
+PERMISSIONS ARE UNCHANGED, and this was the thing to get wrong. Master Files, Users & Access,
+Certificate Templates and Records Archive were never in OperationalKeys, and "settings" is not
+either — so hosting the first three inside Settings hands an operational role nothing, because
+that role cannot open Settings at all. Verified by running: a Staff sign-in sees
+dashboard/queue/certrequest/breqs/release/fees/birth/marriage/death/petitions/search/books/ocr/
+reports/transactions and NOT archive or settings. The admin re-verification prompt still fires,
+now when an administrative PAGE is opened rather than on load (the screen opens on General).
+
+SECTION HEADINGS ARE LABELS AGAIN. They were clickable accordion headers with a chevron and a
+slide animation — a second, invisible kind of target in a list where everything else navigates.
+Clicking a heading made buttons disappear, which is not what a heading means. ToggleGroup,
+AnimateGroup and DrawChevron are deleted; the grouping itself stays because the collapsed icon
+rail walks it. A heading whose whole section is hidden by role now hides with it — a Staff
+sign-in was ending on a "SYSTEM" label with nothing under it.
+
+FIVE DEFECTS FOUND BY RENDERING THE REAL FORMS, none by compiling.
+  1. THE CARRIED PAGES CAME OUT 1608px WIDE INSIDE A 948px PAGE. A panel sized to `tp.ClientSize`
+     is sized to 200x100 for any TabPage this screen built in CODE — the tab control never laid
+     it out, so it still reports the default — and every anchored child was then resized by the
+     difference when the page docked. The panel is now sized from the CHILDREN'S own extent,
+     which is right for the Designer pages and the code-built ones alike. Related: the page host
+     must be on the form and laid out BEFORE any page is added to it, for the same reason.
+  2. "Forms & Templates" rendered "Forms  Templates" and "set one under Forms  Templates."
+     The Label mnemonic trap, fifth appearance in this codebase. Every Label on every Settings
+     page now has UseMnemonic=false (DisableMnemonics), and the six sidebar section headers are
+     set the same way in the Designer — "RECORDS & DOCUMENTS" and "PETITIONS & CASES" would
+     otherwise have eaten a letter each.
+  3. MASTER FILES RENDERED WITH A 75px GRID AND NO COLUMNS. It is laid out full-window with a
+     four-sided anchored grid; docked into a page 236px narrower it did not tighten, it
+     collapsed. A hosted module is now floored at the size it was laid out for and the HOLDER
+     scrolls.
+  4. The alignment button had been sitting ON TOP of the branding button's right-hand 40px
+     (both are 340 wide; one was at x=22, the other at x=322). Pre-existing. Moved clear.
+  5. The audit filter's "Flagged only" checkbox ran to x=1221 — off the right edge of the tab it
+     was written for, never mind the narrower page. Moved to the second filter row, and the
+     audit subtitle wraps instead of running off.
+
+Certificate Templates keeps its own screen but loses its sidebar line: it is system configuration
+(where the logo, the text and each field PRINT), not a client transaction, so it opens from
+Forms & Templates, behind the same re-verification as branding and print alignment.
+
+VERIFIED by rendering the real shell and the real Settings screen off the freshly built exe
+against the live croms database, at 1400x1010 and 1200x820, and reading geometry back: 24 nav
+entries in the new order, ZERO overlapping siblings, no horizontal scrollbar, every group header
+present; exactly one Settings page visible at a time across all eight; zero controls overflowing
+the page area on the three grid pages; both hosted modules built on first selection and drawn.
+MSBuild exit 0, 0 warnings 0 errors (temp OutputPath — REBUILD IN VS to pick it up).
+
+NOT DONE: the module keys "masterfiles", "users" and "certtemplates" are still registered in
+ModuleRegistry (ModuleTitle and any future GoToModule resolve through it) even though nothing
+navigates to them any more — removing them would be a second, unrelated change to the cross-module
+hand-off contract. Window Management and User Manual have no page heading of their own (they never
+had one; the tab label was the heading, and the page list now names them).

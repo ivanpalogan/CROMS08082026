@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -50,7 +50,324 @@ namespace CROMS.Forms
             BuildFormsTab();
             BuildUpdatesTab();
             BuildMonitoringTab();
+            BuildSettingsShell();   // tabs -> left page list (must run after every page exists)
         }
+
+        // =====================================================================
+        //  Settings shell — a left page list, the selected page on the right.
+        //
+        //  This screen used to be a row of browser-style tabs, and it grew every time an
+        //  admin tool landed here (Window Management, User Manual, Certificates & Forms,
+        //  App Updates, Activity Monitoring) — a strip a non-technical clerk has to read
+        //  end to end to find anything. The pages themselves are UNCHANGED: each tab's own
+        //  controls are re-parented into a panel, so every grid, handler and anchor that
+        //  worked on a TabPage still works here. The tab control is kept alive (emptied and
+        //  detached) rather than disposed, because tabWindows/tabManual are Designer fields.
+        //
+        //  Two of the pages are whole modules that used to have their own sidebar button
+        //  (Users & Access, Master Files). They are hosted here, not rewritten. Settings
+        //  itself is Admin-only (MainForm.AllowedKeys), so moving them in does not hand an
+        //  operational role anything it could not reach before.
+        // =====================================================================
+
+        private Panel _pageHost;
+        private FlowLayoutPanel _pageNav;
+        private readonly Dictionary<string, Control> _pages = new Dictionary<string, Control>();
+        private readonly Dictionary<string, Button> _pageButtons = new Dictionary<string, Button>();
+        private readonly Dictionary<string, Func<Control>> _lazyPages = new Dictionary<string, Func<Control>>();
+        private readonly HashSet<string> _adminPages = new HashSet<string>();
+        private string _activePage;
+
+        private const string PageGeneral = "General";
+        private const string PageUsers   = "Users & Access";
+        private const string PageMaster  = "Master Files";
+        private const string PageForms   = "Forms & Templates";
+        private const string PageWindows = "Window Management";
+        private const string PageAudit   = "Audit Trail";
+        private const string PageUpdates = "App Updates";
+        private const string PageManual  = "User Manual";
+
+        private void BuildSettingsShell()
+        {
+            BackColor = UiTheme.PageBg;
+
+            _pageHost = new Panel { Dock = DockStyle.Fill, BackColor = Color.White };
+            _pageNav = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Left,
+                Width = 236,
+                FlowDirection = FlowDirection.TopDown,
+                WrapContents = false,
+                AutoScroll = true,
+                BackColor = UiTheme.PageBg,
+                Padding = new Padding(0, 10, 0, 10)
+            };
+
+            // The page host has to be on the form and SIZED before any page is added to it.
+            // Measured: adding a page to a still-default 200x100 Panel and docking it there
+            // shrank every anchored child by that delta and then grew it back by the host's
+            // real width, leaving the forms grid 1630px wide inside a 948px page.
+            Controls.Add(_pageNav);
+            Controls.Add(_pageHost);
+            _pageHost.BringToFront();   // the Fill child must lay out last, or it eats the nav's strip
+            PerformLayout();
+
+            // Take each existing TabPage's content across before the tab control goes away.
+            // The panel is created at the tab page's own size FIRST so every anchored child
+            // (dgvWindows fills all four sides) keeps the offsets it was laid out with; only
+            // then is it docked, which is what makes it resize correctly from here on.
+            var carried = new Dictionary<string, Control>();
+            foreach (TabPage tp in tabs.TabPages)
+            {
+                var children = new Control[tp.Controls.Count];
+                tp.Controls.CopyTo(children, 0);
+
+                // The panel has to start at the size the children were LAID OUT for, or every
+                // anchored child is resized by the difference on the first dock. tp.ClientSize
+                // cannot supply it: a TabPage this screen built in code has never been laid out
+                // by the tab control, so it still reports the 200x100 default — measured, that
+                // grew the forms grid to 1608px inside a 948px page. The children's own extent
+                // is the honest answer for both the designer pages and the code-built ones.
+                int w = 200, h = 100;
+                foreach (Control c in children)
+                {
+                    if (c.Right + 3 > w) w = c.Right + 3;
+                    if (c.Bottom + 3 > h) h = c.Bottom + 3;
+                }
+
+                var panel = new Panel { Size = new Size(w, h), BackColor = Color.White };
+                tp.Controls.Clear();
+                panel.Controls.AddRange(children);
+                DisableMnemonics(panel);
+                carried[tp.Text] = panel;
+            }
+            Controls.Remove(tabs);
+
+            AddPage(PageGeneral, BuildGeneralPage(), admin: false);
+            AddLazyPage(PageUsers, () => HostModule(new UsersAuditForm()), admin: true);
+            AddLazyPage(PageMaster, () => HostModule(new MasterFilesForm()), admin: true);
+            AddPage(PageForms, carried["Certificates & Forms"], admin: true);
+            AddPage(PageWindows, carried["Window Management"], admin: true);
+            AddPage(PageAudit, carried["Activity Monitoring"], admin: true);
+            AddPage(PageUpdates, carried["App Updates"], admin: false);
+            AddPage(PageManual, carried["User Manual"], admin: false);
+
+            ShowPage(PageGeneral);
+        }
+
+        /// <summary>
+        /// A Label eats a single "&amp;" as a mnemonic prefix and swallows the letter after it, so
+        /// "Forms &amp; Templates" renders as "Forms  Templates". Fourth time in this codebase.
+        /// </summary>
+        private static void DisableMnemonics(Control parent)
+        {
+            foreach (Control c in parent.Controls)
+            {
+                var lbl = c as Label;
+                if (lbl != null) lbl.UseMnemonic = false;
+                if (c.HasChildren) DisableMnemonics(c);
+            }
+        }
+
+        /// <summary>Puts a whole module Form inside a Settings page, the same way MainForm embeds one.</summary>
+        private static Control HostModule(Form form)
+        {
+            var holder = new Panel { BackColor = Color.White, AutoScroll = true };
+            form.TopLevel = false;
+            form.FormBorderStyle = FormBorderStyle.None;
+
+            // These modules were laid out full-window, and their grids are anchored to all four
+            // sides. Docked into a page that is narrower than that (the page list takes 236px,
+            // and the shell is not always maximised) they do not merely tighten — measured, the
+            // Master Files list came out 75px wide with no columns visible. Floor the form at
+            // the size it was laid out for and let the HOLDER scroll instead.
+            form.MinimumSize = form.ClientSize;
+            form.AutoScroll = false;   // one scroller, not two nested ones
+            form.Dock = DockStyle.Fill;
+            holder.Controls.Add(form);
+            form.Show();
+            UiTheme.PolishButtons(form);
+            return holder;
+        }
+
+        private void AddPage(string name, Control page, bool admin)
+        {
+            page.Visible = false;
+            page.Dock = DockStyle.Fill;
+            _pageHost.Controls.Add(page);
+            _pages[name] = page;
+            if (admin) _adminPages.Add(name);
+            AddPageButton(name);
+        }
+
+        private void AddLazyPage(string name, Func<Control> factory, bool admin)
+        {
+            // Users & Access and Master Files each open the database on construction, and
+            // Master Files' first category is 42,029 barangays — building them for a visit
+            // to App Updates would cost that for nothing. Built on first selection instead.
+            _lazyPages[name] = factory;
+            if (admin) _adminPages.Add(name);
+            AddPageButton(name);
+        }
+
+        private void AddPageButton(string name)
+        {
+            var b = new Button
+            {
+                Text = name.Replace("&", "&&"),   // a Button eats a single & as a mnemonic prefix
+                Width = 212,
+                Height = 40,
+                Margin = new Padding(12, 2, 12, 2),
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(14, 0, 0, 0),
+                Font = new Font("Segoe UI", 9.75F),
+                BackColor = UiTheme.PageBg,
+                ForeColor = UiTheme.Ink,
+                Cursor = Cursors.Hand,
+                Tag = name
+            };
+            b.FlatAppearance.BorderSize = 0;
+            b.FlatAppearance.MouseOverBackColor = UiTheme.Chrome;
+            b.Click += (s, e) => ShowPage(name);
+            _pageNav.Controls.Add(b);
+            _pageButtons[name] = b;
+        }
+
+        private void ShowPage(string name)
+        {
+            if (name == _activePage) return;
+
+            Control page;
+            if (!_pages.TryGetValue(name, out page))
+            {
+                Func<Control> factory;
+                if (!_lazyPages.TryGetValue(name, out factory)) return;
+                Cursor = Cursors.WaitCursor;
+                try
+                {
+                    page = factory();
+                    page.Visible = false;
+                    page.Dock = DockStyle.Fill;
+                    _pageHost.Controls.Add(page);
+                    _pages[name] = page;
+                }
+                finally { Cursor = Cursors.Default; }
+            }
+
+            foreach (var p in _pages) p.Value.Visible = (p.Key == name);
+            page.BringToFront();
+
+            foreach (var pair in _pageButtons)
+            {
+                bool active = pair.Key == name;
+                pair.Value.BackColor = active ? UiTheme.AccentTint : UiTheme.PageBg;
+                pair.Value.ForeColor = active ? UiTheme.Accent : UiTheme.Ink;
+                pair.Value.Font = new Font("Segoe UI", 9.75F, active ? FontStyle.Bold : FontStyle.Regular);
+            }
+
+            _activePage = name;
+            // Window Management was the tab this screen opened on, so verification used to be
+            // asked for on load. It opens on General now, so the prompt follows the operator
+            // to whichever administrative page they actually asked for.
+            if (_adminPages.Contains(name)) PromptVerificationOnce();
+            if (name == PageAudit) LoadMonitoring();
+            if (name == PageWindows) LoadWindows();
+            if (name == PageGeneral) RefreshGeneralPage();
+        }
+
+        // ---------------------------------------------------------------- General page
+
+        private Label _genOffice, _genServer, _genUser, _genLock;
+
+        private Control BuildGeneralPage()
+        {
+            var page = new Panel { BackColor = Color.White };
+
+            page.Controls.Add(new Label
+            {
+                Text = "General", AutoSize = true, Location = new Point(20, 18),
+                Font = new Font("Segoe UI", 14F, FontStyle.Bold), ForeColor = Color.FromArgb(33, 37, 41)
+            });
+            page.Controls.Add(new Label
+            {
+                Text = "What this copy of CROMS is connected to, and who is using it.",
+                AutoSize = true, Location = new Point(22, 50),
+                Font = new Font("Segoe UI", 9.5F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            page.Controls.Add(Section("Office", 22, 92));
+            _genOffice = new Label
+            {
+                AutoSize = false, Location = new Point(24, 118), Size = new Size(760, 44),
+                Font = new Font("Segoe UI", 9.75F), ForeColor = Color.FromArgb(33, 37, 41)
+            };
+            page.Controls.Add(_genOffice);
+
+            page.Controls.Add(Section("Database server", 22, 174));
+            _genServer = new Label
+            {
+                AutoSize = false, Location = new Point(24, 200), Size = new Size(760, 40),
+                Font = new Font("Segoe UI", 9.75F), ForeColor = Color.FromArgb(33, 37, 41)
+            };
+            page.Controls.Add(_genServer);
+
+            page.Controls.Add(Section("Signed in", 22, 252));
+            _genUser = new Label
+            {
+                AutoSize = false, Location = new Point(24, 278), Size = new Size(760, 40),
+                Font = new Font("Segoe UI", 9.75F), ForeColor = Color.FromArgb(33, 37, 41)
+            };
+            page.Controls.Add(_genUser);
+
+            page.Controls.Add(Section("Administrator verification", 22, 330));
+            _genLock = new Label
+            {
+                AutoSize = false, Location = new Point(24, 356), Size = new Size(760, 30),
+                Font = new Font("Segoe UI", 9.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            };
+            page.Controls.Add(_genLock);
+            var btnVerify = BigButton("Verify Administrator", 24, 390, Color.FromArgb(13, 110, 253));
+            btnVerify.Click += (s, e) => { RequestVerification(); RefreshGeneralPage(); };
+            page.Controls.Add(btnVerify);
+            page.Controls.Add(new Label
+            {
+                Text = "Changing service windows, branding or print alignment asks for an administrator's\r\n" +
+                       "password once per session. Verifying here does it up front.",
+                AutoSize = true, Location = new Point(26, 442),
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            DisableMnemonics(page);
+            return page;
+        }
+
+        private void RefreshGeneralPage()
+        {
+            if (_genOffice == null) return;
+            try
+            {
+                OfficeProfile p = OfficeAssets.Profile;
+                _genOffice.Text = p.HeaderLine + "\r\n" +
+                                  (string.IsNullOrWhiteSpace(p.RegistrarName)
+                                      ? "No registrar recorded — set one under Forms & Templates."
+                                      : p.RegistrarName + "  ·  " + p.RegistrarTitle);
+            }
+            catch { _genOffice.Text = "Office details could not be read."; }
+
+            _genServer.Text = ServerConfig.EffectiveHost + " : " + ServerConfig.Port + "\r\n" +
+                              (Db.IsConnected() ? "Connected." : "NOT reachable from this PC right now.");
+
+            _genUser.Text = (Session.User?.FullName ?? Session.User?.Username ?? "—") +
+                            "  ·  " + (Session.User?.Role ?? "—") + "\r\n" +
+                            (Session.HasWindow ? "Serving at " + Session.WindowName : "No service window claimed") +
+                            "  ·  PC: " + Environment.MachineName;
+
+            _genLock.Text = _verified
+                ? "Verified this session as " + (_verifiedUser?.Username ?? "?") + "."
+                : "Not verified yet this session.";
+        }
+
 
         // =====================================================================
         //  Certificates & Forms tab — the office's logo and stamp, its own details,
@@ -65,7 +382,7 @@ namespace CROMS.Forms
 
             tab.Controls.Add(new Label
             {
-                Text = "Certificates & Forms", AutoSize = true, Location = new Point(20, 18),
+                Text = "Forms & Templates", AutoSize = true, Location = new Point(20, 18),
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 37, 41)
             });
@@ -87,16 +404,31 @@ namespace CROMS.Forms
                 Text = "The logo prints in the certificate header; the stamp prints in the " +
                        "position each form reserves for it.\r\n" +
                        "They are managed separately, and either can be set for one form only.",
-                AutoSize = true, Location = new Point(24, 166),
+                AutoSize = false, Size = new Size(700, 34), Location = new Point(24, 166),
                 Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
             });
 
-            var btnAlign = BigButton("Align Printing on Pre-printed Forms", 322, 114,
+            var btnAlign = BigButton("Align Printing on Pre-printed Forms", 382, 114,
                                      Color.FromArgb(108, 117, 125));
             btnAlign.Click += btnAlign_Click;
             tab.Controls.Add(btnAlign);
 
-            tab.Controls.Add(Section("Forms CROMS can read, store and print:", 22, 214));
+            // Certificate Templates — the visual layout editor. It is system configuration
+            // (where the logo, the text and each field PRINT), not a client transaction, which
+            // is why it sits here and not beside Certificate Request.
+            var btnTemplates = BigButton("Edit Certificate Layout Templates", 22, 208,
+                                         Color.FromArgb(108, 117, 125));
+            btnTemplates.Click += btnTemplates_Click;
+            tab.Controls.Add(btnTemplates);
+            tab.Controls.Add(new Label
+            {
+                Text = "Drag the header, footer, text and data fields of a certification form, then "
+                     + "preview it. Nothing here changes a registry record.",
+                AutoSize = false, Size = new Size(460, 34), Location = new Point(382, 214),
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
+            tab.Controls.Add(Section("Forms CROMS can read, store and print:", 22, 272));
 
             // A read-only picture of the form library. The point is the Report column:
             // it is the only place that tells the office whether a .rpt has actually been
@@ -104,8 +436,8 @@ namespace CROMS.Forms
             // renderer — which is otherwise invisible until someone prints one.
             var grid = new DataGridView
             {
-                Location = new Point(22, 240),
-                Size = new Size(900, 250),
+                Location = new Point(22, 298),
+                Size = new Size(860, 222),
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
                        | AnchorStyles.Bottom,
                 ReadOnly = true,
@@ -149,7 +481,7 @@ namespace CROMS.Forms
                        "Reports folder beside CROMS.exe using the Form Code as its name, and " +
                        "bind it to that form's Report Datasource. Until then CROMS prints the " +
                        "certificate itself.",
-                AutoSize = false, Location = new Point(24, 496), Size = new Size(898, 34),
+                AutoSize = false, Location = new Point(24, 532), Size = new Size(858, 34),
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
             });
@@ -165,6 +497,16 @@ namespace CROMS.Forms
         {
             if (!_verified) { RequestVerification(); if (!_verified) return; }
             using (var dlg = new OfficeAssetsForm()) dlg.ShowDialog(this);
+        }
+
+        /// <summary>
+        /// The certificate layout editor. Same re-verification as branding: it decides what
+        /// every issued certificate looks like.
+        /// </summary>
+        private void btnTemplates_Click(object sender, EventArgs e)
+        {
+            if (!_verified) { RequestVerification(); if (!_verified) return; }
+            using (var dlg = new TemplateManagementForm()) dlg.ShowDialog(this);
         }
 
         /// <summary>
@@ -313,10 +655,13 @@ namespace CROMS.Forms
         private void BuildMonitoringTab()
         {
             var tab = new TabPage("Activity Monitoring") { BackColor = Color.White, Padding = new Padding(3) };
+            // Page name: "Audit Trail". This IS the audit trail — Users & Access used to carry a
+            // second, thinner view of the same audit_log table (last 500 rows, no filters); that
+            // one was removed rather than keeping two answers to the same question.
 
             tab.Controls.Add(new Label
             {
-                Text = "Activity Monitoring", AutoSize = true, Location = new Point(20, 18),
+                Text = "Audit Trail", AutoSize = true, Location = new Point(20, 18),
                 Font = new Font("Segoe UI", 14F, FontStyle.Bold), ForeColor = Color.FromArgb(33, 37, 41)
             });
             tab.Controls.Add(new Label
@@ -324,7 +669,8 @@ namespace CROMS.Forms
                 Text = "Who signed in and what they did, by date. VIEW ONLY — nothing on this " +
                        "screen can be changed. Rows marked ⚠ Bypass are a requirement that was " +
                        "overridden or waived instead of satisfied.",
-                AutoSize = true, Location = new Point(22, 50), Font = new Font("Segoe UI", 9.5F),
+                AutoSize = false, Size = new Size(820, 34),
+                Location = new Point(22, 50), Font = new Font("Segoe UI", 9.5F),
                 ForeColor = Color.FromArgb(108, 117, 125)
             });
 
@@ -368,8 +714,10 @@ namespace CROMS.Forms
 
             chkMonFlaggedOnly = new CheckBox
             {
-                Text = "⚠ Flagged only (bypassed requirements + failed sign-ins)",
-                Location = new Point(844, fy + 22), AutoSize = true,
+                // Was at x=844 and 377px wide, i.e. running to 1221 — off the right edge of the
+                // tab it was written for, and further off the narrower page area. Second row.
+                Text = "⚠ Flagged only (bypasses + failed sign-ins)",
+                Location = new Point(572, fy + 58), AutoSize = true,
                 Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), ForeColor = Color.FromArgb(180, 83, 9)
             };
             tab.Controls.Add(chkMonFlaggedOnly);
@@ -424,8 +772,8 @@ namespace CROMS.Forms
             {
                 Text = "Every create, update, delete, sign-in and sign-out the app records, plus any " +
                        "licence/registration requirement an officer marked Waived or overrode instead " +
-                       "of verifying. This is the same tamper-evident log used by Users & Audit Trail, " +
-                       "filtered here by date and flagged for review.",
+                       "of verifying. This is the one tamper-evident log CROMS keeps — Users & " +
+                       "Access no longer carries a second, thinner view of it.",
                 AutoSize = false, Location = new Point(24, fy + 480), Size = new Size(898, 34),
                 Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
@@ -803,8 +1151,8 @@ namespace CROMS.Forms
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            // Window Management is the default tab — prompt for verification on first show.
-            PromptVerificationOnce();
+            // No prompt here any more: this screen opens on General, which needs no
+            // verification. ShowPage() asks the moment an administrative page is opened.
         }
 
         // =====================================================================
@@ -816,11 +1164,6 @@ namespace CROMS.Forms
         {
             foreach (Control c in bar.Controls) c.Enabled = !locked;
             btnUnlock.Visible = locked;
-        }
-
-        private void tabs_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (tabs.SelectedTab == tabWindows) PromptVerificationOnce();
         }
 
         private void PromptVerificationOnce()

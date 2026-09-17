@@ -1,4 +1,4 @@
-namespace CROMS.Forms
+﻿namespace CROMS.Forms
 {
     partial class SettingsForm
     {
@@ -62,7 +62,6 @@ namespace CROMS.Forms
             this.tabs.SelectedIndex = 0;
             this.tabs.Size = new System.Drawing.Size(1120, 720);
             this.tabs.TabIndex = 0;
-            this.tabs.SelectedIndexChanged += new System.EventHandler(this.tabs_SelectedIndexChanged);
             //
             // tabWindows
             //

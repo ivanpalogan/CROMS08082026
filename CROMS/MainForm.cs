@@ -39,7 +39,7 @@ namespace CROMS
             SetupNavIcons();
             BuildUserBar();
             ApplyRoleAccess();   // also fills _navAllowed
-            SetupGroupAccordion();
+            GroupNavSections();
             SetupSidebarRail();
             SetupBrandMark();
             DarkenSidebarScrollbar();
@@ -175,113 +175,55 @@ namespace CROMS
         }
 
         // ================================================================
-        //  Group accordion — clicking a section header (CLIENT SERVICES, CERTIFICATION, ...)
-        //  shows/hides its buttons with a short slide, instead of every group always being
-        //  fully expanded down a long scrolling list.
+        //  Nav sections — DASHBOARD / TRANSACTIONS / CIVIL REGISTRATION / ...
+        //  A section header is a LABEL, not a control: it names the run of buttons under
+        //  it and nothing more. It used to be clickable (an accordion with a slide), which
+        //  put a second, invisible kind of target in a list where everything else navigates
+        //  — staff clicked a heading expecting a screen and got their buttons disappearing.
+        //  The grouping itself is still needed: the collapsed icon rail walks it.
         // ================================================================
 
         private sealed class NavGroup
         {
             public Label Header;
             public readonly List<Button> Members = new List<Button>();
-            public bool Expanded = true;
         }
 
         private readonly List<NavGroup> _navGroups = new List<NavGroup>();
         // Buttons the signed-in role is actually allowed to see (ApplyRoleAccess already decided
-        // this once) — the accordion must never make a role-hidden button visible again.
+        // this once) — nothing here may ever make a role-hidden button visible again.
         private readonly HashSet<Button> _navAllowed = new HashSet<Button>();
 
 
         /// <summary>Groups the flat nav list by the Label headers already placed between runs of buttons.</summary>
-        private void SetupGroupAccordion()
+        private void GroupNavSections()
         {
             NavGroup current = null;
             foreach (Control c in navFlow.Controls)
             {
                 if (c is Label lbl)
                 {
-                    var group = new NavGroup { Header = lbl, Expanded = true };
+                    var group = new NavGroup { Header = lbl };
                     _navGroups.Add(group);
                     current = group;
-                    lbl.Cursor = Cursors.Hand;
-                    lbl.Click += (s, e) => ToggleGroup(group);
-                    lbl.Paint += (s, e) => DrawChevron(lbl, e.Graphics, group);
+                    lbl.Cursor = Cursors.Default;   // a heading is not a target
                 }
                 else if (c is Button btn && current != null)
                 {
                     current.Members.Add(btn);
                 }
             }
+
+            // A heading with nothing under it is worse than no heading: on a Staff sign-in the
+            // SYSTEM section held only Settings, which that role cannot open, so the sidebar
+            // ended on a label naming a section that was not there.
+            foreach (var g in _navGroups) g.Header.Visible = HasAllowedMembers(g);
         }
 
-        private static void DrawChevron(Label lbl, Graphics g, NavGroup group)
+        private bool HasAllowedMembers(NavGroup group)
         {
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            float x = lbl.Width - 14, y = lbl.Height - 13;
-            using (var pen = new Pen(lbl.ForeColor, 1.6f)
-                   { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
-            {
-                if (group.Expanded)   // pointing down
-                    g.DrawLines(pen, new[] { new PointF(x - 4, y - 2), new PointF(x, y + 2), new PointF(x + 4, y - 2) });
-                else                  // pointing right
-                    g.DrawLines(pen, new[] { new PointF(x - 2, y - 4), new PointF(x + 2, y), new PointF(x - 2, y + 4) });
-            }
-        }
-
-        private void ToggleGroup(NavGroup group)
-        {
-            if (_railCollapsed) return;   // the collapsed icon-rail has no groups to fold
-            bool expand = !group.Expanded;
-            group.Expanded = expand;
-            group.Header.Invalidate();
-
-            var members = new List<Button>();
-            foreach (var b in group.Members)
-                if (_navAllowed.Contains(b)) members.Add(b);
-            AnimateGroup(members, expand);
-        }
-
-        /// <summary>
-        /// Slides a group open/closed by animating each button's own Height (a FlowLayoutPanel
-        /// reflows around whatever height a child currently reports, so this reads as a real
-        /// expand/collapse instead of an instant show/hide).
-        /// </summary>
-        private void AnimateGroup(List<Button> members, bool expand)
-        {
-            if (members.Count == 0) return;
-            if (expand)
-                foreach (var b in members) { b.Visible = true; b.Height = 0; }
-
-            var timer = new Timer { Interval = 15 };
-            int steps = 8, i = 0;
-            timer.Tick += (s, e) =>
-            {
-                i++;
-                float t = Math.Min(1f, (float)i / steps);
-                float frac = expand ? t : 1f - t;
-                foreach (var b in members)
-                {
-                    int natural;
-                    if (!_navButtonHeight.TryGetValue(b, out natural)) natural = 34;
-                    b.Height = Math.Max(expand ? 1 : 0, (int)(natural * frac));
-                }
-                navFlow.PerformLayout();
-                if (i >= steps)
-                {
-                    timer.Stop();
-                    timer.Dispose();
-                    foreach (var b in members)
-                    {
-                        int natural;
-                        if (!_navButtonHeight.TryGetValue(b, out natural)) natural = 34;
-                        if (expand) b.Height = natural;
-                        else { b.Height = 0; b.Visible = false; }
-                    }
-                    navFlow.PerformLayout();
-                }
-            };
-            timer.Start();
+            foreach (var b in group.Members) if (_navAllowed.Contains(b)) return true;
+            return false;
         }
 
         // ================================================================
@@ -412,7 +354,7 @@ namespace CROMS
             }
             foreach (var group in _navGroups)
             {
-                group.Header.Visible = true;
+                group.Header.Visible = HasAllowedMembers(group);
                 foreach (var b in group.Members)
                 {
                     if (!_navAllowed.Contains(b)) continue;
@@ -420,7 +362,7 @@ namespace CROMS
                     b.Height = _navButtonHeight.TryGetValue(b, out natural) ? natural : 34;
                     b.Margin = new Padding(NavMargin, 1, NavMargin, 1);
                     b.Width = _navButtonWidth.TryGetValue(b, out naturalW) ? naturalW : 204;
-                    b.Visible = group.Expanded;
+                    b.Visible = true;
                 }
             }
             brandLabel.Visible = true;

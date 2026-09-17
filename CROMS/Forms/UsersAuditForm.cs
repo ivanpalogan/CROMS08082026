@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
@@ -9,10 +9,14 @@ using MySql.Data.MySqlClient;
 namespace CROMS.Forms
 {
     /// <summary>
-    /// Users &amp; Audit Trail (Administration). Two tabs: <b>Users</b> — create accounts,
+    /// Users &amp; Access (a page of Settings). Two tabs: <b>Users</b> — create accounts,
     /// edit role, reset password (PBKDF2 hash, never plaintext), activate/deactivate; and
-    /// <b>Audit Trail</b> — the tamper-evidence log of every create/update/delete/login,
-    /// joined to the user who did it. UI is declared in the Designer (UsersAuditForm.Designer.cs)
+    /// <b>Staff Biodata</b>. The audit log itself is NOT here: this screen used to carry a
+    /// plain "last 500 rows" Audit Trail tab over the same audit_log table that Settings'
+    /// own activity screen already reads with a date range, user filter, search, bypass
+    /// flagging, row drill-down and CSV export. Two views of one table is one view too many,
+    /// so the thin one was dropped and the richer one is now the Audit Trail page of
+    /// Settings. UI is declared in the Designer (UsersAuditForm.Designer.cs)
     /// so every control is visible/editable on the WinForms design canvas; this file holds only
     /// the data access + event handlers.
     /// </summary>
@@ -27,7 +31,6 @@ namespace CROMS.Forms
         {
             InitializeComponent();
             LoadUsers();
-            LoadAudit();
             LoadUserPicker();
             LoadBiodata();
         }
@@ -35,7 +38,6 @@ namespace CROMS.Forms
         public void RefreshData()
         {
             LoadUsers();
-            LoadAudit();
             LoadUserPicker();
             LoadBiodata();
         }
@@ -52,15 +54,6 @@ namespace CROMS.Forms
                 "SELECT id, username AS Username, full_name AS 'Full Name', role AS Role, " +
                 "IF(is_active, 'Active', 'Inactive') AS Status FROM users ORDER BY username");
             if (gridUsers.Columns.Contains("id")) gridUsers.Columns["id"].Visible = false;
-        }
-
-        private void LoadAudit()
-        {
-            gridAudit.DataSource = Db.Pull(
-                "SELECT a.created_at AS 'When', COALESCE(u.username, '—') AS 'User', a.action AS Action, " +
-                "a.table_name AS 'Table', a.record_id AS 'Record', a.details AS Details " +
-                "FROM audit_log a LEFT JOIN users u ON u.id = a.user_id " +
-                "ORDER BY a.id DESC LIMIT 500");
         }
 
         /// <summary>
@@ -282,8 +275,7 @@ namespace CROMS.Forms
                 MessageBox.Show("User created.", "Users", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadUsers();
-                LoadAudit();
-            }
+                }
             catch (MySqlException ex) when (ex.Number == 1062)
             {
                 MessageBox.Show("That username is already taken.", "Users",
@@ -323,8 +315,7 @@ namespace CROMS.Forms
                 MessageBox.Show("User updated.", "Users", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadUsers();
-                LoadAudit();
-            }
+                }
             catch (MySqlException ex) when (ex.Number == 1062)
             {
                 MessageBox.Show("That username is already taken.", "Users",

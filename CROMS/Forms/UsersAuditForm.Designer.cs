@@ -1,4 +1,4 @@
-namespace CROMS.Forms
+﻿namespace CROMS.Forms
 {
     partial class UsersAuditForm
     {
@@ -42,8 +42,6 @@ namespace CROMS.Forms
             this.btnAdd = new System.Windows.Forms.Button();
             this.btnUpdate = new System.Windows.Forms.Button();
             this.btnNew = new System.Windows.Forms.Button();
-            this.tabAudit = new System.Windows.Forms.TabPage();
-            this.gridAudit = new System.Windows.Forms.DataGridView();
             this.tabBiodata = new System.Windows.Forms.TabPage();
             this.gridBiodata = new System.Windows.Forms.DataGridView();
             this.pnlBiodataEdit = new System.Windows.Forms.Panel();
@@ -81,8 +79,6 @@ namespace CROMS.Forms
             this.tabUsers.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gridUsers)).BeginInit();
             this.pnlEdit.SuspendLayout();
-            this.tabAudit.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.gridAudit)).BeginInit();
             this.tabBiodata.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.gridBiodata)).BeginInit();
             this.pnlBiodataEdit.SuspendLayout();
@@ -97,7 +93,7 @@ namespace CROMS.Forms
             this.titleLabel.Name = "titleLabel";
             this.titleLabel.Size = new System.Drawing.Size(200, 37);
             this.titleLabel.TabIndex = 0;
-            this.titleLabel.Text = "Users and Audit Trail";
+            this.titleLabel.Text = "Users & Access";
             this.titleLabel.UseMnemonic = false;
             //
             // tabControl
@@ -106,7 +102,6 @@ namespace CROMS.Forms
             | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl.Controls.Add(this.tabUsers);
-            this.tabControl.Controls.Add(this.tabAudit);
             this.tabControl.Controls.Add(this.tabBiodata);
             this.tabControl.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.tabControl.Location = new System.Drawing.Point(32, 74);
@@ -330,32 +325,6 @@ namespace CROMS.Forms
             this.btnNew.Text = "New";
             this.btnNew.UseVisualStyleBackColor = false;
             this.btnNew.Click += new System.EventHandler(this.btnNew_Click);
-            //
-            // tabAudit
-            //
-            this.tabAudit.BackColor = System.Drawing.Color.White;
-            this.tabAudit.Controls.Add(this.gridAudit);
-            this.tabAudit.Location = new System.Drawing.Point(4, 26);
-            this.tabAudit.Name = "tabAudit";
-            this.tabAudit.Padding = new System.Windows.Forms.Padding(3);
-            this.tabAudit.Size = new System.Drawing.Size(928, 498);
-            this.tabAudit.TabIndex = 1;
-            this.tabAudit.Text = "Audit Trail";
-            //
-            // gridAudit
-            //
-            this.gridAudit.AllowUserToAddRows = false;
-            this.gridAudit.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.gridAudit.BackgroundColor = System.Drawing.Color.White;
-            this.gridAudit.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.gridAudit.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.gridAudit.Location = new System.Drawing.Point(3, 3);
-            this.gridAudit.Name = "gridAudit";
-            this.gridAudit.ReadOnly = true;
-            this.gridAudit.RowHeadersVisible = false;
-            this.gridAudit.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.gridAudit.Size = new System.Drawing.Size(922, 492);
-            this.gridAudit.TabIndex = 0;
             //
             // tabBiodata
             //
@@ -761,14 +730,12 @@ namespace CROMS.Forms
             this.Controls.Add(this.titleLabel);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "UsersAuditForm";
-            this.Text = "Users and Audit Trail";
+            this.Text = "Users & Access";
             this.tabControl.ResumeLayout(false);
             this.tabUsers.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.gridUsers)).EndInit();
             this.pnlEdit.ResumeLayout(false);
             this.pnlEdit.PerformLayout();
-            this.tabAudit.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.gridAudit)).EndInit();
             this.tabBiodata.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.gridBiodata)).EndInit();
             this.pnlBiodataEdit.ResumeLayout(false);
@@ -798,8 +765,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnAdd;
         private System.Windows.Forms.Button btnUpdate;
         private System.Windows.Forms.Button btnNew;
-        private System.Windows.Forms.TabPage tabAudit;
-        private System.Windows.Forms.DataGridView gridAudit;
         private System.Windows.Forms.TabPage tabBiodata;
         private System.Windows.Forms.DataGridView gridBiodata;
         private System.Windows.Forms.Panel pnlBiodataEdit;
