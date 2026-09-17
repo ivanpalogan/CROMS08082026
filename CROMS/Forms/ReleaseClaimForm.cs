@@ -1628,23 +1628,27 @@ namespace CROMS.Forms
             // For-Release tab = ready to hand over. Waiting tab = parked (client left /
             // certificate hard to find) OR still awaiting print — anything not yet paid.
             string where = _listMode == 1
-                ? "status IN ('WaitingToRelease','ForPrint')"
-                : "status = 'ForRelease'";
+                ? "t.status IN ('WaitingToRelease','ForPrint')"
+                : "t.status = 'ForRelease'";
             MySqlParameter[] ps = new MySqlParameter[0];
             if (!string.IsNullOrWhiteSpace(filter))
             {
-                where += " AND (txn_code LIKE @f OR client_name LIKE @f OR parked_ticket LIKE @f OR ticket_code LIKE @f)";
+                where += " AND (t.txn_code LIKE @f OR t.client_name LIKE @f OR t.parked_ticket LIKE @f " +
+                         "OR EXISTS (SELECT 1 FROM queue_tickets qf WHERE qf.transaction_id = t.id AND qf.ticket_code LIKE @f))";
                 ps = new[] { new MySqlParameter("@f", "%" + filter.Trim() + "%") };
             }
 
-            // Queue No. shown in BOTH tabs now — ticket_code covers a transaction that
-            // came straight off a live ticket, parked_ticket covers one that was later
-            // parked to Waiting-to-Release; either can be the only one set.
+            // Queue No. shown in BOTH tabs now. ticket_code lives on queue_tickets (NOT
+            // transactions — a bare "ticket_code" column on transactions doesn't exist,
+            // confirmed by the live-DB crash this caused), joined back by transaction_id;
+            // parked_ticket (on transactions itself) covers a request later parked to
+            // Waiting-to-Release. Either can be the only one set.
             dgvPending.DataSource = Db.Pull(
-                "SELECT id, txn_code AS 'Txn Code', client_name AS Client, " +
-                "COALESCE(ticket_code, parked_ticket, '—') AS 'Queue No', " +
-                "type AS Type, DATE_FORMAT(created_at, '%b %d, %Y') AS Requested " +
-                "FROM transactions WHERE " + where + " ORDER BY created_at DESC, id DESC", ps);
+                "SELECT t.id, t.txn_code AS 'Txn Code', t.client_name AS Client, " +
+                "COALESCE((SELECT qt.ticket_code FROM queue_tickets qt WHERE qt.transaction_id = t.id " +
+                "ORDER BY qt.id DESC LIMIT 1), t.parked_ticket, '—') AS 'Queue No', " +
+                "t.type AS Type, DATE_FORMAT(t.created_at, '%b %d, %Y') AS Requested " +
+                "FROM transactions t WHERE " + where + " ORDER BY t.created_at DESC, t.id DESC", ps);
             if (dgvPending.Columns.Contains("id")) dgvPending.Columns["id"].Visible = false;
             SizeWorklistColumns();
             AttachWorklistTooltips();
