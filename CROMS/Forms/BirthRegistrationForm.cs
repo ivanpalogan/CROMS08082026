@@ -392,18 +392,29 @@ namespace CROMS.Forms
             layoutMain.Controls.Remove(pnlHeader);
             layoutMain.Controls.Remove(cardForm);
 
-            var body = new TableLayoutPanel
+            // pnlRecordActions (New Form / Update / Delete / Print Certificate / Add Another
+            // Birth Form) used to sit ABOVE the wizard inside cardForm, docked Top next to
+            // _wizardHost's Dock=Fill - two Dock-stacked siblings that ended up overlapping
+            // instead of stacking (the toolbar painted over the step strip). Pulled out into
+            // its own row here instead, at the BOTTOM of the popup - the same place the
+            // marriage licence window keeps its own secondary actions - so cardForm holds
+            // ONLY the wizard and the step strip sits directly under the header, no gap.
+            cardForm.Controls.Remove(pnlRecordActions);
+
+            var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2,
-                Padding = new Padding(20, 16, 20, 18),
+                RowCount = 3,
+                Padding = new Padding(20, 16, 20, 12),
                 BackColor = UiTheme.PageBg
             };
-            body.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
-            body.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            body.Controls.Add(pnlHeader, 0, 0);
-            body.Controls.Add(cardForm, 0, 1);
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.Controls.Add(pnlHeader, 0, 0);
+            root.Controls.Add(cardForm, 0, 1);
+            root.Controls.Add(pnlRecordActions, 0, 2);
 
             var dlg = new Form
             {
@@ -416,7 +427,7 @@ namespace CROMS.Forms
                 ShowIcon = false,
                 BackColor = UiTheme.PageBg
             };
-            dlg.Controls.Add(body);
+            dlg.Controls.Add(root);
             _entryDialog = dlg;
 
             // Stand-alone popup, not passed through MainForm.ShowModule's polish pass - it
@@ -428,10 +439,12 @@ namespace CROMS.Forms
 
             // ShowDialog blocks until the popup is closed - by a successful Save/Submit
             // routing through ShowListView, by "Back to List", or by the window's own
-            // controls - so by the time it returns the popup is gone. Hand the header and
-            // wizard content back to the embedded module immediately.
-            body.Controls.Remove(pnlHeader);
-            body.Controls.Remove(cardForm);
+            // controls - so by the time it returns the popup is gone. Hand the header,
+            // wizard and toolbar back to the embedded module immediately.
+            root.Controls.Remove(pnlHeader);
+            root.Controls.Remove(cardForm);
+            root.Controls.Remove(pnlRecordActions);
+            cardForm.Controls.Add(pnlRecordActions);
             layoutMain.Controls.Add(pnlHeader, 0, 0);
             layoutMain.Controls.Add(cardForm, 0, 1);
             _entryDialog = null;
