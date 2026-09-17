@@ -15,9 +15,10 @@ namespace CROMS.Forms
     /// to PSA. Pick a month + year and Generate: it shows how many births, marriages and
     /// deaths were REGISTERED that month (by registration date = created_at), the
     /// timely-vs-delayed split for births (RA 3753 30-day reglementary period, from
-    /// `is_delayed`), the collections total for the month, and a detail roster per event
-    /// type that can be exported to CSV for the submission packet. UI is built in code
-    /// (the designer holds only the title). Read-only.
+    /// `is_delayed`), and a detail roster per event type that can be exported to CSV for
+    /// the submission packet. Collections are reported under Reports &amp; Analytics ->
+    /// Fees &amp; Collections, not here. UI is built in code (the designer holds only the
+    /// title). Read-only.
     /// </summary>
     public partial class ReportsPsaForm : Form, IRefreshable
     {
@@ -71,14 +72,9 @@ namespace CROMS.Forms
             int delayed = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND is_delayed = 1" + known + mf);
             int undated = Scalar("SELECT COUNT(*) FROM births WHERE status = 'Registered' AND date_registered IS NULL" + mf);
 
-            decimal collections = ScalarDec(
-                "SELECT COALESCE(SUM(net_amount), 0) FROM payments " +
-                "WHERE YEAR(paid_at) = " + y + " AND MONTH(paid_at) = " + m);
-
             lblBirthVal.Text = births.ToString();
             lblMarriageVal.Text = marriages.ToString();
             lblDeathVal.Text = deaths.ToString();
-            lblCollectVal.Text = collections.ToString("N2");
             lblSplit.Text = "Births — Timely: " + timely + "   ·   Delayed: " + delayed +
                 "   (delayed = registered beyond the 30-day reglementary period, RA 3753)" +
                 (undated > 0
@@ -166,11 +162,6 @@ namespace CROMS.Forms
         {
             DataTable dt = Db.Pull(sql);
             return dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value ? Convert.ToInt32(dt.Rows[0][0]) : 0;
-        }
-        private static decimal ScalarDec(string sql)
-        {
-            DataTable dt = Db.Pull(sql);
-            return dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value ? Convert.ToDecimal(dt.Rows[0][0]) : 0m;
         }
     }
 }

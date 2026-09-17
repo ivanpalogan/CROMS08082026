@@ -42,10 +42,6 @@ namespace CROMS.Forms
             this.lblDeathVal = new System.Windows.Forms.Label();
             this.capDeath = new System.Windows.Forms.Label();
             this.stripeDeath = new System.Windows.Forms.Panel();
-            this.pnlCollectCard = new System.Windows.Forms.Panel();
-            this.lblCollectVal = new System.Windows.Forms.Label();
-            this.capCollect = new System.Windows.Forms.Label();
-            this.stripeCollect = new System.Windows.Forms.Panel();
             this.lblSplit = new System.Windows.Forms.Label();
             this.lblRoster = new System.Windows.Forms.Label();
             this.cboType = new System.Windows.Forms.ComboBox();
@@ -53,7 +49,6 @@ namespace CROMS.Forms
             this.pnlBirthCard.SuspendLayout();
             this.pnlMarriageCard.SuspendLayout();
             this.pnlDeathCard.SuspendLayout();
-            this.pnlCollectCard.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
             this.SuspendLayout();
             //
@@ -199,7 +194,7 @@ namespace CROMS.Forms
             this.pnlMarriageCard.Controls.Add(this.stripeMarriage);
             this.pnlMarriageCard.Controls.Add(this.lblMarriageVal);
             this.pnlMarriageCard.Controls.Add(this.capMarriage);
-            this.pnlMarriageCard.Location = new System.Drawing.Point(246, 172);
+            this.pnlMarriageCard.Location = new System.Drawing.Point(352, 172);
             this.pnlMarriageCard.Name = "pnlMarriageCard";
             this.pnlMarriageCard.Size = new System.Drawing.Size(200, 96);
             this.pnlMarriageCard.TabIndex = 8;
@@ -241,7 +236,7 @@ namespace CROMS.Forms
             this.pnlDeathCard.Controls.Add(this.stripeDeath);
             this.pnlDeathCard.Controls.Add(this.lblDeathVal);
             this.pnlDeathCard.Controls.Add(this.capDeath);
-            this.pnlDeathCard.Location = new System.Drawing.Point(458, 172);
+            this.pnlDeathCard.Location = new System.Drawing.Point(670, 172);
             this.pnlDeathCard.Name = "pnlDeathCard";
             this.pnlDeathCard.Size = new System.Drawing.Size(200, 96);
             this.pnlDeathCard.TabIndex = 9;
@@ -275,48 +270,6 @@ namespace CROMS.Forms
             this.stripeDeath.Name = "stripeDeath";
             this.stripeDeath.Size = new System.Drawing.Size(6, 96);
             this.stripeDeath.TabIndex = 2;
-            //
-            // pnlCollectCard
-            //
-            this.pnlCollectCard.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            this.pnlCollectCard.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.pnlCollectCard.Controls.Add(this.stripeCollect);
-            this.pnlCollectCard.Controls.Add(this.lblCollectVal);
-            this.pnlCollectCard.Controls.Add(this.capCollect);
-            this.pnlCollectCard.Location = new System.Drawing.Point(670, 172);
-            this.pnlCollectCard.Name = "pnlCollectCard";
-            this.pnlCollectCard.Size = new System.Drawing.Size(200, 96);
-            this.pnlCollectCard.TabIndex = 10;
-            //
-            // lblCollectVal
-            //
-            this.lblCollectVal.AutoSize = true;
-            this.lblCollectVal.Font = new System.Drawing.Font("Segoe UI", 26F, System.Drawing.FontStyle.Bold);
-            this.lblCollectVal.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
-            this.lblCollectVal.Location = new System.Drawing.Point(18, 12);
-            this.lblCollectVal.Name = "lblCollectVal";
-            this.lblCollectVal.Size = new System.Drawing.Size(35, 47);
-            this.lblCollectVal.TabIndex = 0;
-            this.lblCollectVal.Text = "0";
-            //
-            // capCollect
-            //
-            this.capCollect.AutoSize = true;
-            this.capCollect.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.capCollect.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(108)))), ((int)(((byte)(117)))), ((int)(((byte)(125)))));
-            this.capCollect.Location = new System.Drawing.Point(18, 66);
-            this.capCollect.Name = "capCollect";
-            this.capCollect.Size = new System.Drawing.Size(103, 15);
-            this.capCollect.TabIndex = 1;
-            this.capCollect.Text = "Collections (PHP)";
-            //
-            // stripeCollect
-            //
-            this.stripeCollect.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(193)))), ((int)(((byte)(7)))));
-            this.stripeCollect.Location = new System.Drawing.Point(0, 0);
-            this.stripeCollect.Name = "stripeCollect";
-            this.stripeCollect.Size = new System.Drawing.Size(6, 96);
-            this.stripeCollect.TabIndex = 2;
             //
             // lblSplit
             //
@@ -381,7 +334,6 @@ namespace CROMS.Forms
             this.Controls.Add(this.cboType);
             this.Controls.Add(this.lblRoster);
             this.Controls.Add(this.lblSplit);
-            this.Controls.Add(this.pnlCollectCard);
             this.Controls.Add(this.pnlDeathCard);
             this.Controls.Add(this.pnlMarriageCard);
             this.Controls.Add(this.pnlBirthCard);
@@ -401,8 +353,6 @@ namespace CROMS.Forms
             this.pnlMarriageCard.PerformLayout();
             this.pnlDeathCard.ResumeLayout(false);
             this.pnlDeathCard.PerformLayout();
-            this.pnlCollectCard.ResumeLayout(false);
-            this.pnlCollectCard.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -429,10 +379,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblDeathVal;
         private System.Windows.Forms.Label capDeath;
         private System.Windows.Forms.Panel stripeDeath;
-        private System.Windows.Forms.Panel pnlCollectCard;
-        private System.Windows.Forms.Label lblCollectVal;
-        private System.Windows.Forms.Label capCollect;
-        private System.Windows.Forms.Panel stripeCollect;
         private System.Windows.Forms.Label lblSplit;
         private System.Windows.Forms.Label lblRoster;
         private System.Windows.Forms.ComboBox cboType;

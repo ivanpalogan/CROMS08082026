@@ -5092,3 +5092,25 @@ nothing calls. If the office never wants the shelf-by-volume view again it can b
 outright, but that is a deletion decision for them, not a side effect of this integration. The
 rail also does not yet show the record's stored scan; "Open in X Registration" hands off to the
 module that owns the softcopy viewer, exactly as the double-click always did.
+
+### 2026-09-18 — Removed the redundant Collections card from PSA / Statutory; collections stay on Fees & Collections
+`ReportsPsaForm` (the "PSA / Statutory" tab of Reports & Analytics) carried a 4th KPI card,
+"Collections (PHP)", summing `payments.net_amount` for the selected month. Redundant: the
+"Fees & Collections" tab in the same module already rehosts `CollectionsReportForm`, whose own
+"Monthly collection" page reports the month's collections broken down by fee, by source and by
+method (built 2026-09-13) - a strictly fuller answer to the same question, one tab over. PSA's
+own job is the statutory births/marriages/deaths counts and the timely-vs-delayed split; the
+Collections card didn't belong to that.
+
+Removed `pnlCollectCard`/`lblCollectVal`/`capCollect`/`stripeCollect` (Designer fields, their
+`InitializeComponent` block, the `Controls.Add`/`ResumeLayout` lines) and the `collections`
+scalar query + `ScalarDec` helper (now unused) from `ReportsPsaForm.cs`. The three remaining
+cards (Births/Marriages/Deaths) were re-spaced evenly across the same span the four used to
+occupy (x=34/352/670, was 34/246/458/670) rather than left with a gap where Collections sat.
+Class doc comment updated to point at Fees & Collections for the collections figure instead of
+describing a total this screen no longer shows.
+
+No schema change, no new query elsewhere - the number was already computed correctly on the
+Fees & Collections tab, this only removes the duplicate. VERIFIED: `MSBuild CROMS.csproj`
+(VS2019) clean, 0 errors, 0 warnings (temp OutputPath). GUI not clicked (no interactive
+desktop) - rebuild in VS to see the 3-card row.
