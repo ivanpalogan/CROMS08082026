@@ -181,6 +181,10 @@ namespace CROMS.Forms
             this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnClearSearch = new System.Windows.Forms.Button();
+            this.btnBackToList = new System.Windows.Forms.Button();
+            this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnOpenRecord = new System.Windows.Forms.Button();
+            this.btnNewRegistration = new System.Windows.Forms.Button();
             this.certificateMenu.SuspendLayout();
             this.layoutRoot.SuspendLayout();
             this.layoutMain.SuspendLayout();
@@ -371,6 +375,7 @@ namespace CROMS.Forms
             this.pnlHeadActions.Controls.Add(this.btnSubmit);
             this.pnlHeadActions.Controls.Add(this.btnSaveDraft);
             this.pnlHeadActions.Controls.Add(this.btnOCRLiveBirth);
+            this.pnlHeadActions.Controls.Add(this.btnBackToList);
             this.pnlHeadActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlHeadActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlHeadActions.Location = new System.Drawing.Point(716, 0);
@@ -423,12 +428,25 @@ namespace CROMS.Forms
             this.btnOCRLiveBirth.Text = "Scan Document";
             this.btnOCRLiveBirth.UseVisualStyleBackColor = false;
             this.btnOCRLiveBirth.Click += new System.EventHandler(this.btnOCRLiveBirth_Click);
-            // 
+            //
+            // btnBackToList
+            //
+            this.btnBackToList.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBackToList.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnBackToList.Margin = new System.Windows.Forms.Padding(0, 4, 14, 0);
+            this.btnBackToList.Name = "btnBackToList";
+            this.btnBackToList.Size = new System.Drawing.Size(130, 40);
+            this.btnBackToList.TabIndex = 3;
+            this.btnBackToList.Text = "← Back to List";
+            this.btnBackToList.UseVisualStyleBackColor = true;
+            this.btnBackToList.Click += new System.EventHandler(this.btnBackToList_Click);
+            //
             // cardForm
-            // 
+            //
             this.cardForm.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.cardForm.CardColor = System.Drawing.Color.White;
             this.cardForm.Controls.Add(this.tabControl);
+            this.cardForm.Controls.Add(this.pnlRecordActions);
             this.cardForm.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cardForm.DrawShadow = true;
             this.cardForm.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(225)))), ((int)(((byte)(229)))), ((int)(((byte)(236)))));
@@ -2056,7 +2074,7 @@ namespace CROMS.Forms
             this.pnlRecordsHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.pnlRecordsHead.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.pnlRecordsHead.Controls.Add(this.lblRecent, 0, 0);
-            this.pnlRecordsHead.Controls.Add(this.pnlRecordActions, 1, 0);
+            this.pnlRecordsHead.Controls.Add(this.pnlListActions, 1, 0);
             this.pnlRecordsHead.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlRecordsHead.Location = new System.Drawing.Point(0, 0);
             this.pnlRecordsHead.Margin = new System.Windows.Forms.Padding(0);
@@ -2077,16 +2095,59 @@ namespace CROMS.Forms
             this.lblRecent.TabIndex = 0;
             this.lblRecent.Text = "RECENT BIRTH REGISTRATIONS";
             this.lblRecent.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            // 
+            //
+            // pnlListActions
+            //
+            this.pnlListActions.AutoSize = true;
+            this.pnlListActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.pnlListActions.Controls.Add(this.btnNewRegistration);
+            this.pnlListActions.Controls.Add(this.btnOpenRecord);
+            this.pnlListActions.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlListActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
+            this.pnlListActions.Location = new System.Drawing.Point(608, 0);
+            this.pnlListActions.Margin = new System.Windows.Forms.Padding(0);
+            this.pnlListActions.Name = "pnlListActions";
+            this.pnlListActions.Size = new System.Drawing.Size(560, 42);
+            this.pnlListActions.TabIndex = 1;
+            this.pnlListActions.WrapContents = false;
+            //
+            // btnNewRegistration
+            //
+            this.btnNewRegistration.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
+            this.btnNewRegistration.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnNewRegistration.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnNewRegistration.ForeColor = System.Drawing.Color.White;
+            this.btnNewRegistration.Location = new System.Drawing.Point(360, 6);
+            this.btnNewRegistration.Margin = new System.Windows.Forms.Padding(10, 6, 0, 6);
+            this.btnNewRegistration.Name = "btnNewRegistration";
+            this.btnNewRegistration.Size = new System.Drawing.Size(200, 30);
+            this.btnNewRegistration.TabIndex = 1;
+            this.btnNewRegistration.Text = "+ New Birth Registration";
+            this.btnNewRegistration.UseVisualStyleBackColor = false;
+            this.btnNewRegistration.Click += new System.EventHandler(this.btnNewRegistration_Click);
+            //
+            // btnOpenRecord
+            //
+            this.btnOpenRecord.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnOpenRecord.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnOpenRecord.Location = new System.Drawing.Point(200, 6);
+            this.btnOpenRecord.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
+            this.btnOpenRecord.Name = "btnOpenRecord";
+            this.btnOpenRecord.Size = new System.Drawing.Size(150, 30);
+            this.btnOpenRecord.TabIndex = 0;
+            this.btnOpenRecord.Text = "Open Record";
+            this.btnOpenRecord.UseVisualStyleBackColor = true;
+            this.btnOpenRecord.Click += new System.EventHandler(this.btnOpenRecord_Click);
+            //
             // pnlRecordActions
-            // 
+            //
             this.pnlRecordActions.AutoSize = true;
             this.pnlRecordActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlRecordActions.Controls.Add(this.btnDelete);
             this.pnlRecordActions.Controls.Add(this.btnUpdate);
             this.pnlRecordActions.Controls.Add(this.btnNew);
             this.pnlRecordActions.Controls.Add(this.btnCertificate);
-            this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Top;
             this.pnlRecordActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlRecordActions.Location = new System.Drawing.Point(614, 0);
             this.pnlRecordActions.Margin = new System.Windows.Forms.Padding(0);
@@ -2179,7 +2240,7 @@ namespace CROMS.Forms
             this.dgvBirths.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
             this.dgvBirths.Size = new System.Drawing.Size(1168, 226);
             this.dgvBirths.TabIndex = 3;
-            this.dgvBirths.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvBirths_CellClick);
+            this.dgvBirths.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvBirths_CellDoubleClick);
             // 
             // BirthRegistrationForm
             // 
@@ -2398,5 +2459,9 @@ namespace CROMS.Forms
         private System.Windows.Forms.TableLayoutPanel pnlSearch;
         private System.Windows.Forms.TextBox txtSearch;
         private System.Windows.Forms.Button btnClearSearch;
+        private System.Windows.Forms.Button btnBackToList;
+        private System.Windows.Forms.FlowLayoutPanel pnlListActions;
+        private System.Windows.Forms.Button btnOpenRecord;
+        private System.Windows.Forms.Button btnNewRegistration;
     }
 }

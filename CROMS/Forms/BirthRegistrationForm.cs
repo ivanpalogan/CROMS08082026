@@ -68,6 +68,7 @@ namespace CROMS.Forms
         {
             _queueTicketId = 0;   // fresh view — drop any stale queue link
             LoadBirths();
+            ShowListView();
         }
 
         /// <summary>
@@ -75,8 +76,15 @@ namespace CROMS.Forms
         /// Submitting for approval then parks that queue ticket as "Pending Approval";
         /// once the registrar approves the record it returns to the queue as
         /// "For Receiving" so the client can be called back for their copy.
+        /// <para/>
+        /// Also opens the full registration panel directly — the operator came here to
+        /// register this walk-in client's birth, not to look at the list first.
         /// </summary>
-        public void PrepareForQueueTicket(int ticketId) => _queueTicketId = ticketId;
+        public void PrepareForQueueTicket(int ticketId)
+        {
+            _queueTicketId = ticketId;
+            ShowEntryView();
+        }
 
         /// <summary>
         /// Fills the Form-102 fields from values extracted by Document AI (keyed by the
@@ -195,6 +203,7 @@ namespace CROMS.Forms
 
             cboStatus.SelectedItem = "Draft";
             tabControl.SelectedTab = tabChild;
+            ShowEntryView();   // the auto-filled record needs to be reviewed, not left in the list
         }
 
         /// <summary>
@@ -287,6 +296,7 @@ namespace CROMS.Forms
             this.Resize += new EventHandler(this.BirthRegistrationForm_Resize);
             CenterContent();
             UpdateStepNavigation();
+            ShowListView();
 
             if (System.ComponentModel.LicenseManager.UsageMode ==
                 System.ComponentModel.LicenseUsageMode.Designtime) return;
@@ -299,6 +309,78 @@ namespace CROMS.Forms
             // do not trigger delayed-registration calculations during construction.
             dtpDob.ValueChanged += dtpDob_ValueChanged;
             RecomputeDelayed();
+        }
+
+        // ---------- list view / full registration panel ----------
+        //
+        // The screen shows ONE of two things at a time: the list of recent registrations
+        // (cardRecords), or the full Municipal Form 102 entry panel (cardForm) — never both
+        // at once, so the grid and the record being worked on don't compete for space.
+        // Which card is visible is driven by collapsing the OTHER card's row in layoutMain
+        // to zero height, the same RowStyle-swap technique CenterContent already uses on
+        // the column dimension.
+
+        /// <summary>Shows the records list; hides the full registration panel.</summary>
+        private void ShowListView()
+        {
+            cardRecords.Visible = true;
+            cardForm.Visible = false;
+            layoutMain.RowStyles[1].SizeType = SizeType.Absolute;
+            layoutMain.RowStyles[1].Height = 0F;
+            layoutMain.RowStyles[2].SizeType = SizeType.Percent;
+            layoutMain.RowStyles[2].Height = 100F;
+
+            btnSaveDraft.Visible = false;
+            btnSubmit.Visible = false;
+            btnOCRLiveBirth.Visible = false;
+            btnBackToList.Visible = false;
+            chkDelayed.Visible = false;
+            lblSubtitle.Text = "Search recent registrations, or start a new one.";
+        }
+
+        /// <summary>Shows the full registration panel; hides the records list.</summary>
+        private void ShowEntryView()
+        {
+            cardForm.Visible = true;
+            cardRecords.Visible = false;
+            layoutMain.RowStyles[1].SizeType = SizeType.Percent;
+            layoutMain.RowStyles[1].Height = 100F;
+            layoutMain.RowStyles[2].SizeType = SizeType.Absolute;
+            layoutMain.RowStyles[2].Height = 0F;
+
+            btnSaveDraft.Visible = true;
+            btnSubmit.Visible = true;
+            btnOCRLiveBirth.Visible = true;
+            btnBackToList.Visible = true;
+            chkDelayed.Visible = true;
+            lblSubtitle.Text = "MUNICIPAL FORM 102  •  NEW & DELAYED REGISTRATION";
+        }
+
+        private void btnNewRegistration_Click(object sender, EventArgs e)
+        {
+            ClearForm();
+            ShowEntryView();
+            tabControl.SelectedTab = tabChild;
+            txtFirstName.Focus();
+        }
+
+        private void btnOpenRecord_Click(object sender, EventArgs e)
+        {
+            if (dgvBirths.CurrentRow == null)
+            {
+                MessageBox.Show("Click a record in the list first.", "Open Record",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            int id = Convert.ToInt32(dgvBirths.CurrentRow.Cells["id"].Value);
+            LoadBirth(id);
+            ShowEntryView();
+        }
+
+        private void btnBackToList_Click(object sender, EventArgs e)
+        {
+            ShowListView();
+            LoadBirths();
         }
 
         /// <summary>
@@ -764,6 +846,7 @@ namespace CROMS.Forms
                         (status == "Draft" ? "Saved as draft." : "Submitted for approval.") + extra,
                         "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     ClearForm();
+                    ShowListView();
                 }
                 LoadBirths();
                 // Reload from the row that was actually written, so what the operator now
@@ -809,11 +892,12 @@ namespace CROMS.Forms
         }
 
         // ---------- READ (row -> form) ----------
-        private void dgvBirths_CellClick(object sender, DataGridViewCellEventArgs e)
+        private void dgvBirths_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
             int id = Convert.ToInt32(dgvBirths.Rows[e.RowIndex].Cells["id"].Value);
             LoadBirth(id);
+            ShowEntryView();
         }
 
         private void LoadBirth(int id)
@@ -964,6 +1048,7 @@ namespace CROMS.Forms
                 MessageBox.Show("Record updated.", "Updated",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
+                ShowListView();
                 LoadBirths();
             }
             catch (Exception ex) { Fail(ex); }
@@ -988,6 +1073,7 @@ namespace CROMS.Forms
                 MessageBox.Show("Record deleted.", "Deleted",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
+                ShowListView();
                 LoadBirths();
             }
             catch (MySqlException ex) when (ex.Number == 1451)
