@@ -4973,3 +4973,122 @@ ModuleRegistry (ModuleTitle and any future GoToModule resolve through it) even t
 navigates to them any more — removing them would be a second, unrelated change to the cross-module
 hand-off contract. Window Management and User Manual have no page heading of their own (they never
 had one; the tab label was the heading, and the page list now names them).
+
+### 2026-09-17 (later) — Registry Books folded into Record Search; one place to find a record
+
+Registry Books left the sidebar and Record Search became the single way to find any civil
+registry record, with the record's registry book identity travelling WITH the search hit. No
+record was deleted, no book/page column touched, and the Registry Books screen still exists
+and still works — it is simply no longer a separate stop.
+
+WHY IT MERGES CLEANLY, and it is not just tidying. The two screens answered the same question
+from opposite ends: Record Search found the record but said nothing about which book it is
+written in, and Registry Books listed the books but you had to already know the volume to find
+a record. Both read the same three tables and the same `book_volume` / `book_page` columns
+(migration 26), and both ended in the same double-click hand-off into the registration module.
+So the merge removes a screen, not a capability.
+
+WHAT THE SEARCH NOW CARRIES. Every hit gains Book and Page in the grid, and a 340px detail rail
+on the right states the selected record's whole registry identity: which register it is in,
+registry number, registry year, date of registration, the event date named for its own register
+("Date of birth" / "Date of marriage" / "Date of death"), status, book, page, and the Municipal
+Form revision it came off. A value the record does not carry says "not recorded" in words —
+nothing here is derived on the record's behalf.
+
+TWO PLACES WHERE THE HONEST ANSWER IS A BLANK, both deliberate:
+  - `deaths` HAS NO `date_registered` COLUMN. Migrations 27 and 33 added one to births and
+    marriages only. The rail says "not kept for deaths" rather than substituting `created_at`,
+    which for a digitized backlog record is the SCANNING date, not the date the office
+    registered the death (established 2026-09-08).
+  - REGISTRY YEAR IS READ, NEVER INFERRED. It comes from the registry number's own prefix
+    (the office numbers YYYY-NNNN) or from a `book_volume` the office typed as a bare year.
+    There is deliberately NO fall-back to YEAR(event date): a delayed registration of a 1983
+    birth sits in the book of the year it was REGISTERED, so guessing from the event would file
+    records in a book they are not in.
+
+A FABRICATION I WROTE AND CAUGHT BY RUNNING THE QUERY ON THE OFFICE'S OWN DATA. The first cut
+matched any leading four digits (`^[0-9]{4}`), so the legacy un-prefixed numbers already on file
+— "239103", "765432" — were reported as registry years 2391 and 7654. Plausible-looking, wrong,
+and on a screen an operator would trust. The pattern now requires a 19xx/20xx FOLLOWED BY A
+SEPARATOR, so those two correctly come back blank while "2026-B-0005" and "1965-2397" still
+resolve. Same family as the three date fabrications fixed on 2026-09-04, 09-10 and 09-13, and it
+only surfaced because the query was run against real rows instead of reasoned about.
+
+DOCUMENT-TYPE BADGE, and colour is never the only signal. The Type cell carries the register's
+own colour and always spells the word out, so it reads in greyscale, on a projector, and to a
+colour-blind operator. New `MUi.RecordTone` / `RecordPill` sit beside the marriage windows'
+existing `ToneOf` / `Pill`, so this is the same styling system, not a second one: Birth REUSES
+`UiTheme.Accent` / `AccentTint` (the blue every other screen already uses) and Death reuses the
+neutral chip pair, so Marriage purple is the only hue the palette had to gain
+(`UiTheme.Marriage` / `MarriageTint`) — stated as a token, not as a literal inside a form. The
+badge's own tint survives row selection (`Mix(tint, ink, 0.18)`), which the grid's selection
+colour would otherwise repaint flat.
+
+FILTER: the All / Birth / Marriage / Death control already existed and is unchanged; it gained a
+caption and the count line now names the active filter. Search, SOUNDEX sound-alike matching,
+the 300-row cap, permissions and the double-click jump are all untouched — still SELECT-only,
+still no schema change.
+
+NAVIGATION. `btnBooks` is removed from `MainForm.Designer.cs` entirely (declaration, property
+block, `navFlow` add, field). The `"books"` MODULE KEY STAYS REGISTERED and stays in
+`OperationalKeys` on purpose: `ModuleTitle()` resolves through the registry, nothing becomes a
+broken link, and a cross-module `GoToModule("books")` is not turned into a permission hole for
+an operational role. Same convention the registry already documents for the Settings pages.
+
+FIVE DEFECTS FOUND BY RENDERING THE REAL FORM AGAINST THE LIVE DATABASE, none by compiling:
+  1. THE WHOLE DETAIL RAIL RENDERED AS ONE PILE. `MUi.Cap` / `MUi.Txt` are AUTOSIZE labels built
+     for the marriage windows' flow layouts and carry no Dock, so added to a Dock=Top stack they
+     all sat at (0,0) on top of each other. `Stack()` now forces Dock rather than assuming it.
+     Found by a sibling-overlap sweep, which reported 8 overlapping pairs; it now reports 0.
+  2. THE RAIL SHOWED A DIFFERENT RECORD FROM THE HIGHLIGHTED ROW. `grid.CurrentRow` lags a
+     selection change by an event, so the rail was built from the previous row — an operator
+     could read one certificate's registry book while looking at another's name. The rail and
+     the jump now both go through `SelectedRow()`, which prefers `SelectedRows[0]` (the
+     authoritative answer for a FullRowSelect grid) and keeps CurrentRow only as a fallback.
+  3. The 20pt title and the subtitle overlapped: an AutoSize 20pt Segoe UI Bold label MEASURES
+     about 45px tall, not the 37 it declared. Both are explicitly sized now — the same trap
+     already recorded for Queue Management on 2026-09-10.
+  4. The AutoSize count line measured taller than its declared 15px and ran into the body row.
+  5. The death badge was too faint to read as a badge — plain `Chrome` on a zebra-striped row is
+     only a few points off the row behind it. Deepened via `UiTheme.Mix(Chrome, Muted, 0.12)`,
+     stated as a relationship to the two tokens rather than as a new literal.
+  Also: with Fill mode's default equal weights a long name truncated to "ABAD, GEORGE D..."
+  while Book and Page each held the same width for at most a few characters. Columns are now
+  weighted, and every value carries its full text as a tooltip — a name the operator cannot
+  finish reading cannot be checked against the certificate in front of them (same fix the OCR
+  review grid needed on 2026-09-08).
+
+VERIFIED BY RUNNING, not by compiling. The real form was rendered off the freshly built exe
+against the live croms database and driven: 26 records across all three registers; the filter
+returns Birth 22 / Marriage 1 / Death 3 and All 26 with only the right types in each; "Talosick"
+still finds 12 records with sound-alike matching on and 0 with it off (so SOUNDEX is still the
+matcher); a blank Book prints an em dash; the rail states the full registry identity for the
+selected record and its pill reads "Birth" in #1D4ED8 on #EAF1FE. The badges were checked by
+SAMPLING THE PAINTED PIXELS rather than any stored style — `CellFormatting` mutates `e.CellStyle`
+at paint time only, so `InheritedStyle` never shows it and the first probe wrongly reported plain
+white: Birth paints rgb(234,241,254), Marriage rgb(243,236,251), Death the deepened neutral. Zero
+overlapping sibling pairs; the body fills a 1920 monitor (grid 1502 + rail 291) and at 900x480
+scrolls rather than crushing the grid or putting the rail out of reach.
+  The navigation removal was verified on the real shell the same way: 16 nav buttons, no
+"Registry Books" caption and no "books" tag anywhere in the sidebar, and ZERO nav tags that do
+not resolve to a registered module (the broken-link check). `GoToModule("books")` still returns
+`RegistryBooksForm` and `ModuleTitle("books")` still returns "Registry Books", so nothing that
+referenced it is now dangling. Role access is unchanged: Registrar / Staff / Cashier / Releasing
+each keep the same 15 operational keys including `search`, with `archive` and `settings` still
+Admin-only, and a Staff sidebar rendered showing exactly those buttons.
+
+HARNESS TRAPS, both of which produced a WRONG PASS before being caught — worth keeping:
+`Session`'s user type is `CROMS.Data.CurrentUser`, NOT a nested `Session+UserInfo`; reflecting for
+the wrong name left `Session.User` null, so `AllowedKeys(null)` returned "all modules" and the
+Staff sidebar rendered as an admin's. And `[Activator]::CreateInstance($type)` is ambiguous from
+PowerShell (Type vs Type,bool overloads) — invoke the parameterless constructor explicitly.
+
+MSBuild exit 0, 0 warnings 0 errors across CROMS, CROMS.Display and CROMS.Kiosk; bin\Debug
+updated (app was closed). No schema change, no new package, no SQL that writes.
+
+NOT DONE, stated plainly: the Registry Books screen itself is untouched, so it keeps its own
+plain grids and no document-type badge — it is now reachable only by `GoToModule("books")`, which
+nothing calls. If the office never wants the shelf-by-volume view again it can be retired
+outright, but that is a deletion decision for them, not a side effect of this integration. The
+rail also does not yet show the record's stored scan; "Open in X Registration" hands off to the
+module that owns the softcopy viewer, exactly as the double-click always did.

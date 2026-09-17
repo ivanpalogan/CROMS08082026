@@ -735,7 +735,11 @@ namespace CROMS
         /// </summary>
         private static readonly HashSet<string> OperationalKeys = new HashSet<string> {
             "dashboard", "queue", "transactions", "certrequest", "release", "breqs",
-            "birth", "marriage", "death", "petitions", "books", "search", "ocr", "fees", "reports"
+            "birth", "marriage", "death", "petitions", "search", "ocr", "fees", "reports",
+            // "books" has no sidebar button any more -- Registry Books is folded into Record
+            // Search -- but it stays permitted so a cross-module GoToModule("books") is not a
+            // permission hole for an operational role if anything ever routes there again.
+            "books"
         };
 
         private static HashSet<string> AllowedKeys(string role)

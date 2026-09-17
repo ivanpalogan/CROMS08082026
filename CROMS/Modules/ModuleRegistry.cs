@@ -65,10 +65,12 @@ namespace CROMS.Modules
                 () => new PetitionsForm()),
 
             // Records & Documents — finding and handling records that already exist.
+            // Record Search is the SINGLE place a record is found, whichever register it is
+            // in, and it now carries each hit's registry book identity (book volume, page,
+            // registry number/year, date of registration) beside the record itself -- which
+            // is what the separate Registry Books screen used to be opened for.
             new ModuleInfo("search", "Record Search", GroupRecords,
                 () => new RecordSearchForm()),
-            new ModuleInfo("books", "Registry Books", GroupRecords,
-                () => new RegistryBooksForm()),
             // Admin-only browser over every saved record/form/image in the system.
             // Not in OperationalKeys in MainForm, so only Admin sees the button.
             new ModuleInfo("archive", "Records Archive", GroupRecords,
@@ -90,7 +92,16 @@ namespace CROMS.Modules
             new ModuleInfo("settings", "Settings", GroupSystem,
                 () => new SettingsForm()),
 
-            // ---- Registered but not on the sidebar: pages of Settings (see class note) ----
+            // ---- Registered but not on the sidebar ----
+            // Registry Books: the shelf view of the paper books (one row per volume with its
+            // record and page counts). Folded into Record Search, so it no longer carries a
+            // sidebar button -- but the screen, the book/page columns and every record on
+            // them are untouched, and the key stays registered so ModuleTitle() and any
+            // cross-module GoToModule("books") still resolve.
+            new ModuleInfo("books", "Registry Books", GroupRecords,
+                () => new RegistryBooksForm()),
+
+            // ---- Pages of the Settings screen (see class note) ----
             new ModuleInfo("masterfiles", "Master Files", GroupSystem,
                 () => new MasterFilesForm()),
             // Visual, non-technical editor for how a certificate PRINTS — logo/text/field

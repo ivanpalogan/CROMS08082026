@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -60,6 +60,53 @@ namespace CROMS.Forms
         {
             Color t, i; ToneOf(toneStatus ?? text, out t, out i);
             p.Text = text ?? "-";
+            p.SetTone(t, i);
+        }
+
+        // ---------------------------------------------------------------- record type
+        /// <summary>
+        /// Civil register -> (tint, ink) for a record-type badge. Birth and Death REUSE the
+        /// palette's existing blue and neutral (the same Accent/Chrome pair every status pill
+        /// on the marriage windows already uses); Marriage is the one hue UiTheme had to add.
+        ///
+        /// Colour is NEVER the only signal: every caller also prints the word "Birth",
+        /// "Marriage" or "Death", so the badge reads correctly in greyscale, on a projector,
+        /// and to a colour-blind operator. Same rule as ToneOf above.
+        /// </summary>
+        public static void RecordTone(string type, out Color tint, out Color ink)
+        {
+            switch (type ?? "")
+            {
+                case "Birth":    tint = UiTheme.AccentTint;   ink = UiTheme.Accent;   return;
+                case "Marriage": tint = UiTheme.MarriageTint; ink = UiTheme.Marriage; return;
+                // The death badge is the palette's neutral chip, deepened a little: plain Chrome
+                // on a zebra-striped row is only a few points off the row behind it, and a
+                // badge that cannot be told from its own background is not a badge. Stated as
+                // a relationship to the two tokens (UiTheme.Mix) rather than as a new literal.
+                case "Death":    tint = UiTheme.Mix(UiTheme.Chrome, UiTheme.Muted, 0.12f); ink = UiTheme.Muted; return;
+                default:         tint = UiTheme.Chrome;       ink = UiTheme.Muted;    return;
+            }
+        }
+
+        /// <summary>A record-type badge: the register's own colour, with its name spelled out.</summary>
+        public static StatusPill RecordPill(string type)
+        {
+            var p = new StatusPill
+            {
+                Text = string.IsNullOrEmpty(type) ? "-" : type,
+                Font = F(9.5F, FontStyle.Bold),
+                Inset = new Padding(13, 6, 13, 6),
+                Margin = new Padding(0, 2, 6, 2)
+            };
+            Color t, i; RecordTone(type, out t, out i);
+            p.SetTone(t, i);
+            return p;
+        }
+
+        public static void SetRecordPill(StatusPill p, string type)
+        {
+            Color t, i; RecordTone(type, out t, out i);
+            p.Text = string.IsNullOrEmpty(type) ? "-" : type;
             p.SetTone(t, i);
         }
 

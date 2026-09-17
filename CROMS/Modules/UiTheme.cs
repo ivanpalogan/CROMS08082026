@@ -46,6 +46,15 @@ namespace CROMS.Modules
         public static readonly Color Chrome      = Color.FromArgb(238, 241, 246);   // #EEF1F6 secondary chip / ghost button
         public static readonly Color RowLine     = Color.FromArgb(240, 242, 246);   // #F0F2F6 list row separator
 
+        // Record-type identity for the three civil registers (Birth / Marriage / Death).
+        // Birth and Death deliberately REUSE the tokens above -- Accent/AccentTint for birth and
+        // Chrome/Muted for death -- so a record badge is the same blue and the same neutral grey
+        // every other screen in the app already uses. Marriage is the only hue the palette did
+        // not already own; it is stated here as a token rather than as a literal inside a form,
+        // which is the drift this palette exists to prevent.
+        public static readonly Color Marriage     = Color.FromArgb(124, 58, 173);   // #7C3AAD
+        public static readonly Color MarriageTint = Color.FromArgb(243, 236, 251);  // #F3ECFB
+
         /// <summary>
         /// Linear blend of two palette colours, so a derived shade (a pill's border, a chip's
         /// edge) is stated as a relationship to the tokens rather than as yet another literal.
