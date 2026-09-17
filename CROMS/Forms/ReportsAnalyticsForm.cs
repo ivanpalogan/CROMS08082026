@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.Windows.Forms;
 using CROMS.Analytics;
 using CROMS.Analytics.Tabs;
+using CROMS.Data;
 using CROMS.Modules;
 
 namespace CROMS.Forms
@@ -107,9 +109,39 @@ namespace CROMS.Forms
         /// the pattern MainForm already uses for every module, so the form stays fully
         /// designable and behaves identically to the standalone screen it was.
         /// </summary>
+        private Panel _psaHost;
+
         private void AddPsaTab()
         {
             _psaPage = new TabPage("PSA / Statutory") { BackColor = UiTheme.PageBg, UseVisualStyleBackColor = false };
+
+            // Fill child added FIRST, Top bar added SECOND — the same order this form's own
+            // constructor uses (_tabs then header) and the one this codebase has repeatedly
+            // had to fix elsewhere: a docked child added LATER is laid out FIRST, so adding
+            // the bar before a Fill host would let Fill claim the whole page and overlap it.
+            _psaHost = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.PageBg };
+
+            var bar = new Panel { Dock = DockStyle.Top, Height = 44, BackColor = UiTheme.PageBg, Padding = new Padding(0, 6, 12, 6) };
+            var btnPrint = new Button
+            {
+                Text = "Print Assessment Report",
+                Dock = DockStyle.Right,
+                Width = 200,
+                BackColor = UiTheme.Accent,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            btnPrint.Click += (s, e) =>
+            {
+                DataTable t = AssessmentReport.BuildTable(AssessmentReport.Psa, DateTime.Today.Year);
+                AssessmentReport.Show(AssessmentReport.Psa, t, this);
+            };
+            bar.Controls.Add(btnPrint);
+
+            _psaPage.Controls.Add(_psaHost);
+            _psaPage.Controls.Add(bar);
+
             _tabs.TabPages.Add(_psaPage);
         }
 
@@ -128,7 +160,7 @@ namespace CROMS.Forms
                 Dock = DockStyle.Fill,
                 AutoScroll = true
             };
-            _psaPage.Controls.Add(_psa);
+            _psaHost.Controls.Add(_psa);
             _psa.Show();
             UiTheme.PolishButtons(_psa);
         }

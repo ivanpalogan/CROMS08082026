@@ -40,6 +40,28 @@ namespace CROMS.Data
             new TemplateFormInfo(Form3BCert.FormCode, Form3BCert.FormName,
                 "Birth", Form3BCert.PageWidth, Form3BCert.PageHeight,
                 () => Form3BCert.Cells.Select(ToElement).ToList()),
+
+            // The six annual assessment reports — one per Reports & Analytics tab. Same
+            // designer, same renderer, same "editable once opened" rule as A1/A2/A3; they
+            // differ only in which table they count a year of.
+            new TemplateFormInfo(AssessmentReport.Birth.FormCode, AssessmentReport.Birth.FormName,
+                "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
+                () => AssessmentReport.Birth.Cells.Select(ToElement).ToList()),
+            new TemplateFormInfo(AssessmentReport.Death.FormCode, AssessmentReport.Death.FormName,
+                "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
+                () => AssessmentReport.Death.Cells.Select(ToElement).ToList()),
+            new TemplateFormInfo(AssessmentReport.Marriage.FormCode, AssessmentReport.Marriage.FormName,
+                "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
+                () => AssessmentReport.Marriage.Cells.Select(ToElement).ToList()),
+            new TemplateFormInfo(AssessmentReport.Queue.FormCode, AssessmentReport.Queue.FormName,
+                "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
+                () => AssessmentReport.Queue.Cells.Select(ToElement).ToList()),
+            new TemplateFormInfo(AssessmentReport.Certificate.FormCode, AssessmentReport.Certificate.FormName,
+                "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
+                () => AssessmentReport.Certificate.Cells.Select(ToElement).ToList()),
+            new TemplateFormInfo(AssessmentReport.Psa.FormCode, AssessmentReport.Psa.FormName,
+                "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
+                () => AssessmentReport.Psa.Cells.Select(ToElement).ToList()),
         };
 
         /// <summary>The 1A/2A/3A "Facts Certification" family, in that order — the set every
@@ -306,7 +328,7 @@ namespace CROMS.Data
             DataTable shape = formCode == Form3ACert.FormCode ? Form3ACert.BuildTable(0)
                              : formCode == Form3BCert.FormCode ? Form3BCert.BuildTable(0)
                              : formCode == Form3CCert.FormCode ? Form3CCert.BuildTable(0)
-                             : new DataTable();
+                             : AssessmentReport.ShapeFor(formCode) ?? new DataTable();
 
             var list = new List<TemplateFieldOption>();
             foreach (DataColumn col in shape.Columns)

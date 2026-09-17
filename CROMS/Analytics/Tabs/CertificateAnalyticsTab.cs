@@ -1,5 +1,6 @@
 using System;
 using CROMS.Analytics.Widgets;
+using CROMS.Data;
 
 namespace CROMS.Analytics.Tabs
 {
@@ -32,6 +33,12 @@ namespace CROMS.Analytics.Tabs
             AddWidget(new CertAgingWidget());
             AddWidget(new CertRegistryYearsWidget());
             AddWidget(new CertCollectionWidget());
+
+            AddReportButton("Print Assessment Report", (s, e) =>
+            {
+                System.Data.DataTable t = AssessmentReport.BuildTable(AssessmentReport.Certificate, DateTime.Today.Year);
+                AssessmentReport.Show(AssessmentReport.Certificate, t, FindForm());
+            });
         }
 
         protected override void LoadCards()

@@ -104,6 +104,30 @@ namespace CROMS.Analytics
             return widget;
         }
 
+        /// <summary>
+        /// Adds the "Print Assessment Report" button every domain tab ends its card strip
+        /// with — same size/margin as a <see cref="SummaryCard"/> so it sits in the strip
+        /// rather than looking bolted on. <see cref="Modules.UiTheme"/> polishes it (rounded,
+        /// hover, hand cursor) the first time this module is shown, same as every other
+        /// button in the app.
+        /// </summary>
+        protected Button AddReportButton(string caption, EventHandler onClick)
+        {
+            var btn = new Button
+            {
+                Text = caption,
+                Size = new Size(176, SummaryCard.CardHeight),
+                Margin = new Padding(4, 0, 12, 12),
+                BackColor = UiTheme.Accent,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+            };
+            btn.Click += onClick;
+            CardStrip.Controls.Add(btn);
+            return btn;
+        }
+
         /// <summary>Every widget on this tab, in the order it was added.</summary>
         public IList<AnalyticsWidget> Widgets { get { return _widgets; } }
 

@@ -1,6 +1,8 @@
 using System;
+using System.Data;
 using System.Drawing;
 using CROMS.Analytics.Widgets;
+using CROMS.Data;
 
 namespace CROMS.Analytics.Tabs
 {
@@ -34,6 +36,12 @@ namespace CROMS.Analytics.Tabs
             AddWidget(new BirthLagWidget());
             AddWidget(new BirthAttendantWidget());
             AddWidget(new BirthMotherAgeWidget());
+
+            AddReportButton("Print Assessment Report", (s, e) =>
+            {
+                DataTable t = AssessmentReport.BuildTable(AssessmentReport.Birth, DateTime.Today.Year);
+                AssessmentReport.Show(AssessmentReport.Birth, t, FindForm());
+            });
         }
 
         protected override void LoadCards()

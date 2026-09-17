@@ -1,5 +1,7 @@
 using System;
+using System.Data;
 using CROMS.Analytics.Widgets;
+using CROMS.Data;
 
 namespace CROMS.Analytics.Tabs
 {
@@ -34,6 +36,12 @@ namespace CROMS.Analytics.Tabs
                 "Season of death", "date of death (date_of_death)",
                 "death", "deaths"));
             AddWidget(new DeathDisposalWidget());
+
+            AddReportButton("Print Assessment Report", (s, e) =>
+            {
+                DataTable t = AssessmentReport.BuildTable(AssessmentReport.Death, DateTime.Today.Year);
+                AssessmentReport.Show(AssessmentReport.Death, t, FindForm());
+            });
         }
 
         protected override void LoadCards()

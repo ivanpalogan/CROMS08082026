@@ -1,5 +1,7 @@
 using System;
+using System.Data;
 using CROMS.Analytics.Widgets;
+using CROMS.Data;
 
 namespace CROMS.Analytics.Tabs
 {
@@ -34,6 +36,12 @@ namespace CROMS.Analytics.Tabs
             AddWidget(new MarriageAgeWidget());
             AddWidget(new MarriageCeremonyWidget());
             AddWidget(new MarriageLicenceWidget());
+
+            AddReportButton("Print Assessment Report", (s, e) =>
+            {
+                DataTable t = AssessmentReport.BuildTable(AssessmentReport.Marriage, DateTime.Today.Year);
+                AssessmentReport.Show(AssessmentReport.Marriage, t, FindForm());
+            });
         }
 
         protected override void LoadCards()
