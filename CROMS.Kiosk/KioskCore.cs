@@ -262,12 +262,15 @@ namespace CROMS.Kiosk
             {
                 // queue_ticket_id links the claim to the kiosk ticket that holds the client's
                 // face photo, so the Claim Form shows it even when no transaction is set yet.
+                string details = string.Join(", ", s.Selected.Select(c => Find(c).Label));
+                if (details.Length > 255) details = details.Substring(0, 255);
                 Db.Push(
                     "UPDATE claim_requests SET first_name = @f, middle_name = @m, last_name = @l, " +
-                    "transaction_id = @txn, queue_ticket_id = @qt WHERE qr_token = @t",
+                    "request_details = @d, transaction_id = @txn, queue_ticket_id = @qt WHERE qr_token = @t",
                     new MySqlParameter("@f", NullIfBlank(s.First)),
                     new MySqlParameter("@m", NullIfBlank(s.Middle)),
                     new MySqlParameter("@l", NullIfBlank(s.Last)),
+                    new MySqlParameter("@d", details),
                     new MySqlParameter("@txn", txnId > 0 ? (object)txnId : DBNull.Value),
                     new MySqlParameter("@qt", queueTicketId > 0 ? (object)queueTicketId : DBNull.Value),
                     new MySqlParameter("@t", s.ClaimQrToken));
@@ -346,29 +349,13 @@ namespace CROMS.Kiosk
         /// </summary>
         public static bool Submit(KioskSession s, out string error)
         {
-            error = null;
-            if (s.Selected.Count == 0) { error = "Please select at least one service."; return false; }
-            if (string.IsNullOrWhiteSpace(s.First) || string.IsNullOrWhiteSpace(s.Last))
-            { error = "Please enter your first and last name."; return false; }
-            if (s.HasMarriage && (string.IsNullOrWhiteSpace(s.First2) || string.IsNullOrWhiteSpace(s.Last2)))
-            { error = "Please enter the spouse's first and last name."; return false; }
-            // Checked BEFORE the ticket exists, so a half-filled PSA request never leaves a
-            // ticket behind with no request for staff to find.
-            if (s.HasBreqs && (error = BreqsProblem(s)) != null) return false;
+            if (!Validate(s, out error)) return false;
 
             // Returning-client pickup: a typed queue number that maps to a parked request is
             // a reclaim — link the new ticket to that transaction and jump the queue.
             long returnTxnId = 0;
             if (s.HasClaim && !string.IsNullOrWhiteSpace(s.ClaimTicketEntry))
-            {
                 returnTxnId = ResolveParkedByQueue(s.ClaimTicketEntry.Trim());
-                if (returnTxnId == 0)
-                {
-                    error = "That queue number was not found among held requests. Check the Q-number " +
-                            "on your ticket, or leave it blank to start a new claim.";
-                    return false;
-                }
-            }
 
             string priority = returnTxnId != 0 ? "Priority" : PriorityValue(s);
             string joined = TicketSummary(s.Selected.Select(c => Find(c).Label).ToList());
@@ -385,9 +372,9 @@ namespace CROMS.Kiosk
             long ticketId = Db.Insert(
                 "INSERT INTO queue_tickets (ticket_code, full_name, spouse_full_name, contact_no, " +
                 "id_image, spouse_image, valid_id_type, number_queue, " +
-                "date, time, status, document_type, type_label, priority) " +
+                "date, time, status, document_type, purpose, type_label, priority) " +
                 "VALUES (@code, @name, @sname, @contact, @img, @simg, @idtype, @num, @date, @time, " +
-                "'Waiting', @doc, @label, @priority)",
+                "'Waiting', @doc, @purpose, @label, @priority)",
                 new MySqlParameter("@code", code),
                 new MySqlParameter("@name", FullName(s)),
                 new MySqlParameter("@sname", spouseName),
@@ -398,7 +385,8 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@num", num),
                 new MySqlParameter("@date", DateTime.Today),
                 new MySqlParameter("@time", DateTime.Now.ToString("HH:mm")),
-                new MySqlParameter("@doc", primary),
+                new MySqlParameter("@doc", s.HasCtc ? (object)s.CtcDocumentType : primary),
+                new MySqlParameter("@purpose", s.HasCtc ? NullIfBlank(s.CtcDetails) : DBNull.Value),
                 new MySqlParameter("@label", joined),
                 new MySqlParameter("@priority", priority));
 
@@ -420,9 +408,6 @@ namespace CROMS.Kiosk
 
             if (s.HasBreqs) SaveBreqsRequest(s, ticketId, code);
 
-            // Every visit shows the "Upload Your ID" QR on Step 2 (DetailsPhotoForm.Load already
-            // called EnsureClaimRequest by the time we get here), so finalize it for all of
-            // them — not only when CLAIM was the selected service.
             EnsureClaimRequest(s);
             string claimToken = s.ClaimQrToken, claimNo = s.ClaimQrNo;
             FinalizeClaimRow(s, returnTxnId, ticketId);
@@ -432,6 +417,37 @@ namespace CROMS.Kiosk
             string spouseLine = s.HasMarriage ? FullName2(s) : null;
             PrintTicket(code, services, priority, FullName(s), spouseLine, ahead, claimToken, claimNo);
             ShowTicket(code, services, claimToken, claimNo);
+            return true;
+        }
+
+        public static bool Validate(KioskSession s, out string error)
+        {
+            error = null;
+            if (s.Selected.Count == 0) { error = "Please select at least one service."; return false; }
+            if (string.IsNullOrWhiteSpace(s.First) || string.IsNullOrWhiteSpace(s.Last))
+            { error = "Please enter your first and last name."; return false; }
+            if (s.HasMarriage && (string.IsNullOrWhiteSpace(s.First2) || string.IsNullOrWhiteSpace(s.Last2)))
+            { error = "Please enter the spouse's first and last name."; return false; }
+            // Checked BEFORE the ticket exists, so a half-filled PSA request never leaves a
+            // ticket behind with no request for staff to find.
+            if (s.HasBreqs && (error = BreqsProblem(s)) != null) return false;
+            if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcDocumentType))
+            { error = "Please choose the civil registry document for the Certified True Copy request."; return false; }
+
+            // Returning-client pickup: a typed queue number that maps to a parked request is
+            // a reclaim — link the new ticket to that transaction and jump the queue.
+            long returnTxnId = 0;
+            if (s.HasClaim && !string.IsNullOrWhiteSpace(s.ClaimTicketEntry))
+            {
+                returnTxnId = ResolveParkedByQueue(s.ClaimTicketEntry.Trim());
+                if (returnTxnId == 0)
+                {
+                    error = "That queue number was not found among held requests. Check the Q-number " +
+                            "on your ticket, or leave it blank to start a new claim.";
+                    return false;
+                }
+            }
+
             return true;
         }
 

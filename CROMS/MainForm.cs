@@ -31,6 +31,7 @@ namespace CROMS
         private static readonly Color NavActiveBack = UiTheme.Accent;        // #1D4ED8
 
         private Timer _heartbeat;
+        private ClientTasksPanel _clientTasks;
 
         public MainForm()
         {
@@ -38,6 +39,7 @@ namespace CROMS
             RegisterNavButtons();
             SetupNavIcons();
             BuildUserBar();
+            SetupClientTasks();
             ApplyRoleAccess();   // also fills _navAllowed
             GroupNavSections();
             SetupSidebarRail();
@@ -774,7 +776,12 @@ namespace CROMS
         private void NavButton_Click(object sender, EventArgs e)
         {
             if (sender is Control c && c.Tag is string key)
+            {
+                // A sidebar click is an ordinary/manual transaction. It must never inherit
+                // whichever queue task the operator previously opened from Client Tasks.
+                QueueTaskContext.Clear();
                 ShowModule(key);
+            }
         }
 
         /// <summary>
@@ -816,9 +823,88 @@ namespace CROMS
             // Cached forms are reused, so re-pull their data every time the module is
             // shown — keeps cross-module views (e.g. Release & Claim's pending list) live.
             if (form is IRefreshable refreshable) refreshable.RefreshData();
-            headerLabel.Text = module.Title;
-            SetActiveButton(key);
             _activeKey = key;
+            headerLabel.Text = module.Title;
+            RefreshQueueHeader();
+            SetActiveButton(key);
+        }
+
+        /// <summary>Modules Client Tasks must never appear on — it is a per-window work
+        /// queue, not something relevant to the office-wide Dashboard or admin Settings.</summary>
+        private static bool ClientTasksAllowedOn(string key) => key != "dashboard" && key != "settings";
+
+        private void SetupClientTasks()
+        {
+            // Lives in the CONTENT area (docked right, beside the active module), never in
+            // headerPanel — the header is the window title, and a control placed there can
+            // only ever crowd or cover it. A slim tab stays pinned to the content area's right
+            // edge whether the rail is expanded or collapsed, so there is always a visible way
+            // back in without a separate header button.
+            _clientTasks = new ClientTasksPanel(this);
+            contentPanel.Controls.Add(_clientTasks);
+            _clientTasks.BringToFront();
+        }
+
+        /// <summary>Brings the task rail forward (e.g. right after a client is called to the
+        /// window) — a no-op on modules it isn't allowed on.</summary>
+        public void ShowClientTasksPanel()
+        {
+            if (ClientTasksAllowedOn(_activeKey)) _clientTasks.Expand();
+        }
+
+        public void RefreshQueueHeader()
+        {
+            if (_clientTasks == null) return;
+            _clientTasks.SetModuleAllowed(ClientTasksAllowedOn(_activeKey));
+            if (QueueTaskContext.IsLinked)
+                headerLabel.Text = QueueHeaderTitle(_activeKey) + "  ·  Queue Transaction: " + QueueTaskContext.TicketCode;
+            else
+                headerLabel.Text = QueueHeaderTitle(_activeKey);
+            _clientTasks.Reload();
+        }
+
+        private static string QueueHeaderTitle(string key)
+        {
+            foreach (var module in ModuleRegistry.All)
+                if (module.Key == key) return module.Title;
+            return string.Empty;
+        }
+
+        /// <summary>Opens a service only from an explicit Client Tasks action.</summary>
+        public void OpenQueueTask(int ticketId, int taskId, string ticketCode, string serviceCode)
+        {
+            string key;
+            switch ((serviceCode ?? string.Empty).ToUpperInvariant())
+            {
+                case "BIRTHREG": case "NEWREG": key = "birth"; break;
+                case "MARRIAGE": case "MARRIAGE_APP": case "MARRIAGE_REG": key = "marriage"; break;
+                case "DEATH": key = "death"; break;
+                case "CTC": case "VERIFY": key = "certrequest"; break;
+                case "BREQS": key = "breqs"; break;
+                case "CLAIM": key = "release"; break;
+                case "PETITION": case "LEGITIMATION": case "SUPPLEMENTAL":
+                case "COURT_ORDER": case "SUPPLEMENTAL_REPORT": case "LEGAL_INSTRUMENTS":
+                case "LEGITIMATION_RA9255": key = "petitions"; break;
+                default:
+                    MessageBox.Show("No transaction module is mapped to this service yet.",
+                        "Client tasks", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+            }
+
+            ShowModule(key);
+            Form form = _cache.TryGetValue(key, out var opened) ? opened : null;
+            if (form is Forms.BirthRegistrationForm birth)
+                birth.PrepareForQueueTicket(ticketId);
+            else if (form is Forms.CertificateRequestForm cert)
+                cert.PrepareForQueueTicket(ticketId, ticketCode);
+            else if (form is Forms.ReleaseClaimForm release)
+                release.PrepareFromQueueTicket(ticketId);
+            else if (form is Forms.BreqsForm breqs)
+                breqs.PrepareFromQueueTicket(ticketId);
+            RefreshQueueHeader();
+            // The processing window the operator asked for is now open — collapse the rail
+            // out of its way rather than laying it back over the screen. The tab stays put.
+            _clientTasks.Collapse();
         }
 
         /// <summary>

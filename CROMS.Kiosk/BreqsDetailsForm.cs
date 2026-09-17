@@ -33,6 +33,7 @@ namespace CROMS.Kiosk
 
             _btnBack.BringToFront();
             _btnNext.BringToFront();
+            _stepInd.Steps = _session.StepLabels();
             _stepInd.SetStep(1);
             PlaceStars();
             KioskButtons.Style(_btnBack, KioskButtonKind.Secondary, KioskCore.IconArrowLeft, backdrop: footer.BackColor);

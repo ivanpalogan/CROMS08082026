@@ -16,7 +16,7 @@ namespace CROMS.Kiosk
     /// </summary>
     internal static class Program
     {
-        private enum Step { Welcome, ChooseServices, Breqs, Details }
+        private enum Step { Welcome, ChooseServices, Breqs, Ctc, Details, Review }
 
         [STAThread]
         static void Main()
@@ -49,7 +49,7 @@ namespace CROMS.Kiosk
                         using (var f = new ServiceSelectForm(session))
                         {
                             step = f.ShowDialog() == DialogResult.OK
-                                ? (session.HasBreqs ? Step.Breqs : Step.Details)   // Next -> PSA document (BREQS only) or details
+                                ? NextAfterServices(session)
                                 : Step.Welcome;               // idle timeout -> back to attract
                         }
                         break;
@@ -58,31 +58,57 @@ namespace CROMS.Kiosk
                         using (var f = new BreqsDetailsForm(session))
                         {
                             DialogResult r = f.ShowDialog();
-                            if (r == DialogResult.OK) step = Step.Details;               // Next
+                            if (r == DialogResult.OK) step = session.HasCtc ? Step.Ctc : Step.Details;
                             else if (r == DialogResult.Cancel) step = Step.ChooseServices; // Back, choices kept
                             else { session.Reset(); step = Step.Welcome; }               // idle
                         }
                         break;
 
-                    default:
+                    case Step.Ctc:
+                        using (var f = new CtcDetailsForm(session))
+                        {
+                            DialogResult r = f.ShowDialog();
+                            if (r == DialogResult.OK) step = Step.Details;
+                            else if (r == DialogResult.Cancel) step = session.HasBreqs ? Step.Breqs : Step.ChooseServices;
+                            else { session.Reset(); step = Step.Welcome; }
+                        }
+                        break;
+
+                    case Step.Details:
                         using (var f = new DetailsPhotoForm(session))
                         {
                             DialogResult r = f.ShowDialog();
                             if (r == DialogResult.Cancel)
                             {
                                 // Back — keep the session so the previous step re-shows the client's entries.
-                                step = session.HasBreqs ? Step.Breqs : Step.ChooseServices;
+                                step = session.HasCtc ? Step.Ctc : (session.HasBreqs ? Step.Breqs : Step.ChooseServices);
                             }
                             else
                             {
-                                // Submitted, or idled out — done with this client.
-                                session.Reset();
-                                step = Step.Welcome;
+                                step = Step.Review;
                             }
+                        }
+                        break;
+
+                    default:
+                        using (var f = new ReviewRequestForm(session))
+                        {
+                            DialogResult r = f.ShowDialog();
+                            if (r == DialogResult.OK) { session.Reset(); step = Step.Welcome; }
+                            else if (r == DialogResult.Retry) step = Step.ChooseServices;
+                            else if (r == DialogResult.Cancel) step = Step.Details;
+                            else { session.Reset(); step = Step.Welcome; }
                         }
                         break;
                 }
             }
+        }
+
+        private static Step NextAfterServices(KioskSession session)
+        {
+            if (session.HasBreqs) return Step.Breqs;
+            if (session.HasCtc) return Step.Ctc;
+            return Step.Details;
         }
     }
 }

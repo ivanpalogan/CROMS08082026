@@ -541,6 +541,7 @@
       <DependentUpon>LoginForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\IRefreshable.cs" />
+    <Compile Include="Modules\ClientTasksPanel.cs" />
     <Compile Include="Modules\OthersBox.cs" />
     <Compile Include="Modules\ModuleInfo.cs" />
     <Compile Include="Modules\ModuleRegistry.cs" />

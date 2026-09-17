@@ -331,9 +331,7 @@ namespace CROMS.Kiosk
         /// before Next is pressed.</summary>
         private void UpdateStepIndicator()
         {
-            _stepInd.Steps = _session.HasBreqs
-                ? new[] { "Select Services", "PSA Document", "Personal Info & Photo" }
-                : new[] { "Select Services", "Personal Info & Photo" };
+            _stepInd.Steps = _session.StepLabels();
             _stepInd.SetStep(0);
         }
 

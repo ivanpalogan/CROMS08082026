@@ -40,12 +40,15 @@ namespace CROMS.Forms
             // Pre-fill from what the client entered on the kiosk (name, purpose, photo).
             string contact = "";
             System.Data.DataTable dt = Db.Pull(
-                "SELECT full_name, purpose, contact_no, id_image FROM queue_tickets WHERE id = " + ticketId);
+                "SELECT full_name, purpose, contact_no, id_image, document_type FROM queue_tickets WHERE id = " + ticketId);
             if (dt.Rows.Count > 0)
             {
                 var row = dt.Rows[0];
                 FillName(Text2(row["full_name"]));
                 txtPurpose.Text = Text2(row["purpose"]);
+                string requestedType = Text2(row["document_type"]);
+                if (requestedType == "Birth" || requestedType == "Marriage" || requestedType == "Death")
+                    cboRecordType.SelectedItem = requestedType;
                 contact = Text2(row["contact_no"]);
                 ShowPhoto(row["id_image"]);
             }
@@ -308,8 +311,7 @@ namespace CROMS.Forms
                 string queueCode = _queueTicketCode;
                 if (_queueTicketId > 0)
                     Db.Push(
-                        "UPDATE queue_tickets SET transaction_id = @txn, status = 'Completed', " +
-                        "window_no = NULL WHERE id = @tid",
+                        "UPDATE queue_tickets SET transaction_id = @txn WHERE id = @tid",
                         new MySqlParameter("@txn", txnId),
                         new MySqlParameter("@tid", _queueTicketId));
 

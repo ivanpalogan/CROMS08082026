@@ -53,13 +53,8 @@ namespace CROMS.Kiosk
             _btnPrint.BringToFront();
             _offlineOverlay.Bounds = ClientRectangle;
             _offlineOverlay.BringToFront();
-            // With a PSA copy request there is a third step (PSA Document) before this one.
-            if (_session.HasBreqs)
-            {
-                _stepInd.Steps = new[] { "Select Services", "PSA Document", "Personal Info & Photo" };
-                _stepInd.SetStep(2);
-            }
-            else _stepInd.SetStep(1);
+            _stepInd.Steps = _session.StepLabels();
+            _stepInd.SetStep(_session.DetailsStepIndex());
 
             // One shared button treatment across both kiosk steps (see KioskButtons).
             KioskButtons.Style(_btnBack, KioskButtonKind.Secondary, KioskCore.IconArrowLeft,
@@ -659,13 +654,13 @@ namespace CROMS.Kiosk
             SaveToSession();
             try
             {
-                if (!KioskCore.Submit(_session, out string error))
+                if (!KioskCore.Validate(_session, out string error))
                 {
                     Warn(error);
                     return;   // stay on this step so the client can fix it
                 }
                 _navigating = true;
-                DialogResult = DialogResult.OK;   // submitted => flow resets
+                DialogResult = DialogResult.OK;   // valid => final review
                 Close();
             }
             catch (Exception ex)

@@ -319,6 +319,15 @@ namespace CROMS.Forms
                 return;
             }
 
+            // A multi-service ticket is worked from the explicit Client Tasks rail.
+            // Clicking a window card must not silently mean "the current task is finished".
+            MainForm activeShell = Shell();
+            if (activeShell != null)
+            {
+                activeShell.ShowClientTasksPanel();
+                return;
+            }
+
             // A service already in progress? Clicking again means "I finished it".
             DataRow serving = FindRow(svc, "Serving");
             if (serving != null)
@@ -625,8 +634,10 @@ namespace CROMS.Forms
             Audit.Write("Update", "queue_tickets", ticketId, "Called client " + code + " to " + wname);
             Announce(code, wname);
             RefreshAll();
+            MainForm shell = Shell();
+            if (shell != null) shell.ShowClientTasksPanel();
             MessageBox.Show(code + " — now called to " + wname + ".\n" +
-                "Click the window card to process the requested services.",
+                "Use Client Tasks to process each requested service.",
                 "Client called", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 

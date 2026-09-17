@@ -46,9 +46,26 @@ namespace CROMS.Kiosk
         public System.DateTime? EventDate;
         public string EventCity, EventProvince, FatherName, MotherMaidenName;
 
+        // Certified True Copy only — captured once at the kiosk and carried into the
+        // staff Certificate Request form with the queue task.
+        public string CtcDocumentType, CtcDetails;
+
         public bool HasClaim => Selected.Contains("CLAIM");
         public bool HasBreqs => Selected.Contains("BREQS");
         public bool HasMarriage => Selected.Contains("MARRIAGE_APP") || Selected.Contains("MARRIAGE_REG");
+        public bool HasCtc => Selected.Contains("CTC");
+
+        public string[] StepLabels()
+        {
+            var steps = new List<string> { "Select Services" };
+            if (HasBreqs) steps.Add("PSA Document");
+            if (HasCtc) steps.Add("CTC Details");
+            steps.Add("Personal Info & Photo");
+            steps.Add("Review");
+            return steps.ToArray();
+        }
+
+        public int DetailsStepIndex() => 1 + (HasBreqs ? 1 : 0) + (HasCtc ? 1 : 0);
 
         /// <summary>Fresh start for the next client.</summary>
         public void Reset()
@@ -68,6 +85,7 @@ namespace CROMS.Kiosk
             OwnerFirst = OwnerMiddle = OwnerLast = SpouseFirst = SpouseMiddle = SpouseLast = null;
             EventDate = null;
             EventCity = EventProvince = FatherName = MotherMaidenName = null;
+            CtcDocumentType = CtcDetails = null;
         }
     }
 }

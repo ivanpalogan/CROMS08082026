@@ -751,8 +751,7 @@ namespace CROMS.Forms
                 if (status == "Pending Approval" && _queueTicketId > 0)
                 {
                     Db.Push(
-                        "UPDATE queue_tickets SET status = 'Pending Approval', birth_id = @bid, " +
-                        "window_no = NULL WHERE id = @tid",
+                        "UPDATE queue_tickets SET birth_id = @bid WHERE id = @tid",
                         new MySqlParameter("@bid", newId),
                         new MySqlParameter("@tid", _queueTicketId));
                     extra = "\nThe queue ticket now waits for approval, then returns for releasing.";

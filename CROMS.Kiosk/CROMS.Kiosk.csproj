@@ -113,6 +113,12 @@
     <Compile Include="IconFont.cs" />
     <Compile Include="HoverFade.cs" />
     <Compile Include="KioskSession.cs" />
+    <Compile Include="CtcDetailsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ReviewRequestForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="WelcomeForm.cs">
       <SubType>Form</SubType>
     </Compile>
