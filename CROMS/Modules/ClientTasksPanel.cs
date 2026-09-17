@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Text;
 using System.Windows.Forms;
 using CROMS.Data;
 using MySql.Data.MySqlClient;
@@ -40,11 +41,10 @@ namespace CROMS.Modules
     }
 
     /// <summary>
-    /// Shared task rail for the ticket assigned to this operator's service window. Lives in
-    /// the CONTENT area (docked right, beside whichever module is open) rather than the header,
-    /// so it can never sit over the window title. A slim tab stays flush against the right edge
-    /// at all times — expanded or collapsed — so staff always have a visible way back in;
-    /// collapsing only shrinks the body, it never removes the tab.
+    /// Shared task drawer for the ticket assigned to this operator's service window. It overlays
+    /// the CONTENT area rather than docking into it, so opening the drawer never resizes the
+    /// active module. Its tab is attached to the drawer's left edge; collapsing immediately
+    /// places the body beyond the right edge while leaving the arrow visible.
     ///
     /// Stored service states remain Pending / Serving / Completed for compatibility; the
     /// operator-facing labels are Pending / Current Task / Finished.
@@ -55,9 +55,10 @@ namespace CROMS.Modules
         private const int BodyWidth = 340;
 
         private readonly CROMS.MainForm _shell;
+        private readonly Control _overlayArea;
 
         private readonly Panel _body = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Surface };
-        private readonly Panel _tab = new Panel { Dock = DockStyle.Right, Width = TabWidth };
+        private readonly Panel _tab = new Panel { Dock = DockStyle.Left, Width = TabWidth };
 
         private readonly Label _queue = new Label();
         private readonly Label _summary = new Label();
@@ -68,23 +69,28 @@ namespace CROMS.Modules
 
         private int _ticketId;
         private string _ticketCode;
+        private string _renderSignature;
         private bool _expanded = true;
         private bool _moduleAllowed = true;
 
-        public ClientTasksPanel(CROMS.MainForm shell)
+        public ClientTasksPanel(CROMS.MainForm shell, Control overlayArea)
         {
             _shell = shell;
-            Dock = DockStyle.Right;
+            _overlayArea = overlayArea;
+            Dock = DockStyle.None;
             BackColor = UiTheme.PageBg;
             Visible = false;
+            Width = TabWidth + BodyWidth;
 
             BuildBody();
             BuildTab();
 
-            // Dock=Right lays out the LAST-added child flush against the outer edge (the same
-            // rule documented elsewhere in this codebase for Dock=Top), so the body must be
-            // added first — it fills what the tab leaves behind — and the tab added last so it
-            // stays pinned to the true right edge whether the panel is expanded or collapsed.
+            EnableDoubleBuffering(this);
+            EnableDoubleBuffering(_body);
+            EnableDoubleBuffering(_tasks);
+
+            // The tab is the drawer handle, so it belongs on the LEFT of the body. When the
+            // drawer closes, the whole control moves right until only this handle is in view.
             Controls.Add(_body);
             Controls.Add(_tab);
 
@@ -92,6 +98,22 @@ namespace CROMS.Modules
             _refresh.Start();
 
             ApplyExpanded();
+        }
+
+        protected override void OnParentChanged(EventArgs e)
+        {
+            if (Parent != null)
+            {
+                Parent.ClientSizeChanged -= Parent_ClientSizeChanged;
+                Parent.ClientSizeChanged += Parent_ClientSizeChanged;
+            }
+            base.OnParentChanged(e);
+            PositionDrawer();
+        }
+
+        private void Parent_ClientSizeChanged(object sender, EventArgs e)
+        {
+            PositionDrawer();
         }
 
         // ================================================================
@@ -129,6 +151,8 @@ namespace CROMS.Modules
             _complete.Margin = new Padding(10);
             _complete.FlatStyle = FlatStyle.Flat;
             _complete.FlatAppearance.BorderSize = 0;
+            _complete.BackColor = UiTheme.Success;
+            _complete.ForeColor = Color.White;
             _complete.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
             _complete.Click += (s, e) => CompleteVisit();
 
@@ -184,13 +208,25 @@ namespace CROMS.Modules
                 }
             }
 
-            // Vertical label, bottom-to-top.
-            using (var font = new Font("Segoe UI", 9F, FontStyle.Bold))
+            // Keep the collapsed handle minimal: only the arrow remains visible. The label
+            // returns when the drawer is open and has room to read as an attached tab.
+            if (_expanded)
             {
-                g.TranslateTransform(_tab.Width - 10, _tab.Height - 20);
-                g.RotateTransform(-90);
-                g.DrawString("CLIENT TASKS", font, Brushes.White, 0, 0);
-                g.ResetTransform();
+                using (var font = new Font("Segoe UI", 9F, FontStyle.Bold))
+                using (var format = new StringFormat
+                {
+                    Alignment = StringAlignment.Center,
+                    LineAlignment = StringAlignment.Center
+                })
+                {
+                    GraphicsState state = g.Save();
+                    g.TranslateTransform(_tab.Width / 2f, _tab.Height / 2f);
+                    g.RotateTransform(-90);
+                    g.DrawString("CLIENT TASKS", font, Brushes.White,
+                        new RectangleF(-_tab.Height / 2f, -_tab.Width / 2f,
+                            _tab.Height, _tab.Width), format);
+                    g.Restore(state);
+                }
             }
         }
 
@@ -202,9 +238,27 @@ namespace CROMS.Modules
 
         private void ApplyExpanded()
         {
-            _body.Visible = _expanded;
-            Width = _expanded ? TabWidth + BodyWidth : TabWidth;
+            PositionDrawer();
             _tab.Invalidate();
+        }
+
+        private void PositionDrawer()
+        {
+            if (Parent == null) return;
+
+            // The drawer is a sibling of the scrolling module host. Match that host's visible
+            // rectangle so the drawer overlays it without becoming part of its scrollable area.
+            Point origin = Parent.PointToClient(_overlayArea.PointToScreen(Point.Empty));
+            Height = _overlayArea.ClientSize.Height;
+            Top = origin.Y;
+            Left = origin.X + _overlayArea.ClientSize.Width - (_expanded ? Width : TabWidth);
+        }
+
+        private static void EnableDoubleBuffering(Control control)
+        {
+            typeof(Control).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                ?.SetValue(control, true, null);
         }
 
         /// <summary>Expands the panel (e.g. right after a client is called to the window).</summary>
@@ -215,8 +269,7 @@ namespace CROMS.Modules
             Reload();
         }
 
-        /// <summary>Shrinks the panel back to its tab — used when a Process click opens the
-        /// module the operator asked to work in, so it doesn't sit on top of that screen.</summary>
+        /// <summary>Hides the drawer body off the right side, leaving its arrow handle visible.</summary>
         public void Collapse()
         {
             _expanded = false;
@@ -238,6 +291,11 @@ namespace CROMS.Modules
         private void UpdateVisibility()
         {
             Visible = _moduleAllowed && _ticketId > 0;
+            if (Visible)
+            {
+                PositionDrawer();
+                BringToFront();
+            }
         }
 
         // ================================================================
@@ -249,6 +307,7 @@ namespace CROMS.Modules
             if (!Session.HasWindow)
             {
                 _ticketId = 0;
+                _renderSignature = null;
                 UpdateVisibility();
                 return;
             }
@@ -263,6 +322,7 @@ namespace CROMS.Modules
             {
                 _ticketId = 0;
                 _ticketCode = null;
+                _renderSignature = null;
                 QueueTaskContext.Clear();
                 UpdateVisibility();
                 return;
@@ -276,6 +336,16 @@ namespace CROMS.Modules
             DataTable rows = Db.Pull(
                 "SELECT id, service_code, service_label, status FROM queue_ticket_services " +
                 "WHERE ticket_id = @id ORDER BY id", new MySqlParameter("@id", _ticketId));
+
+            var signatureBuilder = new StringBuilder().Append(_ticketId).Append(':');
+            foreach (DataRow row in rows.Rows)
+                signatureBuilder.Append(row["id"]).Append('~')
+                    .Append(row["service_code"]).Append('~')
+                    .Append(row["service_label"]).Append('~')
+                    .Append(row["status"]).Append('|');
+            string signature = signatureBuilder.ToString();
+            if (signature == _renderSignature) return;
+            _renderSignature = signature;
 
             DataRow current = null;
             var pending = new System.Collections.Generic.List<DataRow>();
@@ -301,9 +371,11 @@ namespace CROMS.Modules
             _summary.Text = total == 0
                 ? "Legacy single-service ticket"
                 : done + " of " + total + " task" + (total == 1 ? "" : "s") + " finished";
-            _complete.Enabled = total > 0 && done == total;
-            _complete.BackColor = _complete.Enabled ? UiTheme.Success : UiTheme.Chrome;
-            _complete.ForeColor = _complete.Enabled ? Color.White : UiTheme.Faint;
+            // Keep the completion action visibly green instead of turning into an uncoloured
+            // grey strip. CompleteVisit still blocks completion and explains what remains.
+            _complete.Enabled = total > 0;
+            _complete.BackColor = UiTheme.Success;
+            _complete.ForeColor = Color.White;
         }
 
         /// <summary>
@@ -437,6 +509,7 @@ namespace CROMS.Modules
             {
                 var process = MiniButton("Process", UiTheme.Accent, Color.White);
                 process.Location = new Point(10, 60);
+                process.Width = card.ClientSize.Width - 20;
                 process.Click += (s, e) => ProcessTask(taskId, serviceCode, serviceLabel);
                 card.Controls.Add(process);
             }
@@ -526,7 +599,11 @@ namespace CROMS.Modules
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing) _refresh.Dispose();
+            if (disposing)
+            {
+                _refresh.Dispose();
+                if (Parent != null) Parent.ClientSizeChanged -= Parent_ClientSizeChanged;
+            }
             base.Dispose(disposing);
         }
     }

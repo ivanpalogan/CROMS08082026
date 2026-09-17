@@ -835,13 +835,11 @@ namespace CROMS
 
         private void SetupClientTasks()
         {
-            // Lives in the CONTENT area (docked right, beside the active module), never in
-            // headerPanel — the header is the window title, and a control placed there can
-            // only ever crowd or cover it. A slim tab stays pinned to the content area's right
-            // edge whether the rail is expanded or collapsed, so there is always a visible way
-            // back in without a separate header button.
-            _clientTasks = new ClientTasksPanel(this);
-            contentPanel.Controls.Add(_clientTasks);
+            // Keep the drawer outside contentPanel. That panel scrolls large modules, and an
+            // off-screen child changes its AutoScrollMinSize (which made the main view jump and
+            // showed a horizontal scrollbar whenever the drawer was collapsed).
+            _clientTasks = new ClientTasksPanel(this, contentPanel);
+            mainPanel.Controls.Add(_clientTasks);
             _clientTasks.BringToFront();
         }
 
@@ -902,8 +900,8 @@ namespace CROMS
             else if (form is Forms.BreqsForm breqs)
                 breqs.PrepareFromQueueTicket(ticketId);
             RefreshQueueHeader();
-            // The processing window the operator asked for is now open — collapse the rail
-            // out of its way rather than laying it back over the screen. The tab stays put.
+            // The processing window the operator asked for is now open — put the drawer body
+            // off-screen immediately. Its arrow handle remains available at the right edge.
             _clientTasks.Collapse();
         }
 
