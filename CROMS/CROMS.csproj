@@ -452,6 +452,9 @@
     <Compile Include="Forms\ReportsAnalyticsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\CollectionsReportForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Data\Db.cs" />
     <Compile Include="Data\RegistryNumber.cs" />
     <Compile Include="Data\MarriageRules.cs" />
@@ -480,6 +483,7 @@
     <Compile Include="Data\Form3BCert.cs" />
     <Compile Include="Data\Form3CCert.cs" />
     <Compile Include="Data\AssessmentReport.cs" />
+    <Compile Include="Data\CollectionsReport.cs" />
     <Compile Include="Data\DelayedBirthRules.cs" />
     <Compile Include="Data\DelayedBirthService.cs" />
     <Compile Include="Forms\DelayedBirthCaseForm.cs">

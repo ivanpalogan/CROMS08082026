@@ -62,6 +62,12 @@ namespace CROMS.Data
             new TemplateFormInfo(AssessmentReport.Psa.FormCode, AssessmentReport.Psa.FormName,
                 "Assessment", AssessmentReport.PageWidth, AssessmentReport.PageHeight,
                 () => AssessmentReport.Psa.Cells.Select(ToElement).ToList()),
+
+            // The annual Fees & Collections report — replaces the old Fees & Payments
+            // "Payment log" / "Monthly collection" tabs, now under Reports & Analytics.
+            new TemplateFormInfo(CollectionsReport.FormCode, CollectionsReport.FormName,
+                "Assessment", CollectionsReport.PageWidth, CollectionsReport.PageHeight,
+                () => CollectionsReport.Cells.Select(ToElement).ToList()),
         };
 
         /// <summary>The 1A/2A/3A "Facts Certification" family, in that order — the set every

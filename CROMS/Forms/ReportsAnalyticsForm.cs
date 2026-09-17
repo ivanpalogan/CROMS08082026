@@ -11,9 +11,15 @@ using CROMS.Modules;
 namespace CROMS.Forms
 {
     /// <summary>
-    /// Reports &amp; Analytics — the tabbed host for the six reporting domains.
+    /// Reports &amp; Analytics — the tabbed host for the reporting domains.
     ///
-    /// Tab 6 (PSA / Statutory) REHOSTS the existing <see cref="ReportsPsaForm"/> unchanged:
+    /// Fees &amp; Collections rehosts the former Fees &amp; Payments "Payment log" / "Monthly
+    /// collection" tabs (same queries, same grids, same CSV export) and adds the printable
+    /// annual <see cref="CollectionsReport"/> - a Form3ACell page with a conclusion at the
+    /// bottom, editable through Settings -&gt; Forms &amp; Templates like every other
+    /// certificate template.
+    ///
+    /// PSA / Statutory REHOSTS the existing <see cref="ReportsPsaForm"/> unchanged:
     /// it is embedded with TopLevel = false, exactly the way MainForm embeds every module,
     /// so its logic, queries, output and CSV export are the ones the office already checks
     /// against PSA. Nothing in that form was rewritten. Keeping statutory output physically
@@ -28,6 +34,8 @@ namespace CROMS.Forms
         private readonly Dictionary<TabPage, AnalyticsTab> _analytics = new Dictionary<TabPage, AnalyticsTab>();
         private ReportsPsaForm _psa;
         private TabPage _psaPage;
+        private CollectionsReportForm _collections;
+        private TabPage _collectionsPage;
 
         public ReportsAnalyticsForm()
         {
@@ -79,6 +87,7 @@ namespace CROMS.Forms
             AddAnalyticsTab("Queuing", new QueuingAnalyticsTab());
             AddAnalyticsTab("Certificates", new CertificateAnalyticsTab());
 
+            AddCollectionsTab();
             AddPsaTab();
 
             Controls.Add(_tabs);
@@ -165,6 +174,32 @@ namespace CROMS.Forms
             UiTheme.PolishButtons(_psa);
         }
 
+        /// <summary>
+        /// Fees &amp; Collections — the old Fees &amp; Payments "Payment log" / "Monthly
+        /// collection" tabs, rehosted here (same pattern as the PSA tab), plus the printable
+        /// annual assessment report.
+        /// </summary>
+        private void AddCollectionsTab()
+        {
+            _collectionsPage = new TabPage("Fees & Collections") { BackColor = UiTheme.PageBg, UseVisualStyleBackColor = false };
+            _tabs.TabPages.Add(_collectionsPage);
+        }
+
+        private void EnsureCollections()
+        {
+            if (_collections != null) return;
+            _collections = new CollectionsReportForm
+            {
+                TopLevel = false,
+                FormBorderStyle = FormBorderStyle.None,
+                Dock = DockStyle.Fill,
+                AutoScroll = true
+            };
+            _collectionsPage.Controls.Add(_collections);
+            _collections.Show();
+            UiTheme.PolishButtons(_collections);
+        }
+
         // ------------------------------------------------------------------- load
         /// <summary>Loads only the tab the user is actually looking at.</summary>
         private void LoadSelected()
@@ -176,6 +211,13 @@ namespace CROMS.Forms
             {
                 EnsurePsa();
                 _psa.RefreshData();
+                return;
+            }
+
+            if (page == _collectionsPage)
+            {
+                EnsureCollections();
+                _collections.RefreshData();
                 return;
             }
 
@@ -194,6 +236,7 @@ namespace CROMS.Forms
             if (page == null) return;
 
             if (page == _psaPage) { EnsurePsa(); _psa.RefreshData(); return; }
+            if (page == _collectionsPage) { EnsureCollections(); _collections.RefreshData(); return; }
 
             AnalyticsTab tab;
             if (_analytics.TryGetValue(page, out tab)) tab.ReloadAll();
