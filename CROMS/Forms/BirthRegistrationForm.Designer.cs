@@ -40,6 +40,7 @@ namespace CROMS.Forms
             this.btnSubmit = new System.Windows.Forms.Button();
             this.btnSaveDraft = new System.Windows.Forms.Button();
             this.btnOCRLiveBirth = new System.Windows.Forms.Button();
+            this.btnBackToList = new System.Windows.Forms.Button();
             this.cardForm = new CROMS.Modules.CardPanel();
             this.tabControl = new System.Windows.Forms.TabControl();
             this.tabChild = new System.Windows.Forms.TabPage();
@@ -146,8 +147,6 @@ namespace CROMS.Forms
             this.txtRegNo = new System.Windows.Forms.TextBox();
             this.lblBook = new System.Windows.Forms.Label();
             this.txtBook = new System.Windows.Forms.TextBox();
-            this.lblBookPage = new System.Windows.Forms.Label();
-            this.txtBookPage = new System.Windows.Forms.TextBox();
             this.lblStatus = new System.Windows.Forms.Label();
             this.cboStatus = new System.Windows.Forms.ComboBox();
             this.lblPreparedBy = new System.Windows.Forms.Label();
@@ -170,21 +169,23 @@ namespace CROMS.Forms
             this.dtpRegisteredDate = new System.Windows.Forms.DateTimePicker();
             this.lblRemarks = new System.Windows.Forms.Label();
             this.txtRemarks = new System.Windows.Forms.TextBox();
+            this.lblBookPage = new System.Windows.Forms.Label();
+            this.txtBookPage = new System.Windows.Forms.TextBox();
+            this.pnlRecordActions = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnDelete = new System.Windows.Forms.Button();
+            this.btnUpdate = new System.Windows.Forms.Button();
             this.cardRecords = new CROMS.Modules.CardPanel();
             this.layoutRecords = new System.Windows.Forms.TableLayoutPanel();
             this.pnlRecordsHead = new System.Windows.Forms.TableLayoutPanel();
             this.lblRecent = new System.Windows.Forms.Label();
-            this.pnlRecordActions = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnDelete = new System.Windows.Forms.Button();
-            this.btnUpdate = new System.Windows.Forms.Button();
-            this.dgvBirths = new System.Windows.Forms.DataGridView();
+            this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnNewRegistration = new System.Windows.Forms.Button();
+            this.btnOpenRecord = new System.Windows.Forms.Button();
             this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnClearSearch = new System.Windows.Forms.Button();
-            this.btnBackToList = new System.Windows.Forms.Button();
-            this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnOpenRecord = new System.Windows.Forms.Button();
-            this.btnNewRegistration = new System.Windows.Forms.Button();
+            this.dgvBirths = new System.Windows.Forms.DataGridView();
+            this.button1 = new System.Windows.Forms.Button();
             this.certificateMenu.SuspendLayout();
             this.layoutRoot.SuspendLayout();
             this.layoutMain.SuspendLayout();
@@ -208,10 +209,11 @@ namespace CROMS.Forms
             this.tblInformant.SuspendLayout();
             this.tabCert.SuspendLayout();
             this.tblCert.SuspendLayout();
+            this.pnlRecordActions.SuspendLayout();
             this.cardRecords.SuspendLayout();
             this.layoutRecords.SuspendLayout();
             this.pnlRecordsHead.SuspendLayout();
-            this.pnlRecordActions.SuspendLayout();
+            this.pnlListActions.SuspendLayout();
             this.pnlSearch.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvBirths)).BeginInit();
             this.SuspendLayout();
@@ -223,20 +225,20 @@ namespace CROMS.Forms
             this.mnuViewSoftcopy,
             this.mnuFactsCert});
             this.certificateMenu.Name = "certificateMenu";
-            this.certificateMenu.Size = new System.Drawing.Size(220, 48);
+            this.certificateMenu.Size = new System.Drawing.Size(235, 48);
             this.certificateMenu.Opening += new System.ComponentModel.CancelEventHandler(this.certificateMenu_Opening);
-            //
+            // 
             // mnuViewSoftcopy
-            //
+            // 
             this.mnuViewSoftcopy.Name = "mnuViewSoftcopy";
-            this.mnuViewSoftcopy.Size = new System.Drawing.Size(219, 22);
+            this.mnuViewSoftcopy.Size = new System.Drawing.Size(234, 22);
             this.mnuViewSoftcopy.Text = "View Softcopy";
             this.mnuViewSoftcopy.Click += new System.EventHandler(this.btnViewScan_Click);
-            //
+            // 
             // mnuFactsCert
-            //
+            // 
             this.mnuFactsCert.Name = "mnuFactsCert";
-            this.mnuFactsCert.Size = new System.Drawing.Size(219, 22);
+            this.mnuFactsCert.Size = new System.Drawing.Size(234, 22);
             this.mnuFactsCert.Text = "Facts Certification (Form 1A)...";
             this.mnuFactsCert.Click += new System.EventHandler(this.mnuFactsCert_Click);
             // 
@@ -247,7 +249,7 @@ namespace CROMS.Forms
             this.btnCertificate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnCertificate.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnCertificate.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(36)))));
-            this.btnCertificate.Location = new System.Drawing.Point(6, 6);
+            this.btnCertificate.Location = new System.Drawing.Point(624, 6);
             this.btnCertificate.Margin = this.btnNew.Margin;
             this.btnCertificate.Menu = this.certificateMenu;
             this.btnCertificate.Name = "btnCertificate";
@@ -262,7 +264,7 @@ namespace CROMS.Forms
             // 
             this.btnNew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnNew.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnNew.Location = new System.Drawing.Point(242, 6);
+            this.btnNew.Location = new System.Drawing.Point(860, 6);
             this.btnNew.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
             this.btnNew.Name = "btnNew";
             this.btnNew.Size = new System.Drawing.Size(100, 30);
@@ -330,7 +332,7 @@ namespace CROMS.Forms
             this.pnlHeadText.Location = new System.Drawing.Point(0, 0);
             this.pnlHeadText.Margin = new System.Windows.Forms.Padding(0);
             this.pnlHeadText.Name = "pnlHeadText";
-            this.pnlHeadText.Size = new System.Drawing.Size(716, 96);
+            this.pnlHeadText.Size = new System.Drawing.Size(572, 96);
             this.pnlHeadText.TabIndex = 0;
             // 
             // lblTitle
@@ -378,11 +380,11 @@ namespace CROMS.Forms
             this.pnlHeadActions.Controls.Add(this.btnBackToList);
             this.pnlHeadActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlHeadActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.pnlHeadActions.Location = new System.Drawing.Point(716, 0);
+            this.pnlHeadActions.Location = new System.Drawing.Point(572, 0);
             this.pnlHeadActions.Margin = new System.Windows.Forms.Padding(0);
             this.pnlHeadActions.Name = "pnlHeadActions";
             this.pnlHeadActions.Padding = new System.Windows.Forms.Padding(0, 4, 0, 0);
-            this.pnlHeadActions.Size = new System.Drawing.Size(484, 96);
+            this.pnlHeadActions.Size = new System.Drawing.Size(628, 96);
             this.pnlHeadActions.TabIndex = 1;
             this.pnlHeadActions.WrapContents = false;
             // 
@@ -392,7 +394,7 @@ namespace CROMS.Forms
             this.btnSubmit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSubmit.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnSubmit.ForeColor = System.Drawing.Color.White;
-            this.btnSubmit.Location = new System.Drawing.Point(312, 4);
+            this.btnSubmit.Location = new System.Drawing.Point(456, 4);
             this.btnSubmit.Margin = new System.Windows.Forms.Padding(8, 0, 0, 0);
             this.btnSubmit.Name = "btnSubmit";
             this.btnSubmit.Size = new System.Drawing.Size(172, 40);
@@ -405,7 +407,7 @@ namespace CROMS.Forms
             // 
             this.btnSaveDraft.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSaveDraft.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnSaveDraft.Location = new System.Drawing.Point(164, 4);
+            this.btnSaveDraft.Location = new System.Drawing.Point(308, 4);
             this.btnSaveDraft.Margin = new System.Windows.Forms.Padding(0);
             this.btnSaveDraft.Name = "btnSaveDraft";
             this.btnSaveDraft.Size = new System.Drawing.Size(140, 40);
@@ -420,7 +422,7 @@ namespace CROMS.Forms
             this.btnOCRLiveBirth.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnOCRLiveBirth.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.btnOCRLiveBirth.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
-            this.btnOCRLiveBirth.Location = new System.Drawing.Point(0, 4);
+            this.btnOCRLiveBirth.Location = new System.Drawing.Point(144, 4);
             this.btnOCRLiveBirth.Margin = new System.Windows.Forms.Padding(0, 0, 14, 0);
             this.btnOCRLiveBirth.Name = "btnOCRLiveBirth";
             this.btnOCRLiveBirth.Size = new System.Drawing.Size(150, 40);
@@ -428,11 +430,12 @@ namespace CROMS.Forms
             this.btnOCRLiveBirth.Text = "Scan Document";
             this.btnOCRLiveBirth.UseVisualStyleBackColor = false;
             this.btnOCRLiveBirth.Click += new System.EventHandler(this.btnOCRLiveBirth_Click);
-            //
+            // 
             // btnBackToList
-            //
+            // 
             this.btnBackToList.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnBackToList.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnBackToList.Location = new System.Drawing.Point(0, 8);
             this.btnBackToList.Margin = new System.Windows.Forms.Padding(0, 4, 14, 0);
             this.btnBackToList.Name = "btnBackToList";
             this.btnBackToList.Size = new System.Drawing.Size(130, 40);
@@ -440,9 +443,9 @@ namespace CROMS.Forms
             this.btnBackToList.Text = "← Back to List";
             this.btnBackToList.UseVisualStyleBackColor = true;
             this.btnBackToList.Click += new System.EventHandler(this.btnBackToList_Click);
-            //
+            // 
             // cardForm
-            //
+            // 
             this.cardForm.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.cardForm.CardColor = System.Drawing.Color.White;
             this.cardForm.Controls.Add(this.tabControl);
@@ -469,11 +472,11 @@ namespace CROMS.Forms
             this.tabControl.Controls.Add(this.tabCert);
             this.tabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.tabControl.Location = new System.Drawing.Point(14, 12);
+            this.tabControl.Location = new System.Drawing.Point(14, 54);
             this.tabControl.Name = "tabControl";
             this.tabControl.Padding = new System.Drawing.Point(14, 5);
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(1172, 404);
+            this.tabControl.Size = new System.Drawing.Size(1172, 362);
             this.tabControl.TabIndex = 0;
             // 
             // tabChild
@@ -484,7 +487,7 @@ namespace CROMS.Forms
             this.tabChild.Location = new System.Drawing.Point(4, 30);
             this.tabChild.Name = "tabChild";
             this.tabChild.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabChild.Size = new System.Drawing.Size(1164, 370);
+            this.tabChild.Size = new System.Drawing.Size(1164, 328);
             this.tabChild.TabIndex = 0;
             this.tabChild.Text = "Child";
             // 
@@ -732,7 +735,7 @@ namespace CROMS.Forms
             this.tabMother.Location = new System.Drawing.Point(4, 30);
             this.tabMother.Name = "tabMother";
             this.tabMother.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabMother.Size = new System.Drawing.Size(1164, 370);
+            this.tabMother.Size = new System.Drawing.Size(1164, 328);
             this.tabMother.TabIndex = 1;
             this.tabMother.Text = "Mother";
             // 
@@ -1012,7 +1015,7 @@ namespace CROMS.Forms
             this.tabFather.Location = new System.Drawing.Point(4, 30);
             this.tabFather.Name = "tabFather";
             this.tabFather.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabFather.Size = new System.Drawing.Size(1164, 370);
+            this.tabFather.Size = new System.Drawing.Size(1164, 328);
             this.tabFather.TabIndex = 2;
             this.tabFather.Text = "Father";
             // 
@@ -1225,7 +1228,7 @@ namespace CROMS.Forms
             this.tabMarriage.Location = new System.Drawing.Point(4, 30);
             this.tabMarriage.Name = "tabMarriage";
             this.tabMarriage.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabMarriage.Size = new System.Drawing.Size(1164, 370);
+            this.tabMarriage.Size = new System.Drawing.Size(1164, 328);
             this.tabMarriage.TabIndex = 3;
             this.tabMarriage.Text = "Marriage of Parents";
             // 
@@ -1350,7 +1353,7 @@ namespace CROMS.Forms
             this.tabAttendant.Location = new System.Drawing.Point(4, 30);
             this.tabAttendant.Name = "tabAttendant";
             this.tabAttendant.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabAttendant.Size = new System.Drawing.Size(1164, 370);
+            this.tabAttendant.Size = new System.Drawing.Size(1164, 328);
             this.tabAttendant.TabIndex = 4;
             this.tabAttendant.Text = "Attendant";
             // 
@@ -1529,7 +1532,7 @@ namespace CROMS.Forms
             this.tabInformant.Location = new System.Drawing.Point(4, 30);
             this.tabInformant.Name = "tabInformant";
             this.tabInformant.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabInformant.Size = new System.Drawing.Size(1164, 370);
+            this.tabInformant.Size = new System.Drawing.Size(1164, 328);
             this.tabInformant.TabIndex = 5;
             this.tabInformant.Text = "Informant";
             // 
@@ -1675,7 +1678,7 @@ namespace CROMS.Forms
             this.tabCert.Location = new System.Drawing.Point(4, 30);
             this.tabCert.Name = "tabCert";
             this.tabCert.Padding = new System.Windows.Forms.Padding(18, 14, 18, 14);
-            this.tabCert.Size = new System.Drawing.Size(1164, 370);
+            this.tabCert.Size = new System.Drawing.Size(1164, 328);
             this.tabCert.TabIndex = 6;
             this.tabCert.Text = "Certification";
             // 
@@ -1770,28 +1773,7 @@ namespace CROMS.Forms
             this.txtBook.Name = "txtBook";
             this.txtBook.Size = new System.Drawing.Size(372, 25);
             this.txtBook.TabIndex = 3;
-            //
-            // lblBookPage
-            //
-            this.lblBookPage.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblBookPage.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.lblBookPage.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblBookPage.Location = new System.Drawing.Point(3, 404);
-            this.lblBookPage.Name = "lblBookPage";
-            this.lblBookPage.Size = new System.Drawing.Size(172, 44);
-            this.lblBookPage.TabIndex = 12;
-            this.lblBookPage.Text = "Book Page";
-            this.lblBookPage.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            //
-            // txtBookPage
-            //
-            this.txtBookPage.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtBookPage.Location = new System.Drawing.Point(181, 413);
-            this.txtBookPage.Margin = new System.Windows.Forms.Padding(3, 3, 24, 3);
-            this.txtBookPage.Name = "txtBookPage";
-            this.txtBookPage.Size = new System.Drawing.Size(350, 25);
-            this.txtBookPage.TabIndex = 13;
-            //
+            // 
             // lblStatus
             // 
             this.lblStatus.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -2034,6 +2016,72 @@ namespace CROMS.Forms
             this.txtRemarks.Size = new System.Drawing.Size(927, 83);
             this.txtRemarks.TabIndex = 11;
             // 
+            // lblBookPage
+            // 
+            this.lblBookPage.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblBookPage.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblBookPage.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBookPage.Location = new System.Drawing.Point(3, 404);
+            this.lblBookPage.Name = "lblBookPage";
+            this.lblBookPage.Size = new System.Drawing.Size(172, 44);
+            this.lblBookPage.TabIndex = 12;
+            this.lblBookPage.Text = "Book Page";
+            this.lblBookPage.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // txtBookPage
+            // 
+            this.txtBookPage.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtBookPage.Location = new System.Drawing.Point(181, 413);
+            this.txtBookPage.Margin = new System.Windows.Forms.Padding(3, 3, 24, 3);
+            this.txtBookPage.Name = "txtBookPage";
+            this.txtBookPage.Size = new System.Drawing.Size(350, 25);
+            this.txtBookPage.TabIndex = 13;
+            // 
+            // pnlRecordActions
+            // 
+            this.pnlRecordActions.AutoSize = true;
+            this.pnlRecordActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.pnlRecordActions.Controls.Add(this.btnDelete);
+            this.pnlRecordActions.Controls.Add(this.btnUpdate);
+            this.pnlRecordActions.Controls.Add(this.btnNew);
+            this.pnlRecordActions.Controls.Add(this.btnCertificate);
+            this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlRecordActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
+            this.pnlRecordActions.Location = new System.Drawing.Point(14, 12);
+            this.pnlRecordActions.Margin = new System.Windows.Forms.Padding(0);
+            this.pnlRecordActions.Name = "pnlRecordActions";
+            this.pnlRecordActions.Size = new System.Drawing.Size(1172, 42);
+            this.pnlRecordActions.TabIndex = 1;
+            this.pnlRecordActions.WrapContents = false;
+            this.pnlRecordActions.Paint += new System.Windows.Forms.PaintEventHandler(this.pnlRecordActions_Paint);
+            // 
+            // btnDelete
+            // 
+            this.btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnDelete.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnDelete.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
+            this.btnDelete.Location = new System.Drawing.Point(1072, 6);
+            this.btnDelete.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
+            this.btnDelete.Name = "btnDelete";
+            this.btnDelete.Size = new System.Drawing.Size(100, 30);
+            this.btnDelete.TabIndex = 2;
+            this.btnDelete.Text = "Delete";
+            this.btnDelete.UseVisualStyleBackColor = true;
+            this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
+            // 
+            // btnUpdate
+            // 
+            this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnUpdate.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnUpdate.Location = new System.Drawing.Point(966, 6);
+            this.btnUpdate.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
+            this.btnUpdate.Name = "btnUpdate";
+            this.btnUpdate.Size = new System.Drawing.Size(100, 30);
+            this.btnUpdate.TabIndex = 1;
+            this.btnUpdate.Text = "Update";
+            this.btnUpdate.UseVisualStyleBackColor = true;
+            this.btnUpdate.Click += new System.EventHandler(this.btnUpdate_Click);
+            // 
             // cardRecords
             // 
             this.cardRecords.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
@@ -2086,38 +2134,38 @@ namespace CROMS.Forms
             // 
             // lblRecent
             // 
-            this.lblRecent.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblRecent.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblRecent.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
             this.lblRecent.Location = new System.Drawing.Point(3, 0);
             this.lblRecent.Name = "lblRecent";
-            this.lblRecent.Size = new System.Drawing.Size(608, 42);
+            this.lblRecent.Size = new System.Drawing.Size(600, 42);
             this.lblRecent.TabIndex = 0;
             this.lblRecent.Text = "RECENT BIRTH REGISTRATIONS";
             this.lblRecent.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            //
+            // 
             // pnlListActions
-            //
+            // 
             this.pnlListActions.AutoSize = true;
             this.pnlListActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlListActions.Controls.Add(this.btnNewRegistration);
             this.pnlListActions.Controls.Add(this.btnOpenRecord);
+            this.pnlListActions.Controls.Add(this.button1);
             this.pnlListActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlListActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.pnlListActions.Location = new System.Drawing.Point(608, 0);
+            this.pnlListActions.Location = new System.Drawing.Point(606, 0);
             this.pnlListActions.Margin = new System.Windows.Forms.Padding(0);
             this.pnlListActions.Name = "pnlListActions";
-            this.pnlListActions.Size = new System.Drawing.Size(560, 42);
+            this.pnlListActions.Size = new System.Drawing.Size(562, 42);
             this.pnlListActions.TabIndex = 1;
             this.pnlListActions.WrapContents = false;
-            //
+            // 
             // btnNewRegistration
-            //
+            // 
             this.btnNewRegistration.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
             this.btnNewRegistration.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnNewRegistration.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnNewRegistration.ForeColor = System.Drawing.Color.White;
-            this.btnNewRegistration.Location = new System.Drawing.Point(360, 6);
+            this.btnNewRegistration.Location = new System.Drawing.Point(362, 6);
             this.btnNewRegistration.Margin = new System.Windows.Forms.Padding(10, 6, 0, 6);
             this.btnNewRegistration.Name = "btnNewRegistration";
             this.btnNewRegistration.Size = new System.Drawing.Size(200, 30);
@@ -2125,67 +2173,22 @@ namespace CROMS.Forms
             this.btnNewRegistration.Text = "+ New Birth Registration";
             this.btnNewRegistration.UseVisualStyleBackColor = false;
             this.btnNewRegistration.Click += new System.EventHandler(this.btnNewRegistration_Click);
-            //
+            // 
             // btnOpenRecord
-            //
+            // 
             this.btnOpenRecord.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnOpenRecord.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnOpenRecord.Location = new System.Drawing.Point(200, 6);
+            this.btnOpenRecord.Location = new System.Drawing.Point(185, 6);
             this.btnOpenRecord.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
             this.btnOpenRecord.Name = "btnOpenRecord";
-            this.btnOpenRecord.Size = new System.Drawing.Size(150, 30);
+            this.btnOpenRecord.Size = new System.Drawing.Size(167, 30);
             this.btnOpenRecord.TabIndex = 0;
             this.btnOpenRecord.Text = "Open Record";
             this.btnOpenRecord.UseVisualStyleBackColor = true;
             this.btnOpenRecord.Click += new System.EventHandler(this.btnOpenRecord_Click);
-            //
-            // pnlRecordActions
-            //
-            this.pnlRecordActions.AutoSize = true;
-            this.pnlRecordActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.pnlRecordActions.Controls.Add(this.btnDelete);
-            this.pnlRecordActions.Controls.Add(this.btnUpdate);
-            this.pnlRecordActions.Controls.Add(this.btnNew);
-            this.pnlRecordActions.Controls.Add(this.btnCertificate);
-            this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Top;
-            this.pnlRecordActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
-            this.pnlRecordActions.Location = new System.Drawing.Point(614, 0);
-            this.pnlRecordActions.Margin = new System.Windows.Forms.Padding(0);
-            this.pnlRecordActions.Name = "pnlRecordActions";
-            this.pnlRecordActions.Size = new System.Drawing.Size(554, 42);
-            this.pnlRecordActions.TabIndex = 1;
-            this.pnlRecordActions.WrapContents = false;
-            this.pnlRecordActions.Paint += new System.Windows.Forms.PaintEventHandler(this.pnlRecordActions_Paint);
             // 
-            // btnDelete
-            // 
-            this.btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnDelete.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnDelete.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
-            this.btnDelete.Location = new System.Drawing.Point(454, 6);
-            this.btnDelete.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(100, 30);
-            this.btnDelete.TabIndex = 2;
-            this.btnDelete.Text = "Delete";
-            this.btnDelete.UseVisualStyleBackColor = true;
-            this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
-            // 
-            // btnUpdate
-            // 
-            this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnUpdate.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnUpdate.Location = new System.Drawing.Point(348, 6);
-            this.btnUpdate.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.btnUpdate.Name = "btnUpdate";
-            this.btnUpdate.Size = new System.Drawing.Size(100, 30);
-            this.btnUpdate.TabIndex = 1;
-            this.btnUpdate.Text = "Update";
-            this.btnUpdate.UseVisualStyleBackColor = true;
-            this.btnUpdate.Click += new System.EventHandler(this.btnUpdate_Click);
-            //
             // pnlSearch
-            //
+            // 
             this.pnlSearch.ColumnCount = 2;
             this.pnlSearch.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.pnlSearch.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
@@ -2199,9 +2202,9 @@ namespace CROMS.Forms
             this.pnlSearch.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.pnlSearch.Size = new System.Drawing.Size(1168, 28);
             this.pnlSearch.TabIndex = 2;
-            //
+            // 
             // txtSearch
-            //
+            // 
             this.txtSearch.Dock = System.Windows.Forms.DockStyle.Fill;
             this.txtSearch.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.txtSearch.Location = new System.Drawing.Point(3, 3);
@@ -2210,9 +2213,9 @@ namespace CROMS.Forms
             this.txtSearch.Size = new System.Drawing.Size(1085, 23);
             this.txtSearch.TabIndex = 0;
             this.txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
-            //
+            // 
             // btnClearSearch
-            //
+            // 
             this.btnClearSearch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnClearSearch.Font = new System.Drawing.Font("Segoe UI", 8.5F);
             this.btnClearSearch.Location = new System.Drawing.Point(1094, 0);
@@ -2223,9 +2226,9 @@ namespace CROMS.Forms
             this.btnClearSearch.Text = "Clear";
             this.btnClearSearch.UseVisualStyleBackColor = true;
             this.btnClearSearch.Click += new System.EventHandler(this.btnClearSearch_Click);
-            //
+            // 
             // dgvBirths
-            //
+            // 
             this.dgvBirths.AllowUserToAddRows = false;
             this.dgvBirths.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dgvBirths.AutoSizeRowsMode = System.Windows.Forms.DataGridViewAutoSizeRowsMode.AllCells;
@@ -2241,6 +2244,19 @@ namespace CROMS.Forms
             this.dgvBirths.Size = new System.Drawing.Size(1168, 226);
             this.dgvBirths.TabIndex = 3;
             this.dgvBirths.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvBirths_CellDoubleClick);
+            // 
+            // button1
+            // 
+            this.button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.button1.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.button1.Location = new System.Drawing.Point(6, 6);
+            this.button1.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
+            this.button1.Name = "button1";
+            this.button1.Size = new System.Drawing.Size(173, 30);
+            this.button1.TabIndex = 2;
+            this.button1.Text = "OCR";
+            this.button1.UseVisualStyleBackColor = true;
+            this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // BirthRegistrationForm
             // 
@@ -2264,6 +2280,7 @@ namespace CROMS.Forms
             this.pnlHeadText.PerformLayout();
             this.pnlHeadActions.ResumeLayout(false);
             this.cardForm.ResumeLayout(false);
+            this.cardForm.PerformLayout();
             this.tabControl.ResumeLayout(false);
             this.tabChild.ResumeLayout(false);
             this.tblChild.ResumeLayout(false);
@@ -2287,11 +2304,12 @@ namespace CROMS.Forms
             this.tabCert.ResumeLayout(false);
             this.tblCert.ResumeLayout(false);
             this.tblCert.PerformLayout();
+            this.pnlRecordActions.ResumeLayout(false);
             this.cardRecords.ResumeLayout(false);
             this.layoutRecords.ResumeLayout(false);
             this.pnlRecordsHead.ResumeLayout(false);
             this.pnlRecordsHead.PerformLayout();
-            this.pnlRecordActions.ResumeLayout(false);
+            this.pnlListActions.ResumeLayout(false);
             this.pnlSearch.ResumeLayout(false);
             this.pnlSearch.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvBirths)).EndInit();
@@ -2463,5 +2481,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.FlowLayoutPanel pnlListActions;
         private System.Windows.Forms.Button btnOpenRecord;
         private System.Windows.Forms.Button btnNewRegistration;
+        private Button button1;
     }
 }

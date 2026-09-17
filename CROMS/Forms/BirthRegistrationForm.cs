@@ -54,6 +54,14 @@ namespace CROMS.Forms
         private Button _btnAddAnotherBirth;
         private Button _btnDelayedCase;
 
+        // Form-90-style wizard chrome: a numbered step strip above the tabs and an
+        // "at a glance" summary rail beside them, built in code (like the rest of this
+        // wizard) rather than the Designer - see InitializeWizardChrome / RefreshRail.
+        private StepStrip _stepStrip;
+        private Panel _wizardHost;
+        private Panel _tabHost;
+        private Panel _railPanel;
+
         // Cascading location lookup controls:
         // address = House/Street, Province, Municipality, Barangay
         // place of birth = Hospital/Clinic, Province, Municipality
@@ -291,6 +299,7 @@ namespace CROMS.Forms
             InitializeStepNavigation();
             InitializeAddAnotherBirthButton();
             InitializeDelayedCaseButton();
+            InitializeWizardChrome();
             chkDelayed.CheckedChanged += (s, e) => RefreshDelayedCaseButton();
 
             this.Resize += new EventHandler(this.BirthRegistrationForm_Resize);
@@ -354,6 +363,11 @@ namespace CROMS.Forms
             btnBackToList.Visible = true;
             chkDelayed.Visible = true;
             lblSubtitle.Text = "MUNICIPAL FORM 102  •  NEW & DELAYED REGISTRATION";
+
+            // Syncs the step strip / at-a-glance rail to whatever tab and record are
+            // showing - matters whether we arrived here fresh (New Registration) or with
+            // a record just loaded (Open Record / a queue ticket / an OCR auto-fill).
+            UpdateStepNavigation();
         }
 
         private void btnNewRegistration_Click(object sender, EventArgs e)
@@ -1613,6 +1627,195 @@ namespace CROMS.Forms
             cardForm.Controls.Add(_stepNavigation);
         }
 
+        /// <summary>
+        /// Rebuilds the entry panel around a numbered step strip (top) and an "at a glance"
+        /// summary rail (right) - the same StepStrip / IssueList / Banner pieces the marriage
+        /// license window (Municipal Form 90) already uses, reused rather than reinvented so
+        /// the two wizards read as one system. Built in code, not the Designer, for the same
+        /// reason every other piece of this wizard is: a Designer regeneration has silently
+        /// deleted hand-added controls here before (2026-09-02, 2026-09-13).
+        /// <para/>
+        /// The native TabControl headers are hidden (SizeMode=Fixed, then the control is
+        /// positioned OUTSIDE its host's top edge so the header band falls off-screen) - the
+        /// step strip is the only navigator now, matching the reference screen exactly rather
+        /// than showing two competing tab strips.
+        /// </summary>
+        private void InitializeWizardChrome()
+        {
+            if (_wizardHost != null) return;
+
+            cardForm.Controls.Remove(tabControl);
+            tabControl.Dock = DockStyle.None;
+
+            _tabHost = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0), BackColor = System.Drawing.Color.White };
+            _tabHost.Controls.Add(tabControl);
+            _tabHost.Resize += delegate { PositionHiddenTabHeader(); };
+            tabControl.Multiline = false;
+            tabControl.SizeMode = TabSizeMode.Fixed;
+
+            _stepStrip = new StepStrip(true);
+            string[] subs =
+            {
+                "child's own particulars",
+                "mother's particulars",
+                "father's particulars",
+                "Family Code Art. 164-176",
+                "who attended the birth",
+                "who is reporting it",
+                "signatures & registry"
+            };
+            var pages = new[] { tabChild, tabMother, tabFather, tabMarriage, tabAttendant, tabInformant, tabCert };
+            for (int i = 0; i < pages.Length; i++)
+                _stepStrip.AddStep(pages[i].Text, i < subs.Length ? subs[i] : "");
+            _stepStrip.StepClicked += i => GoToStep(i);
+
+            _railPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+                Padding = new Padding(16, 14, 16, 14),
+                BackColor = System.Drawing.Color.FromArgb(250, 251, 253)
+            };
+            _railPanel.Paint += delegate (object s, PaintEventArgs e)
+            {
+                using (var p = new System.Drawing.Pen(UiTheme.CardLine))
+                    e.Graphics.DrawLine(p, 0, 0, 0, _railPanel.Height);
+            };
+
+            var wizardBody = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            wizardBody.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            wizardBody.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
+            wizardBody.Controls.Add(_tabHost, 0, 0);
+            wizardBody.Controls.Add(_railPanel, 1, 0);
+
+            _wizardHost = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
+            _wizardHost.Controls.Add(wizardBody);
+            _wizardHost.Controls.Add(_stepStrip);
+            cardForm.Controls.Add(_wizardHost);
+
+            PositionHiddenTabHeader();
+
+            // Keeps the rail current as the operator types - the same live-refresh
+            // convention the marriage license window uses for its own "at a glance" rail.
+            EventHandler railRefresh = delegate { RefreshRail(); };
+            txtFirstName.TextChanged += railRefresh;
+            txtLastName.TextChanged += railRefresh;
+            cboSex.SelectedIndexChanged += railRefresh;
+            cboStatus.SelectedIndexChanged += railRefresh;
+            txtMFirst.TextChanged += railRefresh;
+            txtMLast.TextChanged += railRefresh;
+            txtFFirst.TextChanged += railRefresh;
+            txtFLast.TextChanged += railRefresh;
+            txtRegNo.TextChanged += railRefresh;
+            if (_pob != null && _pob.Length > 0) _pob[0].TextChanged += railRefresh;
+        }
+
+        /// <summary>
+        /// Pushes the native TabControl header band above tabHost's visible top edge, so only
+        /// the page content shows - a child positioned outside its parent's client rectangle
+        /// is simply not drawn there, which is what removes the header without needing any
+        /// Win32 message trickery. Re-run on every resize since the header's true position is
+        /// relative to tabHost's current size.
+        /// </summary>
+        private void PositionHiddenTabHeader()
+        {
+            if (_tabHost == null || tabControl == null) return;
+            const int headerH = 36;
+            tabControl.SetBounds(-2, -headerH, _tabHost.Width + 4, _tabHost.Height + headerH);
+        }
+
+        /// <summary>
+        /// Rebuilds the "at a glance" rail from the record as it stands right now - registry
+        /// identity, current status/step, and an Outstanding checklist built from the SAME
+        /// required fields <see cref="ValidateChild"/> enforces (plus a few recommended-but-
+        /// not-required fields, marked as such) so the rail can never promise more than Submit
+        /// actually checks.
+        /// </summary>
+        private void RefreshRail()
+        {
+            if (_railPanel == null) return;
+
+            _railPanel.SuspendLayout();
+            var toDispose = new List<Control>();
+            foreach (Control c in _railPanel.Controls) toDispose.Add(c);
+            foreach (Control c in toDispose) c.Dispose();
+            _railPanel.Controls.Clear();
+
+            var items = new List<Control>();
+            items.Add(MUi.Cap("Registration at a glance"));
+            items.Add(MUi.Kv("Registry No.", string.IsNullOrWhiteSpace(txtRegNo.Text) ? "(assigned on save)" : txtRegNo.Text));
+
+            string childName = ((txtLastName.Text ?? "").Trim() + ", " + (txtFirstName.Text ?? "").Trim()).Trim(' ', ',');
+            items.Add(MUi.Kv("Child", string.IsNullOrWhiteSpace(childName) ? "-" : childName));
+            items.Add(MUi.Kv("Date of birth", dtpDob.Value.ToString("dd MMM yyyy")));
+            items.Add(MUi.Kv("Delayed?", chkDelayed.Checked ? "Yes" : "No"));
+
+            var stage = new FlowLayoutPanel { Height = 34, BackColor = System.Drawing.Color.Transparent, Padding = new Padding(0, 6, 0, 0), Dock = DockStyle.Top };
+            stage.Controls.Add(MUi.Txt("Current status", 9F, System.Drawing.FontStyle.Regular, UiTheme.Muted));
+            stage.Controls.Add(MUi.Pill((cboStatus.Text ?? "Draft").ToUpperInvariant(), cboStatus.Text));
+            items.Add(stage);
+
+            if (tabControl.SelectedIndex >= 0)
+            {
+                var stepLine = new FlowLayoutPanel { Height = 22, BackColor = System.Drawing.Color.Transparent, Dock = DockStyle.Top };
+                int stepNo = tabControl.SelectedIndex + 1, stepTotal = tabControl.TabPages.Count;
+                stepLine.Controls.Add(MUi.Txt("Step " + stepNo + " of " + stepTotal + " - " + tabControl.TabPages[tabControl.SelectedIndex].Text,
+                    9F, System.Drawing.FontStyle.Regular, UiTheme.Muted));
+                items.Add(stepLine);
+            }
+
+            items.Add(MUi.Cap("Outstanding"));
+            var issues = new List<RuleIssue>();
+            if (string.IsNullOrWhiteSpace(txtFirstName.Text)) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_FIRST", "Child's first name", "Child"));
+            if (string.IsNullOrWhiteSpace(txtLastName.Text)) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_LAST", "Child's last name", "Child"));
+            if (cboSex.SelectedItem == null) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_SEX", "Child's sex", "Child"));
+            if (_pob != null && _pob.Length > 0 && string.IsNullOrWhiteSpace(_pob[0].Text))
+                issues.Add(new RuleIssue(RuleSeverity.Warning, "POB", "Place of birth (hospital/facility)", "Attendant"));
+            if (string.IsNullOrWhiteSpace(txtMFirst.Text) || string.IsNullOrWhiteSpace(txtMLast.Text))
+                issues.Add(new RuleIssue(RuleSeverity.Warning, "MOTHER", "Mother's name", "Mother"));
+            if (string.IsNullOrWhiteSpace(txtFFirst.Text) || string.IsNullOrWhiteSpace(txtFLast.Text))
+                issues.Add(new RuleIssue(RuleSeverity.Warning, "FATHER", "Father's name", "Father"));
+
+            var issueList = new IssueList { Height = 190, Dock = DockStyle.Top };
+            issueList.FixRequested += tabName => { int idx = TabIndexByText(tabName); if (idx >= 0) GoToStep(idx); };
+            issueList.SetIssues(issues, "Every required field for this record is filled in.");
+            items.Add(issueList);
+
+            int blocking = 0;
+            foreach (RuleIssue i in issues) if (i.Severity == RuleSeverity.Blocking) blocking++;
+
+            var banner = new Banner();
+            if (blocking == 0 && issues.Count == 0) banner.Set(RuleSeverity.Info, "Ready to save.", "All checks pass.", true);
+            else if (blocking == 0) banner.Set(RuleSeverity.Warning, "Recommended fields missing.", "Can still be saved as a draft.");
+            else banner.Set(RuleSeverity.Blocking, blocking + " REQUIRED FIELD" + (blocking == 1 ? "" : "S") + " MISSING", "Submit for Approval will be refused.");
+            items.Add(new Panel { Height = 10, BackColor = System.Drawing.Color.Transparent, Dock = DockStyle.Top });
+            items.Add(banner);
+
+            StackRail(_railPanel, items.ToArray());
+            _railPanel.ResumeLayout();
+        }
+
+        /// <summary>
+        /// Adds controls to a Dock=Top host in visual top-to-bottom order by adding them
+        /// BOTTOM-FIRST - the same convention the marriage license window's own Stack()
+        /// establishes for this codebase, kept identical here rather than re-derived.
+        /// </summary>
+        private static void StackRail(Control host, params Control[] topToBottom)
+        {
+            for (int i = topToBottom.Length - 1; i >= 0; i--)
+            {
+                topToBottom[i].Dock = DockStyle.Top;
+                host.Controls.Add(topToBottom[i]);
+            }
+        }
+
+        private int TabIndexByText(string text)
+        {
+            for (int i = 0; i < tabControl.TabPages.Count; i++)
+                if (string.Equals(tabControl.TabPages[i].Text, text, StringComparison.OrdinalIgnoreCase)) return i;
+            return -1;
+        }
+
         private void InitializeAddAnotherBirthButton()
         {
             if (_btnAddAnotherBirth != null || _stepNavigation == null) return;
@@ -1742,6 +1945,7 @@ namespace CROMS.Forms
         private void UpdateStepNavigation()
         {
             if (_stepNavigation == null || _lblStep == null) return;
+            if (tabControl.SelectedIndex < 0) return;
 
             int step = tabControl.SelectedIndex + 1;
             int total = tabControl.TabPages.Count;
@@ -1751,6 +1955,44 @@ namespace CROMS.Forms
 
             _btnBackStep.Enabled = step > 1;
             _btnNextStep.Text = step == total ? "Finish ✓" : "Next →";
+
+            if (_stepStrip != null)
+            {
+                for (int i = 0; i < _stepStrip.Count; i++)
+                    _stepStrip.SetState(i, i == tabControl.SelectedIndex ? StepStrip.State.Current
+                        : i < tabControl.SelectedIndex ? StepStrip.State.Done : StepStrip.State.Todo);
+            }
+            RefreshRail();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                MainForm shell = null;
+                for (Control parent = Parent; parent != null; parent = parent.Parent)
+                {
+                    shell = parent as MainForm;
+                    if (shell != null) break;
+                }
+                if (shell == null) shell = Owner as MainForm;
+
+                if (shell != null)
+                {
+                    // The registered "ocr" module is OcrDigitizationForm. Reuse it so
+                    // extracted birth fields can return through the existing workflow.
+                    shell.GoToModule("ocr");
+                    return;
+                }
+
+                // Also support opening Birth Registration as a standalone form.
+                using (OcrDigitizationForm ocr = CreateStandaloneOcrWindow())
+                    ocr.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                Fail(ex);
+            }
         }
 
         private ComboBox[] CreateLookupCells(TextBox tb, int count, string[] captions)
@@ -1823,17 +2065,23 @@ namespace CROMS.Forms
             return made;
         }
 
+        /// <summary>
+        /// The content column now fills the whole available width - Birth Registration is a
+        /// maximizable module like every other screen in the shell, not a narrow reading
+        /// column with side gutters. The two gutter columns collapse to nothing and the
+        /// middle column takes 100%; the AutoScrollMinSize floor set in the Designer is what
+        /// keeps the form usable on a small window (it scrolls rather than the content
+        /// shrinking away). Kept as a method (rather than deleted) so the existing Resize
+        /// wiring and Load-time call need no other change.
+        /// </summary>
         private void CenterContent()
         {
-            const int maxW = 1240;
-            // The gutters are Percent columns: an Absolute wider than the client would push
-            // them negative and the content off the left edge, so the cap is clamped to what
-            // is actually available. Below the floor the FORM scrolls (AutoScrollMinSize)
-            // rather than the content shrinking away.
-            int w = Math.Min(maxW, ClientSize.Width);
-            if (w < 900) w = 900;
-            layoutRoot.ColumnStyles[1].SizeType = SizeType.Absolute;
-            layoutRoot.ColumnStyles[1].Width = w;
+            layoutRoot.ColumnStyles[0].SizeType = SizeType.Absolute;
+            layoutRoot.ColumnStyles[0].Width = 0F;
+            layoutRoot.ColumnStyles[1].SizeType = SizeType.Percent;
+            layoutRoot.ColumnStyles[1].Width = 100F;
+            layoutRoot.ColumnStyles[2].SizeType = SizeType.Absolute;
+            layoutRoot.ColumnStyles[2].Width = 0F;
         }
 
         private static OcrDigitizationForm CreateStandaloneOcrWindow()

@@ -1333,3 +1333,56 @@ VERIFIED: `MSBuild CROMS.sln /p:Configuration=Debug` — all three projects buil
 CROMS.Display, CROMS.Kiosk), 0 errors, via VS2019 Community's MSBuild (this machine has no
 VS2022). Only `CROMS.csproj` + the new `CROMS/Libs/CrystalReports/` folder are new to git; the
 Tesseract native DLLs are correctly gitignored and were not staged.
+
+### 2026-09-18 — Birth Registration fills the full window; entry view gets a Form-90-style
+### numbered step strip + "at a glance" rail
+User compared the screen against the Marriage License Application window (Municipal Form 90)
+and asked for two things: the list/entry views to maximize the whole screen, and the Form 102
+entry screen styled like Form 90's stepper + sidebar.
+
+**FULL WIDTH — the real cause was `CenterContent()`.** It capped `layoutRoot`'s middle column
+at 1240px with two Percent gutters either side, regardless of window size (screenshot showed a
+narrow card floating in a wide window). `CenterContent()` now collapses the two gutter columns
+to 0 and gives the middle column 100% — the module fills whatever width `MainForm` gives it, the
+same as every screen rebuilt onto this pattern since 2026-09-08. `AutoScrollMinSize` (already on
+the form) is still what keeps a small window scrollable rather than crushed; nothing else about
+the row-height toggle between list/entry view changed, since that already went full-height via
+the existing `ShowListView`/`ShowEntryView` RowStyle swap.
+
+**ENTRY VIEW CHROME — reused the marriage license window's own building blocks rather than
+building a second wizard system.** `StepStrip` (numbered circles + sub-caption, click to jump)
+and `IssueList`/`Banner` (the "Outstanding" checklist + status summary) are the exact classes
+`MarriageLicenseForm` already uses for Form 90 — `internal` in the same `CROMS.Forms` namespace,
+so no new type was written. New `InitializeWizardChrome()` (built in code, not the Designer, per
+this form's own established convention — a Designer regen has silently deleted hand-added
+controls here twice before) removes `tabControl` from `cardForm` and rebuilds it inside a
+`_wizardHost`: a `StepStrip` across the top (Child/Mother/Father/Marriage of Parents/Attendant/
+Informant/Certification, each with a short caption) and a 300px right rail beside the tab
+content, matching Form 90's registry-at-a-glance panel.
+
+The native `TabControl` header strip is hidden — `SizeMode=Fixed` + positioning the control
+OUTSIDE its host's top edge (`PositionHiddenTabHeader`, re-run on resize) so the header band
+falls off the visible client rect; a child positioned past its parent's bounds simply isn't
+drawn there, no Win32 message hooking needed. The step strip is now the only navigator, matching
+the reference screen instead of showing two competing tab bars.
+
+**THE RAIL (`RefreshRail`)** shows Registry No. / Child name / Date of birth / Delayed flag /
+current status pill / current step, then an "Outstanding" checklist built from the SAME required
+fields `ValidateChild()` already enforces (child first/last name, sex — Blocking) plus a few
+recommended-not-required ones (place of birth, mother's name, father's name — Warning, so the
+rail can never promise more than Submit actually checks). A closing `Banner` reads "Ready to
+save" / "Recommended fields missing" / "N REQUIRED FIELDS MISSING" depending on what's still
+open. Refreshed on tab change (`UpdateStepNavigation`, which also now drives the step strip's
+Done/Current/Todo states) and live as the operator types (wired to the same handful of fields the
+checklist reads), the same "live rail" convention Form 90 uses.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings (temp OutputPath). GUI not
+clicked (no interactive desktop) — the width fix follows the exact column-style pattern already
+proven on Queue Management/Certificate Request/Release & Claim, and the rail/step-strip reuse the
+already-shipped Form 90 controls unmodified; rebuild in VS to see it.
+
+NOT DONE: the top action bar (New/Update/Delete/Print Certificate/Delayed Case) and the small
+Back/Next mini-bar under the tabs are UNCHANGED — Form 90's own bottom footer
+(Back/Save/Print/status/Next) was not rebuilt to match pixel-for-pixel, since Birth's actions
+already live in a working top toolbar and moving them is a larger, separate layout change than
+what was asked (full screen + stepper/rail). Flagged if the office wants that bar unified too.
