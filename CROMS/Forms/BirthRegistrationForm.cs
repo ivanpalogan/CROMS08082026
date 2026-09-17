@@ -56,6 +56,18 @@ namespace CROMS.Forms
         private TabPage tabRequirements;
         private Panel _reqHost;
         private int _reqStepIndex = -1;
+        private Button _btnClearForm;
+
+        // Auto-save: while the popup is open, a typed change is persisted as a Draft in the
+        // background (AutoSaveTick), so closing the popup without Submitting never loses
+        // what was typed - only the Clear button does. See StartAutoSave/HookAutoSaveDirty.
+        private System.Windows.Forms.Timer _autoSaveTimer;
+        private bool _autoSaveDirty;
+
+        // Pending-approval review (list view) - see InitializePendingApproval/ApprovePending.
+        private DataGridView _dgvPending;
+        private Button _btnApprovePending;
+        private bool _pendingInitialized;
 
         // Form-90-style wizard chrome: a numbered step strip above the tabs and an
         // "at a glance" summary rail beside them, built in code (like the rest of this
@@ -301,7 +313,15 @@ namespace CROMS.Forms
             OthersBox.Bind(_cboInfRel, txtInfRelOther, lblInfRelOther);
             InitializeAddAnotherBirthButton();
             InitializeWizardChrome();
+            InitializePendingApproval();
             chkDelayed.CheckedChanged += (s, e) => RefreshRequirementsTab();
+
+            // Auto-save: any typed change anywhere in the tabs marks the form dirty; a
+            // timer persists it in the background so closing the popup without clicking
+            // Submit never loses what was typed - see StartAutoSave/AutoSaveTick.
+            HookAutoSaveDirty(tabControl);
+            _autoSaveTimer = new System.Windows.Forms.Timer { Interval = 4000 };
+            _autoSaveTimer.Tick += (s, e) => AutoSaveTick();
 
             this.Resize += new EventHandler(this.BirthRegistrationForm_Resize);
             CenterContent();
@@ -361,11 +381,6 @@ namespace CROMS.Forms
         {
             cardForm.Visible = true;
             cardRecords.Visible = false;
-
-            btnSaveDraft.Visible = true;
-            btnSubmit.Visible = true;
-            btnOCRLiveBirth.Visible = true;
-            btnBackToList.Visible = true;
             chkDelayed.Visible = true;
             lblSubtitle.Text = "MUNICIPAL FORM 102  •  NEW & DELAYED REGISTRATION";
 
@@ -377,13 +392,16 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Reparents the header (pnlHeader - title/subtitle/Delayed toggle/Save Draft/Submit/
-        /// OCR/Back to List) and the wizard panel (cardForm - the record-action toolbar plus
-        /// the numbered step strip, tab content and "at a glance" rail) out of the embedded
-        /// module and into a stand-alone popup window, following the same pattern the
-        /// Marriage License Application window (Municipal Form 90) already uses: one modal
-        /// window per record, closed by saving or by "Back to List". Blocks until closed,
-        /// then hands everything back to the embedded module so the list view is intact.
+        /// Reparents the header (title/subtitle/Delayed toggle only - Back to List, Scan
+        /// Document and Save Draft are retired) and the wizard panel (cardForm - the numbered
+        /// step strip, tab content and "at a glance" rail; the New Form/Update/Delete/Print
+        /// Certificate/Add Another toolbar does NOT come along - editing an existing record
+        /// belongs to a separate screen, not this one) into a stand-alone popup window,
+        /// following the Marriage License Application window (Municipal Form 90). A footer
+        /// with Submit for Approval + Clear is built fresh each open. Typed data auto-saves
+        /// in the background (StartAutoSave) so closing without Submitting never loses it -
+        /// only Clear does. Blocks until closed, then hands everything back to the embedded
+        /// module so the list view is intact.
         /// </summary>
         private void OpenEntryDialog()
         {
@@ -391,15 +409,36 @@ namespace CROMS.Forms
 
             layoutMain.Controls.Remove(pnlHeader);
             layoutMain.Controls.Remove(cardForm);
-
-            // pnlRecordActions (New Form / Update / Delete / Print Certificate / Add Another
-            // Birth Form) used to sit ABOVE the wizard inside cardForm, docked Top next to
-            // _wizardHost's Dock=Fill - two Dock-stacked siblings that ended up overlapping
-            // instead of stacking (the toolbar painted over the step strip). Pulled out into
-            // its own row here instead, at the BOTTOM of the popup - the same place the
-            // marriage licence window keeps its own secondary actions - so cardForm holds
-            // ONLY the wizard and the step strip sits directly under the header, no gap.
             cardForm.Controls.Remove(pnlRecordActions);
+
+            btnBackToList.Visible = false;
+            btnOCRLiveBirth.Visible = false;
+            btnSaveDraft.Visible = false;
+
+            var footer = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents = false,
+                Padding = new Padding(0, 10, 0, 0)
+            };
+            if (_btnClearForm == null)
+            {
+                _btnClearForm = new Button
+                {
+                    Width = 110,
+                    Height = 40,
+                    Text = "Clear",
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 9.75F),
+                    Margin = new Padding(10, 0, 0, 0)
+                };
+                _btnClearForm.Click += btnClearForm_Click;
+            }
+            btnSubmit.Visible = true;
+            btnSubmit.Margin = new Padding(0);
+            footer.Controls.Add(btnSubmit);
+            footer.Controls.Add(_btnClearForm);
 
             var root = new TableLayoutPanel
             {
@@ -414,7 +453,7 @@ namespace CROMS.Forms
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.Controls.Add(pnlHeader, 0, 0);
             root.Controls.Add(cardForm, 0, 1);
-            root.Controls.Add(pnlRecordActions, 0, 2);
+            root.Controls.Add(footer, 0, 2);
 
             var dlg = new Form
             {
@@ -434,16 +473,19 @@ namespace CROMS.Forms
             // has to style itself, same convention as every other dialog in Forms/
             // (MarriageLicenseForm, DelayedBirthCaseForm).
             UiTheme.Polish(dlg);
+            StartAutoSave();
 
             dlg.ShowDialog(this);
 
-            // ShowDialog blocks until the popup is closed - by a successful Save/Submit
-            // routing through ShowListView, by "Back to List", or by the window's own
-            // controls - so by the time it returns the popup is gone. Hand the header,
-            // wizard and toolbar back to the embedded module immediately.
+            StopAutoSave();
+
+            // ShowDialog blocks until the popup is closed - by a successful Submit routing
+            // through ShowListView, or by the window's own controls - so by the time it
+            // returns the popup is gone. Hand the header and wizard back to the embedded
+            // module immediately.
             root.Controls.Remove(pnlHeader);
             root.Controls.Remove(cardForm);
-            root.Controls.Remove(pnlRecordActions);
+            root.Controls.Remove(footer);
             cardForm.Controls.Add(pnlRecordActions);
             layoutMain.Controls.Add(pnlHeader, 0, 0);
             layoutMain.Controls.Add(cardForm, 0, 1);
@@ -452,10 +494,21 @@ namespace CROMS.Forms
             if (!cardRecords.Visible) ShowListView();
         }
 
+        /// <summary>
+        /// Resumes an in-progress auto-saved Draft rather than clearing it, so a client who
+        /// stepped away mid-entry doesn't lose their place - only the Clear button (or
+        /// actually finishing) starts over. A record that isn't a Draft (something else was
+        /// merely being viewed) is unrelated and is cleared as before.
+        /// </summary>
         private void btnNewRegistration_Click(object sender, EventArgs e)
         {
-            ClearForm();
-            tabControl.SelectedTab = tabChild;
+            bool resumeDraft = _editingId.HasValue &&
+                string.Equals(cboStatus.SelectedItem?.ToString() ?? "", "Draft", StringComparison.OrdinalIgnoreCase);
+            if (!resumeDraft)
+            {
+                ClearForm();
+                tabControl.SelectedTab = tabChild;
+            }
             ShowEntryView();
         }
 
@@ -820,14 +873,140 @@ namespace CROMS.Forms
 
         private void LoadBirths()
         {
+            // "Pending Approval" rows live in their own list beside this one (see
+            // InitializePendingApproval) - the Birth Certificate table is the OFFICIAL
+            // record set, and a submission is not part of that until someone approves it.
             DataTable dt = Db.Pull(
                 "SELECT id, registry_no AS 'Registry No', " +
                 "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS Child, " +
                 "sex AS Sex, date_of_birth AS DOB, book_volume AS Book, book_page AS Page, status AS Status " +
-                "FROM births ORDER BY id DESC");
+                "FROM births WHERE status <> 'Pending Approval' ORDER BY id DESC");
             dgvBirths.DataSource = dt;
             if (dgvBirths.Columns.Contains("id")) dgvBirths.Columns["id"].Visible = false;
             ApplySearchFilter();
+
+            LoadPendingBirths();
+        }
+
+        /// <summary>
+        /// Builds the "Pending Approval" panel beside the Birth Certificate table (once) -
+        /// every newly Submitted registration lands here, not in the main table, until a
+        /// registrar clicks Approve. Built in code, not the Designer, matching the rest of
+        /// this wizard's dynamic chrome.
+        /// </summary>
+        private void InitializePendingApproval()
+        {
+            if (_pendingInitialized) return;
+            _pendingInitialized = true;
+
+            cardRecords.Controls.Remove(layoutRecords);
+
+            var head = new Label
+            {
+                Text = "PENDING APPROVAL",
+                Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(91, 100, 114),
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
+
+            _dgvPending = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                ReadOnly = true,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells,
+                BackgroundColor = System.Drawing.Color.White
+            };
+            _dgvPending.SelectionChanged += delegate { _btnApprovePending.Enabled = _dgvPending.CurrentRow != null; };
+            _dgvPending.CellDoubleClick += (s, e) => { if (e.RowIndex >= 0) OpenPendingRecord(); };
+
+            _btnApprovePending = new Button
+            {
+                Text = "✓ Approve",
+                Dock = DockStyle.Fill,
+                Height = 34,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = System.Drawing.Color.FromArgb(22, 163, 74),
+                ForeColor = System.Drawing.Color.White,
+                Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold),
+                Enabled = false
+            };
+            _btnApprovePending.Click += (s, e) => ApprovePending();
+
+            var pendingRoot = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Margin = new Padding(12, 0, 0, 0)
+            };
+            pendingRoot.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+            pendingRoot.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            pendingRoot.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            pendingRoot.Controls.Add(head, 0, 0);
+            pendingRoot.Controls.Add(_dgvPending, 0, 1);
+            pendingRoot.Controls.Add(_btnApprovePending, 0, 2);
+
+            var split = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 68));
+            split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
+            split.Controls.Add(layoutRecords, 0, 0);
+            split.Controls.Add(pendingRoot, 1, 0);
+
+            cardRecords.Controls.Add(split);
+        }
+
+        private void LoadPendingBirths()
+        {
+            if (_dgvPending == null) return;
+            DataTable dt = Db.Pull(
+                "SELECT id, registry_no AS 'Registry No', " +
+                "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS Child, " +
+                "sex AS Sex, date_of_birth AS DOB, created_at AS Submitted " +
+                "FROM births WHERE status = 'Pending Approval' ORDER BY id DESC");
+            _dgvPending.DataSource = dt;
+            if (_dgvPending.Columns.Contains("id")) _dgvPending.Columns["id"].Visible = false;
+            _btnApprovePending.Enabled = false;
+        }
+
+        /// <summary>Double-clicking a pending row opens it for review in the same popup
+        /// wizard, so a registrar can check the details before approving.</summary>
+        private void OpenPendingRecord()
+        {
+            if (_dgvPending.CurrentRow == null) return;
+            int id = Convert.ToInt32(_dgvPending.CurrentRow.Cells["id"].Value);
+            LoadBirth(id);
+            ShowEntryView();
+        }
+
+        /// <summary>Moves a pending registration into the Birth Certificate table - flips its
+        /// status to Registered, which is what LoadBirths' WHERE clause uses to decide which
+        /// list a row belongs in, so approving one instantly moves it off this list and onto
+        /// the main table with no separate "transfer" step.</summary>
+        private void ApprovePending()
+        {
+            if (_dgvPending.CurrentRow == null) return;
+            int id = Convert.ToInt32(_dgvPending.CurrentRow.Cells["id"].Value);
+            string name = _dgvPending.CurrentRow.Cells["Child"].Value?.ToString() ?? "this registration";
+
+            if (MessageBox.Show(this,
+                    "Approve " + name + "? It will move into the Birth Certificate records.",
+                    "Approve Registration", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
+                return;
+
+            try
+            {
+                Db.Push("UPDATE births SET status = 'Registered' WHERE id = @id", new MySqlParameter("@id", id));
+                Audit.Write(Audit.Update, "births", id, "Approved pending birth registration: " + name);
+                LoadBirths();
+                MessageBox.Show(this, "Approved. The record now appears in the Birth Certificate records.",
+                    "Approved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex) { Fail(ex); }
         }
 
         /// <summary>
@@ -888,10 +1067,214 @@ namespace CROMS.Forms
         // ---------- CREATE ----------
         private void btnSaveDraft_Click(object sender, EventArgs e) => Create("Draft");
 
+        /// <summary>
+        /// Submit for Approval is the only action left on this screen, so it now asks up
+        /// front whether this is a normal submission or an Admin Bypass - same choice the
+        /// marriage licence's own Admin Override makes, just asked here instead of behind a
+        /// second always-visible button. Normal = the usual required-field validation.
+        /// Bypass = an Admin re-verifies, states a reason, and the required-field check is
+        /// skipped - recorded to the audit trail either way.
+        /// </summary>
         private void btnSubmit_Click(object sender, EventArgs e)
         {
+            IWin32Window owner = _entryDialog ?? (IWin32Window)this;
+            DialogResult choice = MessageBox.Show(owner,
+                "Submit this birth registration for approval?\n\n" +
+                "Click YES to use ADMIN BYPASS (skips the required-field checks; needs " +
+                "admin verification and is written to the audit trail).\n" +
+                "Click NO to submit normally.",
+                "Submit for Approval", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (choice == DialogResult.Cancel) return;
+
+            if (choice == DialogResult.Yes) { DoBypassSubmit(); return; }
+
             if (!ValidateChild()) return;
-            Create("Pending Approval");
+            SubmitRecord(null);
+        }
+
+        /// <summary>
+        /// Admin-only escape hatch, same shape as DelayedBirthService.AdminOverride: a fresh
+        /// username/password re-check (not just "an admin is already signed in"), a reason
+        /// in the acting user's own words, and a permanent audit_log row naming who bypassed
+        /// the required-field check and why.
+        /// </summary>
+        private void DoBypassSubmit()
+        {
+            IWin32Window owner = _entryDialog ?? (IWin32Window)this;
+            using (var dlg = new AdminVerificationForm())
+            {
+                if (dlg.ShowDialog(_entryDialog ?? this) != DialogResult.OK) return;
+                if (dlg.VerifiedUser == null || dlg.VerifiedUser.Role != "Admin")
+                {
+                    MessageBox.Show(owner, "Only an Administrator account can bypass the required-field checks.",
+                        "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                string reason = MUi.Ask(owner, "Admin Bypass",
+                    "State why this registration is being submitted despite missing or incomplete fields:", "");
+                if (reason == null) return;
+
+                SubmitRecord("ADMIN BYPASS by " + dlg.VerifiedUser.Username +
+                    " - required-field checks skipped. Reason: " + reason.Trim());
+            }
+        }
+
+        /// <summary>
+        /// Writes the record as Pending Approval. If AutoSaveTick already created a Draft
+        /// row for this session, this UPDATEs it in place instead of inserting a second,
+        /// duplicate row for the same form.
+        /// </summary>
+        private void SubmitRecord(string bypassNote)
+        {
+            IWin32Window owner = _entryDialog ?? (IWin32Window)this;
+            const string status = "Pending Approval";
+
+            if (_editingId.HasValue)
+            {
+                string existing = cboStatus.SelectedItem?.ToString() ?? "";
+                if (!string.Equals(existing, "Draft", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(existing, "Pending Approval", StringComparison.OrdinalIgnoreCase))
+                {
+                    MessageBox.Show(owner,
+                        "This record is already " + existing + ". Use the record-editing screen to change it.",
+                        "Already registered", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(txtRegNo.Text)) txtRegNo.Text = NextRegistryNo();
+
+            try
+            {
+                SaveTypedLookupValues();
+                long id;
+                if (_editingId == null)
+                {
+                    const string sql = "INSERT INTO births (" + Columns + ") VALUES (" + ValuePlaceholders + ")";
+                    id = InsertTakingNextFreeNumber(sql, status);
+                }
+                else
+                {
+                    id = _editingId.Value;
+                    for (int attempt = 0; ; attempt++)
+                    {
+                        var ps = new List<MySqlParameter>(FieldParams(status)) { new MySqlParameter("@id", id) };
+                        try { Db.Push("UPDATE births SET " + SetClause + " WHERE id = @id", ps.ToArray()); break; }
+                        catch (MySqlException ex)
+                            when (RegistryNumber.WasTaken(ex, "births") && attempt < RegistryNumber.MaxRetries)
+                        { txtRegNo.Text = NextRegistryNo(); }
+                    }
+                }
+                SaveScan(id);
+                Audit.Write(Audit.Create, "births", (int)id,
+                    txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim() + " (Pending Approval)");
+                if (bypassNote != null) Audit.Write(Audit.Update, "births", (int)id, bypassNote);
+
+                string extra = "";
+                if (_queueTicketId > 0)
+                {
+                    Db.Push("UPDATE queue_tickets SET birth_id = @bid WHERE id = @tid",
+                        new MySqlParameter("@bid", id), new MySqlParameter("@tid", _queueTicketId));
+                    extra = "\nThe queue ticket now waits for approval, then returns for releasing.";
+                    _queueTicketId = 0;
+                }
+
+                MessageBox.Show(owner, "Submitted for approval." + extra, "Saved",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ClearForm();
+                LoadBirths();
+                ShowListView();
+            }
+            catch (Exception ex) { Fail(ex); }
+        }
+
+        /// <summary>Clears the form. If AutoSaveTick had already created a Draft row for it,
+        /// that row is removed too - the guard on status='Draft' means this can never touch
+        /// a record that has actually been submitted or registered.</summary>
+        private void btnClearForm_Click(object sender, EventArgs e)
+        {
+            IWin32Window owner = _entryDialog ?? (IWin32Window)this;
+            if (MessageBox.Show(owner, "Clear everything typed on this form?", "Clear",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+
+            if (_editingId.HasValue)
+            {
+                try
+                {
+                    Db.Push("DELETE FROM births WHERE id = @id AND status = 'Draft'",
+                        new MySqlParameter("@id", _editingId.Value));
+                }
+                catch { /* best effort - the Draft guard already protects a real record */ }
+            }
+            ClearForm();
+            LoadBirths();
+        }
+
+        /// <summary>
+        /// Marks the form dirty on any change anywhere in the tabs, walked recursively once
+        /// at startup so every field (present tab or not) is covered without listing them
+        /// one by one.
+        /// </summary>
+        private void HookAutoSaveDirty(Control root)
+        {
+            foreach (Control c in root.Controls)
+            {
+                if (c is TextBox tb) tb.TextChanged += (s, e) => _autoSaveDirty = true;
+                else if (c is ComboBox cb) cb.SelectedIndexChanged += (s, e) => _autoSaveDirty = true;
+                else if (c is DateTimePicker dtp) dtp.ValueChanged += (s, e) => _autoSaveDirty = true;
+                else if (c is CheckBox chk) chk.CheckedChanged += (s, e) => _autoSaveDirty = true;
+                if (c.HasChildren) HookAutoSaveDirty(c);
+            }
+        }
+
+        private void StartAutoSave()
+        {
+            _autoSaveDirty = false;
+            _autoSaveTimer.Start();
+        }
+
+        private void StopAutoSave()
+        {
+            _autoSaveTimer.Stop();
+        }
+
+        /// <summary>
+        /// Silently persists whatever is currently typed as a Draft - never validates, never
+        /// shows a message, never reloads the form (which would reset a control's cursor
+        /// mid-typing). Only Submit assigns a registry number or promotes the status; this
+        /// exists purely so closing the popup without Submitting doesn't lose the data.
+        /// </summary>
+        private void AutoSaveTick()
+        {
+            if (!_autoSaveDirty || _entryDialog == null) return;
+            if (string.IsNullOrWhiteSpace(txtFirstName.Text) && string.IsNullOrWhiteSpace(txtLastName.Text)) return;
+
+            // Never silently touch a record that is already Pending Approval or Registered -
+            // auto-save exists only to protect an in-progress, not-yet-submitted Draft, not
+            // to reopen and downgrade something already sent in.
+            if (_editingId.HasValue &&
+                !string.Equals(cboStatus.SelectedItem?.ToString() ?? "", "Draft", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _autoSaveDirty = false;
+            try
+            {
+                if (_editingId == null)
+                {
+                    const string sql = "INSERT INTO births (" + Columns + ") VALUES (" + ValuePlaceholders + ")";
+                    long newId = InsertTakingNextFreeNumber(sql, "Draft");
+                    _editingId = (int)newId;
+                    SaveScan(newId);
+                    RefreshRequirementsTab();
+                }
+                else
+                {
+                    var ps = new List<MySqlParameter>(FieldParams("Draft")) { new MySqlParameter("@id", _editingId.Value) };
+                    Db.Push("UPDATE births SET " + SetClause + " WHERE id = @id", ps.ToArray());
+                    SaveScan(_editingId.Value);
+                }
+            }
+            catch { /* auto-save must never interrupt data entry with an error dialog */ }
         }
 
         /// <summary>
