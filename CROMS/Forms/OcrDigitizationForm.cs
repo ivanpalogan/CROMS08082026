@@ -69,6 +69,7 @@ namespace CROMS.Forms
             InitializeComponent();
             dgvBatch.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BuildFieldGrid();
+            SetupScanQrButton();
 
             bool ok = DocumentAI.IsAvailable();
             lblEngine.Text = ok ? "OCR engine: ready" : "OCR engine: NOT FOUND (install Tesseract eng data)";
@@ -95,6 +96,151 @@ namespace CROMS.Forms
         }
 
         public void RefreshData() { LoadBatch(); }
+
+        // ---- mobile scanner QR ----------------------------------------------
+
+        /// <summary>
+        /// Adds a "Scan with Phone" button beside Load Image that opens the QR for the
+        /// CROMS Mobile Scanner (ORCMobile_Application) — the same phone app used to
+        /// capture a certificate in the field. Scanning it opens the app straight to its
+        /// camera, so a page can be captured on the phone and reviewed here without a
+        /// USB cable or emailing the photo.
+        /// </summary>
+        private void SetupScanQrButton()
+        {
+            var btn = new Button
+            {
+                Text = "📱 Scan with Phone",
+                FlatStyle = FlatStyle.Flat,
+                Font = btnLoad.Font,
+                Size = new Size(190, 40),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(btnLoad.Left - 200, btnLoad.Top),
+                UseVisualStyleBackColor = true,
+            };
+            btn.Click += (s, e) => ShowScanQrDialog();
+            Controls.Add(btn);
+            btn.BringToFront();
+        }
+
+        /// <summary>
+        /// The URL this PC's phone-scanner QR should point at. On the machine actually
+        /// running the mobile server it is the live detected address; on a client PC (the
+        /// server runs elsewhere) it is built from the saved server IP instead, so every
+        /// station can show a working QR, not just the host.
+        /// </summary>
+        private static string ScanAppUrl()
+        {
+            var m = IonicServerManager.Instance;
+            if (m.Status == IonicStatus.Running) return m.QrPayload;
+
+            string host = ServerConfig.EffectiveHost;
+            if (string.IsNullOrWhiteSpace(host) ||
+                host == "localhost" || host == "127.0.0.1" || host == "::1")
+                return null;
+
+            string scheme = string.IsNullOrEmpty(m.Scheme) ? "https" : m.Scheme;
+            int port = m.Port > 0 ? m.Port : 4200;
+            return scheme + "://" + host + ":" + port;
+        }
+
+        private void ShowScanQrDialog()
+        {
+            string url = ScanAppUrl();
+
+            using (var dlg = new Form
+            {
+                Text = "Scan with Phone",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                ClientSize = new Size(300, url == null ? 140 : 400),
+            })
+            {
+                var title = new Label
+                {
+                    Text = "CROMS Mobile Scanner",
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                    AutoSize = true,
+                    Location = new Point(20, 16),
+                };
+                dlg.Controls.Add(title);
+
+                if (url == null)
+                {
+                    dlg.Controls.Add(new Label
+                    {
+                        Text = "The mobile scanner isn't running, and no server address " +
+                               "is configured on this PC yet.",
+                        AutoSize = false,
+                        Size = new Size(260, 70),
+                        Location = new Point(20, 48),
+                    });
+                }
+                else
+                {
+                    var bmp = QrHelper.TryCreate(url, 6);
+                    if (bmp != null)
+                    {
+                        dlg.Controls.Add(new PictureBox
+                        {
+                            Image = bmp,
+                            SizeMode = PictureBoxSizeMode.Zoom,
+                            Location = new Point(50, 46),
+                            Size = new Size(200, 200),
+                        });
+                    }
+                    else
+                    {
+                        dlg.Controls.Add(new Label
+                        {
+                            Text = "(QRCoder not installed — type the address below.)",
+                            AutoSize = false,
+                            Size = new Size(260, 30),
+                            Location = new Point(20, 50),
+                        });
+                    }
+
+                    dlg.Controls.Add(new Label
+                    {
+                        Text = "Scan with the phone camera to open the scanner and " +
+                               "capture a document, or type this address:",
+                        AutoSize = false,
+                        Size = new Size(260, 40),
+                        Location = new Point(20, 254),
+                    });
+                    var txt = new TextBox
+                    {
+                        Text = url,
+                        ReadOnly = true,
+                        Location = new Point(20, 298),
+                        Size = new Size(260, 22),
+                    };
+                    dlg.Controls.Add(txt);
+                    dlg.Controls.Add(new Label
+                    {
+                        Text = "Connect the phone to the same Wi-Fi/hotspot first.",
+                        ForeColor = Color.FromArgb(108, 117, 125),
+                        AutoSize = false,
+                        Size = new Size(260, 34),
+                        Location = new Point(20, 328),
+                    });
+                }
+
+                var close = new Button
+                {
+                    Text = "Close",
+                    DialogResult = DialogResult.OK,
+                    Location = new Point(dlg.ClientSize.Width - 100, dlg.ClientSize.Height - 40),
+                    Size = new Size(80, 28),
+                };
+                dlg.Controls.Add(close);
+                dlg.AcceptButton = close;
+
+                dlg.ShowDialog(this);
+            }
+        }
 
         // ---- load ---------------------------------------------------------
 
