@@ -1,15 +1,30 @@
 using System;
 using System.Drawing;
-using System.Text;
 using System.Windows.Forms;
 
 namespace CROMS.Kiosk
 {
-    /// <summary>Final read-only checkpoint before one queue number is generated.</summary>
-    public sealed class ReviewRequestForm : Form
+    /// <summary>
+    /// Final read-only checkpoint before one queue number is generated. Restyled onto the same
+    /// system every other kiosk step already uses (KioskCore palette, RoundPanel card, StepIndicator,
+    /// KioskButtons) instead of a plain white Panel with the summary dumped into a readonly TextBox -
+    /// that plain version predates the rest of the kiosk's design pass and had drifted badly, right
+    /// down to centering the card off a Screen.PrimaryScreen snapshot taken before the form was ever
+    /// laid out (the same bug already fixed on CtcDetailsForm's card - see its CenterCard comment).
+    /// </summary>
+    public sealed class ReviewRequestForm : Form, IMessageFilter
     {
         private readonly KioskSession _session;
+        private readonly Panel _host;
+        private readonly RoundPanel _card;
+        private readonly FlowLayoutPanel _flow;
         private readonly Button _confirm;
+        private Timer _idle;
+        private Action _resetIdle;
+        // Set by every deliberate close (Back / Add Another / idle / submit) so OnFormClosing can
+        // tell our own navigation apart from the operator really quitting the kiosk - same trap and
+        // same fix already established across the other kiosk step forms.
+        private bool _navigating;
 
         public ReviewRequestForm(KioskSession session)
         {
@@ -17,82 +32,192 @@ namespace CROMS.Kiosk
             Text = "Review Request";
             FormBorderStyle = FormBorderStyle.None;
             WindowState = FormWindowState.Maximized;
-            BackColor = Color.FromArgb(244, 246, 249);
+            BackColor = KioskCore.Bg;
             Font = new Font("Segoe UI", 10F);
 
-            var card = new Panel
+            // ---------------------------------------------------------------- header
+            var header = new Panel { Dock = DockStyle.Top, Height = 128, BackColor = KioskCore.Bg };
+            var title = new Label
             {
-                Size = new Size(860, 680), BackColor = Color.White, Padding = new Padding(44),
-                AutoScroll = true
+                Text = "Review Your Request", AutoSize = true, Location = new Point(40, 18),
+                Font = new Font("Segoe UI", 30F, FontStyle.Bold), ForeColor = KioskCore.Ink
             };
-            card.Location = new Point((Screen.PrimaryScreen.WorkingArea.Width - card.Width) / 2,
-                Math.Max(20, (Screen.PrimaryScreen.WorkingArea.Height - card.Height) / 2));
-            card.Anchor = AnchorStyles.None;
-
-            card.Controls.Add(new Label
+            var stepInd = new StepIndicator
             {
-                Text = "Review Your Request", Location = new Point(44, 30), Size = new Size(760, 44),
-                Font = new Font("Segoe UI", 22F, FontStyle.Bold), ForeColor = Color.FromArgb(19, 36, 65)
-            });
-            card.Controls.Add(new Label
-            {
-                Text = "One queue number will cover all services below.", Location = new Point(47, 76),
-                Size = new Size(740, 27), ForeColor = Color.FromArgb(91, 105, 128)
-            });
-
-            var review = new TextBox
-            {
-                Location = new Point(47, 120), Size = new Size(760, 420), Multiline = true,
-                ReadOnly = true, ScrollBars = ScrollBars.Vertical, BackColor = Color.FromArgb(248, 250, 252),
-                BorderStyle = BorderStyle.FixedSingle, Font = new Font("Segoe UI", 11F), Text = BuildSummary()
+                Steps = _session.StepLabels(), Location = new Point(40, 74), Size = new Size(700, 52)
             };
+            stepInd.SetStep(stepInd.Steps.Length - 1);
+            header.Controls.Add(title);
+            header.Controls.Add(stepInd);
 
-            var back = Button("Back", Color.FromArgb(226, 232, 240), Color.FromArgb(19, 36, 65), 47);
-            back.Click += (s, e) => { DialogResult = DialogResult.Cancel; Close(); };
-            var add = Button("Add Another Transaction", Color.FromArgb(234, 241, 254), Color.FromArgb(29, 78, 216), 260);
-            add.Size = new Size(260, 46);
-            add.Click += (s, e) => { DialogResult = DialogResult.Retry; Close(); };
-            _confirm = Button("Confirm & Print Ticket", Color.FromArgb(22, 163, 74), Color.White, 574);
-            _confirm.Size = new Size(233, 46);
+            // ---------------------------------------------------------------- footer
+            var footer = new Panel { Dock = DockStyle.Bottom, Height = 100, BackColor = Color.White };
+            var footerDivider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = KioskCore.Line };
+
+            var back = new Button { Text = "Back", Size = new Size(190, 64), Location = new Point(40, 18) };
+            back.Click += (s, e) => { _navigating = true; DialogResult = DialogResult.Cancel; Close(); };
+
+            var addAnother = new Button
+            {
+                Text = "Add Another Transaction", Size = new Size(280, 64), Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+            };
+            addAnother.Click += (s, e) => { _navigating = true; DialogResult = DialogResult.Retry; Close(); };
+
+            _confirm = new Button
+            {
+                Text = "Confirm && Print Ticket", Size = new Size(260, 64), Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+            };
             _confirm.Click += Confirm;
 
-            card.Controls.Add(review); card.Controls.Add(back); card.Controls.Add(add); card.Controls.Add(_confirm);
-            Controls.Add(card);
+            footer.Controls.Add(footerDivider);
+            footer.Controls.Add(back);
+            footer.Controls.Add(addAnother);
+            footer.Controls.Add(_confirm);
+            KioskButtons.Style(back, KioskButtonKind.Secondary, KioskCore.IconArrowLeft, backdrop: footer.BackColor);
+            KioskButtons.Style(addAnother, KioskButtonKind.Secondary, backdrop: footer.BackColor);
+            KioskButtons.Style(_confirm, KioskButtonKind.Success, KioskCore.IconPrinter, iconRight: true, backdrop: footer.BackColor);
+
+            void PlaceFooterButtons()
+            {
+                _confirm.Location = new Point(footer.Width - 40 - _confirm.Width, 18);
+                addAnother.Location = new Point(_confirm.Left - 16 - addAnother.Width, 18);
+            }
+            footer.Resize += (s, e) => PlaceFooterButtons();
+
+            // ---------------------------------------------------------------- card
+            _card = new RoundPanel { Radius = 16, Fill = Color.White, BorderColor = KioskCore.Line, Shadow = 6 };
+            var hint = new Label
+            {
+                Text = "One queue number will cover all services below.", Dock = DockStyle.Top, Height = 32,
+                Font = new Font("Segoe UI", 10.5F), ForeColor = KioskCore.Muted
+            };
+            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
+            _flow = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.White
+            };
+            scroll.Controls.Add(_flow);
+            _card.Padding = new Padding(36, 28, 36, 24);
+            _card.Controls.Add(scroll);
+            _card.Controls.Add(hint);
+
+            _host = new Panel { Dock = DockStyle.Fill, BackColor = KioskCore.Bg };
+            _host.Controls.Add(_card);
+            _host.Resize += (s, e) => LayoutCard();
+
+            Controls.Add(_host);
+            Controls.Add(footer);
+            Controls.Add(header);
+
+            BuildRows();
+            Load += (s, e) => { LayoutCard(); PlaceFooterButtons(); };
+
+            // ---------------------------------------------------------------- idle timeout
+            // A client can walk away right here (their name is already on screen) exactly as
+            // easily as on the personal-info step - this screen previously had no idle guard at
+            // all, unlike every other step that carries the client's details.
+            _idle = new Timer { Interval = 1000 };
+            int idleTicks = 0;
+            _idle.Tick += (s, e) =>
+            {
+                idleTicks++;
+                if (idleTicks >= KioskCore.IdleSeconds)
+                {
+                    idleTicks = 0;
+                    _session.Reset();
+                    _navigating = true;
+                    DialogResult = DialogResult.Abort;
+                    Close();
+                }
+            };
+            _resetIdle = () => idleTicks = 0;
+            _idle.Start();
+            Application.AddMessageFilter(this);
         }
 
-        private string BuildSummary()
+        public bool PreFilterMessage(ref Message m)
         {
-            var b = new StringBuilder();
-            b.AppendLine("CLIENT");
-            b.AppendLine(KioskCore.FullName(_session));
-            if (!string.IsNullOrWhiteSpace(_session.Contact)) b.AppendLine("Contact: " + _session.Contact);
-            if (_session.HasMarriage) b.AppendLine("Spouse: " + KioskCore.FullName2(_session));
-            b.AppendLine();
-            b.AppendLine("SERVICES");
+            if (m.Msg == 0x0200 || m.Msg == 0x0201 || m.Msg == 0x0100 || m.Msg == 0x020A)
+                _resetIdle?.Invoke();
+            return false;
+        }
+
+        /// <summary>Centers the card against the host's OWN current size, recomputed on every
+        /// resize/load rather than off a Screen.PrimaryScreen snapshot taken in the constructor
+        /// before the form has ever been laid out - that static math is what put the old card off
+        /// in a corner, cut off, whenever the running screen/DPI didn't match the assumption.</summary>
+        private void LayoutCard()
+        {
+            int w = Math.Max(560, Math.Min(920, _host.ClientSize.Width - 64));
+            int h = Math.Max(360, _host.ClientSize.Height - 48);
+            _card.Size = new Size(w, h);
+            _card.Location = new Point((_host.ClientSize.Width - w) / 2, Math.Max(0, (_host.ClientSize.Height - h) / 2));
+        }
+
+        // ------------------------------------------------------------- content
+        private void BuildRows()
+        {
+            _flow.Controls.Clear();
+            bool first = true;
+
+            void Section(string text)
+            {
+                _flow.Controls.Add(new Label
+                {
+                    Text = text, AutoSize = true, Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                    ForeColor = KioskCore.Accent, Margin = new Padding(0, first ? 0 : 18, 0, 8)
+                });
+                first = false;
+            }
+
+            void Row(string cap, string val, Color? valColor = null)
+            {
+                var p = new Panel { Size = new Size(800, 46), Margin = new Padding(0, 0, 0, 2) };
+                p.Controls.Add(new Label
+                {
+                    Text = cap, Location = new Point(0, 0), Size = new Size(800, 16),
+                    Font = new Font("Segoe UI", 8.5F), ForeColor = KioskCore.Muted
+                });
+                p.Controls.Add(new Label
+                {
+                    Text = val, Location = new Point(0, 17), Size = new Size(800, 26), AutoEllipsis = true,
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = valColor ?? KioskCore.Ink
+                });
+                _flow.Controls.Add(p);
+            }
+
+            Section("CLIENT");
+            Row("Name", KioskCore.FullName(_session));
+            if (!string.IsNullOrWhiteSpace(_session.Contact)) Row("Contact", _session.Contact);
+            if (_session.HasMarriage) Row("Spouse", KioskCore.FullName2(_session));
+
+            Section("SERVICES SELECTED");
             int i = 1;
             foreach (string code in _session.Selected)
-                b.AppendLine(i++ + ". " + KioskCore.Find(code).Label);
+                Row((i++).ToString(), KioskCore.Find(code).Label);
 
             if (_session.HasCtc)
             {
-                b.AppendLine(); b.AppendLine("CERTIFIED TRUE COPY");
-                b.AppendLine("Document: " + _session.CtcDocumentType);
-                if (!string.IsNullOrWhiteSpace(_session.CtcDetails)) b.AppendLine("Details: " + _session.CtcDetails);
+                Section("CERTIFIED TRUE COPY");
+                Row("Document", _session.CtcDocumentType);
+                if (!string.IsNullOrWhiteSpace(_session.CtcDetails)) Row("Details", _session.CtcDetails);
             }
             if (_session.HasBreqs)
             {
-                b.AppendLine(); b.AppendLine("PSA COPY (BREQS)");
-                b.AppendLine("Document: " + _session.BreqsDocType + " · Copies: " + _session.BreqsCopies);
-                b.AppendLine("Document owner: " + Join(_session.OwnerFirst, _session.OwnerMiddle, _session.OwnerLast));
+                Section("PSA COPY (BREQS)");
+                Row("Document", _session.BreqsDocType + "  ·  Copies: " + _session.BreqsCopies);
+                Row("Document owner", Join(_session.OwnerFirst, _session.OwnerMiddle, _session.OwnerLast));
             }
             if (_session.HasClaim && !string.IsNullOrWhiteSpace(_session.ClaimTicketEntry))
             {
-                b.AppendLine(); b.AppendLine("RELEASE & CLAIM");
-                b.AppendLine("Previous queue number: " + _session.ClaimTicketEntry);
+                Section("RELEASE & CLAIM");
+                Row("Previous queue number", _session.ClaimTicketEntry);
             }
-            b.AppendLine();
-            b.AppendLine("Priority lane: " + KioskCore.PriorityValue(_session));
-            return b.ToString();
+
+            Section("PRIORITY LANE");
+            string lane = KioskCore.PriorityValue(_session);
+            Row("Lane", lane, lane == "Regular" ? KioskCore.Muted : KioskCore.Accent);
         }
 
         private void Confirm(object sender, EventArgs e)
@@ -106,6 +231,7 @@ namespace CROMS.Kiosk
                     _confirm.Enabled = true;
                     return;
                 }
+                _navigating = true;
                 DialogResult = DialogResult.OK;
                 Close();
             }
@@ -117,19 +243,16 @@ namespace CROMS.Kiosk
             }
         }
 
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            Application.RemoveMessageFilter(this);
+            _idle?.Stop();
+            if (!_navigating && e.CloseReason == CloseReason.UserClosing)
+                Environment.Exit(0);
+            base.OnFormClosing(e);
+        }
+
         private static string Join(params string[] parts) => string.Join(" ", Array.FindAll(parts,
             p => !string.IsNullOrWhiteSpace(p)));
-
-        private static Button Button(string text, Color back, Color fore, int x)
-        {
-            var button = new Button
-            {
-                Text = text, Location = new Point(x, 575), Size = new Size(190, 46),
-                FlatStyle = FlatStyle.Flat, BackColor = back, ForeColor = fore,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
-            };
-            button.FlatAppearance.BorderSize = 0;
-            return button;
-        }
     }
 }
