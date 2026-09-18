@@ -189,7 +189,8 @@ namespace CROMS.Forms
                       "CASE p.stage WHEN 'UnderReview' THEN 'Under Review' WHEN 'PSA_Endorsement' THEN 'PSA Endorsement' ELSE p.stage END AS Stage, " +
                       "p.filed_date AS Filed, p.remarks AS Remarks, p.created_at AS Recorded " +
                       "FROM petitions p WHERE p.petition_type = '" + typeCode + "' ORDER BY p.created_at DESC",
-                Images = new (string, string)[0]
+                Images = new (string, string)[0],
+                ReqOwnerType = "Petition"
             });
         }
 
@@ -284,7 +285,7 @@ namespace CROMS.Forms
             {
                 dlg.Text = cat.Label + " — Record #" + row["id"];
                 dlg.StartPosition = FormStartPosition.CenterParent;
-                dlg.Size = cat.IsMf90 ? new Size(820, 720) : new Size(740, 640);
+                dlg.Size = !string.IsNullOrEmpty(cat.ReqOwnerType) ? new Size(820, 720) : new Size(740, 640);
                 dlg.MinimizeBox = false;
                 dlg.MaximizeBox = false;
                 dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -390,15 +391,20 @@ namespace CROMS.Forms
 
                 topSection.Controls.Add(imagesPanel, 0, 0);
 
-                // Form 90's supporting-document checklist (marriage_requirements): what was
-                // required, whether it was attached, and whether an Admin BYPASSED it instead
-                // of it being checked — the same bypassed_by/bypassed_at/bypass_reason facts
-                // MarriageUi.RequirementsGrid shows on the live editing screen, read-only here
-                // (this screen never writes — no Bypass/Attach actions, View only).
-                if (cat.IsMf90)
+                // The supporting-document checklist (marriage_requirements) — reused by every
+                // record type that has one: a marriage license application (owner_type
+                // "License"), a marriage registration ("Marriage"), a delayed birth case
+                // ("Birth" — blank/absent when the birth was never flagged/worked as delayed,
+                // since nothing was ever synced for it), and every petition type ("Petition").
+                // Shows what was required, whether it was attached, and whether an Admin
+                // BYPASSED it instead of it being checked — the same bypassed_by/bypassed_at/
+                // bypass_reason facts MarriageUi.RequirementsGrid shows on the live editing
+                // screens, read-only here (this screen never writes — no Bypass/Attach actions,
+                // View only).
+                if (!string.IsNullOrEmpty(cat.ReqOwnerType))
                 {
-                    long licenseId = Convert.ToInt64(row["id"]);
-                    List<ReqRow> reqs = MarriageService.Requirements("License", (int)licenseId);
+                    int ownerId = Convert.ToInt32(row["id"]);
+                    List<ReqRow> reqs = MarriageService.Requirements(cat.ReqOwnerType, ownerId);
                     if (reqs.Count > 0)
                     {
                         topSection.RowStyles.Add(new RowStyle(SizeType.AutoSize));
