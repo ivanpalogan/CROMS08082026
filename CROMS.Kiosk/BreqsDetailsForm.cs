@@ -35,6 +35,7 @@ namespace CROMS.Kiosk
             _btnNext.BringToFront();
             _stepInd.Steps = _session.StepLabels();
             _stepInd.SetStep(1);
+            _stepInd.FitToContent(Math.Max(300, header.ClientSize.Width - _stepInd.Left * 2));
             PlaceStars();
             KioskButtons.Style(_btnBack, KioskButtonKind.Secondary, KioskCore.IconArrowLeft, backdrop: footer.BackColor);
             KioskButtons.Style(_btnNext, KioskButtonKind.Primary, KioskCore.IconArrowRight, iconRight: true, backdrop: footer.BackColor);

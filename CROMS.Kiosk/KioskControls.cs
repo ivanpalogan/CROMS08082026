@@ -266,7 +266,50 @@ namespace CROMS.Kiosk
             BackColor = Color.Transparent;
         }
 
+        // Layout constants shared between the measure pass and the draw pass, and now also
+        // FitToContent - all three MUST advance by exactly the same amounts, or the capsule
+        // (and the control's own resized bounds) won't match what actually gets drawn.
+        private const int D = 26;          // step dot diameter
+        private const int PadX = 22;       // capsule left/right padding
+        private const int PadY = 10;       // capsule top/bottom padding
+        private const int DotGap = 10;     // dot -> its own label
+        private const int StepGap = 16;    // label <-> connector line
+        private const int Connector = 28;  // connector line length
+
         public void SetStep(int i) { _current = i; Invalidate(); }
+
+        private static int MeasureContentWidth(string[] labels, int current)
+        {
+            int contentW = 0;
+            using (var fCur = new Font("Segoe UI", 10.5F, FontStyle.Bold))
+            using (var fOther = new Font("Segoe UI", 10.5F))
+            {
+                for (int i = 0; i < labels.Length; i++)
+                {
+                    var lf = i == current ? fCur : fOther;
+                    contentW += D + DotGap + TextRenderer.MeasureText(labels[i], lf, MaxSize, NoAmpersand).Width;
+                }
+            }
+            if (labels.Length > 1)
+                contentW += (labels.Length - 1) * (StepGap + Connector + StepGap);
+            return contentW;
+        }
+
+        /// <summary>
+        /// Resizes the control to fit the CURRENT Steps/step exactly (capped at maxWidth, so it
+        /// still respects the space the host form actually has). Call after setting Steps and
+        /// SetStep - a fixed Designer Size cannot know the step count/labels chosen at runtime
+        /// (e.g. "CTC Details" only appears when HasCtc), and a control narrower than its content
+        /// silently clips the last label instead of shrinking the capsule around it.
+        /// </summary>
+        public void FitToContent(int maxWidth)
+        {
+            string[] labels = Steps ?? new string[0];
+            int contentW = MeasureContentWidth(labels, _current);
+            int w = Math.Min(maxWidth, contentW + PadX * 2);
+            if (w != Width) Width = w;
+            Invalidate();
+        }
 
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -276,30 +319,12 @@ namespace CROMS.Kiosk
             g.Clear(Parent != null ? Parent.BackColor : SystemColors.Control);
 
             string[] labels = Steps ?? new string[0];
-            // Layout constants. NOTE: the measure loop below and the draw loop further down
-            // MUST advance by exactly the same amounts, or the capsule won't match its content
-            // (an earlier version added the inter-step gap once per step while drawing but only
-            // between steps while measuring, so the capsule came out a gap too narrow and the
-            // last label crowded the right edge).
-            const int d = 26;          // step dot diameter
-            const int padX = 22;       // capsule left/right padding
-            const int padY = 10;       // capsule top/bottom padding
-            const int dotGap = 10;     // dot -> its own label
-            const int stepGap = 16;    // label <-> connector line
-            const int connector = 28;  // connector line length
+            const int d = D, padX = PadX, padY = PadY, dotGap = DotGap, stepGap = StepGap, connector = Connector;
 
             using (var fCur = new Font("Segoe UI", 10.5F, FontStyle.Bold))
             using (var fOther = new Font("Segoe UI", 10.5F))
             {
-                int contentW = 0;
-                for (int i = 0; i < labels.Length; i++)
-                {
-                    var lf = i == _current ? fCur : fOther;
-                    contentW += d + dotGap + TextRenderer.MeasureText(labels[i], lf, MaxSize, NoAmpersand).Width;
-                }
-                if (labels.Length > 1)
-                    contentW += (labels.Length - 1) * (stepGap + connector + stepGap);
-
+                int contentW = MeasureContentWidth(labels, _current);
                 int capsuleW = Math.Min(Width, contentW + padX * 2);
                 int capsuleH = Math.Min(Height, d + padY * 2);
                 var capsule = new Rectangle(0, (Height - capsuleH) / 2, capsuleW, capsuleH);

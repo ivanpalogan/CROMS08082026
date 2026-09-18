@@ -333,6 +333,7 @@ namespace CROMS.Kiosk
         {
             _stepInd.Steps = _session.StepLabels();
             _stepInd.SetStep(0);
+            _stepInd.FitToContent(Math.Max(300, header.ClientSize.Width - _stepInd.Left * 2));
         }
 
         private void PaintCard(string code)

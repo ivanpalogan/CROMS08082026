@@ -55,6 +55,7 @@ namespace CROMS.Kiosk
             _offlineOverlay.BringToFront();
             _stepInd.Steps = _session.StepLabels();
             _stepInd.SetStep(_session.DetailsStepIndex());
+            _stepInd.FitToContent(Math.Max(300, header.ClientSize.Width - _stepInd.Left * 2));
 
             // One shared button treatment across both kiosk steps (see KioskButtons).
             KioskButtons.Style(_btnBack, KioskButtonKind.Secondary, KioskCore.IconArrowLeft,
