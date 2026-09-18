@@ -1320,13 +1320,14 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Right-click "Call This Ticket" on either queue grid — the out-of-order pick.
-        /// Wired once in the constructor for both dgvQueue and dgvPriority.
+        /// Right-click a row on either queue grid, then click "Call This Number" — selects
+        /// that row and calls it, no matter where it sits in line. Wired once in the
+        /// constructor for both dgvQueue and dgvPriority.
         /// </summary>
         private void SetupQueueContextMenu()
         {
             var menu = new ContextMenuStrip();
-            var callItem = new ToolStripMenuItem("Call This Ticket (out of order)");
+            var callItem = new ToolStripMenuItem("Call This Number");
             menu.Items.Add(callItem);
 
             foreach (DataGridView grid in new[] { dgvQueue, dgvPriority })
@@ -1354,7 +1355,7 @@ namespace CROMS.Forms
                 string status = grid.Columns.Contains("Status")
                     ? grid.CurrentRow.Cells["Status"].Value?.ToString() : null;
                 callItem.Enabled = status == "Waiting" || status == "For Receiving";
-                callItem.Text = "Call This Ticket (out of order)" +
+                callItem.Text = "Call This Number" +
                     (grid.Columns.Contains("Queue No") ? " — " + grid.CurrentRow.Cells["Queue No"].Value : "");
             };
             callItem.Click += (s, e) =>
