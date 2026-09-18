@@ -436,5 +436,86 @@ namespace CROMS.Forms
                 dlg.ShowDialog(this);
             }
         }
+
+        /// <summary>
+        /// Read-only requirements checklist for a Form 90 license — what MarriageUi.
+        /// RequirementsGrid shows on the live editing screen, minus every write path (no
+        /// Attach/Bypass buttons, no editable cells): a name, its status, whether an Admin
+        /// bypassed it instead of it being checked (and by whom/why), and a View button when
+        /// a scan/photo was attached to it. This screen only ever reads.
+        /// </summary>
+        private Control BuildRequirementsPanel(List<ReqRow> reqs, IWin32Window dlgOwner)
+        {
+            var wrap = new Panel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(14, 4, 14, 8) };
+            var title = new Label
+            {
+                Text = "License Requirements",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(19, 36, 65),
+                AutoSize = true,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 0, 0, 4)
+            };
+
+            var grid = new DataGridView
+            {
+                Dock = DockStyle.Top,
+                Height = Math.Min(240, 40 + reqs.Count * 30),
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                ReadOnly = true,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Party", HeaderText = "For", FillWeight = 50 });
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Req", HeaderText = "Requirement", FillWeight = 190 });
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", HeaderText = "Status", FillWeight = 80 });
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Bypassed", HeaderText = "Bypassed", FillWeight = 200 });
+            grid.Columns.Add(new DataGridViewButtonColumn { Name = "File", HeaderText = "Attachment", FillWeight = 70, FlatStyle = FlatStyle.Flat });
+
+            foreach (ReqRow r in reqs)
+            {
+                string bypassed;
+                if (r.IsBypassed)
+                {
+                    string who = string.IsNullOrEmpty(r.BypassedByName) ? "an Admin" : r.BypassedByName;
+                    string when = r.BypassedAt.HasValue ? r.BypassedAt.Value.ToString("MM/dd/yyyy h:mm tt") : "";
+                    bypassed = "Yes — by " + who + (when == "" ? "" : " on " + when) +
+                        (string.IsNullOrEmpty(r.BypassReason) ? "" : ": " + r.BypassReason);
+                }
+                else bypassed = "No";
+
+                int i = grid.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code, r.Status,
+                    bypassed, r.HasAttachment ? "View" : "—");
+                DataGridViewRow row = grid.Rows[i];
+                row.Tag = r;
+                if (r.IsBypassed) row.DefaultCellStyle.BackColor = Color.FromArgb(255, 243, 205);
+                grid.Columns["File"].MinimumWidth = 70;
+                grid.Columns["Bypassed"].MinimumWidth = 160;
+                if (!r.HasAttachment) row.Cells["File"].Style.ForeColor = Color.FromArgb(150, 150, 150);
+            }
+            grid.CellContentClick += (s, e) =>
+            {
+                if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "File") return;
+                var r = grid.Rows[e.RowIndex].Tag as ReqRow;
+                if (r == null || !r.HasAttachment) return;
+                string fileName;
+                byte[] bytes = MarriageService.RequirementAttachment(r.Id, out fileName);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    MessageBox.Show(dlgOwner, "No attachment stored for this requirement.", "Attachment",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                SoftcopyViewer.Show(bytes, (r.Label ?? r.Code) + " — " + fileName, dlgOwner);
+            };
+
+            wrap.Controls.Add(grid);
+            wrap.Controls.Add(title);
+            return wrap;
+        }
     }
 }
