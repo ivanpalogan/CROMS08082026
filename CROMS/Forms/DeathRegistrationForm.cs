@@ -59,48 +59,46 @@ namespace CROMS.Forms
             InitializeComponent();
             LoadCombos();
             BuildLookups();
-            dgvDeaths.CellClick += dgvDeaths_CellClick;
             LoadDeaths();
             LearningLibrary.Attach(txtFullName, LearningLibrary.Surname);
             LearningLibrary.Attach(txtDispPlace, LearningLibrary.Cemetery);
             LearningLibrary.Attach(txtCertifier, LearningLibrary.Officer);
-            BuildSoftcopyButton();
-            BuildFactsCertButton();
+            CenterContent();
+        }
+
+        private void DeathRegistrationForm_Resize(object sender, EventArgs e) => CenterContent();
+
+        /// <summary>Full width always - the two side gutters on layoutRoot are collapsed to
+        /// zero, matching Birth Registration's own full-width layout.</summary>
+        private void CenterContent()
+        {
+            layoutRoot.ColumnStyles[0].SizeType = SizeType.Absolute;
+            layoutRoot.ColumnStyles[0].Width = 0F;
+            layoutRoot.ColumnStyles[1].SizeType = SizeType.Percent;
+            layoutRoot.ColumnStyles[1].Width = 100F;
+            layoutRoot.ColumnStyles[2].SizeType = SizeType.Absolute;
+            layoutRoot.ColumnStyles[2].Width = 0F;
+        }
+
+        private void certificateMenu_Opening(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            mnuViewSoftcopy.Enabled = _scanImage != null || _editingId != null;
+            mnuFactsCert.Enabled = _editingId != null;
         }
 
         /// <summary>Form 2A - CERTIFICATION (Death Available), the death counterpart of the
         /// marriage desk's Form 3A / birth's Form 1A: a "TO WHOM IT MAY CONCERN" letter
         /// certifying facts already in the Register of Deaths - not a copy of the Certificate of
         /// Death. Same saved-record action as the other two; if opened with no record selected
-        /// the screen still opens and lets the operator search for one. Built in code (like
-        /// btnViewScan above) rather than in the Designer, since this form's Designer file has
-        /// been regenerated out from under hand edits before.</summary>
-        private Button btnFactsCert;
-
-        private void BuildFactsCertButton()
+        /// the screen still opens and lets the operator search for one.</summary>
+        private void mnuFactsCert_Click(object sender, EventArgs e)
         {
-            const int width = 220;
-            btnFactsCert = new Button
-            {
-                Text = "Facts Certification (Form 2A)",
-                Font = new System.Drawing.Font("Segoe UI", 9F),
-                FlatStyle = FlatStyle.Flat,
-                Size = new System.Drawing.Size(width, btnPrint.Height),
-                Location = new System.Drawing.Point(btnPrint.Left - 6 - width, btnPrint.Top),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btnFactsCert.Click += (s, e) =>
-            {
-                using (Form3CCertForm f = _editingId != null ? new Form3CCertForm(_editingId.Value) : new Form3CCertForm())
-                    f.ShowDialog(this);
-            };
-            btnPrint.Parent.Controls.Add(btnFactsCert);
-            btnFactsCert.BringToFront();
+            using (Form3CCertForm f = _editingId != null ? new Form3CCertForm(_editingId.Value) : new Form3CCertForm())
+                f.ShowDialog(this);
         }
 
         // Softcopy of the source certificate (scan from Document AI), saved with the record.
         private byte[] _scanImage;
-        private Button btnViewScan;
 
         /// <summary>Attach the original scanned document to the next saved record.</summary>
         public void SetScanImage(byte[] bytes) => _scanImage = bytes;
@@ -111,22 +109,6 @@ namespace CROMS.Forms
             Db.Push("UPDATE deaths SET scan_image = @img WHERE id = @id",
                 new MySqlParameter("@img", MySqlDbType.LongBlob) { Value = _scanImage },
                 new MySqlParameter("@id", id));
-        }
-
-        private void BuildSoftcopyButton()
-        {
-            btnViewScan = new Button
-            {
-                Text = "View Softcopy",
-                Font = new System.Drawing.Font("Segoe UI", 9F),
-                FlatStyle = FlatStyle.Flat,
-                Size = new System.Drawing.Size(120, btnSave.Height),
-                Location = new System.Drawing.Point(btnSave.Left - 6 - 120, btnSave.Top),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btnViewScan.Click += btnViewScan_Click;
-            btnSave.Parent.Controls.Add(btnViewScan);
-            btnViewScan.BringToFront();
         }
 
         private void btnViewScan_Click(object sender, EventArgs e)
@@ -368,6 +350,52 @@ namespace CROMS.Forms
                 "permit_type AS Permit, status AS Status " +
                 "FROM deaths ORDER BY id DESC");
             if (dgvDeaths.Columns.Contains("id")) dgvDeaths.Columns["id"].Visible = false;
+            ApplySearchFilter();
+        }
+
+        private void ApplySearchFilter()
+        {
+            if (!(dgvDeaths.DataSource is DataTable dt)) return;
+
+            string q = EscapeFilterValue((txtSearch?.Text ?? "").Trim());
+            if (q.Length == 0) { dt.DefaultView.RowFilter = ""; return; }
+
+            var parts = new List<string>();
+            foreach (string col in new[] { "Registry No", "Deceased", "Status" })
+                if (dt.Columns.Contains(col))
+                    parts.Add("[" + col + "] LIKE '%" + q + "%'");
+
+            dt.DefaultView.RowFilter = parts.Count == 0 ? "" : string.Join(" OR ", parts);
+        }
+
+        /// <summary>
+        /// Makes typed text safe inside a DataView RowFilter LIKE pattern. A quote has to be
+        /// doubled, and the wildcard characters have to be wrapped in brackets so that typing
+        /// one searches for that literal character instead of silently widening the match.
+        /// </summary>
+        private static string EscapeFilterValue(string s)
+        {
+            var sb = new System.Text.StringBuilder(s.Length + 8);
+            foreach (char c in s)
+            {
+                switch (c)
+                {
+                    case '\'': sb.Append("''"); break;
+                    case '[': sb.Append("[[]"); break;
+                    case '%': sb.Append("[%]"); break;
+                    case '*': sb.Append("[*]"); break;
+                    default: sb.Append(c); break;
+                }
+            }
+            return sb.ToString();
+        }
+
+        private void txtSearch_TextChanged(object sender, EventArgs e) => ApplySearchFilter();
+
+        private void btnClearSearch_Click(object sender, EventArgs e)
+        {
+            txtSearch.Text = "";
+            txtSearch.Focus();
         }
 
         // ---------- CREATE ----------

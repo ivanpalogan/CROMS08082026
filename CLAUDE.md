@@ -5158,3 +5158,69 @@ Not run against the live database - migration 52 needs to be applied before the 
 first use, same as every other migration recorded pending in this log. GUI not clicked (no
 interactive desktop) - the wiring mirrors DelayedBirthCaseForm's already-verified pattern
 line-for-line; rebuild in VS, apply migration 52, and open an existing Court Order case to check.
+
+### 2026-09-18 (later still) — Death Registration rebuilt onto Birth Registration's visual system
+User asked for Death Registration to look like Birth Registration. Death had never received any
+of the CardPanel/TableLayoutPanel passes this project has done on every other module since
+2026-09-08 — it was still three plain absolute-positioned GroupBoxes (Deceased Information /
+Cause of Death & Disposal / Certification) stacked on the raw form, no header bar, no full-width
+layout, native GroupBox chrome.
+
+Rebuilt `DeathRegistrationForm.Designer.cs` on the same shell Birth uses: `layoutRoot`/
+`layoutMain` (full-width, gutters collapsed to 0 exactly like Birth's post-2026-09-18 fix) → a
+header row (title/subtitle left, action buttons right) → `cardForm` (a white `CardPanel` holding
+a `TabControl`) → `cardRecords` (a second `CardPanel` with a search box and the records grid).
+The three GroupBoxes became four tabs — Deceased / Cause & Disposal / Informant / Certification —
+splitting Informant (items 26) out from Certification (Book/Prepared/Received/Registered), which
+is exactly how Birth already separates its own Informant and Certification tabs. Each tab is a
+4-column TableLayoutPanel (label/value/label/value, same muted Segoe UI 9F caption style Birth
+uses everywhere) instead of hand-placed controls.
+
+ONE DELIBERATE DEPARTURE FROM BIRTH'S OWN COLUMN STYLE, and it matters. Birth's tabs use
+Percent-width value columns so fields stretch on resize — but Death's dropdown fields
+(Citizenship, Religion, the three causes of death, Relationship to the Deceased, and the
+Place-of-Death triple) are not real ComboBoxes bound in the Designer; `BuildLookups()` overlays a
+runtime-built combobox on top of a hidden TextBox at that TextBox's `Location`/`Size`, read ONCE
+in the constructor, with no resize handler to keep it aligned. That is precisely the trap this
+project already hit and fixed for Birth on 2026-09-08 ("the overlay mechanism only works while
+every field sits at a fixed point") — a Percent-width column would drift the underlying TextBox
+away from its overlaid combo the first time the window resizes. So all four new tab tables use
+ALL-ABSOLUTE columns (178/380/178/380) instead of Birth's 178/Percent50/178/Percent50: every
+cell's pixel geometry is fixed regardless of host width, so the overlay never drifts. Cost is
+the tabs don't reflow on a very wide window the way Birth's do (a few tens of pixels of unused
+space instead) — a fixed trade against a real correctness bug, not an oversight.
+
+Print/certificate actions moved into the header as a `SplitButton` (`btnCertificate`, same
+`Modules.SplitButton` class and `certificateMenu`/`mnuViewSoftcopy`/`mnuFactsCert` pattern Birth
+uses): the main click still runs the unchanged `btnPrint_Click` (prints the Certificate of Death
+then offers the Burial/Transfer Permit exactly as before), and the dropdown offers View Softcopy
+and Facts Certification (Form 2A) — replacing the two runtime-built buttons
+(`BuildSoftcopyButton`/`BuildFactsCertButton`) that used to be glued on beside `btnPrint`/`btnSave`
+in code because this form's Designer had no header row to place them in. `certificateMenu_Opening`
+added (identical rule to Birth's: View Softcopy needs a scan or a saved record, Facts Cert needs a
+saved record). `btnSave` ("Register Death") is the primary header action, matching Birth's
+`btnSubmit`.
+
+Records card gained a search box (`txtSearch`/`btnClearSearch`), which Death never had — reused
+Birth's exact `ApplySearchFilter`/`EscapeFilterValue` pattern (DataView RowFilter over
+bracket-safe LIKE clauses on Registry No / Deceased / Status) verbatim, including the bracketed
+column names that avoid the `DataColumn` expression parser's reserved words. `CenterContent()`
+(collapses the two side gutters to 0, called from the constructor and a new
+`DeathRegistrationForm_Resize` handler) is copied from Birth's current, already-fixed version —
+Death never goes through Birth's earlier "centered at a max width" phase this project had to walk
+back on 2026-09-18 for the same reason.
+
+NOT ported: Birth's list/entry popup-dialog wizard (Form-90-style step strip + at-a-glance rail,
+autosave, list-view/entry-view toggle) — that is a much larger, still-evolving piece of Birth's
+own architecture, undocumented in this log until read directly from the current source, and
+Death's simpler single-view Register/Update/Delete workflow (no Draft/Submit/Pending-Approval
+pipeline) doesn't carry the same need for it. This pass matches the CARD/HEADER/TAB visual system,
+not Birth's newest popup-wizard behaviour.
+
+`BuildLookups()`/`Lookup()`/`LookupTriple()`/`TripleCombo()` in the code-behind are UNCHANGED —
+verified they still work correctly once the columns became Absolute (no drift risk), so none of
+the combobox-overlay logic needed touching, only its host layout.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp
+OutputPath. GUI not clicked (no interactive desktop) — rebuild in VS to see the new header, tabs
+and search box.
