@@ -144,9 +144,18 @@ namespace CROMS.Forms
             return scheme + "://" + host + ":" + port;
         }
 
+        /// <summary>
+        /// Shows the phone-scanner QR and keeps it LIVE while the dialog is open: if the
+        /// laptop switches network (hotspot to Wi-Fi, one Wi-Fi to another, or back), the
+        /// detected address changes underneath <see cref="IonicServerManager"/> within its
+        /// own ~10s poll, and this dialog re-renders the QR to match — no restart, no
+        /// closing/reopening the dialog needed. Subscribes to the manager's own
+        /// <c>Changed</c> event for an immediate update, plus a 3s poll as a fallback for
+        /// the client-PC path (which reads a saved config, not a live-detected address).
+        /// </summary>
         private void ShowScanQrDialog()
         {
-            string url = ScanAppUrl();
+            string lastUrl = null;
 
             using (var dlg = new Form
             {
@@ -155,7 +164,7 @@ namespace CROMS.Forms
                 StartPosition = FormStartPosition.CenterParent,
                 MaximizeBox = false,
                 MinimizeBox = false,
-                ClientSize = new Size(300, url == null ? 140 : 400),
+                ClientSize = new Size(300, 420),
             })
             {
                 var title = new Label
@@ -165,68 +174,117 @@ namespace CROMS.Forms
                     AutoSize = true,
                     Location = new Point(20, 16),
                 };
+                var lblNet = new Label
+                {
+                    Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
+                    ForeColor = Color.FromArgb(25, 135, 84),
+                    AutoSize = false,
+                    Size = new Size(260, 16),
+                    Location = new Point(20, 42),
+                    Text = "",
+                };
+                var pic = new PictureBox
+                {
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Location = new Point(50, 62),
+                    Size = new Size(200, 200),
+                    Visible = false,
+                };
+                var lblMsg = new Label
+                {
+                    AutoSize = false,
+                    Size = new Size(260, 70),
+                    Location = new Point(20, 68),
+                };
+                var lblHint = new Label
+                {
+                    Text = "Scan with the phone camera to open the scanner and " +
+                           "capture a document, or type this address:",
+                    AutoSize = false,
+                    Size = new Size(260, 40),
+                    Location = new Point(20, 270),
+                    Visible = false,
+                };
+                var txt = new TextBox
+                {
+                    ReadOnly = true,
+                    Location = new Point(20, 314),
+                    Size = new Size(260, 22),
+                    Visible = false,
+                };
+                var lblFoot = new Label
+                {
+                    Text = "Connect the phone to the same Wi-Fi/hotspot as this PC — " +
+                           "switching networks here updates the QR automatically.",
+                    ForeColor = Color.FromArgb(108, 117, 125),
+                    AutoSize = false,
+                    Size = new Size(260, 46),
+                    Location = new Point(20, 344),
+                    Visible = false,
+                };
                 dlg.Controls.Add(title);
+                dlg.Controls.Add(lblNet);
+                dlg.Controls.Add(pic);
+                dlg.Controls.Add(lblMsg);
+                dlg.Controls.Add(lblHint);
+                dlg.Controls.Add(txt);
+                dlg.Controls.Add(lblFoot);
 
-                if (url == null)
+                Action refresh = () =>
                 {
-                    dlg.Controls.Add(new Label
+                    var m = IonicServerManager.Instance;
+                    lblNet.Text = m.Status == IonicStatus.Running && !string.IsNullOrEmpty(m.NetworkType)
+                        ? "Connected via " + m.NetworkType
+                        : "";
+
+                    string url = ScanAppUrl();
+                    if (url == lastUrl) return;   // no change — leave the QR as-is
+                    lastUrl = url;
+
+                    if (url == null)
                     {
-                        Text = "The mobile scanner isn't running, and no server address " +
-                               "is configured on this PC yet.",
-                        AutoSize = false,
-                        Size = new Size(260, 70),
-                        Location = new Point(20, 48),
-                    });
-                }
-                else
-                {
+                        pic.Visible = false; lblHint.Visible = false; txt.Visible = false; lblFoot.Visible = false;
+                        lblMsg.Visible = true;
+                        lblMsg.Text = "The mobile scanner isn't running, and no server " +
+                                      "address is configured on this PC yet.";
+                        return;
+                    }
+
                     var bmp = QrHelper.TryCreate(url, 6);
+                    var old = pic.Image;
                     if (bmp != null)
                     {
-                        dlg.Controls.Add(new PictureBox
-                        {
-                            Image = bmp,
-                            SizeMode = PictureBoxSizeMode.Zoom,
-                            Location = new Point(50, 46),
-                            Size = new Size(200, 200),
-                        });
+                        pic.Image = bmp;
+                        pic.Visible = true;
+                        lblMsg.Visible = false;
                     }
                     else
                     {
-                        dlg.Controls.Add(new Label
-                        {
-                            Text = "(QRCoder not installed — type the address below.)",
-                            AutoSize = false,
-                            Size = new Size(260, 30),
-                            Location = new Point(20, 50),
-                        });
+                        pic.Visible = false;
+                        lblMsg.Visible = true;
+                        lblMsg.Text = "(QRCoder not installed — type the address below.)";
                     }
+                    if (old != null) old.Dispose();
 
-                    dlg.Controls.Add(new Label
-                    {
-                        Text = "Scan with the phone camera to open the scanner and " +
-                               "capture a document, or type this address:",
-                        AutoSize = false,
-                        Size = new Size(260, 40),
-                        Location = new Point(20, 254),
-                    });
-                    var txt = new TextBox
-                    {
-                        Text = url,
-                        ReadOnly = true,
-                        Location = new Point(20, 298),
-                        Size = new Size(260, 22),
-                    };
-                    dlg.Controls.Add(txt);
-                    dlg.Controls.Add(new Label
-                    {
-                        Text = "Connect the phone to the same Wi-Fi/hotspot first.",
-                        ForeColor = Color.FromArgb(108, 117, 125),
-                        AutoSize = false,
-                        Size = new Size(260, 34),
-                        Location = new Point(20, 328),
-                    });
-                }
+                    txt.Text = url;
+                    lblHint.Visible = true;
+                    txt.Visible = true;
+                    lblFoot.Visible = true;
+                };
+
+                refresh();
+
+                Action changedHandler = () =>
+                {
+                    if (dlg.IsDisposed) return;
+                    if (dlg.InvokeRequired) dlg.BeginInvoke(refresh);
+                    else refresh();
+                };
+                IonicServerManager.Instance.Changed += changedHandler;
+
+                var poll = new Timer { Interval = 3000 };
+                poll.Tick += (s, e) => refresh();
+                poll.Start();
 
                 var close = new Button
                 {
@@ -237,6 +295,13 @@ namespace CROMS.Forms
                 };
                 dlg.Controls.Add(close);
                 dlg.AcceptButton = close;
+
+                dlg.FormClosed += (s, e) =>
+                {
+                    poll.Stop(); poll.Dispose();
+                    IonicServerManager.Instance.Changed -= changedHandler;
+                    if (pic.Image != null) pic.Image.Dispose();
+                };
 
                 dlg.ShowDialog(this);
             }
