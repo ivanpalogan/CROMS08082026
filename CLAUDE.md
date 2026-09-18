@@ -5297,3 +5297,89 @@ process, or MySQL connection in this session — the double-click-to-open path w
 reading the exact query/decode/Analyze call chain against the already-proven `btnLoad_Click`
 pattern, not by running it end to end. Rebuild CROMS in VS, run migration 54, and restart the
 save-API to pick this up.
+
+### 2026-09-19 (later) — Kiosk Step 1 rebuilt: catalogue regrouped, VERIFY dropped, one vertical grid
+
+Reported from the running kiosk: the service grid's groups made no sense, "Verification / Others"
+was a card nobody could explain, the six section boxes were laid out side by side, and the result
+left holes and differently-sized cards. All four are fixed; no schema change, no new package, and
+no save path or queue/ticket logic touched.
+
+WHAT THE CATALOGUE ACTUALLY HELD, checked before regrouping anything. `KioskCore.Catalogue` had
+fifteen services across six sections, and three of them were defects rather than choices:
+  * "Certification" carried SEVEN cards (birth/marriage/death registration, CTC, marriage
+    application, petition, verification) while "Certificates & Copies" carried exactly ONE
+    (Supplemental Report) — the grouping was a bucket plus five near-empty boxes.
+  * SUPPLEMENTAL "Supplemental" and SUPPLEMENTAL_REPORT "Supplemental Report" are the SAME office
+    case type (migration 44's `SupplementalReport`), offered TWICE, under two different sections,
+    both routing to the petitions module. A client could tick both and queue twice for one filing.
+  * DEATH was captioned "Death Certificate" while its code routes to the death REGISTRATION module
+    (MainForm's service map) — the caption said the opposite of what the card does, sitting beside
+    two cards captioned "... Registration".
+
+REGROUPED AROUND THE CLIENT'S OWN QUESTION, not the office's module layout: Registration (birth /
+marriage / death) — Marriage & Family (application, legitimation, legitimation RA-9255) — Copies &
+Pick-up (CTC, PSA copy, release & claim) — Petitions & Legal (petition, supplemental report, legal
+instruments, court order). 13 cards, counts 3/3/3/4, which is deliberate: a section is a whole row
+on screen, so an even count is what keeps every row full.
+
+VERIFY REMOVED FROM THE KIOSK, as asked, and the reason is worth keeping: "Verification / Others"
+named no document and no outcome, so the ticket reached a window with nothing stated on it and the
+client had to explain from scratch anyway — the card bought nothing and cost a queue slot. Its
+STAFF-SIDE mappings are deliberately LEFT IN PLACE (MainForm's service→module map,
+QueueManagementForm, WindowAssignmentForm): tickets already issued under it must still route and
+still resolve, and a window already assigned to it must stay un-assignable-from rather than become
+an entry nobody can untick. Same for the retired SUPPLEMENTAL code. KioskIcons keeps a case for
+both so a legacy ticket still draws something recognisable.
+
+LAYOUT: ONE VERTICAL GRID, and the old one's constraint is what had to go. LayoutSections used to
+fit all six section boxes into ONE HORIZONTAL ROW that must never scroll, so the width was divided
+six ways and each section then solved its OWN card size — which is exactly why no two sections'
+cards matched and why the screenshot has holes. Sections now STACK and the panel scrolls:
+  * ONE card height for every card on the page, so the catalogue reads as one grid.
+  * Within a section the cards DIVIDE THE ROW (n cards = 1/n of the content width each), so a row
+    is always full — there is no trailing empty slot anywhere on the screen.
+  * The content column is capped at 1500px and CENTRED, because at 1920 an undivided three-card
+    row produces 600px cards. Measured: 1920 → 481x172 cards (357 in the four-card row), 1366 →
+    420x151. The spare width reads as a page margin, not as a hole in a grid.
+  * A section wraps to a second row only if the cards would fall under 180px (a touch target),
+    which on any real kiosk width does not happen.
+Re-entrancy guarded: laying out changes the content height, which can show/hide the scrollbar,
+which resizes the panel, which re-enters LayoutSections — the same AutoScroll feedback loop that
+crashed Release & Claim with a StackOverflow on 2026-09-09. A `_laying` flag ends it.
+
+CARDS ARE BUILT FROM THE CATALOGUE NOW, not from the Designer. ServiceSelectForm.Designer.cs held
+FIFTEEN hand-placed cards, each with a Tag that had to match a catalogue code and a child Label
+repeating its caption — three places to edit per service, and they had already drifted. Deleted
+(25.8 KB of Designer), replaced by `BuildCards()` over `KioskCore.Catalogue`; the caption comes
+from `KioskCore.Find(code).Label`. Adding a service is now one line in the catalogue.
+  Fixed while doing it: a card cleared its background to its PARENT's colour, which is the page
+grey, while the section box it sits in paints a WHITE face — every card was ringed with a grey
+halo. Cards now clear to the box's face colour.
+
+EVERY SERVICE HAS ITS OWN ICON. Nine of the cards shared four glyphs: three different services drew
+the same heart, two the same pencil, two the same page — so the icon told the client nothing.
+Seven new Phosphor Light glyphs, and each codepoint was confirmed by RENDERING IT FROM THE EMBEDDED
+FONT AND LOOKING AT IT rather than taken from an icon-name list: a wrong Private-Use-Area codepoint
+does not throw, it silently draws a blank or an unrelated picture. Contact sheets of the font's PUA
+range were rendered to pick them (handshake = marriage application, users = legitimation, user-plus
+= RA 9255, copy = PSA copy, file-plus = supplemental report, book-open = legal instruments, bank =
+court order).
+
+VERIFIED BY RENDERING THE REAL FORM off the freshly built exe at 1920x1080 and 1366x768 — four
+section boxes in the new order, ZERO overlapping sibling pairs in any container, no card outside
+its box, no horizontal scrollbar, vertical scroll present, one card height across all 13 cards, and
+the selected state (fill + accent border + check badge) still drawn. The bottom section was
+rendered scrolled into view as well, and all 13 icons were checked in a labelled strip before being
+wired in. Harness note: the constructor's Load handler re-reads availability from the database, so
+a no-database harness must force `_cardAvailable` and stop the availability timer AFTER Show or
+every card renders in its disabled grey state.
+
+MSBuild exit 0, 0 warnings 0 errors across CROMS, CROMS.Display and CROMS.Kiosk (temp OutputPath —
+REBUILD IN VS to pick it up).
+
+NOT DONE, stated plainly: "Legitimation RA-9255" is still captioned as legitimation although RA
+9255 is the father's-surname/acknowledgment instrument (RA 9858 is legitimation) — it is one of
+SIX kiosk cards covering the office's FOUR Phase-4 case types, and which of them the office
+actually wants offered at the kiosk is a question for them, not a rename to make alone. The staff
+side still lists VERIFY and SUPPLEMENTAL as assignable services in Window Assignment.

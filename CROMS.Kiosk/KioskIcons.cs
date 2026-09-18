@@ -17,35 +17,50 @@ namespace CROMS.Kiosk
         // approved mockup's drawings as closely as the icon set allows -- see the note on each.
         // Built from the raw code point via char.ConvertFromUtf32 (not a literal glyph character
         // in source) so this file stays plain ASCII regardless of editor/encoding.
-        private static readonly string GlyphNewReg   = char.ConvertFromUtf32(0xE34C); // note-pencil        (mockup: document + pencil)
-        private static readonly string GlyphCtc      = char.ConvertFromUtf32(0xE23A); // file-text          (mockup: document + text lines)
-        private static readonly string GlyphMarriage = char.ConvertFromUtf32(0xE2A8); // heart              (mockup: two rings -- Phosphor has no rings glyph)
-        private static readonly string GlyphDeath    = char.ConvertFromUtf32(0xE766); // certificate        (mockup: candle -- certificate reads clearer for a registry)
-        private static readonly string GlyphPetition = char.ConvertFromUtf32(0xE188); // check-square-offset (mockup: document + check badge)
-        private static readonly string GlyphVerify   = char.ConvertFromUtf32(0xE30C); // magnifying-glass   (mockup: magnifying glass -- exact)
-        private static readonly string GlyphClaim    = char.ConvertFromUtf32(0xE010); // tray-arrow-down    (mockup: tray + down arrow -- exact)
+        // EVERY service gets its OWN glyph. Until 2026-09-19 nine of the cards shared four
+        // glyphs between them — three different services drew the same heart, two drew the
+        // same pencil, two the same page — so the icon told the client nothing and the caption
+        // was doing all the work. Each codepoint below was confirmed by rendering it from this
+        // font and looking at it, not taken from an icon-name list: a wrong PUA codepoint does
+        // not fail, it silently draws a blank or an unrelated picture.
+        private static readonly string GlyphNewReg   = char.ConvertFromUtf32(0xE34C); // note-pencil
+        private static readonly string GlyphCtc      = char.ConvertFromUtf32(0xE23A); // file-text
+        private static readonly string GlyphMarriage = char.ConvertFromUtf32(0xE2A8); // heart (Phosphor has no rings)
+        private static readonly string GlyphDeath    = char.ConvertFromUtf32(0xE766); // certificate
+        private static readonly string GlyphPetition = char.ConvertFromUtf32(0xE188); // check-square-offset
+        private static readonly string GlyphVerify   = char.ConvertFromUtf32(0xE30C); // magnifying-glass
+        private static readonly string GlyphClaim    = char.ConvertFromUtf32(0xE010); // tray-arrow-down
+        private static readonly string GlyphApply    = char.ConvertFromUtf32(0xE582); // handshake  — two parties apply
+        private static readonly string GlyphFamily   = char.ConvertFromUtf32(0xE4D6); // users      — parents + child
+        private static readonly string GlyphAddChild = char.ConvertFromUtf32(0xE4D0); // user-plus  — a surname acknowledged
+        private static readonly string GlyphCopies   = char.ConvertFromUtf32(0xE1CA); // copy       — a second copy, from PSA
+        private static readonly string GlyphAddEntry = char.ConvertFromUtf32(0xE236); // file-plus  — an entry supplied later
+        private static readonly string GlyphLaw      = char.ConvertFromUtf32(0xE0E6); // book-open  — the statute behind it
+        private static readonly string GlyphCourt    = char.ConvertFromUtf32(0xE0B4); // bank       — a court
 
         private static string GlyphFor(string code)
         {
             switch (code)
             {
                 case "BIRTHREG": return GlyphNewReg;
-                case "MARRIAGE_APP": return GlyphNewReg;
                 case "MARRIAGE_REG": return GlyphMarriage;
-                case "LEGITIMATION": return GlyphMarriage;
-                case "BREQS": return GlyphCtc;
-                case "SUPPLEMENTAL": return GlyphNewReg;
-                case "COURT_ORDER": return GlyphPetition;
-                case "SUPPLEMENTAL_REPORT": return GlyphCtc;
-                case "LEGAL_INSTRUMENTS": return GlyphDeath;
-                case "LEGITIMATION_RA9255": return GlyphMarriage;
-                case "NEWREG": return GlyphNewReg;
-                case "CTC": return GlyphCtc;
-                case "MARRIAGE": return GlyphMarriage;
                 case "DEATH": return GlyphDeath;
-                case "PETITION": return GlyphPetition;
-                case "VERIFY": return GlyphVerify;
+                case "MARRIAGE_APP": return GlyphApply;
+                case "LEGITIMATION": return GlyphFamily;
+                case "LEGITIMATION_RA9255": return GlyphAddChild;
+                case "CTC": return GlyphCtc;
+                case "BREQS": return GlyphCopies;
                 case "CLAIM": return GlyphClaim;
+                case "PETITION": return GlyphPetition;
+                case "SUPPLEMENTAL_REPORT": return GlyphAddEntry;
+                case "LEGAL_INSTRUMENTS": return GlyphLaw;
+                case "COURT_ORDER": return GlyphCourt;
+                // Retired service codes. Kept so a ticket issued before they were dropped
+                // still draws something recognisable wherever it is displayed.
+                case "SUPPLEMENTAL": return GlyphAddEntry;
+                case "VERIFY": return GlyphVerify;
+                case "NEWREG": return GlyphNewReg;
+                case "MARRIAGE": return GlyphMarriage;
                 default: return GlyphCtc;
             }
         }

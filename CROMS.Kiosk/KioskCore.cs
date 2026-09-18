@@ -32,40 +32,54 @@ namespace CROMS.Kiosk
         // Section labels the kiosk groups the catalogue under (ServiceSelectForm draws one
         // header, styled identically, per section — see LayoutSections).
         public const string SecRegistration  = "Registration";
-        public const string SecCertification = "Certification";
-        public const string SecCertificates  = "Certificates & Copies";
         public const string SecMarriageFamily = "Marriage & Family";
+        public const string SecCertificates  = "Copies & Pick-up";
         public const string SecPetitionsLegal = "Petitions & Legal";
+        // Unused today. Kept, not deleted, so a future service that belongs to neither of the
+        // four sections above has a home without re-deciding the whole grouping.
+        public const string SecCertification = "Certification";
         public const string SecOther         = "Other Services";
 
-        // The service catalogue. Add a future service here — both step forms pick it up
-        // (Step 1 must also add a matching card in its designer).
-        // Certification groups Birth/Marriage/Death registration + CTC + Petition +
-        // Verification-Other under one section regardless of what record type each one is
-        // about — same reasoning as the desktop sidebar's Certification group: register the
-        // event, then certify/issue it, is one intake window from the client's side of the
-        // counter. Birth Registration was previously split into its own "Registration"
-        // section while Marriage/Death Registration sat in Certification — an inconsistency,
-        // not a deliberate distinction. SecRegistration is now unused (kept, not deleted, in
-        // case a future service genuinely needs a pure-registration-only section).
+        // The service catalogue. Add a future service here and Step 1 draws a card for it —
+        // ServiceSelectForm builds every card FROM this array, so there is no second list to
+        // keep in step.
+        //
+        // The grouping answers the client's own question at the counter, not the office's
+        // internal module layout: REGISTER an event / apply for and record a MARRIAGE /
+        // obtain or collect a COPY / file a correction or legal case. Each section is a
+        // whole row of cards on screen, which is why the counts are kept even (3/3/3/4).
         public static readonly Service[] Catalogue =
         {
-            new Service("BIRTHREG", "Birth Registration", "", SecCertification),
-            new Service("CTC", "Certified True Copy (CTC)", "", SecCertification),
-            new Service("MARRIAGE_APP", "Marriage Application", "", SecCertification),
-            new Service("MARRIAGE_REG", "Marriage Registration", "", SecCertification),
-            new Service("DEATH", "Death Certificate", "", SecCertification),
-            new Service("PETITION", "Petition (Correction)", "", SecCertification),
-            new Service("VERIFY", "Verification / Others", "", SecCertification),
-            new Service("SUPPLEMENTAL_REPORT", "Supplemental Report", "", SecCertificates),
+            new Service("BIRTHREG", "Birth Registration", "", SecRegistration),
+            new Service("MARRIAGE_REG", "Marriage Registration", "", SecRegistration),
+            // Code is DEATH, and it routes to the death REGISTRATION module (MainForm's
+            // service map) — the old "Death Certificate" caption said the opposite of what
+            // the card does, and sat beside two cards captioned "... Registration".
+            new Service("DEATH", "Death Registration", "", SecRegistration),
+
+            new Service("MARRIAGE_APP", "Marriage Application", "", SecMarriageFamily),
             new Service("LEGITIMATION", "Legitimation", "", SecMarriageFamily),
             new Service("LEGITIMATION_RA9255", "Legitimation RA-9255", "", SecMarriageFamily),
-            new Service("COURT_ORDER", "Court Order", "", SecPetitionsLegal),
+
+            new Service("CTC", "Certified True Copy (CTC)", "", SecCertificates),
+            new Service("BREQS", "PSA Copy (BREQS)", "", SecCertificates),
+            new Service("CLAIM", "Release & Claim (Pick-up)", "", SecCertificates),
+
+            new Service("PETITION", "Petition (Correction)", "", SecPetitionsLegal),
+            new Service("SUPPLEMENTAL_REPORT", "Supplemental Report", "", SecPetitionsLegal),
             new Service("LEGAL_INSTRUMENTS", "Legal Instruments", "", SecPetitionsLegal),
-            new Service("SUPPLEMENTAL", "Supplemental", "", SecPetitionsLegal),
-            new Service("CLAIM", "Release & Claim (Pick-up)", "", SecOther),
-            new Service("BREQS", "PSA Copy (BREQS)", "", SecOther),
+            new Service("COURT_ORDER", "Court Order", "", SecPetitionsLegal),
         };
+        // DROPPED FROM THE KIOSK, both on 2026-09-19:
+        //   VERIFY  "Verification / Others" — a catch-all the client cannot act on: it named
+        //           no document and no outcome, so the ticket reached a window with nothing
+        //           stated. Staff-side mappings for it are LEFT IN PLACE (MainForm,
+        //           QueueManagementForm, WindowAssignmentForm) so tickets already issued
+        //           under it still route and still resolve.
+        //   SUPPLEMENTAL "Supplemental" — the same office case type as SUPPLEMENTAL_REPORT
+        //           (migration 44's `SupplementalReport`), offered twice under two different
+        //           sections. Both codes map to the petitions module; the report-named one is
+        //           kept because it matches the petition type the desktop actually stores.
 
         // Palette — Navy Blue (light), same tokens as CROMS/Forms/LoginForm.cs + LauncherForm.cs.
         public static readonly Color Bg          = Color.FromArgb(244, 246, 249);   // #F4F6F9

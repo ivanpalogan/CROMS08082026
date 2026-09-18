@@ -30,44 +30,58 @@ namespace CROMS.Kiosk
         private readonly Dictionary<string, float> _cardHoverT = new Dictionary<string, float>();
         private readonly Dictionary<string, bool> _cardAvailable = new Dictionary<string, bool>();
 
-        // Card metrics, scaled from the approved mockup (210px-wide card: 11px radius,
-        // 34px icon, 12.5px label, 16px check badge inset 8px), but as PROPORTIONS of the
-        // card's own size rather than fixed pixel counts — the compact one-row layout gives
-        // every section its own card size, computed at runtime, so a card can end up far
-        // smaller than the original 348x200 mockup card. Card.Paint below derives the actual
-        // pixel metrics from card.Width/card.Height each time it draws.
+        // Card metrics as PROPORTIONS of the card's own size, not fixed pixel counts — card
+        // size is solved from the screen at runtime (see LayoutSections), so nothing here can
+        // assume the mockup's 348x200. Card.Paint derives its pixels from card.Height.
         private const int Inset = 3;
-        private const float CardRadiusFrac = 0.09f;   // 18 / 200
-        private const float IconBoxFrac = 0.22f;      // shrunk vs. the mockup's 61/200 to leave
-        private const float IconGapFrac = 0.05f;      // more room for a label that now wraps to
-        private const float LabelBoxFrac = 0.32f;     // 2-3 lines on a compact card.
-        private const float LabelPtFrac = 0.065f;
-        private const float BadgeFrac = 0.16f;        // 26 / (avg 348x200 short side)
+        private const float CardRadiusFrac = 0.09f;
+        private const float IconBoxFrac = 0.26f;
+        private const float IconGapFrac = 0.05f;
+        private const float LabelBoxFrac = 0.30f;
+        private const float LabelPtFrac = 0.075f;
+        private const float BadgeFrac = 0.14f;
         private const float MinLabelPt = 6.5f;
 
-        // Section layout: every section (Registration / Certification / Marriage & Family /
-        // Certificates & Copies / Petitions & Legal / Other Services) sits in its own bordered
-        // box, all boxes laid out in ONE HORIZONTAL ROW so nothing scrolls — the whole catalogue
-        // must be visible at once. Card size is not fixed: LayoutSections() solves it from the
-        // panel's actual size each time, so the grid always fits the screen it is running on
-        // instead of relying on one hand-picked resolution.
-        private const int OuterMarginX = 20, OuterMarginY = 10;
-        private const int CardGap = 8;
-        private const int SectionGap = 14;
-        // Tall enough for a category name to wrap to TWO lines when a narrow column forces it
-        // (e.g. "Marriage & Family") — TopLeft alignment below means a wrap grows DOWN inside
-        // this box instead of spilling upward past the header's own bounds.
-        private const int SectionHeaderH = 36;
-        private const int SectionPadTop = SectionHeaderH + 8;   // header + gap, inside a section box
-        private const int SectionPadSide = 10;
-        private const int SectionPadBottom = 10;
-        private const int MinCardW = 78, MinCardH = 58;
+        // Section layout. Every section is a full-width bordered box; boxes STACK VERTICALLY
+        // and the panel scrolls, rather than being squeezed side by side into one row that
+        // must never scroll. Two things follow from that, and they are the point of the
+        // rewrite: a card can be a real touch target instead of whatever was left after six
+        // boxes divided the width, and every card on the screen is the same height, so the
+        // catalogue reads as one grid instead of six differently-scaled ones.
+        //
+        // Inside a section the cards DIVIDE THE ROW — n cards on a row each take 1/n of the
+        // content width — so a row is always full and no section ends in a ragged hole. The
+        // content column itself is capped and centred, because at 1920 an undivided row would
+        // otherwise produce 600px-wide cards.
+        private const int OuterMarginX = 24, OuterMarginY = 16;
+        private const int MaxContentW = 1500, MinContentW = 320;
+        private const int CardGap = 14;
+        private const int SectionGap = 18;
+        // Tall enough for a category name to wrap to TWO lines on a narrow screen — TopLeft
+        // alignment below means a wrap grows DOWN inside this box instead of spilling upward
+        // past the header's own bounds.
+        private const int SectionHeaderH = 34;
+        private const int SectionPadTop = SectionHeaderH + 10;   // header + gap, inside the box
+        private const int SectionPadSide = 14;
+        private const int SectionPadBottom = 14;
+        // Below this a card stops being a comfortable touch target, so the section wraps to a
+        // second row instead of shrinking further.
+        private const int MinCardW = 180;
+        private const int MinCardH = 128, MaxCardH = 190;
+        private const float CardHeightFrac = 0.115f;   // of the content column's width
 
         private static readonly string[] SectionOrder =
         {
-            KioskCore.SecRegistration, KioskCore.SecCertification, KioskCore.SecMarriageFamily,
-            KioskCore.SecCertificates, KioskCore.SecPetitionsLegal, KioskCore.SecOther,
+            KioskCore.SecRegistration, KioskCore.SecMarriageFamily,
+            KioskCore.SecCertificates, KioskCore.SecPetitionsLegal,
+            // Nothing is filed under these two today; listed so a service added to either
+            // still appears rather than silently vanishing from Step 1.
+            KioskCore.SecCertification, KioskCore.SecOther,
         };
+
+        // Guards the AutoScroll feedback path: laying out changes the content height, which
+        // can show/hide the scrollbar, which resizes the panel, which re-enters here.
+        private bool _laying;
 
         private readonly List<Panel> _sectionBoxes = new List<Panel>();
 
@@ -75,15 +89,10 @@ namespace CROMS.Kiosk
         {
             _session = session;
             InitializeComponent();
-            panelStep1.AutoScroll = false;   // one-row layout is solved to always fit — never scroll
+            panelStep1.AutoScroll = true;                        // sections stack; the page scrolls
+            panelStep1.AutoScrollMargin = new Size(0, OuterMarginY);
 
-            foreach (Control control in _svcGrid.Controls)
-                if (control is Panel card) RegisterCard(card);
-            foreach (Panel card in _cards.Values) SetupCard(card);
-            // Every card is reparented out of _svcGrid into the new section boxes below —
-            // the empty panel itself would otherwise still sit at its Designer bounds (a
-            // 1076x1064 OPAQUE rectangle) on top of the left half of the new layout.
-            panelStep1.Controls.Remove(_svcGrid);
+            BuildCards();
             LayoutSections();
             SetupNextButton();
 
@@ -132,12 +141,31 @@ namespace CROMS.Kiosk
         }
 
         // ------------------------------------------------------ cards
-        private void RegisterCard(Panel card)
+        /// <summary>
+        /// One card per catalogue entry, built here rather than in the Designer. The Designer
+        /// held fifteen hand-placed cards whose Tag had to match a catalogue code and whose
+        /// child Label repeated its caption — three places to edit for one service, and they
+        /// had already drifted (a card existed for a service the office does not offer). The
+        /// catalogue is now the only list.
+        /// </summary>
+        private void BuildCards()
         {
-            if (card?.Tag is string code)
+            foreach (Service svc in KioskCore.Catalogue)
             {
-                _cards[code] = card;
-                _cardAvailable[code] = true;
+                var card = new Panel
+                {
+                    Tag = svc.Code,
+                    Cursor = Cursors.Hand,
+                    // The card owner-draws a rounded face and clears the rest to this colour,
+                    // which must be the SECTION BOX's face (white) — clearing to the page grey
+                    // would ring every card with a grey halo inside a white box.
+                    BackColor = KioskCore.CardBg,
+                };
+                card.Click += Card_Click;
+                _cards[svc.Code] = card;
+                _cardAvailable[svc.Code] = true;
+                panelStep1.Controls.Add(card);
+                SetupCard(card);
             }
         }
 
@@ -149,6 +177,7 @@ namespace CROMS.Kiosk
         private void SetupCard(Panel card)
         {
             string code = (string)card.Tag;
+            string caption = KioskCore.Find(code).Label;
             _cardHoverT[code] = 0f;
 
             typeof(Control).GetProperty("DoubleBuffered",
@@ -166,7 +195,7 @@ namespace CROMS.Kiosk
             {
                 Graphics g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
-                g.Clear(card.Parent?.BackColor ?? KioskCore.Bg);
+                g.Clear(card.BackColor);
 
                 // Metrics as fractions of THIS card's own size — the one-row layout gives every
                 // section its own card size, so nothing here can be a fixed pixel count.
@@ -264,8 +293,8 @@ namespace CROMS.Kiosk
                     Trimming = StringTrimming.EllipsisWord,
                 })
                 {
-                    var textRect = new RectangleF(rect.X + 4, top + iconBox + iconGap, rect.Width - 8, labelBox);
-                    g.DrawString(((Label)card.Controls[0]).Text, f, tb, textRect, fmt);
+                    var textRect = new RectangleF(rect.X + 10, top + iconBox + iconGap, rect.Width - 20, labelBox);
+                    g.DrawString(caption, f, tb, textRect, fmt);
                 }
 
                 if (selected)
@@ -282,11 +311,6 @@ namespace CROMS.Kiosk
                         });
                 }
             };
-
-            // The Designer-placed name Label is kept only as a data holder (its .Text is what
-            // card.Paint actually draws) — hidden so it can't double-render or intercept clicks
-            // now that the whole card owner-draws itself.
-            ((Label)card.Controls[0]).Visible = false;
         }
 
         private static GraphicsPath RoundedRect(Rectangle r, int radius)
@@ -343,61 +367,66 @@ namespace CROMS.Kiosk
 
         // ------------------------------------------------------ sections
         /// <summary>
-        /// Groups the catalogue into labeled sections (Registration / Certification /
-        /// Marriage & Family / Certificates & Copies / Petitions & Legal / Other Services),
-        /// each drawn as its own bordered box, and lays every box out in ONE HORIZONTAL ROW —
-        /// no section stacks under another, and the panel never scrolls. Card size is solved
-        /// from the panel's own ClientSize each call, so the whole catalogue always fits the
-        /// screen it happens to be running on. Replaces the Designer's fixed per-card Location
-        /// and Size — this is the single place both are decided now.
+        /// Groups the catalogue into labeled sections, each drawn as its own bordered box, and
+        /// STACKS the boxes down one centred content column that the panel scrolls. Card size
+        /// is solved from the panel's own ClientSize on every call, so this is the single place
+        /// position and size are decided — the Designer no longer holds either.
         /// </summary>
         private void LayoutSections()
         {
-            // Reclaim every card from its current box (if any) before disposing the boxes —
-            // a box's Dispose() also disposes its children, and cards are reused across calls.
+            if (_laying) return;
+            _laying = true;
+            try { LayoutSectionsCore(); }
+            finally { _laying = false; }
+        }
+
+        private void LayoutSectionsCore()
+        {
+            // Reclaim every card from its current box before disposing the boxes — a box's
+            // Dispose() also disposes its children, and cards are reused across calls.
             foreach (Panel card in _cards.Values) panelStep1.Controls.Add(card);
             foreach (Panel box in _sectionBoxes) { panelStep1.Controls.Remove(box); box.Dispose(); }
             _sectionBoxes.Clear();
 
-            var sections = new List<(string Category, List<Service> Items, int Cols, int Rows)>();
+            var sections = new List<(string Category, List<Service> Items)>();
             foreach (string category in SectionOrder)
             {
-                var items = KioskCore.Catalogue.Where(s => s.Category == category && _cards.ContainsKey(s.Code)).ToList();
-                if (items.Count == 0) continue;
-                int cols = items.Count <= 2 ? 1 : items.Count <= 4 ? 2 : 3;
-                int rows = (items.Count + cols - 1) / cols;
-                sections.Add((category, items, cols, rows));
+                var items = KioskCore.Catalogue
+                    .Where(s => s.Category == category && _cards.ContainsKey(s.Code)).ToList();
+                if (items.Count > 0) sections.Add((category, items));
             }
             if (sections.Count == 0) return;
 
-            // Card width: the row of section boxes (their padding + gaps + every card column
-            // inside them) must fit the panel's width with no horizontal scroll.
-            int availW = Math.Max(panelStep1.ClientSize.Width - OuterMarginX * 2, 200);
-            int sumCols = sections.Sum(s => s.Cols);
-            int gapWidthTotal = sections.Sum(s => (s.Cols - 1) * CardGap)
-                + (sections.Count - 1) * SectionGap
-                + sections.Count * (SectionPadSide * 2);
-            int cardW = Math.Max(MinCardW, (availW - gapWidthTotal) / sumCols);
+            // One content column for the whole page: capped so a three-card row cannot turn
+            // into three 600px cards on a wide kiosk, and centred so the spare width reads as
+            // a page margin rather than as a hole in the grid.
+            int panelW = panelStep1.ClientSize.Width;
+            int contentW = Math.Max(MinContentW, Math.Min(MaxContentW, panelW - OuterMarginX * 2));
+            int x = Math.Max(OuterMarginX, (panelW - contentW) / 2);
 
-            // Card height: every box sits at the same Y, so the TALLEST section (most rows)
-            // must still fit the panel's height with no vertical scroll.
-            int topY = _svcHint.Bottom + 12;
-            int availH = Math.Max(panelStep1.ClientSize.Height - topY - OuterMarginY, 140);
-            int maxRows = sections.Max(s => s.Rows);
-            int cardH = Math.Max(MinCardH,
-                (availH - SectionPadTop - SectionPadBottom - (maxRows - 1) * CardGap) / maxRows);
+            // ONE card height for every card on the page — the sections differ in how many
+            // cards share a row, and letting that change the height as well is what made the
+            // old screen read as six unrelated grids.
+            int cardH = Math.Min(MaxCardH, Math.Max(MinCardH, (int)(contentW * CardHeightFrac)));
 
-            int x = OuterMarginX;
+            _svcHint.Location = new Point(x, OuterMarginY);
+            int y = _svcHint.Bottom + 16;
+
             foreach (var sec in sections)
             {
-                int boxW = sec.Cols * cardW + (sec.Cols - 1) * CardGap + SectionPadSide * 2;
-                int boxH = SectionPadTop + sec.Rows * cardH + (sec.Rows - 1) * CardGap + SectionPadBottom;
+                int inner = contentW - SectionPadSide * 2;
+                // As many cards per row as still leaves a comfortable touch target; a section
+                // with more than that wraps to a second row instead of shrinking further.
+                int perRow = Math.Max(1, Math.Min(sec.Items.Count, (inner + CardGap) / (MinCardW + CardGap)));
+                int rows = (sec.Items.Count + perRow - 1) / perRow;
+                int cardW = (inner - (perRow - 1) * CardGap) / perRow;
 
-                Panel box = MakeSectionBox(boxW, boxH);
-                box.Location = new Point(x, topY);
+                int boxH = SectionPadTop + rows * cardH + (rows - 1) * CardGap + SectionPadBottom;
+                Panel box = MakeSectionBox(contentW, boxH);
+                box.Location = new Point(x, y);
 
-                Label header = MakeSectionHeader(sec.Category, boxW - SectionPadSide * 2);
-                header.Location = new Point(SectionPadSide, 4);
+                Label header = MakeSectionHeader(sec.Category, inner);
+                header.Location = new Point(SectionPadSide, 6);
                 box.Controls.Add(header);
 
                 int col = 0, row = 0;
@@ -410,7 +439,7 @@ namespace CROMS.Kiosk
                         SectionPadTop + row * (cardH + CardGap));
                     box.Controls.Add(card);
                     col++;
-                    if (col == sec.Cols) { col = 0; row++; }
+                    if (col == perRow) { col = 0; row++; }
                 }
 
                 panelStep1.Controls.Add(box);
@@ -418,7 +447,7 @@ namespace CROMS.Kiosk
                 foreach (Control c in box.Controls) c.BringToFront();
                 _sectionBoxes.Add(box);
 
-                x += boxW + SectionGap;
+                y += boxH + SectionGap;
             }
         }
 
@@ -481,8 +510,8 @@ namespace CROMS.Kiosk
         }
 
         // ------------------------------------------------- layout / nav
-        // No scrolling: every resize just re-solves the one-row section layout for the new
-        // size, rather than scrolling to or centring a fixed-size grid.
+        // Every resize re-solves the stacked section layout for the new size; the panel's own
+        // AutoScroll then decides whether the page needs to scroll.
         private void PanelStep1_Resize(object sender, EventArgs e) => LayoutSections();
 
         private void CenterServiceStep(Control wrap) => LayoutSections();
