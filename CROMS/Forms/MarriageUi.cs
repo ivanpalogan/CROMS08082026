@@ -910,7 +910,8 @@ namespace CROMS.Forms
                            : "No longer required - kept because it holds a record";
                 int i = _g.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code, why,
                     r.Status, r.Outcome ?? "", r.GivenBy, r.ReferenceNo, r.DocDate.HasValue ? MUi.D(r.DocDate) : "",
-                    r.HasAttachment ? "View" : "Attach", r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : "",
+                    r.HasAttachment ? "View" : (r.IsBypassed ? "Not needed" : "Attach"),
+                    r.IsBypassed ? "⛔ Bypassed" : (r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : ""),
                     r.IsBypassed ? "Un-bypass" : "Bypass");
                 DataGridViewRow row = _g.Rows[i];
                 row.Tag = r;
@@ -931,10 +932,23 @@ namespace CROMS.Forms
                     row.DefaultCellStyle.BackColor = UiTheme.WarningTint;
                     string who = string.IsNullOrEmpty(r.BypassedByName) ? "an Admin" : r.BypassedByName;
                     string when = r.BypassedAt.HasValue ? MUi.D(r.BypassedAt) : "";
-                    row.Cells["Bypass"].ToolTipText = "Bypassed by " + who + (when == "" ? "" : " on " + when) +
+                    string bypassNote = "Bypassed by " + who + (when == "" ? "" : " on " + when) +
                         (string.IsNullOrEmpty(r.BypassReason) ? "" : ": " + r.BypassReason);
+                    row.Cells["Bypass"].ToolTipText = bypassNote;
                     row.Cells["Status"].ToolTipText = "This requirement is bypassed - it counts as satisfied even though " +
                         "its status still says \"" + r.Status + "\".";
+                    row.Cells["Checked"].Style.ForeColor = UiTheme.Warning;
+                    row.Cells["Checked"].Style.Font = MUiFonts.Bold9;
+                    row.Cells["Checked"].ToolTipText = bypassNote;
+                    if (!r.HasAttachment)
+                    {
+                        string reasonText = string.IsNullOrEmpty(r.BypassReason) ? "Bypassed" : "Bypassed: " + r.BypassReason;
+                        row.Cells["File"].Value = reasonText.Length > 40 ? reasonText.Substring(0, 37) + "..." : reasonText;
+                        row.Cells["File"].ReadOnly = true;
+                        row.Cells["File"].Style.ForeColor = UiTheme.Faint;
+                        row.Cells["File"].Style.SelectionForeColor = UiTheme.Faint;
+                        row.Cells["File"].ToolTipText = bypassNote + "\n\nNot needed - this requirement is bypassed. Un-bypass first to attach a document.";
+                    }
                 }
             }
             _loading = false;
@@ -1016,6 +1030,13 @@ namespace CROMS.Forms
             if (_g.Columns[e.ColumnIndex].Name != "File") return;
             var r = _g.Rows[e.RowIndex].Tag as ReqRow;
             if (r == null) return;
+            if (r.IsBypassed && !r.HasAttachment)
+            {
+                MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" is bypassed, so no document is needed. " +
+                    "Click Un-bypass first if you want to attach one.", "Not needed",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             if (r.HasAttachment)
             {
                 var menu = new ContextMenuStrip();
