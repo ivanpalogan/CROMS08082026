@@ -10,6 +10,7 @@ namespace CROMS.Kiosk
         private readonly KioskSession _session;
         private readonly ComboBox _document = new ComboBox();
         private readonly TextBox _details = new TextBox();
+        private readonly Panel _card;
 
         public CtcDetailsForm(KioskSession session)
         {
@@ -19,16 +20,22 @@ namespace CROMS.Kiosk
             WindowState = FormWindowState.Maximized;
             BackColor = Color.FromArgb(244, 246, 249);
             Font = new Font("Segoe UI", 10F);
+            AutoScroll = true;
 
             var card = new Panel
             {
                 Size = new Size(760, 540),
                 BackColor = Color.White,
-                Padding = new Padding(44)
+                Padding = new Padding(44),
+                Anchor = AnchorStyles.None
             };
-            card.Location = new Point((Screen.PrimaryScreen.WorkingArea.Width - card.Width) / 2,
-                (Screen.PrimaryScreen.WorkingArea.Height - card.Height) / 2);
-            card.Anchor = AnchorStyles.None;
+            _card = card;
+            AutoScrollMinSize = card.Size;
+            // Centered against the form's OWN ClientSize on Load/Resize, not a Screen.PrimaryScreen
+            // snapshot taken here in the constructor before the form has ever been laid out - that
+            // static math is what put the card off in a corner, cut off, on this screen/DPI.
+            Load += (s, e) => CenterCard();
+            Resize += (s, e) => CenterCard();
 
             var title = new Label
             {
@@ -83,6 +90,13 @@ namespace CROMS.Kiosk
             card.Controls.Add(_document); card.Controls.Add(detailsLabel); card.Controls.Add(_details);
             card.Controls.Add(back); card.Controls.Add(next);
             Controls.Add(card);
+        }
+
+        private void CenterCard()
+        {
+            int x = Math.Max(0, (ClientSize.Width - _card.Width) / 2);
+            int y = Math.Max(0, (ClientSize.Height - _card.Height) / 2);
+            _card.Location = new Point(x, y);
         }
 
         private void Save()
