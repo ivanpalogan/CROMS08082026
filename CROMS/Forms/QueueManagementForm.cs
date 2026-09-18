@@ -1211,6 +1211,16 @@ namespace CROMS.Forms
                 return;
             }
 
+            // If the operator has selected a specific row in either queue grid, Call Next
+            // calls THAT ticket instead of the FIFO next — e.g. click Q-067 then Call Next
+            // to take it out of turn, no matter where it sits in line.
+            DataGridView picked = SelectedQueueGrid();
+            if (picked != null)
+            {
+                CallSelectedTicket(picked, picked.SelectedRows[0].Index);
+                return;
+            }
+
             DataTable cand = Db.Pull(
                 "SELECT id, ticket_code FROM queue_tickets " +
                 "WHERE status IN ('Waiting','For Receiving') AND DATE(created_at) = CURDATE() " +
@@ -1270,6 +1280,18 @@ namespace CROMS.Forms
             RefreshAll();
 
             // The ticket is accepted; use Call Client or the window card when ready.
+        }
+
+        /// <summary>
+        /// Whichever queue grid (regular or priority lane) currently has a row selected by
+        /// the operator, or null if neither does — that's what makes Call Next pick THAT
+        /// ticket instead of the FIFO next.
+        /// </summary>
+        private DataGridView SelectedQueueGrid()
+        {
+            if (dgvPriority.SelectedRows.Count > 0) return dgvPriority;
+            if (dgvQueue.SelectedRows.Count > 0) return dgvQueue;
+            return null;
         }
 
         /// <summary>
