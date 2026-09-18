@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -145,6 +146,15 @@ namespace CROMS.Data
                 LastError = "";
                 _recentOutput.Clear();
                 SetStatus(IonicStatus.Starting);
+
+                // HTTPS instances (the camera needs a secure context) carry a self-signed
+                // dev cert whose SAN list is baked in at generation time. A laptop that
+                // moves to a genuinely new network (new router, hotspot vs Wi-Fi) gets an
+                // IP the old cert never listed, and the phone's TLS handshake fails outright
+                // ("can't be reached") rather than the usual click-through warning. Cover
+                // THIS ip before launching, so the server never starts serving a cert that
+                // is already known to be wrong for the network it is on.
+                if (Scheme == "https") EnsureCertCoversIp(LanIp);
 
                 try
                 {
@@ -339,18 +349,145 @@ namespace CROMS.Data
             if (h != null) { try { h(); } catch { } }
         }
 
-        /// <summary>If the laptop's IP changed (new wifi/hotspot), update the URL/QR live.</summary>
+        /// <summary>
+        /// If the laptop's IP changed (new Wi-Fi/hotspot), update the URL/QR live. For an
+        /// HTTPS instance, a genuinely new network means a new IP the dev cert's SAN list
+        /// was never generated for — updating the URL alone would point the QR at an
+        /// address the phone's TLS handshake refuses. So this REGENERATES the cert for the
+        /// new IP and restarts the server (the only way `ng serve` picks up a changed cert
+        /// file) whenever the IP isn't already covered; when it IS already covered (the
+        /// cert was made with several addresses, or the network is one seen before) it
+        /// stays on the fast, no-downtime path of just updating the URL in place.
+        /// </summary>
         private void CheckIpChange()
         {
             if (_shuttingDown || Status != IonicStatus.Running) return;
             var lan = DetectLan();
-            if (lan.ip != LanIp)
+            if (lan.ip == LanIp) return;
+
+            if (Scheme == "https" && !CertCoversIp(lan.ip))
             {
-                LanIp = lan.ip;
-                NetworkType = lan.type;
-                MobileUrl = Scheme + "://" + LanIp + ":" + Port;
-                Raise();   // dashboard regenerates the QR + URL
+                EnsureCertCoversIp(lan.ip);   // regenerate to include the new address
+                Restart();                    // ng serve only reads the cert file at launch
+                return;
             }
+
+            LanIp = lan.ip;
+            NetworkType = lan.type;
+            MobileUrl = Scheme + "://" + LanIp + ":" + Port;
+            Raise();   // dashboard regenerates the QR + URL
+        }
+
+        /// <summary>Stop then Start — used when the network changed enough that the
+        /// server has to relaunch (a new cert) rather than just report a new URL.</summary>
+        private void Restart()
+        {
+            Stop();
+            lock (_lock) { _restartAttempts = 0; _shuttingDown = false; }
+            Start();
+        }
+
+        // ---- HTTPS dev-cert auto-renewal ---------------------------------
+
+        /// <summary>Full path to this instance's self-signed dev cert, or null if this
+        /// app has no ssl/ folder (it isn't served over HTTPS).</summary>
+        private string CertPath => Path.Combine(AppPath, "ssl", "dev-cert.pem");
+
+        /// <summary>True if the cert at <see cref="CertPath"/> already lists <paramref
+        /// name="ip"/> in its Subject Alternative Name — read directly off the DER-decoded
+        /// certificate rather than re-parsing the PEM text, so it can't be fooled by the
+        /// ip appearing anywhere else in the file (a comment, the CN, ...).</summary>
+        private bool CertCoversIp(string ip)
+        {
+            try
+            {
+                string path = CertPath;
+                if (!File.Exists(path)) return false;
+                byte[] der = PemToDer(File.ReadAllText(path), "CERTIFICATE");
+                if (der == null) return false;
+                using (var cert = new X509Certificate2(der))
+                {
+                    foreach (X509Extension ext in cert.Extensions)
+                    {
+                        if (ext.Oid == null || ext.Oid.Value != "2.5.29.17") continue; // subjectAltName
+                        string text = ext.Format(false);
+                        if (text.IndexOf(ip, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>Regenerates the dev cert to include <paramref name="ip"/> (on top of
+        /// whatever it already covers — <c>ssl/make-cert.sh</c> always lists every IPv4
+        /// this machine currently has, plus the one passed in) by running the app's own
+        /// cert script through Git's bundled bash. Best-effort: if bash/openssl aren't on
+        /// this PC, the server just keeps whatever cert it already had — same as before
+        /// this method existed, no regression, only a missed opportunity to self-heal.</summary>
+        private void EnsureCertCoversIp(string ip)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ip) || ip == "127.0.0.1") return;
+                if (CertCoversIp(ip)) return; // already fine — nothing to do
+
+                string script = Path.Combine(AppPath, "ssl", "make-cert.sh");
+                if (!File.Exists(script)) return;
+                string bash = FindBash();
+                if (bash == null) return;
+
+                var psi = new ProcessStartInfo(bash, "\"" + script.Replace('\\', '/') + "\" " + ip)
+                {
+                    WorkingDirectory = AppPath,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                using (var p = Process.Start(psi)) { p.WaitForExit(20000); }
+            }
+            catch { }
+        }
+
+        /// <summary>Locates Git for Windows' bash.exe (the one <c>ssl/make-cert.sh</c>
+        /// needs), checking the usual install paths before falling back to PATH.</summary>
+        private static string FindBash()
+        {
+            string[] candidates =
+            {
+                @"C:\Program Files\Git\bin\bash.exe",
+                @"C:\Program Files\Git\usr\bin\bash.exe",
+                @"C:\Program Files (x86)\Git\bin\bash.exe",
+            };
+            foreach (var c in candidates) if (File.Exists(c)) return c;
+            try
+            {
+                var psi = new ProcessStartInfo("where", "bash")
+                {
+                    UseShellExecute = false, RedirectStandardOutput = true, CreateNoWindow = true,
+                };
+                using (var p = Process.Start(psi))
+                {
+                    string outp = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(3000);
+                    string line = outp.Split('\n').FirstOrDefault(l => l.Trim().Length > 0);
+                    if (!string.IsNullOrWhiteSpace(line)) return line.Trim();
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>Decodes the base64 body of a PEM block (between the BEGIN/END
+        /// &lt;label&gt; markers) into raw DER bytes.</summary>
+        private static byte[] PemToDer(string pem, string label)
+        {
+            var m = Regex.Match(pem, @"-----BEGIN " + label + @"-----(.*?)-----END " + label + @"-----",
+                RegexOptions.Singleline);
+            if (!m.Success) return null;
+            string body = Regex.Replace(m.Groups[1].Value, @"\s+", "");
+            try { return Convert.FromBase64String(body); } catch { return null; }
         }
 
         /// <summary>

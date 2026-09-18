@@ -37,10 +37,12 @@ namespace CROMS.Analytics.Tabs
             AddWidget(new BirthAttendantWidget());
             AddWidget(new BirthMotherAgeWidget());
 
+            AddCustomizeButton(AssessmentReport.Birth.FormCode);
             AddReportButton("Print Assessment Report", (s, e) =>
             {
                 DataTable t = AssessmentReport.BuildTable(AssessmentReport.Birth, DateTime.Today.Year);
-                AssessmentReport.Show(AssessmentReport.Birth, t, FindForm());
+                var charts = SelectedCharts(AssessmentReport.Birth.FormCode);
+                AssessmentReport.Show(AssessmentReport.Birth, t, FindForm(), charts);
             });
         }
 

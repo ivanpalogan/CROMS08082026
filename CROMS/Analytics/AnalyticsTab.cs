@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using CROMS.Data;
 using CROMS.Modules;
 
 namespace CROMS.Analytics
@@ -130,6 +131,55 @@ namespace CROMS.Analytics
 
         /// <summary>Every widget on this tab, in the order it was added.</summary>
         public IList<AnalyticsWidget> Widgets { get { return _widgets; } }
+
+        /// <summary>
+        /// Adds a small "Customize Report" button beside the print action, letting the operator
+        /// choose which of THIS tab's charts print as extra pages on its Assessment Report.
+        /// The choice persists per machine (<see cref="ReportWidgetPrefs"/>) — a display
+        /// preference, not registry data — and defaults to every chart ON.
+        /// </summary>
+        protected Button AddCustomizeButton(string formCode)
+        {
+            var btn = new Button
+            {
+                Text = "⚙ Customize Report",
+                Size = new Size(176, SummaryCard.CardHeight),
+                Margin = new Padding(4, 0, 12, 12),
+                BackColor = UiTheme.Surface,
+                ForeColor = UiTheme.Ink,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F)
+            };
+            btn.FlatAppearance.BorderColor = UiTheme.CardLine;
+            btn.Click += (s, e) =>
+            {
+                using (var dlg = new CROMS.Forms.ReportCustomizeForm(formCode, _widgets))
+                    dlg.ShowDialog(FindForm());
+            };
+            CardStrip.Controls.Add(btn);
+            return btn;
+        }
+
+        /// <summary>
+        /// The charts the operator has chosen (via <see cref="AddCustomizeButton"/>) to include
+        /// on this tab's Assessment Report, captured live off the widgets exactly as they are
+        /// showing on screen right now — a chart, or its own empty state — so the printed page
+        /// can never show something different from what the operator was looking at.
+        /// </summary>
+        protected List<CROMS.Data.AssessmentReport.ChartExport> SelectedCharts(string formCode)
+        {
+            var list = new List<CROMS.Data.AssessmentReport.ChartExport>();
+            foreach (AnalyticsWidget w in _widgets)
+            {
+                if (!ReportWidgetPrefs.IsEnabled(formCode, w.Title)) continue;
+                list.Add(new CROMS.Data.AssessmentReport.ChartExport
+                {
+                    Title = w.Title,
+                    Image = CROMS.Data.AssessmentReport.Capture(w)
+                });
+            }
+            return list;
+        }
 
         // ------------------------------------------------------------------- load
         /// <summary>Called by the host the first time this tab is shown, and on refresh.</summary>

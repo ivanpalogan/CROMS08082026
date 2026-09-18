@@ -4,6 +4,7 @@ using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
+using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 
 namespace CROMS.Data
@@ -308,29 +309,109 @@ namespace CROMS.Data
 
         // ------------------------------------------------------------------ show / print
 
-        public static void Show(Def def, DataTable t, System.Windows.Forms.IWin32Window owner)
+        /// <summary>One chart, captured live off the widget currently on screen — the operator
+        /// controls which of these accompany the printed report via <see cref="ReportWidgetPrefs"/>
+        /// and "Customize Report" (<see cref="CROMS.Forms.ReportCustomizeForm"/>).</summary>
+        public sealed class ChartExport
         {
-            if (TemplateReportBridge.TryShow(def.FormCode, def.FormName, t, owner)) return;
-            using (var doc = BuiltInDocument(def, t))
+            public string Title;
+            public Bitmap Image;
+        }
+
+        /// <summary>Snapshots a widget exactly as it is showing right now — a chart, an empty
+        /// state, whatever is actually on screen — so the printed page can never disagree with
+        /// what the operator was looking at. Never throws: a capture failure just prints without
+        /// that chart's picture, it does not stop the report.</summary>
+        public static Bitmap Capture(Control widget)
+        {
+            if (widget == null || widget.Width <= 0 || widget.Height <= 0) return null;
+            try
+            {
+                var bmp = new Bitmap(widget.Width, widget.Height);
+                widget.DrawToBitmap(bmp, new Rectangle(0, 0, widget.Width, widget.Height));
+                return bmp;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
+        /// <paramref name="charts"/> is optional: with none selected the report is exactly the
+        /// one-page monthly table it always was, and still goes through
+        /// <see cref="TemplateReportBridge"/> so an operator's saved letterhead edits still apply
+        /// and "Edit Layout..." still works. Once at least one chart is selected the report
+        /// becomes a multi-page document (built-in layout + one page per chart) and is shown
+        /// directly — Edit Layout is not offered on that path.
+        /// </summary>
+        public static void Show(Def def, DataTable t, IWin32Window owner, IList<ChartExport> charts = null)
+        {
+            bool hasCharts = charts != null && charts.Count > 0;
+            if (!hasCharts && TemplateReportBridge.TryShow(def.FormCode, def.FormName, t, owner)) return;
+
+            using (var doc = BuiltInDocument(def, t, charts))
             using (var f = new CROMS.Forms.ZoomPrintPreviewForm(doc, def.FormName, null))
                 f.ShowDialog(owner);
         }
 
-        public static System.Drawing.Printing.PrintDocument BuiltInDocument(Def def, DataTable t)
+        public static System.Drawing.Printing.PrintDocument BuiltInDocument(Def def, DataTable t, IList<ChartExport> charts = null)
         {
             var doc = new System.Drawing.Printing.PrintDocument { DocumentName = def.FormName };
             try { doc.DefaultPageSettings.PaperSize = new System.Drawing.Printing.PaperSize("Letter", 850, 1100); } catch { }
             doc.DefaultPageSettings.Margins = new System.Drawing.Printing.Margins(0, 0, 0, 0);
             doc.DefaultPageSettings.Landscape = false;
+
+            int chartIndex = -1; // -1 draws the main table page; 0..N-1 draw charts[i]
             doc.PrintPage += (s, e) =>
             {
                 e.Graphics.PageUnit = GraphicsUnit.Point;
                 if (!doc.PrintController.IsPreview)
                     e.Graphics.TranslateTransform(-e.PageSettings.HardMarginX * 0.72f, -e.PageSettings.HardMarginY * 0.72f);
-                Draw(def, e.Graphics, t);
-                e.HasMorePages = false;
+
+                if (chartIndex < 0)
+                    Draw(def, e.Graphics, t);
+                else
+                    DrawChartPage(e.Graphics, charts[chartIndex], chartIndex + 1, charts.Count);
+
+                chartIndex++;
+                e.HasMorePages = charts != null && chartIndex < charts.Count;
             };
             return doc;
+        }
+
+        /// <summary>One chart per page: a title, then the captured widget scaled (never
+        /// upscaled past its own resolution) and centred within the page margins.</summary>
+        private static void DrawChartPage(Graphics g, ChartExport chart, int pageNo, int totalCharts)
+        {
+            g.PageUnit = GraphicsUnit.Point;
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+            using (var titleFont = new Font("Arial", 12f, FontStyle.Bold))
+            using (var noteFont = new Font("Arial", 8f, FontStyle.Italic))
+            using (var left = new StringFormat(StringFormat.GenericTypographic))
+            {
+                g.DrawString(chart.Title ?? "Chart", titleFont, Brushes.Black,
+                    new RectangleF(40f, 40f, PageWidth - 80f, 20f), left);
+                g.DrawString(
+                    string.Format("Supporting chart {0} of {1} — attached to the assessment report.", pageNo, totalCharts),
+                    noteFont, Brushes.Gray, new RectangleF(40f, 62f, PageWidth - 80f, 14f), left);
+
+                if (chart.Image != null)
+                {
+                    float maxW = PageWidth - 80f;
+                    float maxH = PageHeight - 130f;
+                    float scale = Math.Min(maxW / chart.Image.Width, maxH / chart.Image.Height);
+                    if (scale > 1f) scale = 1f;
+                    float w = chart.Image.Width * scale;
+                    float h = chart.Image.Height * scale;
+                    float x = 40f + (maxW - w) / 2f;
+                    g.DrawImage(chart.Image, x, 90f, w, h);
+                }
+                else
+                {
+                    g.DrawString("This chart could not be captured.", noteFont, Brushes.Gray,
+                        new RectangleF(40f, 100f, PageWidth - 80f, 20f), left);
+                }
+            }
         }
 
         public static void Draw(Def def, Graphics g, DataTable t)
