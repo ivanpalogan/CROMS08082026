@@ -120,6 +120,10 @@ namespace CROMS.Data
             {
                 try { return loadTemplateImage(el.ImageId.Value); } catch { return null; }
             }
+            if (!string.IsNullOrEmpty(el.BundledImage))
+            {
+                try { return BundledAsset.Load(el.BundledImage); } catch { return null; }
+            }
             if (!string.IsNullOrEmpty(el.OfficeAsset))
             {
                 if (Enum.TryParse(el.OfficeAsset, out AssetKind kind))

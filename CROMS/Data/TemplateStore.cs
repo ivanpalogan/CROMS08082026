@@ -300,6 +300,10 @@ namespace CROMS.Data
                     e.Kind = "Image";
                     e.OfficeAsset = c.Asset.ToString();
                     break;
+                case "BundledImage":
+                    e.Kind = "Image";
+                    e.BundledImage = c.ImageFile;
+                    break;
                 case "Rule":
                     e.Kind = "Line";
                     e.Height = 1f;

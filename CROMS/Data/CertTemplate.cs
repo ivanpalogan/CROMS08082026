@@ -29,11 +29,14 @@ namespace CROMS.Data
         public bool Bold, Italic, Underline;
         public string Align = "Left";    // Left | Center | Right
 
-        // Image — exactly one of the two is set. OfficeAsset points at a named,
+        // Image — exactly one of the three is set. OfficeAsset points at a named,
         // office-wide slot (the logo/seal/stamp managed in Settings); ImageId points
-        // at a picture uploaded straight into THIS template.
+        // at a picture uploaded straight into THIS template; BundledImage names a fixed
+        // artwork file shipped with the app under Assets\ (a reference graphic that is
+        // part of the form's own content, not office branding the office would replace).
         public string OfficeAsset;
         public int? ImageId;
+        public string BundledImage;
         public bool LockAspect = true;
 
         // Line / Rectangle

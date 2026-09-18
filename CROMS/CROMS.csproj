@@ -485,6 +485,7 @@
     <Compile Include="Data\AssessmentReport.cs" />
     <Compile Include="Data\CollectionsReport.cs" />
     <Compile Include="Data\OfficeMissionCert.cs" />
+    <Compile Include="Data\BundledAsset.cs" />
     <Compile Include="Data\DelayedBirthRules.cs" />
     <Compile Include="Data\DelayedBirthService.cs" />
     <Compile Include="Forms\DelayedBirthCaseForm.cs">
@@ -683,6 +684,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Assets\Form103Blank.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\CoreValuesGraphic.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

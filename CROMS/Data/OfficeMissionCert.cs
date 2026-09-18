@@ -45,6 +45,8 @@ namespace CROMS.Data
                 c.Add(new Form3ACell { Kind = "Static", Text = text, X = x, Top = top, Width = w, Height = h, FontSize = size, Bold = bold });
             Action<float, float, float> rule = (x, top, w) =>
                 c.Add(new Form3ACell { Kind = "Rule", X = x, Top = top, Width = w, Height = 1f });
+            Action<string, float, float, float, float> bundledImg = (file, x, top, w, h) =>
+                c.Add(new Form3ACell { Kind = "BundledImage", ImageFile = file, X = x, Top = top, Width = w, Height = h });
 
             statC("MISSION, VISION, GOAL, OBJECTIVES & CORE VALUES", 40f, 18f, 532f, 16f, 13f, true);
             statC(OfficeAssets.Profile.HeaderLine, 40f, 36f, 532f, 12f, 9f, false);
@@ -82,18 +84,15 @@ namespace CROMS.Data
                 40f, 368f, 532f, 28f, 9.5f, false);
 
             rule(40f, 408f, 532f);
-            statC("CORE VALUES", 40f, 418f, 532f, 16f, 11f, true);
 
-            // Four tiles, one per value — same order/spelling as the office's own poster
-            // (Modesty / Client-Focused / On-Time Service / Responsiveness).
-            string[] values = { "MODESTY", "CLIENT-FOCUSED", "ON-TIME SERVICE", "RESPONSIVENESS" };
-            float tileW = 122f, gap = 15f, startX = 40f, tileTop = 448f;
-            for (int i = 0; i < values.Length; i++)
-            {
-                float x = startX + i * (tileW + gap);
-                c.Add(new Form3ACell { Kind = "Rule", X = x, Top = tileTop, Width = tileW, Height = 1f });
-                statC(values[i], x, tileTop + 10f, tileW, 40f, 9.5f, true);
-            }
+            // The office's own MCRO CORE VALUES chart, copied as-is (the graphic + all four
+            // values baked into it — Modesty / Client-Focused / On-Time Service /
+            // Responsiveness — plus its own title and border) rather than retyped, so nothing
+            // about the office's real chart is lost or paraphrased. Bundled under Assets\ (see
+            // BundledAsset) since it is fixed reference content, not office branding an office
+            // would re-upload. Sized to the source photo's own aspect ratio (1205x1343) and
+            // centered in the content column.
+            bundledImg("CoreValuesGraphic.jpg", 185f, 414f, 242f, 270f);
 
             statC("Municipal Civil Registry Office (MCRO) - Local Civil Registry Office of Penablanca, Cagayan",
                 40f, 700f, 532f, 12f, 8f, false);
@@ -114,6 +113,25 @@ namespace CROMS.Data
             t.Rows.Add(t.NewRow());
             t.AcceptChanges();
             return t;
+        }
+
+        /// <summary>A small on-screen preview bitmap of the whole page (this class's own
+        /// current template — Static/Rule/BundledImage cells, no editable-template lookup),
+        /// for embedding directly on a screen without opening the print/preview dialog.
+        /// <paramref name="width"/> is the target pixel width; height follows the page's
+        /// own aspect ratio.</summary>
+        public static Bitmap RenderPreview(int width)
+        {
+            float scale = width / PageWidth;
+            int h = (int)(PageHeight * scale);
+            var bmp = new Bitmap(width, h);
+            using (Graphics g = Graphics.FromImage(bmp))
+            {
+                g.Clear(Color.White);
+                g.ScaleTransform(scale, scale);
+                Draw(g, BuildTable());
+            }
+            return bmp;
         }
 
         public static string RenderBlankTemplate(string outDir)
@@ -190,6 +208,12 @@ namespace CROMS.Data
                         FontStyle style = (c.Bold ? FontStyle.Bold : FontStyle.Regular) | (c.Italic ? FontStyle.Italic : FontStyle.Regular);
                         using (var f = new Font("Arial", c.FontSize, style))
                             g.DrawString(c.Text, f, Brushes.Black, c.Rect, c.Center ? center : left);
+                        continue;
+                    }
+                    if (c.Kind == "BundledImage")
+                    {
+                        Image img = BundledAsset.Load(c.ImageFile);
+                        if (img != null) g.DrawImage(img, c.Rect);
                         continue;
                     }
                 }

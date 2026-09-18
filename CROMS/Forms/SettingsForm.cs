@@ -279,6 +279,7 @@ namespace CROMS.Forms
         // ---------------------------------------------------------------- General page
 
         private Label _genOffice, _genServer, _genUser, _genLock;
+        private PictureBox _genMvcPreview;
 
         private Control BuildGeneralPage()
         {
@@ -341,12 +342,24 @@ namespace CROMS.Forms
             page.Controls.Add(Section("Mission, Vision, Goal, Objectives & Core Values", 22, 500));
             page.Controls.Add(new Label
             {
-                Text = "The office's own standing statements — not tied to any record. Opens as a printable\r\n" +
-                       "page you can reword and reposition in the same template designer every certificate uses.",
-                AutoSize = true, Location = new Point(24, 526),
+                Text = "The office's own standing statements, shown here automatically — not tied to any\r\n" +
+                       "record. Click the page, or the button, to print it or reword/reposition anything in\r\n" +
+                       "the same template designer every certificate uses.",
+                AutoSize = true, Location = new Point(24, 526), Size = new Size(560, 46),
                 Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
             });
-            var btnMvc = BigButton("View / Print Mission && Vision", 24, 566, Color.FromArgb(13, 110, 253));
+
+            _genMvcPreview = new PictureBox
+            {
+                Location = new Point(24, 578), Size = new Size(210, 271),
+                SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle,
+                BackColor = Color.White, Cursor = Cursors.Hand
+            };
+            _genMvcPreview.Click += (s, e) => OfficeMissionCert.Show(OfficeMissionCert.BuildTable(), this);
+            page.Controls.Add(_genMvcPreview);
+
+            var btnMvc = BigButton("Open / Print / Edit", 250, 578, Color.FromArgb(13, 110, 253));
+            btnMvc.Size = new Size(200, 40);
             btnMvc.Click += (s, e) => OfficeMissionCert.Show(OfficeMissionCert.BuildTable(), this);
             page.Controls.Add(btnMvc);
 
@@ -378,6 +391,15 @@ namespace CROMS.Forms
             _genLock.Text = _verified
                 ? "Verified this session as " + (_verifiedUser?.Username ?? "?") + "."
                 : "Not verified yet this session.";
+
+            // Rendered automatically on every visit to this page — no click needed to see it.
+            try
+            {
+                Image old = _genMvcPreview.Image;
+                _genMvcPreview.Image = OfficeMissionCert.RenderPreview(600);
+                old?.Dispose();
+            }
+            catch { /* a bad/missing bundled image must not stop the rest of the page loading */ }
         }
 
 

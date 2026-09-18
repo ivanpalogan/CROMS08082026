@@ -14,10 +14,11 @@ namespace CROMS.Data
     /// <see cref="Asset"/> (blank if the office has not supplied one - never blocks a print).</summary>
     public sealed class Form3ACell
     {
-        public string Kind;      // "Static" / "Field" / "Picture" / "Rule"
+        public string Kind;      // "Static" / "Field" / "Picture" / "BundledImage" / "Rule"
         public string Text;      // Kind == "Static"
         public string Column;    // Kind == "Field"
         public AssetKind Asset;  // Kind == "Picture"
+        public string ImageFile; // Kind == "BundledImage" — a file under Assets\, see BundledAsset
         public float X, Top, Width, Height, FontSize = 8f;
         public bool Bold, Center, Italic;
         public RectangleF Rect { get { return new RectangleF(X, Top, Width, Height); } }
