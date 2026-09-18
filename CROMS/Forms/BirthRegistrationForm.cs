@@ -2330,6 +2330,7 @@ namespace CROMS.Forms
                 evidence.Dock = DockStyle.Top; evidence.AutoSize = false; evidence.Height = 22; evidence.Margin = new Padding(0, 0, 0, 6);
 
                 var grid = new RequirementsGrid { Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 12) };
+                grid.AllowBypass = Session.User != null && Session.User.Role == "Admin";
                 grid.Bind("Birth", _editingId.Value, needs);
 
                 var openCase = MUi.Btn("Open Full Case (Posting & Evaluation)...", MUi.Kind.Secondary, 260);

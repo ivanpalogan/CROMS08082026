@@ -41,6 +41,7 @@ namespace CROMS.Forms
             foot.Controls.Add(close);
             Controls.Add(_body); Controls.Add(foot); Controls.Add(head);
             for (int i = 0; i < MarriageRules.ExemptionBases.GetLength(0); i++) _basis.Items.Add(MarriageRules.ExemptionBases[i, 1]);
+            _docs.AllowBypass = MarriageService.IsAdmin;
             _docs.Changed += () => Rebuild();
             _issues.FixRequested += w => { if (w != "Case Workflow") Close(); };
             // Opening focused the posting date picker and scrolled the panel to it, so the

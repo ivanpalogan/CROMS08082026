@@ -104,27 +104,28 @@ namespace CROMS.Data
 
         /// <summary>
         /// The office's item (c): "ANY TWO of the following evidences of birth". Satisfied when
-        /// at least <c>GroupMin</c> of the group's rows are Verified - not when every row is
-        /// Verified (that would demand all eight) and not when any one row is (that would accept
-        /// a single document as if it were two).
+        /// at least <c>GroupMin</c> of the group's rows are Verified (or Admin-bypassed - see
+        /// ReqRow.IsBypassed) - not when every row is Verified (that would demand all eight) and
+        /// not when any one row is (that would accept a single document as if it were two).
         /// </summary>
         public static bool EvidenceGroupSatisfied(IEnumerable<ReqRow> rows, IEnumerable<ReqType> catalog, string groupCode, out int have, out int need)
         {
             var group = catalog.Where(t => string.Equals(t.AppliesTo, "Birth", StringComparison.OrdinalIgnoreCase) && t.GroupCode == groupCode).ToList();
             var codes = new HashSet<string>(group.Select(t => t.Code));
             need = group.Count > 0 ? group[0].GroupMin : 1;
-            have = rows.Count(r => codes.Contains(r.Code) && r.Status == "Verified");
+            have = rows.Count(r => codes.Contains(r.Code) && (r.Status == "Verified" || r.IsBypassed));
             return have >= need;
         }
 
-        /// <summary>Every blocking requirement (outside the evidence group) is Verified, AND the
-        /// evidence group itself is satisfied. Used to tell the registrar the case is complete -
-        /// never to gate the record from being saved, which stays the registrar's own call.</summary>
+        /// <summary>Every blocking requirement (outside the evidence group) is Verified or
+        /// Admin-bypassed, AND the evidence group itself is satisfied. Used to tell the registrar
+        /// the case is complete - never to gate the record from being saved, which stays the
+        /// registrar's own call.</summary>
         public static bool AllSatisfied(List<Need> needs, List<ReqRow> rows, IEnumerable<ReqType> catalog, string groupCode)
         {
             bool group = EvidenceGroupSatisfied(rows, catalog, groupCode, out int have, out int need);
             bool rest = needs.Where(n => n.Blocking && catalog.FirstOrDefault(t => t.Code == n.Code)?.GroupCode == null)
-                              .All(n => { ReqRow r = RowFor(rows, n); return r != null && r.Status == "Verified"; });
+                              .All(n => MarriageRules.Satisfied(RowFor(rows, n)));
             return group && rest;
         }
 

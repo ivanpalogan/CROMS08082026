@@ -49,6 +49,7 @@ namespace CROMS.Forms
             // letting the case editor add one of its own is what keeps the screen useful for
             // them rather than showing an empty grid with no way to record anything.
             _grid.AllowAddCustom = true;
+            _grid.AllowBypass = Session.User != null && Session.User.Role == "Admin";
             _grid.Changed += () => Refresh_();
 
             var footer = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 50, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.Transparent, Padding = new Padding(0, 8, 0, 0) };

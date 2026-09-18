@@ -411,6 +411,7 @@ namespace CROMS.Forms
             Stack(_exPanel, exRow, exHint);
             _exPanel.Height = 58 + 70;
 
+            _docs.AllowBypass = MarriageService.IsAdmin;
             _docs.Changed += () => RefreshAll();
             Stack(pg, Section("Consent & license", "Is this marriage under a licence (select it - never retype it) or licence-exempt (state the law)?"),
                   basis, _licPanel, _exPanel, Section("Supporting documents on this record", null), _docsHint, _docs);

@@ -161,9 +161,11 @@ namespace CROMS.Data
         {
             var list = new List<ReqRow>();
             DataTable dt = Db.Pull(
-                "SELECT id, party, req_code, req_label, status, outcome, given_by, reference_no, doc_date, " +
-                "attachment IS NOT NULL AS has_att, verified_by, verified_at, notes " +
-                "FROM marriage_requirements WHERE owner_type = @t AND owner_id = @id ORDER BY id",
+                "SELECT mr.id, mr.party, mr.req_code, mr.req_label, mr.status, mr.outcome, mr.given_by, mr.reference_no, mr.doc_date, " +
+                "mr.attachment IS NOT NULL AS has_att, mr.verified_by, mr.verified_at, mr.notes, " +
+                "mr.bypassed_by, mr.bypassed_at, mr.bypass_reason, u.full_name AS bypassed_by_name " +
+                "FROM marriage_requirements mr LEFT JOIN users u ON u.id = mr.bypassed_by " +
+                "WHERE mr.owner_type = @t AND mr.owner_id = @id ORDER BY mr.id",
                 P("@t", ownerType), P("@id", ownerId));
             foreach (DataRow r in dt.Rows) list.Add(ToReq(r));
             return list;
@@ -177,8 +179,49 @@ namespace CROMS.Data
                 Label = Str(r["req_label"]), Status = Str(r["status"]) ?? "Missing", Outcome = Str(r["outcome"]),
                 GivenBy = Str(r["given_by"]), ReferenceNo = Str(r["reference_no"]), DocDate = Dt(r["doc_date"]),
                 HasAttachment = Convert.ToInt32(r["has_att"]) != 0, VerifiedBy = Int(r["verified_by"]),
-                VerifiedAt = Dt(r["verified_at"]), Notes = Str(r["notes"])
+                VerifiedAt = Dt(r["verified_at"]), Notes = Str(r["notes"]),
+                BypassedBy = r.Table.Columns.Contains("bypassed_by") ? Int(r["bypassed_by"]) : null,
+                BypassedAt = r.Table.Columns.Contains("bypassed_at") ? Dt(r["bypassed_at"]) : null,
+                BypassReason = r.Table.Columns.Contains("bypass_reason") ? Str(r["bypass_reason"]) : null,
+                BypassedByName = r.Table.Columns.Contains("bypassed_by_name") ? Str(r["bypassed_by_name"]) : null
             };
+        }
+
+        /// <summary>
+        /// Admin-only: lets this ONE requirement count as satisfied without its paperwork being
+        /// checked (a client cannot supply it, but the office still needs to proceed). Replaces
+        /// the old whole-checklist "Admin Override" - the office asked for the choice per
+        /// document, not per case, so a bypass here never affects any other row. Status is left
+        /// exactly as it was: bypassing does not claim the document was verified, it records
+        /// that an Admin chose to proceed without checking it.
+        /// </summary>
+        public static void BypassRequirement(int reqId, string reason)
+        {
+            RequireAdmin("bypass a requirement");
+            if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A reason is required to bypass a requirement.");
+            DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM marriage_requirements WHERE id = @id", P("@id", reqId));
+            if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
+            Db.Push("UPDATE marriage_requirements SET bypassed_by=@u, bypassed_at=NOW(), bypass_reason=@r WHERE id=@id",
+                    P("@u", UserId), P("@r", reason), P("@id", reqId));
+            string owner = Str(cur.Rows[0]["owner_type"]);
+            int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
+            string code = Str(cur.Rows[0]["req_code"]) + (Str(cur.Rows[0]["party"]) == "Both" ? "" : " (" + Str(cur.Rows[0]["party"]) + ")");
+            History(owner, ownerId, "Requirement bypassed by Admin", null, null, code + " - " + reason);
+            Audit.Write(Audit.Update, "marriage_requirements", reqId, "Requirement bypassed: " + code + " - " + reason);
+        }
+
+        /// <summary>Withdraws a bypass (e.g. entered by mistake, or the document has now arrived).</summary>
+        public static void ClearBypass(int reqId)
+        {
+            RequireAdmin("withdraw a requirement bypass");
+            DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM marriage_requirements WHERE id = @id", P("@id", reqId));
+            if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
+            Db.Push("UPDATE marriage_requirements SET bypassed_by=NULL, bypassed_at=NULL, bypass_reason=NULL WHERE id=@id", P("@id", reqId));
+            string owner = Str(cur.Rows[0]["owner_type"]);
+            int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
+            string code = Str(cur.Rows[0]["req_code"]) + (Str(cur.Rows[0]["party"]) == "Both" ? "" : " (" + Str(cur.Rows[0]["party"]) + ")");
+            History(owner, ownerId, "Requirement bypass withdrawn", null, null, code);
+            Audit.Write(Audit.Update, "marriage_requirements", reqId, "Requirement bypass withdrawn: " + code);
         }
 
         /// <summary>

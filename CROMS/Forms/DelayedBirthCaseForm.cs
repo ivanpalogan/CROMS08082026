@@ -37,7 +37,6 @@ namespace CROMS.Forms
         private readonly TextBox _txtEvaluation = new TextBox { Multiline = true, Height = 64, ScrollBars = ScrollBars.Vertical, Font = MUi.F(9.5F) };
         private readonly Label _lblEvaluated = MUi.Txt("", 8.5F, FontStyle.Regular, UiTheme.Muted);
         private readonly Button _btnSaveEvaluation = MUi.Btn("Save Evaluation", MUi.Kind.Primary, 150);
-        private readonly Button _btnAdminOverride = MUi.Btn("Admin Override - Bypass Requirements", MUi.Kind.Danger, 260);
         private readonly Button _btnClose = MUi.Btn("Close", MUi.Kind.Ghost, 90);
         private readonly Panel _root;
 
@@ -87,6 +86,10 @@ namespace CROMS.Forms
             reqHead.Dock = DockStyle.Top; reqHead.Height = 22; reqHead.BackColor = Color.Transparent;
             _grid.Dock = DockStyle.Top; _grid.Margin = new Padding(0, 0, 0, 10);
             _grid.AllowAddCustom = true; // this case may need a document PSA MC 2024-17's own checklist doesn't name
+            // Per-row Admin bypass replaces the old whole-checklist "Admin Override" button - the
+            // grid itself hides the control for anyone not signed in as Admin, and the service
+            // layer (MarriageService.BypassRequirement) re-checks the role regardless.
+            _grid.AllowBypass = Session.User != null && Session.User.Role == "Admin";
             _grid.Changed += () => Refresh_();
 
             var evalCard = MUi.Card(new Padding(16, 12, 16, 12));
@@ -97,10 +100,6 @@ namespace CROMS.Forms
             _lblEvaluated.Dock = DockStyle.Top; _lblEvaluated.AutoSize = false; _lblEvaluated.Height = 18; _lblEvaluated.Margin = new Padding(0, 4, 0, 6);
             var evalBtnRow = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, BackColor = Color.Transparent };
             evalBtnRow.Controls.Add(_btnSaveEvaluation);
-            // Admin-only escape hatch: hidden entirely for anyone not signed in as Admin, so a
-            // Registrar/Staff session never even sees a control that could bypass the checklist.
-            _btnAdminOverride.Visible = Session.User != null && Session.User.Role == "Admin";
-            if (_btnAdminOverride.Visible) evalBtnRow.Controls.Add(_btnAdminOverride);
             var evalParts = new Control[] { evalBtnRow, _lblEvaluated, _txtEvaluation, evalHead };
             foreach (Control c in evalParts) evalCard.Controls.Add(c);
 
@@ -122,7 +121,6 @@ namespace CROMS.Forms
 
             _btnStartPosting.Click += (s, e) => DoStartPosting();
             _btnSaveEvaluation.Click += (s, e) => DoSaveEvaluation();
-            _btnAdminOverride.Click += (s, e) => DoAdminOverride();
             _btnClose.Click += (s, e) => Close();
             _tglRegistrantDeceased.CheckedChanged += (s, e) => SaveFacts();
             _tglMotherUnavailable.CheckedChanged += (s, e) => SaveFacts();
@@ -246,56 +244,5 @@ namespace CROMS.Forms
             catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
-        /// <summary>
-        /// Admin-only: bypasses the requirements checklist entirely - every requirement is marked
-        /// Verified even with no attachment on file. Button is already hidden for anyone not
-        /// signed in as Admin, but re-verifies with a fresh username/password (the same
-        /// AdminVerificationForm gate Settings uses) and checks the ROLE ON THAT VERIFIED ACCOUNT
-        /// is Admin - not merely Admin-or-Registrar, which is all that dialog itself guarantees -
-        /// so this cannot be triggered by someone who walked up to an already-open admin session.
-        /// Same warning dialog as the marriage licence's Admin Override (MUi.AskWithChecklist):
-        /// names every specific item still outstanding, with Proceed/Cancel pinned at a fixed
-        /// position so a long checklist can never push them off the visible dialog.
-        /// </summary>
-        private void DoAdminOverride()
-        {
-            List<ReqRow> rows = DelayedBirthService.Requirements(_birthId);
-            List<ReqType> catalog = DelayedBirthService.Catalog();
-            List<Need> needs = DelayedBirthRules.Needs(_c, catalog);
-            List<string> outstanding = DelayedBirthRules.OutstandingItems(needs, rows, catalog, DelayedBirthService.EvidenceGroup);
-
-            if (outstanding.Count == 0)
-            {
-                MessageBox.Show(this, "Nothing to override - the checklist is already complete.",
-                    "Admin Override", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            string reason = MUi.AskWithChecklist(this, "Admin Override",
-                "This marks EVERY requirement below as Verified, including any with no document attached:",
-                outstanding,
-                "It does not check any paperwork - it records that an administrator chose to proceed " +
-                "despite the checklist being incomplete. Recorded on the case and in the audit trail.",
-                "Proceed With Override");
-            if (reason == null) return;
-
-            using (var dlg = new AdminVerificationForm())
-            {
-                if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                if (dlg.VerifiedUser == null || dlg.VerifiedUser.Role != "Admin")
-                {
-                    MessageBox.Show(this, "Only an Administrator account can bypass delayed-registration requirements.",
-                        "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                try
-                {
-                    DelayedBirthService.AdminOverride(_birthId, reason, dlg.VerifiedUser.Id, dlg.VerifiedUser.Username);
-                    LoadCase();
-                }
-                catch (Exception ex) { MUi.Fail(this, ex); }
-            }
-        }
     }
 }

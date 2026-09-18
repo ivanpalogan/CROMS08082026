@@ -121,30 +121,5 @@ namespace CROMS.Data
             Audit.Write(Audit.Update, "births", birthId, "Delayed registration evaluation recorded.");
         }
 
-        /// <summary>
-        /// ADMIN-ONLY escape hatch: marks every requirement on this case Verified - including one
-        /// with no attachment on file - so the checklist reads complete even though the paperwork
-        /// was not actually checked, and records who did it and why. This does not change the
-        /// underlying documents; it overrides the checklist that is normally the registrar's
-        /// evidence of having checked them. Caller (the form) is responsible for re-verifying the
-        /// acting user actually holds the Admin role before calling this - this method trusts the
-        /// id/username/note it is given and only records them.
-        /// </summary>
-        public static void AdminOverride(int birthId, string reason, int adminUserId, string adminUsername)
-        {
-            List<ReqRow> rows = Requirements(birthId);
-            foreach (ReqRow r in rows)
-            {
-                if (r.Status == "Verified") continue;
-                r.Status = "Verified";
-                MarriageService.SaveRequirement(r);
-            }
-            string note = "ADMIN OVERRIDE by " + (adminUsername ?? "admin") + " - requirements bypassed without full verification." +
-                          (string.IsNullOrWhiteSpace(reason) ? "" : " Reason: " + reason.Trim());
-            Db.Push("UPDATE births SET delayed_evaluation=@n, delayed_evaluation_by=@u, delayed_evaluation_at=NOW() WHERE id=@id",
-                    P("@n", note), P("@u", adminUserId), P("@id", birthId));
-            Audit.Write(Audit.Update, "births", birthId,
-                "Delayed registration requirements BYPASSED by admin override (" + (adminUsername ?? "admin") + ").");
-        }
     }
 }

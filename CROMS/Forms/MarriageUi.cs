@@ -823,6 +823,20 @@ namespace CROMS.Forms
         /// licence/registration) sets {"Both","Husband","Wife"}.</summary>
         public string[] PartyOptions { get; set; } = { "Both" };
 
+        private bool _allowBypass;
+        /// <summary>
+        /// Shows a per-row "Bypass" action so an Admin can let ONE requirement count as satisfied
+        /// without its paperwork being checked - the office asked for this per document, not the
+        /// old whole-checklist "Admin Override" button. Off by default; a screen opts in AND the
+        /// signed-in user must be Admin (checked again server-side by MarriageService.
+        /// BypassRequirement/ClearBypass, so hiding this column is a convenience, not the gate).
+        /// </summary>
+        public bool AllowBypass
+        {
+            get { return _allowBypass; }
+            set { _allowBypass = value; _g.Columns["Bypass"].Visible = value; }
+        }
+
         public RequirementsGrid()
         {
             _btnAdd.Margin = new Padding(6);
@@ -848,6 +862,7 @@ namespace CROMS.Forms
             _g.Columns.Add(new DataGridViewTextBoxColumn { Name = "DocDate", HeaderText = "Doc. date", FillWeight = 62 });
             _g.Columns.Add(new DataGridViewButtonColumn { Name = "File", HeaderText = "File", FillWeight = 52, FlatStyle = FlatStyle.Flat });
             _g.Columns.Add(new DataGridViewTextBoxColumn { Name = "Checked", HeaderText = "Verified", ReadOnly = true, FillWeight = 70 });
+            _g.Columns.Add(new DataGridViewButtonColumn { Name = "Bypass", HeaderText = "Admin", FillWeight = 62, FlatStyle = FlatStyle.Flat, Visible = false });
             // Measured in the renders: at FillWeight alone the status combo showed "Veri..." and
             // the file button "ttach". Combos draw as plain text until clicked, narrow columns
             // get a floor, and the two long text columns wrap instead of ellipsizing.
@@ -855,6 +870,7 @@ namespace CROMS.Forms
             oc.DisplayStyle = DataGridViewComboBoxDisplayStyle.Nothing;
             _g.Columns["Party"].MinimumWidth = 58; _g.Columns["Status"].MinimumWidth = 88; _g.Columns["Outcome"].MinimumWidth = 86;
             _g.Columns["DocDate"].MinimumWidth = 84; _g.Columns["File"].MinimumWidth = 66; _g.Columns["Checked"].MinimumWidth = 86;
+            _g.Columns["Bypass"].MinimumWidth = 74;
             _g.Columns["Req"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
             _g.Columns["Why"].DefaultCellStyle.WrapMode = DataGridViewTriState.True;
             _g.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
@@ -894,7 +910,8 @@ namespace CROMS.Forms
                            : "No longer required - kept because it holds a record";
                 int i = _g.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code, why,
                     r.Status, r.Outcome ?? "", r.GivenBy, r.ReferenceNo, r.DocDate.HasValue ? MUi.D(r.DocDate) : "",
-                    r.HasAttachment ? "View" : "Attach", r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : "");
+                    r.HasAttachment ? "View" : "Attach", r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : "",
+                    r.IsBypassed ? "Un-bypass" : "Bypass");
                 DataGridViewRow row = _g.Rows[i];
                 row.Tag = r;
                 if (n != null && !string.IsNullOrEmpty(n.Basis)) row.Cells["Req"].ToolTipText = n.Basis;
@@ -903,6 +920,16 @@ namespace CROMS.Forms
                 row.Cells["Given"].ReadOnly = !isConsent || ReadOnlyGrid;
                 if (ReadOnlyGrid) foreach (DataGridViewCell c in row.Cells) if (!(c is DataGridViewButtonCell)) c.ReadOnly = true;
                 if (n == null && !MarriageService.IsCustomCode(r.Code)) row.DefaultCellStyle.ForeColor = UiTheme.Faint;
+                if (r.IsBypassed)
+                {
+                    row.DefaultCellStyle.BackColor = UiTheme.WarningTint;
+                    string who = string.IsNullOrEmpty(r.BypassedByName) ? "an Admin" : r.BypassedByName;
+                    string when = r.BypassedAt.HasValue ? MUi.D(r.BypassedAt) : "";
+                    row.Cells["Bypass"].ToolTipText = "Bypassed by " + who + (when == "" ? "" : " on " + when) +
+                        (string.IsNullOrEmpty(r.BypassReason) ? "" : ": " + r.BypassReason);
+                    row.Cells["Status"].ToolTipText = "This requirement is bypassed - it counts as satisfied even though " +
+                        "its status still says \"" + r.Status + "\".";
+                }
             }
             _loading = false;
             // Advice / Given-by only mean something on consent rows; hidden elsewhere they
@@ -978,7 +1005,9 @@ namespace CROMS.Forms
 
         private void Grid_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0 || _g.Columns[e.ColumnIndex].Name != "File") return;
+            if (e.RowIndex < 0) return;
+            if (_g.Columns[e.ColumnIndex].Name == "Bypass") { ToggleBypass(e.RowIndex); return; }
+            if (_g.Columns[e.ColumnIndex].Name != "File") return;
             var r = _g.Rows[e.RowIndex].Tag as ReqRow;
             if (r == null) return;
             if (r.HasAttachment)
@@ -1009,6 +1038,43 @@ namespace CROMS.Forms
                 }
                 catch (Exception ex) { MUi.Fail(this, ex); }
             }
+        }
+
+        /// <summary>
+        /// Per-row Admin bypass, replacing the old whole-checklist "Admin Override" button.
+        /// Not gated only on ReadOnlyGrid/AllowBypass here - MarriageService.BypassRequirement/
+        /// ClearBypass re-check the Admin role server-side, so a stale or tampered client can't
+        /// bypass a requirement it merely still shows the button for.
+        /// </summary>
+        private void ToggleBypass(int rowIndex)
+        {
+            if (ReadOnlyGrid) return;
+            var r = _g.Rows[rowIndex].Tag as ReqRow;
+            if (r == null) return;
+            try
+            {
+                if (r.IsBypassed)
+                {
+                    if (!MUi.Confirm(this, "Withdraw bypass", "Withdraw the bypass on \"" + (r.Label ?? r.Code) + "\"?",
+                            "Reason on file|" + r.BypassReason)) return;
+                    MarriageService.ClearBypass(r.Id);
+                }
+                else
+                {
+                    string reason = MUi.Ask(this, "Bypass requirement",
+                        "\"" + (r.Label ?? r.Code) + "\" will count as satisfied even though it has not been checked. " +
+                        "This is an Admin decision and is permanently recorded in the audit trail.\n\nReason for bypassing:", "");
+                    if (reason == null) return;
+                    MarriageService.BypassRequirement(r.Id, reason);
+                }
+                Bind(_owner, _ownerId, _needs.Values, _filter);
+                var h = Changed; if (h != null) h();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                MessageBox.Show(this, ex.Message, "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
         private void AddCustom()

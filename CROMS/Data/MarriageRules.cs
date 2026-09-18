@@ -172,6 +172,14 @@ namespace CROMS.Data
         public DateTime? DocDate, VerifiedAt;
         public int? VerifiedBy;
         public bool HasAttachment;
+        /// <summary>An Admin let the case proceed without this one document being checked -
+        /// separate from Status, which still records what is actually on file. Set only through
+        /// MarriageService.BypassRequirement (Admin-only, reasoned, audited).</summary>
+        public bool IsBypassed { get { return BypassedBy.HasValue; } }
+        public int? BypassedBy;
+        public DateTime? BypassedAt;
+        public string BypassReason;
+        public string BypassedByName;
     }
 
     /// <summary>A supporting document the rules say this couple needs, and why.</summary>
@@ -547,10 +555,13 @@ namespace CROMS.Data
         /// not yet checked, which is exactly what the final check exists to do. A counselling
         /// certificate may instead be "Waived", which the law allows only as a three-month
         /// deferral (Art. 16) - handled by <see cref="Deferral"/>, not by pretending it arrived.
+        /// An Admin BYPASS also satisfies it - deliberately checked before Status, since a
+        /// bypassed row's Status still honestly says what is on file (often still "Missing").
         /// </summary>
         public static bool Satisfied(ReqRow r)
         {
             if (r == null) return false;
+            if (r.IsBypassed) return true;
             if (r.Status == "Verified") return true;
             return r.Status == "Waived" && r.Code == "COUNSELING";
         }
