@@ -60,7 +60,8 @@ namespace CROMS.Forms
             LoadCombos();
             BuildLookups();
             LoadDeaths();
-            LearningLibrary.Attach(txtFullName, LearningLibrary.Surname);
+            LearningLibrary.Attach(txtLastName, LearningLibrary.Surname);
+            LearningLibrary.Attach(txtFirstName, LearningLibrary.GivenName);
             LearningLibrary.Attach(txtDispPlace, LearningLibrary.Cemetery);
             LearningLibrary.Attach(txtCertifier, LearningLibrary.Officer);
             CenterContent();
@@ -138,46 +139,52 @@ namespace CROMS.Forms
 
         /// <summary>
         /// Replaces the free-text lookup fields with selection-only comboboxes fed from
-        /// the Master Files. Comboboxes overlay the (now hidden) textboxes and save into
-        /// the same columns, so no schema change is needed.
+        /// the Master Files. Each combo is built INTO the same TableLayoutPanel cell the
+        /// placeholder textbox occupied (see <see cref="CreateLookupCells"/>) rather than
+        /// merely overlaid at the textbox's pixel Location — a control added to a
+        /// TableLayoutPanel with no cell coordinates gets auto-placed into whatever cell
+        /// the layout engine finds free, which is what scattered these fields around the
+        /// tab instead of sitting under their own labels.
         /// </summary>
         private void BuildLookups()
         {
-            _cboDCit = Lookup(txtCitizen, "nationalities");
-            _cboDRel = Lookup(txtReligion, "religions");
-            _cboDImm = Lookup(txtImm, "causes_of_death");
-            _cboDAnt = Lookup(txtAnt, "causes_of_death");
-            _cboDUnd = Lookup(txtUnd, "causes_of_death");
+            _cboDCit = LookupCell(txtCitizen, "nationalities");
+            _cboDRel = LookupCell(txtReligion, "religions");
+            _cboDImm = LookupCell(txtImm, "causes_of_death");
+            _cboDAnt = LookupCell(txtAnt, "causes_of_death");
+            _cboDUnd = LookupCell(txtUnd, "causes_of_death");
             // Relationship to the DECEASED, so the list is filtered to the entries that
             // belong on Municipal Form 103 - the shared master file also carries the
             // birth-side answers (Attending Midwife, Clinic Administrator), and offering
             // those here is what BR-16 was raised about.
-            _cboInfRel = LookupOver(txtCInfRel, "SELECT name FROM relationships " +
+            _cboInfRel = LookupCellOver(txtCInfRel, "SELECT name FROM relationships " +
                 "WHERE applies_to IN ('Death','Both') ORDER BY name");
             OthersBox.Bind(_cboInfRel, txtCInfRelOther, lblCInfRelOther);
 
-            _pod = LookupTriple(txtPlace, "hospitals", null, null,
-                "Hospital / Clinic", "Province", "Municipality");
+            _pod = CreateLookupCells(txtPlace, 3,
+                new[] { "Hospital / Clinic", "Province", "Municipality" },
+                new[] { false, true, true });
+            FillLookup(_pod[0], "hospitals");
             GeoLookup.LoadProvinces(_pod[1]);
             GeoLookup.CascadePlace(_pod[1], _pod[2]);
         }
 
-        /// <summary>
-        /// The same overlay as <see cref="Lookup"/>, but the list comes from a query rather
-        /// than a whole table - used where only part of a master file belongs on this form.
-        /// </summary>
-        private ComboBox LookupOver(TextBox tb, string sql)
+        /// <summary>A single pick-only combo, replacing <paramref name="tb"/> in its own cell.</summary>
+        private ComboBox LookupCell(TextBox tb, string masterTable)
         {
-            var cbo = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDown,
-                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                AutoCompleteSource = AutoCompleteSource.ListItems,
-                Location = tb.Location,
-                Size = tb.Size,
-                Font = tb.Font,
-                Anchor = tb.Anchor
-            };
+            var cbo = CreateLookupCells(tb, 1, null, new[] { false })[0];
+            FillLookup(cbo, masterTable);
+            return cbo;
+        }
+
+        /// <summary>
+        /// The same single-cell replacement as <see cref="LookupCell"/>, but the list comes
+        /// from a query rather than a whole table, and the combo stays editable with
+        /// autocomplete - used where only part of a master file belongs on this form.
+        /// </summary>
+        private ComboBox LookupCellOver(TextBox tb, string sql)
+        {
+            var cbo = CreateLookupCells(tb, 1, null, new[] { true })[0];
             cbo.Items.Add("");
             try
             {
@@ -185,70 +192,86 @@ namespace CROMS.Forms
                     foreach (DataRow r in dt.Rows) cbo.Items.Add(r[0].ToString());
             }
             catch { }
-            tb.Parent.Controls.Add(cbo);
-            cbo.BringToFront();
-            tb.Visible = false;
             return cbo;
         }
 
-        private ComboBox Lookup(TextBox tb, string masterTable)
+        /// <summary>
+        /// Builds <paramref name="count"/> comboboxes (with an optional caption row under
+        /// each) inside the SAME cell <paramref name="tb"/> occupies in its owning
+        /// TableLayoutPanel - reading the cell position and column span BEFORE removing the
+        /// placeholder, since both are lost once it is taken out. <paramref name="editable"/>
+        /// picks, per index, an autocomplete-DropDown combo (true, for a field GeoLookup or
+        /// free text fills) or a pick-only DropDownList (false, for a whole master table).
+        /// </summary>
+        private ComboBox[] CreateLookupCells(TextBox tb, int count, string[] captions, bool[] editable)
         {
-            var cbo = new ComboBox
+            var owner = tb.Parent as TableLayoutPanel;
+            if (owner == null) throw new InvalidOperationException(
+                "Lookup placeholder '" + tb.Name + "' must sit in a TableLayoutPanel cell.");
+
+            TableLayoutPanelCellPosition cell = owner.GetPositionFromControl(tb);
+            int span = owner.GetColumnSpan(tb);
+            bool captioned = captions != null;
+
+            var grid = new TableLayoutPanel
             {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = tb.Location,
-                Size = tb.Size,
-                Font = tb.Font,
-                Anchor = tb.Anchor
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0),
+                ColumnCount = count,
+                RowCount = captioned ? 2 : 1
             };
-            FillLookup(cbo, masterTable);
-            tb.Parent.Controls.Add(cbo);
-            cbo.BringToFront();
+            for (int i = 0; i < count; i++)
+                grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / count));
+            grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 27f));
+            if (captioned) grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 16f));
+
+            var host = new Panel
+            {
+                Margin = tb.Margin,
+                Anchor = tb.Anchor,
+                Height = captioned ? 43 : 25,
+                BackColor = Color.Transparent
+            };
+            if ((tb.Anchor & AnchorStyles.Right) == 0) host.Width = tb.Width;
+
+            var made = new ComboBox[count];
+            for (int i = 0; i < count; i++)
+            {
+                bool ed = editable != null && i < editable.Length && editable[i];
+                var cbo = new ComboBox
+                {
+                    Name = tb.Name + "Lookup" + i,
+                    DropDownStyle = ed ? ComboBoxStyle.DropDown : ComboBoxStyle.DropDownList,
+                    Dock = DockStyle.Top,
+                    Font = tb.Font,
+                    Margin = new Padding(0, 0, i == count - 1 ? 0 : 6, 0)
+                };
+                if (ed)
+                {
+                    cbo.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+                    cbo.AutoCompleteSource = AutoCompleteSource.ListItems;
+                }
+                grid.Controls.Add(cbo, i, 0);
+                made[i] = cbo;
+
+                if (captioned)
+                    grid.Controls.Add(new Label
+                    {
+                        Text = captions[i],
+                        Dock = DockStyle.Fill,
+                        ForeColor = Color.FromArgb(108, 117, 125),
+                        Font = new Font("Segoe UI", 7.5F),
+                        Margin = new Padding(1, 1, 6, 0)
+                    }, i, 1);
+            }
+
+            owner.Controls.Remove(tb);
+            host.Controls.Add(grid);
+            host.Controls.Add(tb);
             tb.Visible = false;
-            return cbo;
-        }
-
-        private ComboBox[] LookupTriple(TextBox tb, string t1, string t2, string t3,
-            string cap1, string cap2, string cap3)
-        {
-            const int gap = 6;
-            int w = (tb.Width - 2 * gap) / 3;
-            var a = TripleCombo(tb, tb.Left, w, t1, cap1);
-            var b = TripleCombo(tb, tb.Left + w + gap, w, t2, cap2);
-            var c = TripleCombo(tb, tb.Left + 2 * (w + gap), tb.Width - 2 * (w + gap), t3, cap3);
-            tb.Visible = false;
-            return new[] { a, b, c };
-        }
-
-        private ComboBox TripleCombo(TextBox tb, int x, int w, string masterTable, string caption)
-        {
-            var cbo = new ComboBox
-            {
-                DropDownStyle = masterTable == null
-                    ? ComboBoxStyle.DropDown : ComboBoxStyle.DropDownList,
-                Location = new System.Drawing.Point(x, tb.Top),
-                Size = new System.Drawing.Size(w, tb.Height),
-                Font = tb.Font,
-                Anchor = tb.Anchor
-            };
-            // A null table means the cell is filled by GeoLookup, which loads it from the
-            // parent choice rather than from the whole master file.
-            if (masterTable != null) FillLookup(cbo, masterTable);
-            tb.Parent.Controls.Add(cbo);
-            cbo.BringToFront();
-
-            var lbl = new Label
-            {
-                Text = caption,
-                AutoSize = true,
-                ForeColor = System.Drawing.Color.FromArgb(108, 117, 125),
-                Font = new System.Drawing.Font("Segoe UI", 7.5F),
-                Location = new System.Drawing.Point(x, tb.Bottom + 2),
-                Anchor = tb.Anchor
-            };
-            tb.Parent.Controls.Add(lbl);
-            lbl.BringToFront();
-            return cbo;
+            owner.Controls.Add(host, cell.Column, cell.Row);
+            if (span > 1) owner.SetColumnSpan(host, span);
+            return made;
         }
 
         private static void FillLookup(ComboBox cbo, string masterTable)
@@ -441,7 +464,7 @@ namespace CROMS.Forms
                     }
                 }
                 SaveScan(newId);
-                Audit.Write(Audit.Create, "deaths", registryNo, txtFullName.Text.Trim());
+                Audit.Write(Audit.Create, "deaths", registryNo, FullName());
                 if (!keepOpen)
                 {
                     MessageBox.Show("Death registered.  Registry No: " + registryNo, "Saved",
@@ -479,7 +502,10 @@ namespace CROMS.Forms
             if (dt.Columns.Contains("form_name") && r["form_name"] != DBNull.Value)
                 _formName = r["form_name"].ToString();
 
-            txtFullName.Text = Str(r["full_name"]);
+            SplitFullName(Str(r["full_name"]), out string lastN, out string firstN, out string middleN);
+            txtLastName.Text = lastN;
+            txtFirstName.Text = firstN;
+            txtMiddleName.Text = middleN;
             txtBookVol.Text = Str(r["book_volume"]);
             txtBookPage.Text = Str(r["book_page"]);
             SetCombo(cboSex, r["sex"]);
@@ -535,7 +561,7 @@ namespace CROMS.Forms
             {
                 Db.Push("UPDATE deaths SET " + SetClause + " WHERE id = @id", ps.ToArray());
                 SaveScan(_editingId.Value);
-                Audit.Write(Audit.Update, "deaths", _editingId.Value, txtFullName.Text.Trim());
+                Audit.Write(Audit.Update, "deaths", _editingId.Value, FullName());
                 MessageBox.Show("Record updated.", "Updated",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
@@ -794,7 +820,7 @@ namespace CROMS.Forms
             {
                 new MySqlParameter("@form_code", _formCode),
                 new MySqlParameter("@form_name", _formName),
-                new MySqlParameter("@name", txtFullName.Text.Trim()),
+                new MySqlParameter("@name", FullName()),
                 new MySqlParameter("@bookvol", S(txtBookVol)),
                 new MySqlParameter("@bookpage", S(txtBookPage)),
                 new MySqlParameter("@sex", Combo(cboSex)),
@@ -845,13 +871,47 @@ namespace CROMS.Forms
 
         private bool ValidateName()
         {
-            if (string.IsNullOrWhiteSpace(txtFullName.Text))
+            if (string.IsNullOrWhiteSpace(txtFirstName.Text) || string.IsNullOrWhiteSpace(txtLastName.Text))
             {
-                MessageBox.Show("The deceased's full name is required.", "Missing data",
+                MessageBox.Show("The deceased's first and last name are required.", "Missing data",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
             return true;
+        }
+
+        /// <summary>First [Middle] Last, joined for the single <c>full_name</c> column -
+        /// the deceased's name is stored joined, the screen shows it split (BR-style,
+        /// matching Birth's separate first/middle/last fields).</summary>
+        private string FullName() =>
+            JoinFullName(txtFirstName.Text, txtMiddleName.Text, txtLastName.Text);
+
+        private static string JoinFullName(string first, string middle, string last)
+        {
+            var bits = new List<string>();
+            if (!string.IsNullOrWhiteSpace(first)) bits.Add(first.Trim());
+            if (!string.IsNullOrWhiteSpace(middle)) bits.Add(middle.Trim());
+            if (!string.IsNullOrWhiteSpace(last)) bits.Add(last.Trim());
+            return string.Join(" ", bits);
+        }
+
+        /// <summary>
+        /// Best-effort split of the stored "First [Middle...] Last" string back into the
+        /// three boxes - two tokens is First/Last with no middle, three or more takes the
+        /// first token as First, the last as Last, and everything between as Middle. A
+        /// name this cannot confidently split (single token) is put whole in Last, for the
+        /// clerk to correct - the same fallback this project already uses for other
+        /// ambiguous legacy name splits.
+        /// </summary>
+        private static void SplitFullName(string full, out string last, out string first, out string middle)
+        {
+            first = ""; middle = ""; last = "";
+            if (string.IsNullOrWhiteSpace(full)) return;
+            string[] parts = full.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 1) { last = parts[0]; return; }
+            first = parts[0];
+            last = parts[parts.Length - 1];
+            if (parts.Length > 2) middle = string.Join(" ", parts, 1, parts.Length - 2);
         }
 
         /// <summary>Fill the Death form (Municipal Form 103) from Document AI extraction.</summary>
@@ -904,11 +964,24 @@ namespace CROMS.Forms
             SetText(txtCRegTitle, "RegisteredByTitle");
             SetPick(dtpCRegDate, "RegisteredByDate");
 
-            string full = Get("FullName");
-            if (full.Length == 0)
-                full = string.Join(" ", new[] { Get("DeceasedFirst"), Get("DeceasedMiddle"), Get("DeceasedLast") }
-                    .Where(s => s.Length > 0));
-            if (full.Length > 0) txtFullName.Text = full;
+            string dFirst = Get("DeceasedFirst"), dMiddle = Get("DeceasedMiddle"), dLast = Get("DeceasedLast");
+            if (dFirst.Length > 0 || dLast.Length > 0)
+            {
+                txtFirstName.Text = dFirst;
+                txtMiddleName.Text = dMiddle;
+                txtLastName.Text = dLast;
+            }
+            else
+            {
+                string full = Get("FullName");
+                if (full.Length > 0)
+                {
+                    SplitFullName(full, out string l, out string fn, out string m);
+                    txtFirstName.Text = fn;
+                    txtMiddleName.Text = m;
+                    txtLastName.Text = l;
+                }
+            }
 
             if (Get("Age").Length > 0) txtAge.Text = Get("Age");
             SelectItem(cboSex, Get("Sex"));
@@ -928,7 +1001,9 @@ namespace CROMS.Forms
             _scanImage = null;
             _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;
             _formName = FormCatalog.Current(DocKind.Death)?.FormName;
-            txtFullName.Clear();
+            txtLastName.Clear();
+            txtFirstName.Clear();
+            txtMiddleName.Clear();
             txtBookVol.Clear();
             txtBookPage.Clear();
             cboSex.SelectedIndex = -1;

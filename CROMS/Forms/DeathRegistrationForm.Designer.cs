@@ -375,67 +375,111 @@ namespace CROMS.Forms
             this.tblDeceased.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 380F));
             this.tblDeceased.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 178F));
             this.tblDeceased.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 380F));
-            this.tblDeceased.Controls.Add(this.lblFullName, 0, 0);
-            this.tblDeceased.Controls.Add(this.txtFullName, 1, 0);
-            this.tblDeceased.Controls.Add(this.lblSex, 0, 1);
-            this.tblDeceased.Controls.Add(this.cboSex, 1, 1);
-            this.tblDeceased.Controls.Add(this.lblCivil, 2, 1);
-            this.tblDeceased.Controls.Add(this.cboCivil, 3, 1);
-            this.tblDeceased.Controls.Add(this.lblAge, 0, 2);
-            this.tblDeceased.Controls.Add(this.txtAge, 1, 2);
-            this.tblDeceased.Controls.Add(this.lblCitizen, 2, 2);
-            this.tblDeceased.Controls.Add(this.txtCitizen, 3, 2);
-            this.tblDeceased.Controls.Add(this.lblDod, 0, 3);
-            this.tblDeceased.Controls.Add(this.dtpDod, 1, 3);
-            this.tblDeceased.Controls.Add(this.lblTod, 2, 3);
-            this.tblDeceased.Controls.Add(this.dtpTod, 3, 3);
-            this.tblDeceased.Controls.Add(this.lblPlace, 0, 4);
-            this.tblDeceased.Controls.Add(this.txtPlace, 1, 4);
-            this.tblDeceased.Controls.Add(this.lblReligion, 0, 5);
-            this.tblDeceased.Controls.Add(this.txtReligion, 1, 5);
+            this.tblDeceased.Controls.Add(this.lblLastName, 0, 0);
+            this.tblDeceased.Controls.Add(this.txtLastName, 1, 0);
+            this.tblDeceased.Controls.Add(this.lblFirstName, 2, 0);
+            this.tblDeceased.Controls.Add(this.txtFirstName, 3, 0);
+            this.tblDeceased.Controls.Add(this.lblMiddleName, 0, 1);
+            this.tblDeceased.Controls.Add(this.txtMiddleName, 1, 1);
+            this.tblDeceased.Controls.Add(this.lblSex, 0, 2);
+            this.tblDeceased.Controls.Add(this.cboSex, 1, 2);
+            this.tblDeceased.Controls.Add(this.lblCivil, 2, 2);
+            this.tblDeceased.Controls.Add(this.cboCivil, 3, 2);
+            this.tblDeceased.Controls.Add(this.lblAge, 0, 3);
+            this.tblDeceased.Controls.Add(this.txtAge, 1, 3);
+            this.tblDeceased.Controls.Add(this.lblCitizen, 2, 3);
+            this.tblDeceased.Controls.Add(this.txtCitizen, 3, 3);
+            this.tblDeceased.Controls.Add(this.lblDod, 0, 4);
+            this.tblDeceased.Controls.Add(this.dtpDod, 1, 4);
+            this.tblDeceased.Controls.Add(this.lblTod, 2, 4);
+            this.tblDeceased.Controls.Add(this.dtpTod, 3, 4);
+            this.tblDeceased.Controls.Add(this.lblPlace, 0, 5);
+            this.tblDeceased.Controls.Add(this.txtPlace, 1, 5);
+            this.tblDeceased.Controls.Add(this.lblReligion, 0, 6);
+            this.tblDeceased.Controls.Add(this.txtReligion, 1, 6);
             this.tblDeceased.Dock = System.Windows.Forms.DockStyle.Top;
             this.tblDeceased.Location = new System.Drawing.Point(18, 14);
             this.tblDeceased.Name = "tblDeceased";
-            this.tblDeceased.RowCount = 6;
+            this.tblDeceased.RowCount = 7;
+            this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 64F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
-            this.tblDeceased.Size = new System.Drawing.Size(1116, 284);
+            this.tblDeceased.Size = new System.Drawing.Size(1116, 328);
             this.tblDeceased.TabIndex = 0;
             //
-            // lblFullName
+            // lblLastName
             //
-            this.lblFullName.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblFullName.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.lblFullName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblFullName.Location = new System.Drawing.Point(3, 0);
-            this.lblFullName.Name = "lblFullName";
-            this.lblFullName.Size = new System.Drawing.Size(172, 44);
-            this.lblFullName.TabIndex = 0;
-            this.lblFullName.Text = "Full Name";
-            this.lblFullName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lblLastName.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblLastName.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblLastName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblLastName.Location = new System.Drawing.Point(3, 0);
+            this.lblLastName.Name = "lblLastName";
+            this.lblLastName.Size = new System.Drawing.Size(172, 44);
+            this.lblLastName.TabIndex = 0;
+            this.lblLastName.Text = "Last Name";
+            this.lblLastName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
-            // txtFullName
+            // txtLastName
             //
-            this.tblDeceased.SetColumnSpan(this.txtFullName, 3);
-            this.txtFullName.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtFullName.Location = new System.Drawing.Point(181, 9);
-            this.txtFullName.Name = "txtFullName";
-            this.txtFullName.Size = new System.Drawing.Size(930, 25);
-            this.txtFullName.TabIndex = 1;
+            this.txtLastName.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.txtLastName.Location = new System.Drawing.Point(181, 9);
+            this.txtLastName.Name = "txtLastName";
+            this.txtLastName.Size = new System.Drawing.Size(360, 25);
+            this.txtLastName.TabIndex = 1;
+            //
+            // lblFirstName
+            //
+            this.lblFirstName.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblFirstName.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblFirstName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblFirstName.Location = new System.Drawing.Point(361, 0);
+            this.lblFirstName.Name = "lblFirstName";
+            this.lblFirstName.Size = new System.Drawing.Size(172, 44);
+            this.lblFirstName.TabIndex = 2;
+            this.lblFirstName.Text = "First Name";
+            this.lblFirstName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
+            // txtFirstName
+            //
+            this.txtFirstName.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.txtFirstName.Location = new System.Drawing.Point(539, 9);
+            this.txtFirstName.Name = "txtFirstName";
+            this.txtFirstName.Size = new System.Drawing.Size(360, 25);
+            this.txtFirstName.TabIndex = 3;
+            //
+            // lblMiddleName
+            //
+            this.lblMiddleName.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblMiddleName.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblMiddleName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblMiddleName.Location = new System.Drawing.Point(3, 44);
+            this.lblMiddleName.Name = "lblMiddleName";
+            this.lblMiddleName.Size = new System.Drawing.Size(172, 44);
+            this.lblMiddleName.TabIndex = 4;
+            this.lblMiddleName.Text = "Middle Name";
+            this.lblMiddleName.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
+            // txtMiddleName
+            //
+            this.txtMiddleName.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.txtMiddleName.Location = new System.Drawing.Point(181, 53);
+            this.txtMiddleName.Name = "txtMiddleName";
+            this.txtMiddleName.Size = new System.Drawing.Size(360, 25);
+            this.txtMiddleName.TabIndex = 5;
             //
             // lblSex
             //
             this.lblSex.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblSex.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblSex.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblSex.Location = new System.Drawing.Point(3, 44);
+            this.lblSex.Location = new System.Drawing.Point(3, 88);
             this.lblSex.Name = "lblSex";
             this.lblSex.Size = new System.Drawing.Size(172, 44);
-            this.lblSex.TabIndex = 2;
+            this.lblSex.TabIndex = 6;
             this.lblSex.Text = "Sex";
             this.lblSex.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
@@ -443,20 +487,20 @@ namespace CROMS.Forms
             //
             this.cboSex.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.cboSex.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboSex.Location = new System.Drawing.Point(181, 53);
+            this.cboSex.Location = new System.Drawing.Point(181, 97);
             this.cboSex.Name = "cboSex";
             this.cboSex.Size = new System.Drawing.Size(360, 25);
-            this.cboSex.TabIndex = 3;
+            this.cboSex.TabIndex = 7;
             //
             // lblCivil
             //
             this.lblCivil.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblCivil.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblCivil.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblCivil.Location = new System.Drawing.Point(361, 44);
+            this.lblCivil.Location = new System.Drawing.Point(361, 88);
             this.lblCivil.Name = "lblCivil";
             this.lblCivil.Size = new System.Drawing.Size(172, 44);
-            this.lblCivil.TabIndex = 4;
+            this.lblCivil.TabIndex = 8;
             this.lblCivil.Text = "Civil Status";
             this.lblCivil.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
@@ -464,60 +508,60 @@ namespace CROMS.Forms
             //
             this.cboCivil.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.cboCivil.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cboCivil.Location = new System.Drawing.Point(539, 53);
+            this.cboCivil.Location = new System.Drawing.Point(539, 97);
             this.cboCivil.Name = "cboCivil";
             this.cboCivil.Size = new System.Drawing.Size(360, 25);
-            this.cboCivil.TabIndex = 5;
+            this.cboCivil.TabIndex = 9;
             //
             // lblAge
             //
             this.lblAge.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblAge.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblAge.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblAge.Location = new System.Drawing.Point(3, 88);
+            this.lblAge.Location = new System.Drawing.Point(3, 132);
             this.lblAge.Name = "lblAge";
             this.lblAge.Size = new System.Drawing.Size(172, 44);
-            this.lblAge.TabIndex = 6;
+            this.lblAge.TabIndex = 10;
             this.lblAge.Text = "Age at Death";
             this.lblAge.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // txtAge
             //
             this.txtAge.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.txtAge.Location = new System.Drawing.Point(181, 97);
+            this.txtAge.Location = new System.Drawing.Point(181, 141);
             this.txtAge.Name = "txtAge";
             this.txtAge.Size = new System.Drawing.Size(200, 25);
-            this.txtAge.TabIndex = 7;
+            this.txtAge.TabIndex = 11;
             //
             // lblCitizen
             //
             this.lblCitizen.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblCitizen.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblCitizen.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblCitizen.Location = new System.Drawing.Point(361, 88);
+            this.lblCitizen.Location = new System.Drawing.Point(361, 132);
             this.lblCitizen.Name = "lblCitizen";
             this.lblCitizen.Size = new System.Drawing.Size(172, 44);
-            this.lblCitizen.TabIndex = 8;
+            this.lblCitizen.TabIndex = 12;
             this.lblCitizen.Text = "Citizenship";
             this.lblCitizen.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // txtCitizen
             //
             this.txtCitizen.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.txtCitizen.Location = new System.Drawing.Point(539, 97);
+            this.txtCitizen.Location = new System.Drawing.Point(539, 141);
             this.txtCitizen.Name = "txtCitizen";
             this.txtCitizen.Size = new System.Drawing.Size(360, 25);
-            this.txtCitizen.TabIndex = 9;
+            this.txtCitizen.TabIndex = 13;
             //
             // lblDod
             //
             this.lblDod.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblDod.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblDod.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblDod.Location = new System.Drawing.Point(3, 132);
+            this.lblDod.Location = new System.Drawing.Point(3, 176);
             this.lblDod.Name = "lblDod";
             this.lblDod.Size = new System.Drawing.Size(172, 44);
-            this.lblDod.TabIndex = 10;
+            this.lblDod.TabIndex = 14;
             this.lblDod.Text = "Date of Death";
             this.lblDod.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
@@ -525,20 +569,20 @@ namespace CROMS.Forms
             //
             this.dtpDod.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.dtpDod.Format = System.Windows.Forms.DateTimePickerFormat.Short;
-            this.dtpDod.Location = new System.Drawing.Point(181, 141);
+            this.dtpDod.Location = new System.Drawing.Point(181, 185);
             this.dtpDod.Name = "dtpDod";
             this.dtpDod.Size = new System.Drawing.Size(200, 25);
-            this.dtpDod.TabIndex = 11;
+            this.dtpDod.TabIndex = 15;
             //
             // lblTod
             //
             this.lblTod.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblTod.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblTod.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblTod.Location = new System.Drawing.Point(361, 132);
+            this.lblTod.Location = new System.Drawing.Point(361, 176);
             this.lblTod.Name = "lblTod";
             this.lblTod.Size = new System.Drawing.Size(172, 44);
-            this.lblTod.TabIndex = 12;
+            this.lblTod.TabIndex = 16;
             this.lblTod.Text = "Time of Death";
             this.lblTod.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
@@ -546,53 +590,53 @@ namespace CROMS.Forms
             //
             this.dtpTod.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.dtpTod.Format = System.Windows.Forms.DateTimePickerFormat.Time;
-            this.dtpTod.Location = new System.Drawing.Point(539, 141);
+            this.dtpTod.Location = new System.Drawing.Point(539, 185);
             this.dtpTod.Name = "dtpTod";
             this.dtpTod.ShowUpDown = true;
             this.dtpTod.Size = new System.Drawing.Size(200, 25);
-            this.dtpTod.TabIndex = 13;
+            this.dtpTod.TabIndex = 17;
             //
             // lblPlace
             //
             this.lblPlace.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblPlace.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblPlace.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblPlace.Location = new System.Drawing.Point(3, 176);
+            this.lblPlace.Location = new System.Drawing.Point(3, 220);
             this.lblPlace.Name = "lblPlace";
             this.lblPlace.Padding = new System.Windows.Forms.Padding(0, 8, 0, 0);
             this.lblPlace.Size = new System.Drawing.Size(172, 64);
-            this.lblPlace.TabIndex = 14;
+            this.lblPlace.TabIndex = 18;
             this.lblPlace.Text = "Place of Death";
             //
             // txtPlace
             //
             this.tblDeceased.SetColumnSpan(this.txtPlace, 3);
             this.txtPlace.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
-            this.txtPlace.Location = new System.Drawing.Point(181, 181);
+            this.txtPlace.Location = new System.Drawing.Point(181, 225);
             this.txtPlace.Margin = new System.Windows.Forms.Padding(3, 5, 3, 3);
             this.txtPlace.Name = "txtPlace";
             this.txtPlace.Size = new System.Drawing.Size(930, 25);
-            this.txtPlace.TabIndex = 15;
+            this.txtPlace.TabIndex = 19;
             //
             // lblReligion
             //
             this.lblReligion.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblReligion.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblReligion.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblReligion.Location = new System.Drawing.Point(3, 240);
+            this.lblReligion.Location = new System.Drawing.Point(3, 284);
             this.lblReligion.Name = "lblReligion";
             this.lblReligion.Size = new System.Drawing.Size(172, 44);
-            this.lblReligion.TabIndex = 16;
+            this.lblReligion.TabIndex = 20;
             this.lblReligion.Text = "Religion";
             this.lblReligion.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             //
             // txtReligion
             //
             this.txtReligion.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.txtReligion.Location = new System.Drawing.Point(181, 249);
+            this.txtReligion.Location = new System.Drawing.Point(181, 293);
             this.txtReligion.Name = "txtReligion";
             this.txtReligion.Size = new System.Drawing.Size(360, 25);
-            this.txtReligion.TabIndex = 17;
+            this.txtReligion.TabIndex = 21;
             //
             // tabCause
             //
@@ -1532,8 +1576,12 @@ namespace CROMS.Forms
 
         private System.Windows.Forms.TabPage tabDeceased;
         private System.Windows.Forms.TableLayoutPanel tblDeceased;
-        private System.Windows.Forms.Label lblFullName;
-        private System.Windows.Forms.TextBox txtFullName;
+        private System.Windows.Forms.Label lblLastName;
+        private System.Windows.Forms.TextBox txtLastName;
+        private System.Windows.Forms.Label lblFirstName;
+        private System.Windows.Forms.TextBox txtFirstName;
+        private System.Windows.Forms.Label lblMiddleName;
+        private System.Windows.Forms.TextBox txtMiddleName;
         private System.Windows.Forms.Label lblSex;
         private System.Windows.Forms.ComboBox cboSex;
         private System.Windows.Forms.Label lblCivil;

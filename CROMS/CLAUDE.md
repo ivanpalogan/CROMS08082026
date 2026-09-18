@@ -1440,3 +1440,46 @@ NOT DONE: the other five Assessment Report tabs (Death/Marriage/Queuing/Certific
 yet offer "Customize Report" — same helpers, not called there. `ReportWidgetPrefs` keys on the
 widget's `Title` string, so renaming a chart's title resets that chart to "enabled" for anyone
 who had turned it off (acceptable for a display preference, not a bug worth a stable-id scheme).
+
+### 2026-09-19 — Death Registration: Full Name split into Last/First/Middle; root cause of the
+### scattered Deceased-tab layout found and fixed (affects every overlay lookup on all 4 tabs)
+
+Reported from a screenshot: on the Deceased tab, "Municipality" rendered near the Sex/Civil
+Status row, "Province" near Time of Death, and "Hospital / Clinic" (with its combo boxes) down
+near where Religion should be — none of the Place-of-Death fields sat under their own captions.
+
+ROOT CAUSE. `BuildLookups()` overlaid a combobox on top of each hidden placeholder textbox by
+copying its pixel `Location`/`Size`, then called `tb.Parent.Controls.Add(cbo)` with NO (col,row)
+given. That was correct for the form's PRE-2026-09-18 GroupBox layout, where `Controls.Add`
+just places a control wherever its `Location` says. It is wrong now that the tabs are
+`TableLayoutPanel`s: adding a child with no cell coordinates hands it to the layout engine's
+auto-placement, which drops it into whatever cell it finds free — completely ignoring the
+`Location` that was set to match the placeholder. That is what scattered every overlay combobox
+and caption across the Deceased, Cause & Disposal and Informant tabs (Certification has no
+overlay lookups, so it was never affected).
+
+FIXED by building each lookup INTO the placeholder's own cell instead of floating beside it —
+the same `CreateLookupCells` pattern Birth Registration already uses (2026-09-08 entry): read
+`owner.GetPositionFromControl(tb)` + `GetColumnSpan(tb)` BEFORE removing the textbox (both are
+lost with it), build a small `TableLayoutPanel` of N combo columns (+ a caption row when the
+field is a triple, e.g. Place of Death), and drop that panel back at the SAME cell/span. Replaces
+`Lookup`/`LookupOver`/`LookupTriple`/`TripleCombo` with `LookupCell`/`LookupCellOver` (single
+field) and the shared `CreateLookupCells` used directly for the Place-of-Death triple — covers
+citizenship, religion, the three causes of death, relationship-to-deceased, and the
+hospital/province/municipality triple, i.e. every overlay this form has.
+
+FULL NAME split into Last Name / First Name / Middle Name (matching Birth Registration's own
+three fields) — new row inserted above Sex/Civil Status (`tblDeceased` RowCount 6→7). `deaths`
+still has only one `full_name` column (no migration needed): the three boxes join into it on
+save (`FullName()`/`JoinFullName`) and split back on load (`SplitFullName` — two tokens is
+First/Last with no Middle, 3+ takes the first token as First, the last as Last, everything
+between as Middle; a single unsplittable token is put whole in Last for the clerk to correct,
+same fallback this project already uses for other ambiguous legacy name splits). `ValidateName`,
+`PrimeFromExtraction` (OCR), `ClearForm`, and the two `Audit.Write` calls all updated to the
+three fields; `LearningLibrary.Attach` now watches Last Name (Surname) and First Name
+(GivenName) instead of one Full Name box.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings (temp OutputPath). GUI not
+clicked (no interactive desktop) — the cell-anchored fix is the same mechanism already proven
+working on Birth Registration; rebuild in VS to see the Deceased tab's captions/combos land
+under their own labels and the new three-field name row.
