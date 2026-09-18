@@ -49,6 +49,13 @@ namespace CROMS.Kiosk
             stepInd.SetStep(stepInd.Steps.Length - 1);
             header.Controls.Add(title);
             header.Controls.Add(stepInd);
+            // A fixed Width truncated the capsule's last label ("Review") whenever the step
+            // count/labels (which vary with the session - up to 5 with BREQS+CTC both picked)
+            // needed more room than a guessed constant gave them; StepIndicator itself clamps
+            // its capsule to Width and silently clips. Recomputed off the header's OWN current
+            // size on Load/Resize instead, same fix already applied to the card below.
+            void SizeStepIndicator() => stepInd.Width = Math.Max(200, header.ClientSize.Width - 80);
+            header.Resize += (s, e) => SizeStepIndicator();
 
             // ---------------------------------------------------------------- footer
             var footer = new Panel { Dock = DockStyle.Bottom, Height = 100, BackColor = Color.White };
@@ -111,7 +118,7 @@ namespace CROMS.Kiosk
             Controls.Add(header);
 
             BuildRows();
-            Load += (s, e) => { LayoutCard(); PlaceFooterButtons(); };
+            Load += (s, e) => { LayoutCard(); PlaceFooterButtons(); SizeStepIndicator(); };
 
             // ---------------------------------------------------------------- idle timeout
             // A client can walk away right here (their name is already on screen) exactly as
