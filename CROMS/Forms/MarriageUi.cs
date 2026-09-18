@@ -1069,9 +1069,16 @@ namespace CROMS.Forms
 
         /// <summary>
         /// Per-row Admin bypass, replacing the old whole-checklist "Admin Override" button.
-        /// Not gated only on ReadOnlyGrid/AllowBypass here - MarriageService.BypassRequirement/
-        /// ClearBypass re-check the Admin role server-side, so a stale or tampered client can't
-        /// bypass a requirement it merely still shows the button for.
+        /// Same shape as BirthRegistrationForm.DoBypassSubmit's Admin bypass: a FRESH
+        /// username/password re-check via AdminVerificationForm (not merely "an admin
+        /// happens to be signed in"), then a reason in the acting user's own words. Also
+        /// not gated only on ReadOnlyGrid/AllowBypass here - MarriageService.
+        /// BypassRequirement/ClearBypass re-check the Admin role server-side too, so a
+        /// stale or tampered client can't bypass a requirement it merely still shows the
+        /// button for. Bypassing does NOT block issuing a licence/certificate - the
+        /// opposite: MarriageRules.Satisfied/DelayedBirthRules already count a bypassed
+        /// row as satisfied, which is the whole point of the feature (an Admin decision to
+        /// proceed without the paperwork, not a second block).
         /// </summary>
         private void ToggleBypass(int rowIndex)
         {
@@ -1083,6 +1090,16 @@ namespace CROMS.Forms
                 MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" already has a document attached - bypass is not needed.",
                     "Not needed", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
+            }
+            using (var verify = new AdminVerificationForm())
+            {
+                if (verify.ShowDialog(this) != DialogResult.OK) return;
+                if (verify.VerifiedUser == null || verify.VerifiedUser.Role != "Admin")
+                {
+                    MessageBox.Show(this, "Only an Administrator account can bypass a requirement.",
+                        "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
             }
             try
             {
