@@ -1386,3 +1386,57 @@ Back/Next mini-bar under the tabs are UNCHANGED — Form 90's own bottom footer
 (Back/Save/Print/status/Next) was not rebuilt to match pixel-for-pixel, since Birth's actions
 already live in a working top toolbar and moving them is a larger, separate layout change than
 what was asked (full screen + stepper/rail). Flagged if the office wants that bar unified too.
+
+### 2026-09-18 — Birth Analytics: operator can choose which charts print on the Assessment Report
+Reported from the Birth tab of Reports & Analytics: the five charts (Births registered vs
+occurred, Sex distribution by year, Delayed registration lag, Attendant at birth, Mother's age
+profile) are on screen but never reached the printed "Print Assessment Report" output — that
+button has only ever drawn a fixed one-page monthly-count table (`AssessmentReport.Draw`), with
+no path from a chart to paper. User asked to add those charts to the printed report AND be able
+to choose which ones show.
+
+NEW `Data/ReportWidgetPrefs.cs` — a per-machine DISPLAY preference (`%APPDATA%\CROMS\
+report-widgets.cfg`), the same convention `PrintCalibration.cs` already uses for print
+alignment: this is about what a machine shows on a printout, not about registry data, so it
+does not belong in the database. Default is every chart ON — the five charts start appearing
+on the report the moment this ships, and the file only ever records which ones an operator
+turned OFF, so nothing has to be re-enabled after the update and an unreadable/missing file
+just means everything stays enabled.
+
+NEW `Forms/ReportCustomizeForm.cs` — a small checklist dialog (one checkbox per widget Title on
+the tab, matching `FormAlignForm`'s code-built, `UiTheme.Polish`-ed style) opened from a new
+"⚙ Customize Report" button beside "Print Assessment Report". Built generically on
+`AnalyticsTab` (`AddCustomizeButton`/`SelectedCharts`) rather than one-off in `BirthAnalyticsTab`,
+since every domain tab shares the exact same widget-list/print-button shape — adding the same
+button to Death/Marriage/Queuing/Certificates/PSA later is one line each, not a rewrite.
+
+`AssessmentReport` gained `ChartExport` (title + captured `Bitmap`), `Capture(Control)` (a plain
+`DrawToBitmap` off the widget exactly as it is showing on screen right now — a chart, or its own
+empty state — so the printed page can never disagree with what the operator was looking at; a
+capture failure returns null rather than throwing, so one bad chart never blocks the report),
+and a `charts` parameter on `Show`/`BuiltInDocument`. With no charts selected the report is
+BYTE-IDENTICAL to before — still one page, still routed through `TemplateReportBridge` first so
+an operator's saved letterhead template and "Edit Layout..." still apply. The moment at least
+one chart is selected the report becomes a multi-page `PrintDocument` (the existing monthly-table
+page, then one page per selected chart — title, a "supporting chart N of M" line, then the
+captured image scaled to fit the page without ever upscaling past the widget's own resolution)
+and is shown directly, bypassing the template bridge; Edit Layout is not offered on that path,
+since a template edited for one fixed page has nothing to say about attached chart pages.
+
+Wired into Birth only, per the report: `BirthAnalyticsTab.Build()` adds the Customize button and
+the print handler now builds its `ChartExport` list from `SelectedCharts` before calling
+`AssessmentReport.Show`. The other five domain tabs are unchanged and keep printing their single
+page exactly as before — the underlying `AnalyticsTab` helpers are ready for them but nothing
+calls `AddCustomizeButton` there yet.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp
+OutputPath. GUI not clicked (no interactive desktop) — the capture path is a direct
+`Control.DrawToBitmap` call on controls already proven to render (the widgets are visible on
+screen at the moment Print is pressed), and the multi-page `PrintPage`/`HasMorePages` loop
+follows the same pattern `TemplateReportBridge`/`BuiltInDocument` already use for their own
+single-page case; rebuild in VS and confirm the printed pages against a running report.
+
+NOT DONE: the other five Assessment Report tabs (Death/Marriage/Queuing/Certificates/PSA) do not
+yet offer "Customize Report" — same helpers, not called there. `ReportWidgetPrefs` keys on the
+widget's `Title` string, so renaming a chart's title resets that chart to "enabled" for anyone
+who had turned it off (acceptable for a display preference, not a bug worth a stable-id scheme).
