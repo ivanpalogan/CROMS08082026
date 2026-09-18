@@ -44,8 +44,12 @@ namespace CROMS.Forms
 
             this.tabDeceased = new System.Windows.Forms.TabPage();
             this.tblDeceased = new System.Windows.Forms.TableLayoutPanel();
-            this.lblFullName = new System.Windows.Forms.Label();
-            this.txtFullName = new System.Windows.Forms.TextBox();
+            this.lblLastName = new System.Windows.Forms.Label();
+            this.txtLastName = new System.Windows.Forms.TextBox();
+            this.lblFirstName = new System.Windows.Forms.Label();
+            this.txtFirstName = new System.Windows.Forms.TextBox();
+            this.lblMiddleName = new System.Windows.Forms.Label();
+            this.txtMiddleName = new System.Windows.Forms.TextBox();
             this.lblSex = new System.Windows.Forms.Label();
             this.cboSex = new System.Windows.Forms.ComboBox();
             this.lblCivil = new System.Windows.Forms.Label();
