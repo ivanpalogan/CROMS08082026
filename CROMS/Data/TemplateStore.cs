@@ -68,6 +68,12 @@ namespace CROMS.Data
             new TemplateFormInfo(CollectionsReport.FormCode, CollectionsReport.FormName,
                 "Assessment", CollectionsReport.PageWidth, CollectionsReport.PageHeight,
                 () => CollectionsReport.Cells.Select(ToElement).ToList()),
+
+            // The office's Vision/Mission/Goal/Objectives/Core Values poster — no per-record
+            // data, so every cell is Static text and is fully rewordable from the designer.
+            new TemplateFormInfo(OfficeMissionCert.FormCode, OfficeMissionCert.FormName,
+                "Office", OfficeMissionCert.PageWidth, OfficeMissionCert.PageHeight,
+                () => OfficeMissionCert.Cells.Select(ToElement).ToList()),
         };
 
         /// <summary>The 1A/2A/3A "Facts Certification" family, in that order — the set every

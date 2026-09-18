@@ -72,6 +72,14 @@ namespace CROMS.ReportGen
                 BuildLetterReport(seed, outDir, Form3CCert.RptFile, Form3CCert.PageWidth, Form3CCert.PageHeight,
                     Form3CCert.Cells, Form3CCert.BuildTable(0), form3cBlank);
                 Console.WriteLine("wrote : " + Path.Combine(outDir, Form3CCert.RptFile));
+
+                // Mission/Vision/Goal/Objectives/Core Values - no per-record data (every
+                // cell is Static text), same generation technique as the three above.
+                string mvcBlank = OfficeMissionCert.RenderBlankTemplate(outDir);
+                Console.WriteLine("blank : " + mvcBlank + " (generated)");
+                BuildLetterReport(seed, outDir, OfficeMissionCert.RptFile, OfficeMissionCert.PageWidth, OfficeMissionCert.PageHeight,
+                    OfficeMissionCert.Cells, OfficeMissionCert.BuildTable(), mvcBlank);
+                Console.WriteLine("wrote : " + Path.Combine(outDir, OfficeMissionCert.RptFile));
                 return 0;
             }
             catch (Exception ex) { Console.WriteLine("FAILED: " + ex); return 1; }

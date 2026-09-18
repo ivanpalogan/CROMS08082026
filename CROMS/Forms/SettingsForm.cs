@@ -338,6 +338,18 @@ namespace CROMS.Forms
                 Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
             });
 
+            page.Controls.Add(Section("Mission, Vision, Goal, Objectives & Core Values", 22, 500));
+            page.Controls.Add(new Label
+            {
+                Text = "The office's own standing statements — not tied to any record. Opens as a printable\r\n" +
+                       "page you can reword and reposition in the same template designer every certificate uses.",
+                AutoSize = true, Location = new Point(24, 526),
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+            var btnMvc = BigButton("View / Print Mission && Vision", 24, 566, Color.FromArgb(13, 110, 253));
+            btnMvc.Click += (s, e) => OfficeMissionCert.Show(OfficeMissionCert.BuildTable(), this);
+            page.Controls.Add(btnMvc);
+
             DisableMnemonics(page);
             return page;
         }

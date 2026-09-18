@@ -484,6 +484,7 @@
     <Compile Include="Data\Form3CCert.cs" />
     <Compile Include="Data\AssessmentReport.cs" />
     <Compile Include="Data\CollectionsReport.cs" />
+    <Compile Include="Data\OfficeMissionCert.cs" />
     <Compile Include="Data\DelayedBirthRules.cs" />
     <Compile Include="Data\DelayedBirthService.cs" />
     <Compile Include="Forms\DelayedBirthCaseForm.cs">
