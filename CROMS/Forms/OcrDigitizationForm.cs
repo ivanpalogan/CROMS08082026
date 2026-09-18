@@ -230,6 +230,8 @@ namespace CROMS.Forms
                 dlg.Controls.Add(txt);
                 dlg.Controls.Add(lblFoot);
 
+                IonicStatus lastStatus = (IonicStatus)(-1);
+
                 Action refresh = () =>
                 {
                     var m = IonicServerManager.Instance;
@@ -238,17 +240,29 @@ namespace CROMS.Forms
                         : "";
 
                     string url = ScanAppUrl();
-                    if (url == lastUrl) return;   // no change — leave the QR as-is
-                    lastUrl = url;
 
-                    if (url == null)
+                    // Show the server's own state (Starting/Error) even while the URL itself
+                    // hasn't changed (still null) — otherwise the dialog is stuck on a stale
+                    // "isn't running" message for the ~30-60s the first-time build takes.
+                    if (url == null && m.Status != lastStatus)
                     {
+                        lastStatus = m.Status;
                         pic.Visible = false; lblHint.Visible = false; txt.Visible = false; lblFoot.Visible = false;
                         lblMsg.Visible = true;
-                        lblMsg.Text = "The mobile scanner isn't running, and no server " +
-                                      "address is configured on this PC yet.";
-                        return;
+                        lblMsg.Text = m.Status == IonicStatus.Starting
+                            ? "Starting the mobile scanner server… this can take under a " +
+                              "minute the first time. The QR code will appear automatically."
+                            : m.Status == IonicStatus.Error
+                                ? "The mobile scanner failed to start: " + m.LastError
+                                : "The mobile scanner isn't running, and no server " +
+                                  "address is configured on this PC yet.";
                     }
+
+                    if (url == lastUrl) return;   // no change — leave the QR as-is
+                    lastUrl = url;
+                    lastStatus = m.Status;
+
+                    if (url == null) return;   // message already set above
 
                     var bmp = QrHelper.TryCreate(url, 6);
                     var old = pic.Image;
