@@ -36,6 +36,7 @@ namespace CROMS.Forms
             NextStepGlow.Wire(btnCallNext, 8);
             NextStepGlow.Wire(_btnCallClient, 8);
             SetupServingArea();
+            SetupQueueContextMenu();
             SetupSyncTimer();
             SetChipFilter("ALL");
             SetCue(_txtSearch, "Search queue number or service…");
@@ -1245,21 +1246,123 @@ namespace CROMS.Forms
                 return;
             }
 
-            // Section 6 — ACCEPT the ticket to the window without putting it on the public
-            // Now Serving board yet. The records assistant locates the documents; the
-            // client is only called (→ Serving, on the board, voice callout) once ready,
-            // via the Call Client button or the window card. Stamp the accept time.
+            AcceptTicket(id, code, window, false);
+        }
+
+        /// <summary>
+        /// Section 6 — ACCEPT a ticket to a window without putting it on the public Now
+        /// Serving board yet. The records assistant locates the documents; the client is
+        /// only called (→ Serving, on the board, voice callout) once ready, via the Call
+        /// Client button or the window card. Shared by Call Next and "Call This Ticket"
+        /// (the out-of-order pick from the live queue grid).
+        /// </summary>
+        private void AcceptTicket(int id, string code, int window, bool outOfOrder)
+        {
             Db.Push("UPDATE queue_tickets SET status = 'Accepted', window_no = @w, " +
                     "accepted_window = @w, accepted_at = NOW(), " +
                     "is_priority_ticket = @pri WHERE id = @id",
                     new MySqlParameter("@w", window),
                     new MySqlParameter("@pri", IsPriorityWindow(window) ? 1 : 0),
                     new MySqlParameter("@id", id));
-            Audit.Write("Update", "queue_tickets", id, "Accepted " + code + " at " + WindowName(window));
+            Audit.Write("Update", "queue_tickets", id, "Accepted " + code + " at " + WindowName(window) +
+                (outOfOrder ? " (called out of order, by operator's choice)" : ""));
 
             RefreshAll();
 
             // The ticket is accepted; use Call Client or the window card when ready.
+        }
+
+        /// <summary>
+        /// Lets the operator pick ANY waiting/for-receiving ticket in the live queue grid
+        /// and accept it out of turn — e.g. Q-067 before Q-066 — instead of only ever
+        /// taking whichever ticket Call Next would pick. Still goes through the same
+        /// eligible-window check, so it can't be accepted to a window that isn't online,
+        /// free, or authorized for that ticket's service.
+        /// </summary>
+        private void CallSelectedTicket(DataGridView grid, int rowIndex)
+        {
+            if (_paused)
+            {
+                MessageBox.Show("The queue is paused. Resume it first.", "Queue paused",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            if (rowIndex < 0 || rowIndex >= grid.Rows.Count) return;
+            DataGridViewRow row = grid.Rows[rowIndex];
+            object idVal = grid.Columns.Contains("id") ? row.Cells["id"].Value : null;
+            if (idVal == null || idVal == DBNull.Value) return;
+
+            int id = Convert.ToInt32(idVal);
+            string code = row.Cells["Queue No"].Value?.ToString() ?? "";
+            string status = row.Cells["Status"].Value?.ToString() ?? "";
+            if (status != "Waiting" && status != "For Receiving")
+            {
+                MessageBox.Show(code + " is already " + status.ToLower() + " and can't be called again from here.",
+                    "Not waiting", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string svc = FirstPendingServiceCode(id);
+            int window = PickWindowFor(svc);
+            if (window == 0)
+            {
+                if (OnlineWindowCount() == 0)
+                    MessageBox.Show("No window is online. Sign in to a window (Window Assignment at login) first.",
+                        "No online windows", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                else
+                    MessageBox.Show(code + " doesn't match an available window right now.\n" +
+                        "Every eligible window is busy, or no online window is assigned to its transaction type.",
+                        "Nothing to call", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            AcceptTicket(id, code, window, true);
+        }
+
+        /// <summary>
+        /// Right-click "Call This Ticket" on either queue grid — the out-of-order pick.
+        /// Wired once in the constructor for both dgvQueue and dgvPriority.
+        /// </summary>
+        private void SetupQueueContextMenu()
+        {
+            var menu = new ContextMenuStrip();
+            var callItem = new ToolStripMenuItem("Call This Ticket (out of order)");
+            menu.Items.Add(callItem);
+
+            foreach (DataGridView grid in new[] { dgvQueue, dgvPriority })
+            {
+                grid.ContextMenuStrip = menu;
+                // Right-click doesn't move the current cell by default, so select the row
+                // under the cursor first — otherwise the menu would act on whatever row
+                // was last left-clicked, not the one the operator right-clicked.
+                grid.CellMouseDown += (s, e) =>
+                {
+                    if (e.Button == MouseButtons.Right && e.RowIndex >= 0)
+                    {
+                        var g = (DataGridView)s;
+                        g.ClearSelection();
+                        g.Rows[e.RowIndex].Selected = true;
+                        g.CurrentCell = g.Rows[e.RowIndex].Cells[Math.Max(e.ColumnIndex, 0)];
+                    }
+                };
+            }
+
+            menu.Opening += (s, e) =>
+            {
+                var grid = menu.SourceControl as DataGridView;
+                if (grid == null || grid.CurrentRow == null) { e.Cancel = true; return; }
+                string status = grid.Columns.Contains("Status")
+                    ? grid.CurrentRow.Cells["Status"].Value?.ToString() : null;
+                callItem.Enabled = status == "Waiting" || status == "For Receiving";
+                callItem.Text = "Call This Ticket (out of order)" +
+                    (grid.Columns.Contains("Queue No") ? " — " + grid.CurrentRow.Cells["Queue No"].Value : "");
+            };
+            callItem.Click += (s, e) =>
+            {
+                var grid = menu.SourceControl as DataGridView;
+                if (grid == null || grid.CurrentRow == null) return;
+                CallSelectedTicket(grid, grid.CurrentRow.Index);
+            };
         }
 
         /// <summary>
