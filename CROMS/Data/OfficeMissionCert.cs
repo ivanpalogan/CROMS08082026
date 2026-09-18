@@ -128,7 +128,12 @@ namespace CROMS.Data
             using (Graphics g = Graphics.FromImage(bmp))
             {
                 g.Clear(Color.White);
-                g.ScaleTransform(scale, scale);
+                // Draw() sets g.PageUnit = Point, which converts every subsequent world-space
+                // unit to pixels at 96/72 DPI (1.333x) ON TOP of this transform - the same
+                // double-scale trap already hit and fixed elsewhere in this app (2026-09-07,
+                // MF-90/97/103 print calibration). Divide it back out here so the transform
+                // maps our point-space coordinates 1:1 onto this bitmap's pixels.
+                g.ScaleTransform(scale * 72f / 96f, scale * 72f / 96f);
                 Draw(g, BuildTable());
             }
             return bmp;
@@ -143,7 +148,8 @@ namespace CROMS.Data
                 using (Graphics g = Graphics.FromImage(bmp))
                 {
                     g.Clear(Color.White);
-                    g.ScaleTransform(scale, scale);
+                    // Same PageUnit=Point double-scale correction as RenderPreview above.
+                    g.ScaleTransform(scale * 72f / 96f, scale * 72f / 96f);
                     Draw(g, new DataTable());
                 }
                 System.IO.Directory.CreateDirectory(outDir);
