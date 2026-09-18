@@ -12,7 +12,6 @@ namespace CROMS.Kiosk
         private System.ComponentModel.IContainer components = null;
 
         private Panel _center;
-        private Panel _seal;
         private Label _lblOffice;
         private Label _lblMuni;
         private Label _lblHeadline;
@@ -28,7 +27,6 @@ namespace CROMS.Kiosk
         private void InitializeComponent()
         {
             this._center = new System.Windows.Forms.Panel();
-            this._seal = new System.Windows.Forms.Panel();
             this._lblOffice = new System.Windows.Forms.Label();
             this._lblMuni = new System.Windows.Forms.Label();
             this._lblHeadline = new System.Windows.Forms.Label();
@@ -44,7 +42,6 @@ namespace CROMS.Kiosk
             this._center.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this._center.Controls.Add(this.panel2);
             this._center.Controls.Add(this.panel1);
-            this._center.Controls.Add(this._seal);
             this._center.Controls.Add(this._lblOffice);
             this._center.Controls.Add(this._lblMuni);
             this._center.Controls.Add(this._lblHeadline);
@@ -54,15 +51,7 @@ namespace CROMS.Kiosk
             this._center.Name = "_center";
             this._center.Size = new System.Drawing.Size(760, 400);
             this._center.TabIndex = 0;
-            // 
-            // _seal
-            // 
-            this._seal.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this._seal.Location = new System.Drawing.Point(352, 3);
-            this._seal.Name = "_seal";
-            this._seal.Size = new System.Drawing.Size(96, 96);
-            this._seal.TabIndex = 0;
-            // 
+            //
             // _lblOffice
             // 
             this._lblOffice.Font = new System.Drawing.Font("Segoe UI", 16F, System.Drawing.FontStyle.Bold);
@@ -119,7 +108,7 @@ namespace CROMS.Kiosk
             this.panel2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.panel2.BackgroundImage = global::CROMS.Kiosk.Properties.Resources.images__1_;
             this.panel2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.panel2.Location = new System.Drawing.Point(250, 3);
+            this.panel2.Location = new System.Drawing.Point(268, 3);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(96, 96);
             this.panel2.TabIndex = 6;
@@ -129,7 +118,7 @@ namespace CROMS.Kiosk
             this.panel1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.panel1.BackgroundImage = global::CROMS.Kiosk.Properties.Resources.images;
             this.panel1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.panel1.Location = new System.Drawing.Point(454, 3);
+            this.panel1.Location = new System.Drawing.Point(396, 3);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(96, 96);
             this.panel1.TabIndex = 1;

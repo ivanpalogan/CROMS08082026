@@ -31,12 +31,10 @@ namespace CROMS.Kiosk
         {
             InitializeComponent();
 
-            _seal.Paint += Seal_Paint;
             _cta.Paint += Cta_Paint;
 
-            // Both are owner-drawn; the CTA repaints ~25x/sec for its pulse, so without
+            // Owner-drawn; the CTA repaints ~25x/sec for its pulse, so without
             // double-buffering it tears badly (the same trap the launcher cards hit).
-            DoubleBuffer(_seal);
             DoubleBuffer(_cta);
 
             // Any tap anywhere starts a session — the whole screen is the button.
@@ -98,46 +96,6 @@ namespace CROMS.Kiosk
         }
 
         // ------------------------------------------------------------------ painting
-        private void Seal_Paint(object sender, PaintEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(_seal.Parent.BackColor);
-
-            var r = new Rectangle(0, 0, _seal.Width - 1, _seal.Height - 1);
-            using (var path = Rounded(r, 22))
-            using (var b = new SolidBrush(Color.FromArgb(19, 36, 65)))   // brand navy
-                g.FillPath(b, path);
-
-            DrawBuilding(g, new RectangleF(24, 24, 48, 48), Color.White);
-        }
-
-        /// <summary>
-        /// The classical-building mark used as the CROMS brand icon on the desktop Launcher and
-        /// Login screens — drawn rather than pulled from the icon font so the three apps show the
-        /// same mark.
-        /// </summary>
-        private static void DrawBuilding(Graphics g, RectangleF r, Color stroke)
-        {
-            using (var pen = new Pen(stroke, 2.4f) { LineJoin = LineJoin.Round })
-            {
-                float cx = r.X + r.Width / 2f;
-                float roofBaseY = r.Y + r.Height * 0.32f;
-                float baseY = r.Bottom - r.Height * 0.06f;
-                float halfW = r.Width * 0.44f;
-
-                g.DrawLine(pen, cx, r.Y, cx - halfW, roofBaseY);
-                g.DrawLine(pen, cx, r.Y, cx + halfW, roofBaseY);
-                g.DrawLine(pen, cx - halfW, roofBaseY, cx + halfW, roofBaseY);
-
-                float colTop = roofBaseY + r.Height * 0.08f;
-                foreach (float x in new[] { cx - halfW * 0.55f, cx, cx + halfW * 0.55f })
-                    g.DrawLine(pen, x, colTop, x, baseY);
-
-                g.DrawLine(pen, cx - halfW - 2f, baseY, cx + halfW + 2f, baseY);
-            }
-        }
-
         private void Cta_Paint(object sender, PaintEventArgs e)
         {
             Graphics g = e.Graphics;
