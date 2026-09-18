@@ -67,6 +67,7 @@ namespace CROMS.Forms
         private TextBox txtRemarks;
         private Label lblValidation;
         private Button btnAdvance;
+        private Button btnDocuments;
         private Button btnSave;
         private Button btnNew;
         private Button btnDelete;
@@ -364,6 +365,25 @@ namespace CROMS.Forms
             card.Controls.Add(btnAdvance);
             y += 58;
 
+            // Documents — same requirements-checklist-with-attachment engine the marriage
+            // licence and delayed birth registration already use, under owner_type "Petition".
+            // Disabled until the case exists (a requirement row needs a real petition id to
+            // attach to), same reasoning as Advance being hidden for a new, unsaved case.
+            btnDocuments = new Button
+            {
+                Location = new Point(20, y),
+                Size = new Size(320, 38),
+                Text = "📎 Case Documents",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BackColor = UiTheme.Chrome,
+                ForeColor = UiTheme.Ink,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnDocuments.Click += btnDocuments_Click;
+            card.Controls.Add(btnDocuments);
+            y += 50;
+
             // Secondary actions — visibly lighter weight than Advance.
             btnSave = new Button
             {
@@ -470,9 +490,11 @@ namespace CROMS.Forms
             if (_editingId == null)
             {
                 btnAdvance.Visible = false;
+                btnDocuments.Enabled = false;
                 return;
             }
             btnAdvance.Visible = true;
+            btnDocuments.Enabled = true;
             if (cur >= labels.Length - 1)
             {
                 btnAdvance.Enabled = false;
@@ -493,6 +515,23 @@ namespace CROMS.Forms
         private void btnAdvance_Click(object sender, EventArgs e) => AdvanceStage();
         private void btnNew_Click(object sender, EventArgs e) => ClearForm();
         private void btnDelete_Click(object sender, EventArgs e) => Delete();
+
+        private void btnDocuments_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null || cboType.SelectedIndex < 0)
+            {
+                ShowValidation("Save the case first, then attach its documents.");
+                return;
+            }
+            string typeCode = TypeCodes[cboType.SelectedIndex];
+            string recordName = cboRecord.SelectedIndex >= 0 ? cboRecord.Text : "(no record linked)";
+            string summary = (cboRecordType.SelectedItem?.ToString() ?? "Record") + ": " + recordName;
+            using (var dlg = new PetitionDocumentsForm(_editingId.Value, typeCode,
+                TypeFilterLabelFor(typeCode), summary))
+            {
+                dlg.ShowDialog(this);
+            }
+        }
 
         private void ApplyFilter()
         {

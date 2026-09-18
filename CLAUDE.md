@@ -5114,3 +5114,47 @@ No schema change, no new query elsewhere - the number was already computed corre
 Fees & Collections tab, this only removes the duplicate. VERIFIED: `MSBuild CROMS.csproj`
 (VS2019) clean, 0 errors, 0 warnings (temp OutputPath). GUI not clicked (no interactive
 desktop) - rebuild in VS to see the 3-card row.
+
+### 2026-09-18 (later) — Court Order (and every petition type) can now attach supporting
+### documents, the same requirements-checklist engine the marriage licence already uses
+
+Asked directly: does CROMS monitor Court Orders and let staff upload related documents "in a
+manner similar to petitions"? Checked first rather than assumed - `petitions` has no scan_image
+column and `PetitionsForm` never touches `marriage_requirements`, so NEITHER Court Order nor any
+other petition type had document upload. Built it, reusing the existing generic requirements
+engine rather than inventing a second one - the same reuse this project has done three times
+already (marriage licence -> delayed birth registration -> the out-of-province licence flag).
+
+Migration `52_petition_documents.sql` (NOT yet applied to the live croms database) adds
+`applies_to='Petition'` rows to `marriage_requirement_types`: one generic `CASE_SUPPORTING_DOC`
+(rule_key `Always`, non-blocking - every case type filed through this tracker gets at least one
+attachment slot, since RA 9048/RA 10172/Legitimation/Supplemental Report/Legal Instrument still
+have no office-confirmed checklist per the standing backlog PENDING items), plus four Court-Order-
+specific rows (rule_key `CourtOrder`): certified true copy of the decision and the Certificate of
+Finality (both blocking - Rule 108 annotation requires confirming the order is actually final),
+Entry of Judgment and the requesting party's letter (both informational). `owner_type='Petition'`
+with `owner_id=petitions.id` is a new VALUE of an existing column, not a new table - no code
+change needed in `MarriageService.Requirements/SaveRequirement/SyncRequirements`, which were
+already generic on owner type.
+
+New `Data/PetitionDocuments.cs`: `PetitionRules.Needs(petitionTypeCode, catalog)` — a row applies
+when it is `Always` or when its `rule_key` equals the case's OWN `petition_type` code, so a
+Court-Order-only document never appears on an RA 9048 case, and a future type gets its own
+checklist by adding rows with its own code as the rule_key, no code change here.
+`PetitionDocumentService` mirrors `DelayedBirthService`'s split exactly (`Catalog()`/
+`Requirements()`/`SyncRequirements()`), owner_type `"Petition"`.
+
+New `Forms/PetitionDocumentsForm.cs` — a trimmed `DelayedBirthCaseForm`: no case-facts/posting
+section (petitions already carry stage/remarks on their own screen), just the case header, a
+`Banner` summarising outstanding blocking documents, and the shared `RequirementsGrid` with
+`AllowAddCustom=true` (so the five types with no confirmed checklist yet aren't stuck with an
+unusable empty grid - staff can record whatever was actually filed). `PetitionsForm` gains a
+"📎 Case Documents" button on the editor card, at the same visibility rule as Advance
+(`_editingId != null` — a requirement row needs a real petition id to attach to, so it is
+disabled for an unsaved New Petition and enabled the moment an existing case is loaded).
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp OutputPath.
+Not run against the live database - migration 52 needs to be applied before the new button's
+first use, same as every other migration recorded pending in this log. GUI not clicked (no
+interactive desktop) - the wiring mirrors DelayedBirthCaseForm's already-verified pattern
+line-for-line; rebuild in VS, apply migration 52, and open an existing Court Order case to check.

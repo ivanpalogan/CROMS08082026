@@ -491,6 +491,10 @@
     <Compile Include="Forms\DelayedBirthCaseForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Data\PetitionDocuments.cs" />
+    <Compile Include="Forms\PetitionDocumentsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Data\BreqsService.cs" />
     <Compile Include="Data\PaymentService.cs" />
     <Compile Include="Data\GovIds.cs" />
@@ -748,6 +752,7 @@
     <None Include="Database\43_birth_country_in_view.sql" />
     <None Include="Database\44_case_tracking_types.sql" />
     <None Include="Database\45_out_of_province_license.sql" />
+    <None Include="Database\52_petition_documents.sql" />
     <None Include="Database\46_marriage_registration_birthplace.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
