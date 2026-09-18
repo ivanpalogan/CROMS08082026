@@ -277,7 +277,7 @@ namespace CROMS.Forms
             {
                 dlg.Text = cat.Label + " — Record #" + row["id"];
                 dlg.StartPosition = FormStartPosition.CenterParent;
-                dlg.Size = new Size(740, 640);
+                dlg.Size = cat.IsMf90 ? new Size(820, 720) : new Size(740, 640);
                 dlg.MinimizeBox = false;
                 dlg.MaximizeBox = false;
                 dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -290,6 +290,17 @@ namespace CROMS.Forms
                     Height = 42,
                     FlatStyle = FlatStyle.Flat
                 };
+
+                // topSection holds imagesPanel then (for a Form 90 record) the requirements
+                // grid, as TableLayoutPanel rows — unambiguous top-to-bottom order, unlike two
+                // sibling Dock=Top controls (this codebase's own established Dock=Top trap).
+                var topSection = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Top,
+                    AutoSize = true,
+                    ColumnCount = 1
+                };
+                topSection.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
                 var imagesPanel = new FlowLayoutPanel
                 {
@@ -370,6 +381,24 @@ namespace CROMS.Forms
                     imagesPanel.Controls.Add(btnMf90);
                 }
 
+                topSection.Controls.Add(imagesPanel, 0, 0);
+
+                // Form 90's supporting-document checklist (marriage_requirements): what was
+                // required, whether it was attached, and whether an Admin BYPASSED it instead
+                // of it being checked — the same bypassed_by/bypassed_at/bypass_reason facts
+                // MarriageUi.RequirementsGrid shows on the live editing screen, read-only here
+                // (this screen never writes — no Bypass/Attach actions, View only).
+                if (cat.IsMf90)
+                {
+                    long licenseId = Convert.ToInt64(row["id"]);
+                    List<ReqRow> reqs = MarriageService.Requirements("License", (int)licenseId);
+                    if (reqs.Count > 0)
+                    {
+                        topSection.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                        topSection.Controls.Add(BuildRequirementsPanel(reqs, dlg), 0, 1);
+                    }
+                }
+
                 var body = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(14, 6, 14, 14) };
                 var table = new TableLayoutPanel { ColumnCount = 2, AutoSize = true, Dock = DockStyle.Top };
                 table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
@@ -400,7 +429,7 @@ namespace CROMS.Forms
                 }
                 body.Controls.Add(table);
 
-                dlg.Controls.Add(imagesPanel);
+                dlg.Controls.Add(topSection);
                 dlg.Controls.Add(btnClose);
                 dlg.Controls.Add(body);
                 dlg.AcceptButton = btnClose;
