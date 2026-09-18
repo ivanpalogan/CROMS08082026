@@ -291,19 +291,32 @@ namespace CROMS.Forms
             }
         }
 
-        /// <summary>Ask for one line of text (a reason, a reference). Null when cancelled or left blank.</summary>
+        /// <summary>
+        /// Ask for one line of text (a reason, a reference). Null when cancelled or left blank.
+        /// The textbox/buttons are positioned BELOW the prompt's actual measured height, not at
+        /// a fixed Y - a short one-line prompt used to work by coincidence, but a longer prompt
+        /// (e.g. the bypass-requirement explanation) wraps past the old fixed Y=62 and the
+        /// textbox ended up overlapping/hidden under the text instead of appearing under it,
+        /// looking like there was nothing to type into. Same class of bug already fixed once in
+        /// AskWithChecklist for the same reason.
+        /// </summary>
         public static string Ask(IWin32Window owner, string title, string prompt, string initial = "")
         {
             using (var f = new Form
             {
                 Text = title, FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
-                MinimizeBox = false, MaximizeBox = false, ClientSize = new Size(460, 150), BackColor = UiTheme.Surface, ShowInTaskbar = false
+                MinimizeBox = false, MaximizeBox = false, BackColor = UiTheme.Surface, ShowInTaskbar = false
             })
             {
                 var l = Txt(prompt, 9.5F); l.Location = new Point(20, 16); l.MaximumSize = new Size(420, 0);
-                var t = new TextBox { Location = new Point(20, 62), Width = 420, Font = F(9.75F), Text = initial };
-                var ok = Btn("OK", Kind.Primary, 90); ok.DialogResult = DialogResult.OK; ok.Location = new Point(350, 102);
-                var cancel = Btn("Cancel", Kind.Secondary, 90); cancel.DialogResult = DialogResult.Cancel; cancel.Location = new Point(250, 102);
+                int labelH = TextRenderer.MeasureText(prompt ?? "", F(9.5F), new Size(420, 0),
+                    TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height;
+                int boxY = 16 + labelH + 14;
+                int btnY = boxY + 40;
+                f.ClientSize = new Size(460, btnY + 46);
+                var t = new TextBox { Location = new Point(20, boxY), Width = 420, Font = F(9.75F), Text = initial };
+                var ok = Btn("OK", Kind.Primary, 90); ok.DialogResult = DialogResult.OK; ok.Location = new Point(350, btnY);
+                var cancel = Btn("Cancel", Kind.Secondary, 90); cancel.DialogResult = DialogResult.Cancel; cancel.Location = new Point(250, btnY);
                 f.Controls.AddRange(new Control[] { l, t, ok, cancel });
                 f.AcceptButton = ok; f.CancelButton = cancel;
                 UiTheme.Polish(f);
