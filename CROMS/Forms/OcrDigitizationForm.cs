@@ -91,6 +91,11 @@ namespace CROMS.Forms
             dgvFields.CellValueChanged += DgvFields_CellValueChanged;
             pbScan.Paint += PbScan_Paint;
 
+            // A phone scan lands here first (uploaded via the save-API, no on-device OCR) —
+            // double-clicking a still-unopened 'Mobile' row loads it into the engine the same
+            // way Load Image does, then runs the full desktop pipeline on it.
+            dgvBatch.CellDoubleClick += DgvBatch_CellDoubleClick;
+
             ApplyResultToUi();
             LoadBatch();
         }
@@ -1708,8 +1713,13 @@ namespace CROMS.Forms
         {
             try
             {
+                // id + source are hidden lookup columns (id: which row to reopen; source:
+                // 'Mobile' rows still awaiting their first desktop pass can be double-clicked
+                // to open — see DgvBatch_CellDoubleClick). Both need migration 54; caught
+                // below and re-tried without them so an unmigrated database still lists scans.
                 dgvBatch.DataSource = Db.Pull(
-                    "SELECT scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
+                    "SELECT id AS '_Id', source AS '_Source', " +
+                    "scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
                     "CONCAT(COALESCE(overall_confidence, confidence), '%') AS Conf, " +
                     "CASE WHEN needs_review = 1 THEN CONCAT(status, ' ⚠') ELSE status END AS Status, " +
                     "COALESCE(review_reason, '') AS 'Reason', " +
@@ -1719,27 +1729,131 @@ namespace CROMS.Forms
                     "COALESCE(username, '') AS 'User' " +
                     "FROM ocr_batch WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
                 lblBatch.Text = "TODAY'S DOCUMENTS";
+                HideLookupColumns();
+                return;
             }
-            catch (MySqlException ex) when (ex.Number == 1054)
+            catch (MySqlException ex) when (ex.Number == 1054) { /* fall through */ }
+
+            try
             {
-                // Migration 25 not applied: fall back to the columns that do exist.
-                try
-                {
-                    dgvBatch.DataSource = Db.Pull(
-                        "SELECT scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
-                        "CONCAT(confidence, '%') AS Conf, status AS Status, " +
-                        "CASE WHEN record_table IS NULL THEN '' " +
-                        "WHEN record_id IS NULL THEN CONCAT(record_table, ' (pending)') " +
-                        "ELSE CONCAT(record_table, ' #', record_id) END AS 'Saved To' " +
-                        "FROM ocr_batch WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
-                    lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATION 25_document_intelligence.sql";
-                }
-                catch
-                {
-                    dgvBatch.DataSource = null;
-                    lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATIONS 24 AND 25";
-                }
+                dgvBatch.DataSource = Db.Pull(
+                    "SELECT id AS '_Id', scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
+                    "CONCAT(COALESCE(overall_confidence, confidence), '%') AS Conf, " +
+                    "CASE WHEN needs_review = 1 THEN CONCAT(status, ' ⚠') ELSE status END AS Status, " +
+                    "COALESCE(review_reason, '') AS 'Reason', " +
+                    "CASE WHEN record_table IS NULL THEN '' " +
+                    "WHEN record_id IS NULL THEN CONCAT(record_table, ' (pending)') " +
+                    "ELSE CONCAT(record_table, ' #', record_id) END AS 'Saved To', " +
+                    "COALESCE(username, '') AS 'User' " +
+                    "FROM ocr_batch WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
+                lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATION 54_mobile_scan_upload.sql TO OPEN PHONE SCANS HERE";
+                HideLookupColumns();
+                return;
             }
+            catch (MySqlException ex) when (ex.Number == 1054) { /* fall through */ }
+
+            try
+            {
+                dgvBatch.DataSource = Db.Pull(
+                    "SELECT scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
+                    "CONCAT(confidence, '%') AS Conf, status AS Status, " +
+                    "CASE WHEN record_table IS NULL THEN '' " +
+                    "WHEN record_id IS NULL THEN CONCAT(record_table, ' (pending)') " +
+                    "ELSE CONCAT(record_table, ' #', record_id) END AS 'Saved To' " +
+                    "FROM ocr_batch WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
+                lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATION 25_document_intelligence.sql";
+            }
+            catch
+            {
+                dgvBatch.DataSource = null;
+                lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATIONS 24 AND 25";
+            }
+        }
+
+        private void HideLookupColumns()
+        {
+            if (dgvBatch.Columns.Contains("_Id")) dgvBatch.Columns["_Id"].Visible = false;
+            if (dgvBatch.Columns.Contains("_Source")) dgvBatch.Columns["_Source"].Visible = false;
+        }
+
+        /// <summary>
+        /// A phone scan double-clicked before anyone has looked at it: pull its stored
+        /// bytes, load them into the page the same way a local file load does, and run
+        /// the engine — so a mobile capture is read by the same DocLayouts/DocIntelligence
+        /// pipeline as a scan loaded on this PC, not the phone's own weaker in-browser OCR.
+        /// </summary>
+        private async void DgvBatch_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            var row = dgvBatch.Rows[e.RowIndex];
+            if (!dgvBatch.Columns.Contains("_Id") || !dgvBatch.Columns.Contains("_Source")) return;
+
+            string source = row.Cells["_Source"].Value as string;
+            if (!string.Equals(source, "Mobile", StringComparison.OrdinalIgnoreCase)) return;
+
+            object idVal = row.Cells["_Id"].Value;
+            if (idVal == null || idVal == DBNull.Value) return;
+            long batchId = Convert.ToInt64(idVal);
+
+            var result = Db.Pull(
+                "SELECT scan_id, source_book, status, source_image FROM ocr_batch WHERE id = @id",
+                new MySqlParameter("@id", batchId));
+            if (result.Rows.Count == 0) return;
+            var dr = result.Rows[0];
+
+            if (!string.Equals(dr["status"] as string, "Pending Review", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("This phone scan has already been opened — find its result in " +
+                    "today's list above under a SCN- scan id.", "Document",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            byte[] bytes = dr["source_image"] as byte[];
+            if (bytes == null || bytes.Length == 0)
+            {
+                MessageBox.Show("This scan has no image attached.", "Document",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            Bitmap loaded;
+            try { loaded = DocumentAI.LoadImageBytes(bytes); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not open the phone scan: " + ex.Message, "Document",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            _image?.Dispose();
+            _image = loaded;
+            _scanBytes = bytes;
+            _zoom = 1f;
+            pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+            pbScan.Size = pnlScanHost.ClientSize;
+            pbScan.Image = _image;
+            grpScan.Text = "SCANNED DOCUMENT — " + (dr["source_book"] as string ?? "Phone scan");
+
+            _scanId = null;
+            _result = null;
+            _kind = DocKind.Unknown;
+            _formDef = null;
+            _savedRecordId = null;
+            _seals = new List<SealDetector.Seal>();
+            txtDocClass.Clear();
+            dgvFields.Rows.Clear();
+            ApplyResultToUi();
+
+            // The mobile row's only job was to carry the bytes here — once opened, Analyze()
+            // below logs its own SCN- batch row (LogBatch), so this placeholder is retired
+            // rather than left in the list forever as a second, orphaned entry for the same
+            // page.
+            Db.Push("UPDATE ocr_batch SET status = 'Opened on Desktop' WHERE id = @id",
+                new MySqlParameter("@id", batchId));
+
+            await Analyze();
+            LoadBatch();
         }
 
         // ---- image tools ----

@@ -116,6 +116,11 @@
     <Compile Include="CtcDetailsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
     <Compile Include="ReviewRequestForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -151,6 +156,10 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
     <EmbeddedResource Include="ServiceSelectForm.resx">
       <DependentUpon>ServiceSelectForm.cs</DependentUpon>
     </EmbeddedResource>
@@ -158,11 +167,20 @@
       <DependentUpon>DetailsPhotoForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Resources\Phosphor-Light.ttf" />
+    <EmbeddedResource Include="WelcomeForm.resx">
+      <DependentUpon>WelcomeForm.cs</DependentUpon>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
     <None Include="Resources\Phosphor-LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\images.jpg" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\images %281%29.jpg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

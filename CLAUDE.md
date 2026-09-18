@@ -5224,3 +5224,76 @@ the combobox-overlay logic needed touching, only its host layout.
 VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp
 OutputPath. GUI not clicked (no interactive desktop) — rebuild in VS to see the new header, tabs
 and search box.
+
+### 2026-09-19 — Phone scan now routes into Intelligent Document Processing instead of the
+### phone's own weaker OCR (the mobile app no longer classifies/extracts/saves)
+
+Context: measured accuracy gap between desktop region-based extraction (DocLayouts/
+DocIntelligence, 54% exact field values on the office's own samples, 2026-09-06) and the mobile
+app's in-browser tesseract.js label-only path (30% on the SAME samples, 2026-07-28/09-09) — the
+mobile pipeline was never going to close that gap without porting region reading into a phone's
+WASM budget, which the 2026-09-04 entry already measured as too slow. Cheaper, correctness-first
+fix: stop having the phone read the form at all. It captures and straightens the page (the
+existing camera-guidance/perspective-warp/enhancement pipeline is unchanged and stays — genuinely
+useful preprocessing, not the weak part) and now UPLOADS that image to the same `ocr_batch` queue
+`OcrDigitizationForm` already lists, instead of running on-device OCR/classify/extract/save.
+
+**Migration `Database/54_mobile_scan_upload.sql`** (NOT yet applied to the live croms database):
+adds `ocr_batch.source` VARCHAR(20) DEFAULT 'Desktop' and `ocr_batch.source_image` LONGBLOB NULL.
+`source_image` is retired the moment the scan is opened on the desktop (see below) rather than
+kept forever — its only job is carrying the bytes from the phone to the first desktop open.
+
+**`Data/DocumentAI.cs`**: `LoadImage(path)` refactored to share its resize-cap logic with a new
+`LoadImageBytes(byte[])` (extracted into `CapSize`), so a scan pulled out of `source_image` is
+read at exactly the same resolution cap (4200px) as a locally loaded file — no second, weaker
+code path for a phone-originated image once it reaches the engine.
+
+**`Forms/OcrDigitizationForm.cs`**: `LoadBatch()`'s three-tier fallback query (25-applied /
+25-missing / neither) now also selects a hidden `_Id` and `_Source` column (migration-54-guarded,
+its own fallback tier so an unmigrated database still lists scans, just without the open-by-
+double-click capability). A row with `source='Mobile'` and `status='Pending Review'` can be
+double-clicked (`DgvBatch_CellDoubleClick`): pulls `source_image`, decodes it via
+`LoadImageBytes`, loads it into `_image`/`_scanBytes` exactly as `btnLoad_Click` does for a local
+file, marks the placeholder row `'Opened on Desktop'` (so it can't be double-clicked into a
+second, duplicate read), then runs the same `Analyze()` pipeline — which logs its OWN `SCN-...`
+batch row via the existing `LogBatch`. So a phone scan gets a real DocLayouts/DocIntelligence
+pass, the same confidence scoring, field-audit trail, and review grid as a scan loaded from disk;
+the placeholder mobile row is retired rather than left as a second, orphaned entry for the same
+page. Opening an already-opened row shows a message pointing at its resulting SCN- entry instead
+of silently re-reading it.
+
+**Save-API `server/index.js`**: new `POST /api/scans` — decodes the base64 image, bounds it at
+25MB, inserts the `ocr_batch` row (`source='Mobile'`, `status='Pending Review'`), audits it, and
+returns a readable message naming migration 54 specifically if the column doesn't exist yet
+(matched on the MySQL "Unknown column" text) rather than a bare 500 — the fix is a one-line SQL
+script, not a code bug, and the error should say so.
+
+**Mobile `src/app/scan/scan.page.ts`**: `runOcr()` (which called `DocAiService.analyze` then
+routed to `/review` for on-device field correction + save) replaced with `uploadToOffice()`,
+which calls the new `ApiService.uploadScan(imageDataUrl, deviceLabel)`. `DocAiService`/
+`ScanStateService`/`Router` are no longer used by this page (removed from its constructor/
+imports) — the on-device classify/extract/review/save path they drove is gone from this screen.
+Button relabelled "Send to Office" with a line stating nothing is saved from the phone.
+`deviceLabel()` gives the desktop something more useful than a bare "Mobile device" in the batch
+grid's Document column ("Android phone" / "iPhone" / "Mobile device" from the user agent).
+
+**NOT DONE, stated plainly:** `review.page.ts` (the on-device field-correction screen) and
+`DocAiService`/`ScanStateService` are left in the repo unreferenced by this flow — not deleted,
+since removing them is a separate cleanup decision and they cost nothing sitting unused. Items 1
+(form dropout using the now-available blank MF-97/MF-103 scans), 2 (ask the office for 600 DPI
+marriage rescans — not a code change), 3 (dewarp the perspective-skewed marriage photo), and 5
+(a handwriting digit recognizer, explicitly declined — no training data exists in this project)
+from the same accuracy discussion are NOT built in this pass; only the routing change (item 4,
+redefined) was completed here.
+
+VERIFIED: `ng build` (ORCMobile_Application) clean, exit 0 (only the pre-existing tesseract.js
+CJS-not-ESM warning). `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a
+temp OutDir via `MSYS_NO_PATHCONV=1` + `-p:` switches (the leading `/p:` form gets mangled by
+Git Bash's MSYS path-translation into a bogus second "project" argument — worth remembering for
+future builds run through this Bash tool). Migration 54 NOT applied to the live croms database —
+run it before a phone scan can be uploaded, or `/api/scans` will fail with the readable
+migration-needed message above. GUI not clicked (no interactive desktop); no live phone, save-API
+process, or MySQL connection in this session — the double-click-to-open path was verified by
+reading the exact query/decode/Analyze call chain against the already-proven `btnLoad_Click`
+pattern, not by running it end to end. Rebuild CROMS in VS, run migration 54, and restart the
+save-API to pick this up.

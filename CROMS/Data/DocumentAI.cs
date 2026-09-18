@@ -174,23 +174,40 @@ namespace CROMS.Data
                 throw new NotSupportedException("Unsupported file type. Upload a JPG, JPEG or PNG image.");
 
             using (var tmp = new Bitmap(path))
+                return CapSize(tmp);
+        }
+
+        /// <summary>
+        /// Load an image already held in memory (a phone-uploaded scan pulled out of
+        /// <c>ocr_batch.source_image</c>) — same size cap as <see cref="LoadImage"/>, so a
+        /// mobile-submitted page is read exactly like a locally loaded file once it reaches
+        /// this engine.
+        /// </summary>
+        public static Bitmap LoadImageBytes(byte[] bytes)
+        {
+            using (var ms = new MemoryStream(bytes))
+            using (var tmp = new Bitmap(ms))
+                return CapSize(tmp);
+        }
+
+        /// <summary>
+        /// Cap very large scans so OCR preprocessing stays responsive. Kept high on
+        /// purpose: PSA forms are dense and their print is small, so shrinking a 4000px
+        /// scan to 2200 throws away strokes OCR cannot get back. The preprocessing pass
+        /// is O(pixels) and no longer upscales, so a full-size page is affordable.
+        /// </summary>
+        private static Bitmap CapSize(Bitmap tmp)
+        {
+            const int max = 4200;
+            if (tmp.Width <= max && tmp.Height <= max) return new Bitmap(tmp);
+            double s = Math.Min((double)max / tmp.Width, (double)max / tmp.Height);
+            var outBmp = new Bitmap((int)(tmp.Width * s), (int)(tmp.Height * s));
+            using (var g = Graphics.FromImage(outBmp))
             {
-                // Cap very large scans so OCR preprocessing stays responsive. Kept high
-                // on purpose: PSA forms are dense and their print is small, so shrinking
-                // a 4000px scan to 2200 throws away strokes OCR cannot get back. The
-                // preprocessing pass is O(pixels) and no longer upscales, so a full-size
-                // page is affordable.
-                const int max = 4200;
-                if (tmp.Width <= max && tmp.Height <= max) return new Bitmap(tmp);
-                double s = Math.Min((double)max / tmp.Width, (double)max / tmp.Height);
-                var outBmp = new Bitmap((int)(tmp.Width * s), (int)(tmp.Height * s));
-                using (var g = Graphics.FromImage(outBmp))
-                {
-                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                    g.DrawImage(tmp, 0, 0, outBmp.Width, outBmp.Height);
-                }
-                return outBmp;
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(tmp, 0, 0, outBmp.Width, outBmp.Height);
             }
+            return outBmp;
         }
 
         /// <summary>

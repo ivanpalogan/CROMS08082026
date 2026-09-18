@@ -40,6 +40,7 @@ namespace CROMS.Kiosk
         {
             this.header = new System.Windows.Forms.Panel();
             this.lblTitle = new System.Windows.Forms.Label();
+            this._stepInd = new CROMS.Kiosk.StepIndicator();
             this.footer = new System.Windows.Forms.Panel();
             this.footerDivider = new System.Windows.Forms.Panel();
             this._btnNext = new System.Windows.Forms.Button();
@@ -80,7 +81,6 @@ namespace CROMS.Kiosk
             this.lblName14 = new System.Windows.Forms.Label();
             this._offlineOverlay = new System.Windows.Forms.Panel();
             this.lblOffline = new System.Windows.Forms.Label();
-            this._stepInd = new CROMS.Kiosk.StepIndicator();
             this.header.SuspendLayout();
             this.footer.SuspendLayout();
             this._host.SuspendLayout();
@@ -125,6 +125,17 @@ namespace CROMS.Kiosk
             this.lblTitle.Size = new System.Drawing.Size(355, 54);
             this.lblTitle.TabIndex = 0;
             this.lblTitle.Text = "Request a Service";
+            // 
+            // _stepInd
+            // 
+            this._stepInd.BackColor = System.Drawing.Color.Transparent;
+            this._stepInd.Location = new System.Drawing.Point(40, 74);
+            this._stepInd.Name = "_stepInd";
+            this._stepInd.Size = new System.Drawing.Size(560, 52);
+            this._stepInd.Steps = new string[] {
+        "Select Services",
+        "Personal Info & Photo"};
+            this._stepInd.TabIndex = 1;
             // 
             // footer
             // 
@@ -635,17 +646,6 @@ namespace CROMS.Kiosk
             this.lblOffline.Text = "The office is currently unavailable.\r\n\r\nPlease try again later.\r\n\r\n(Waiting for a" +
     " service window to come online…)";
             this.lblOffline.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
-            // 
-            // _stepInd
-            // 
-            this._stepInd.BackColor = System.Drawing.Color.Transparent;
-            this._stepInd.Location = new System.Drawing.Point(40, 74);
-            this._stepInd.Name = "_stepInd";
-            this._stepInd.Size = new System.Drawing.Size(560, 52);
-            this._stepInd.Steps = new string[] {
-        "Select Services",
-        "Personal Info & Photo"};
-            this._stepInd.TabIndex = 1;
             // 
             // ServiceSelectForm
             // 
