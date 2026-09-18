@@ -920,6 +920,12 @@ namespace CROMS.Forms
                 row.Cells["Given"].ReadOnly = !isConsent || ReadOnlyGrid;
                 if (ReadOnlyGrid) foreach (DataGridViewCell c in row.Cells) if (!(c is DataGridViewButtonCell)) c.ReadOnly = true;
                 if (n == null && !MarriageService.IsCustomCode(r.Code)) row.DefaultCellStyle.ForeColor = UiTheme.Faint;
+                if (!r.IsBypassed && r.HasAttachment)
+                {
+                    row.Cells["Bypass"].Style.ForeColor = UiTheme.Faint;
+                    row.Cells["Bypass"].Style.SelectionForeColor = UiTheme.Faint;
+                    row.Cells["Bypass"].ToolTipText = "A document is already attached - bypass is not needed.";
+                }
                 if (r.IsBypassed)
                 {
                     row.DefaultCellStyle.BackColor = UiTheme.WarningTint;
@@ -1051,6 +1057,12 @@ namespace CROMS.Forms
             if (ReadOnlyGrid) return;
             var r = _g.Rows[rowIndex].Tag as ReqRow;
             if (r == null) return;
+            if (!r.IsBypassed && r.HasAttachment)
+            {
+                MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" already has a document attached - bypass is not needed.",
+                    "Not needed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             try
             {
                 if (r.IsBypassed)

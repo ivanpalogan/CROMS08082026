@@ -34,6 +34,10 @@ namespace CROMS.Forms
             public (string Column, string Label)[] Images;
             public DocKind? CertKind;
             public bool IsMf90;
+            /// <summary>owner_type value in marriage_requirements for this record's row id —
+            /// "License"/"Marriage"/"Birth"/"Petition" — or null when this record type has no
+            /// requirements checklist. Drives the read-only requirements panel in ShowDetail.</summary>
+            public string ReqOwnerType;
         }
 
         private readonly List<ArchiveCategory> _categories = new List<ArchiveCategory>();
@@ -64,7 +68,8 @@ namespace CROMS.Forms
                       "sex AS Sex, date_of_birth AS 'Date of Birth', status AS Status, " +
                       "COALESCE(form_code,'') AS Form, created_at AS Recorded FROM births ORDER BY created_at DESC",
                 Images = new[] { ("scan_image", "Scanned Certificate"), ("birth_image", "Birth Image (legacy)") },
-                CertKind = DocKind.Birth
+                CertKind = DocKind.Birth,
+                ReqOwnerType = "Birth"
             });
             _categories.Add(new ArchiveCategory
             {
@@ -77,7 +82,8 @@ namespace CROMS.Forms
                       "date_of_marriage AS 'Date of Marriage', status AS Status, " +
                       "COALESCE(form_code,'') AS Form, created_at AS Recorded FROM marriages ORDER BY created_at DESC",
                 Images = new[] { ("scan_image", "Scanned Certificate") },
-                CertKind = DocKind.Marriage
+                CertKind = DocKind.Marriage,
+                ReqOwnerType = "Marriage"
             });
             _categories.Add(new ArchiveCategory
             {
@@ -99,7 +105,8 @@ namespace CROMS.Forms
                       "filed_date AS 'Filed Date', posting_ends AS 'Posting Ends', status AS Status, " +
                       "created_at AS Recorded FROM marriage_licenses ORDER BY created_at DESC",
                 Images = new (string, string)[0],
-                IsMf90 = true
+                IsMf90 = true,
+                ReqOwnerType = "License"
             });
 
             AddPetitionCategory("RA9048", "Correction of Entry (RA 9048)");
