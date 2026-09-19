@@ -5383,3 +5383,115 @@ NOT DONE, stated plainly: "Legitimation RA-9255" is still captioned as legitimat
 SIX kiosk cards covering the office's FOUR Phase-4 case types, and which of them the office
 actually wants offered at the kiosk is a question for them, not a rename to make alone. The staff
 side still lists VERIFY and SUPPLEMENTAL as assignable services in Window Assignment.
+
+### 2026-09-19 (later) — CTC intake normalised; Client Tasks shows WHO and WHAT, and can abandon
+
+Two reports, both about the same thing: what the window actually receives when a ticket arrives.
+
+**THE CTC STEP WAS ONE FREE-TEXT BOX.** The kiosk asked for the document type and then a single
+"Record details (name, registry number, year, or other helpful information)" blob, written into
+`queue_tickets.purpose`. That is not a request the office can act on — it cannot be searched, it
+cannot be compared against the registry books, and what it contains depends entirely on what the
+client thought to type. Most of the time it is a name with no year, so the clerk asks the whole
+thing again with the client standing at the counter.
+
+Rebuilt as the office's own questions, one per field, mirroring what `BreqsDetailsForm` already
+does for a PSA copy: document type, copies, purpose, the requester's relationship to the owner,
+the owner's first/middle/last name, the date and place of the event, plus the block the document
+implies — the other spouse for a marriage, the parents for a birth, neither for a death. The free
+text survives as "anything else that helps find it", which is the right place for "the surname
+may be spelled Balozo"; it is now an ADDITION, never the whole request.
+
+**THE REGISTRY NUMBER IS ASKED FIRST**, and it is the one field BREQS has no use for. A PSA copy
+is found by PSA; a certified true copy is found in THIS office's own books, so a client who knows
+the number turns the entire search into one lookup.
+
+Only the document type and the owner's first + last name are required. Everything else is
+optional on purpose: a grandchild asking for a 1962 birth record may genuinely not know the date,
+and refusing the request over it just pushes them back to the paper queue.
+
+Migration `55_ctc_request_details.sql` (APPLIED to the live croms DB, re-run to prove idempotent,
+no leftover procedure) adds `ctc_requests`. It is INTAKE, not the certificate request:
+`certificate_requests` is created by staff once they have found the actual registry row (it
+carries `record_id`), whereas this is what the client DESCRIBED before any record was located —
+exactly the relationship `breqs_requests` has to the BREQS desk. `queue_tickets.purpose` now
+receives a one-line summary ("Marriage CTC · 3 copies · RYAN PANLILIO MACANANG · & TOFIE FAE
+QUILANG · Reg 2007-72") for the screens that only have room for one line.
+
+A BLOCK THAT IS NOT ON SCREEN CANNOT CONTRIBUTE, enforced twice — in the form's SaveToSession and
+again in `KioskCore.SaveCtcRequest`. Switching Marriage to Death after typing a spouse would
+otherwise file a death record carrying a spouse name nobody ever saw. Verified: a session
+deliberately seeded with `CtcFatherName = "SHOULD NOT BE SAVED"` on a MARRIAGE request stored
+father_name NULL.
+
+**CLIENT TASKS ONLY SHOWED A SERVICE NAME.** The drawer said "Certified True Copy (CTC)" and
+nothing else — not who was at the window, not what they were asking for. Now:
+  * The header carries the client: name, then contact number, priority lane, the valid ID they
+    said they would present, and the time they took the number. An operator holding a certificate
+    has to be able to check the name in front of them without opening another module.
+  * Each task card carries the client's OWN request, read from the kiosk intake rows
+    (`ctc_requests` / `breqs_requests`) — document and copies, the name on the record, registry
+    number, date and place, parents, purpose, and the note. Anything else falls back to the one
+    line the ticket itself carries, and that fallback is deliberately NOT applied to a service
+    that has its own intake, so a CTC note never bleeds onto an unrelated Birth Registration task.
+
+**ABANDON, and the reason it had to exist.** A client who leaves, or who asks for something the
+office cannot do today, had no representation at all: the task sat Pending for ever and
+`CompleteVisit` blocks on anything not Completed — so a walked-away client held a counter until
+somebody noticed. Two buttons under the task list:
+  * **Abandon This Task** closes the one in progress; the client can carry on with the rest.
+  * **Abandon All Tasks · End Visit** closes every open task, marks the ticket
+    `final_status = 'Abandoned'` and FREES THE WINDOW.
+Neither deletes anything — the request was made, it is part of the day's queue figures, and the
+ticket stays on record. The REASON is required and stored (`abandon_reason` / `abandoned_at` /
+`abandoned_by`): "client left" and "record not found in the registry books" are two very
+different problems for the office to see at the end of the month, and a plain Yes/No box would
+have left abandoned tickets in the statistics with nothing to explain them. Six common reasons
+are one click, and the box stays editable because an office always meets a seventh.
+`CompleteVisit` now treats Abandoned as closed rather than outstanding — before this it counted
+as remaining and made the visit impossible to complete.
+
+Both new queries are written to survive an unmigrated database: `LoadServices` asks for
+`abandon_reason` and drops it on MySQL 1054, `MarkAbandoned` falls back to writing the STATE
+alone (which is what unblocks the window) and simply loses the reason text, and the intake reads
+are wrapped so a database still on migration 54 loses the detail lines, not the drawer.
+
+**Certificate Request now consumes the intake** (`PrefillFromCtcIntake`): document type, copies
+and purpose are filled from what the client actually entered, and the owner's name is typed into
+the searchable record picker so the clerk starts from the request instead of retyping it. The
+NAME ON THE FORM is deliberately left as the person AT THE COUNTER — the record owner is often
+someone else (a parent collecting a child's certificate), and merging the two would file the
+request under the wrong requester. The record itself is left for the clerk to CONFIRM against the
+list: a kiosk-typed name is the client's spelling, not the registry's.
+
+VERIFIED BY RUNNING AGAINST THE LIVE DATABASE, not by compiling. The real `ClientTasksPanel` was
+constructed off the built exe with a seeded ticket at a test window and reloaded: header reads
+"ZZQ-901 / MARIA CLARA SANTOS / 0917 555 0101 · SENIOR LANE · ID: Senior Citizen (OSCA) · issued
+08:10 AM", the current-task card carries all eight CTC detail lines, the pending card carries
+none (correctly — the CTC note did not leak onto Birth Registration), and the three buttons
+enable on the right states. Abandon-one wrote status/reason/user/timestamp; outstanding then
+correctly counted 1 (the abandoned task excluded) so CompleteVisit still refused; abandon-all
+closed the ticket `Completed`/`Abandoned` with the window freed, after which a reload hid the
+drawer. Zero leftovers. The kiosk's own `SaveCtcRequest` was driven through the real code path
+and read back column by column; `Validate` was exercised both ways (passes complete, refuses a
+missing owner name with the client-facing sentence). The CTC step was rendered at Birth and at
+Marriage: ZERO overlapping controls, nothing outside the card, headings following the document
+("WHOSE RECORD — THE CHILD" / "Date of birth" / "PARENTS ON THE RECORD"), and the conditional
+block nulled on save in both directions. Panel and form renders were looked at, not just measured.
+
+MSBuild exit 0, 0 warnings 0 errors across CROMS, CROMS.Display and CROMS.Kiosk (temp OutputPath
+— REBUILD IN VS to pick it up). Migration 55 registered in the csproj.
+
+HARNESS TRAPS worth keeping, all three cost a run each: PowerShell UNROLLS a DataTable returned
+from a function into its DataRows, so `.Rows` comes back null — return `,$table`. It also
+re-wraps anything placed in an `@()` array as a PSObject, which reflection then refuses to bind
+to `MySqlParameter[]` — build the argument array element by element. And a harness that leaves
+rows behind will have the panel pick the NEWEST matching ticket while the test data hangs off the
+older one, which reads exactly like a product bug; clear the seed first.
+
+NOT DONE, stated plainly: the BREQS desk and the OCR/Document AI paths do not read `ctc_requests`
+— the intake reaches the window and Certificate Request, and nothing else. Nothing yet links a
+`ctc_requests` row to the `certificate_requests` row a clerk creates from it (the column exists,
+`transaction_id`, and is left NULL), so the two cannot yet be reported on together. And the
+abandon reason is free text beside a suggested list, so it is a note, not a category — counting
+abandonments BY reason would need the list fixed first, which is the office's call.

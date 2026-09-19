@@ -759,6 +759,7 @@
     <None Include="Database\52_petition_documents.sql" />
     <None Include="Database\53_requirement_bypass.sql" />
     <None Include="Database\54_mobile_scan_upload.sql" />
+    <None Include="Database\55_ctc_request_details.sql" />
     <None Include="Database\46_marriage_registration_birthplace.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />

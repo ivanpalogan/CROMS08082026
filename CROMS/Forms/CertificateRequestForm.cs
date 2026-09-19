@@ -53,12 +53,56 @@ namespace CROMS.Forms
                 ShowPhoto(row["id_image"]);
             }
 
+            PrefillFromCtcIntake(ticketId);
+
             pillQueueRef.Text = "Queue ticket " + ticketCode +
                 (contact.Length > 0 ? "   ·   " + contact : "");
             pillQueueRef.Visible = true;
             cardPhoto.Visible = true;
             UpdateSummary();
             txtFirst.Focus();
+        }
+
+        /// <summary>
+        /// Overwrites the kiosk's one-line note with the structured intake the client actually
+        /// filled in (migration 55), so the clerk starts from the request rather than retyping
+        /// it. The NAME on the form stays the person AT THE COUNTER — the record owner can be
+        /// someone else entirely (a parent collecting a child's certificate), and confusing the
+        /// two would file the request under the wrong requester.
+        /// <para/>
+        /// Silent when there is no intake row: a counter-created request and a database still on
+        /// migration 54 both have to keep working.
+        /// </summary>
+        private void PrefillFromCtcIntake(int ticketId)
+        {
+            try
+            {
+                System.Data.DataTable c = Db.Pull(
+                    "SELECT doc_type, copies, purpose, registry_no, owner_first, owner_middle, owner_last " +
+                    "FROM ctc_requests WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
+                    new MySqlParameter("@id", ticketId));
+                if (c.Rows.Count == 0) return;
+                System.Data.DataRow r = c.Rows[0];
+
+                string doc = Text2(r["doc_type"]);
+                if (doc == "Birth" || doc == "Marriage" || doc == "Death") cboRecordType.SelectedItem = doc;
+
+                int copies;
+                if (r["copies"] != DBNull.Value && int.TryParse(r["copies"].ToString(), out copies) && copies > 0)
+                    txtCopies.Text = copies.ToString();
+
+                string purpose = Text2(r["purpose"]);
+                if (purpose.Length > 0) txtPurpose.Text = purpose;
+
+                // The record picker is a searchable combo bound to the registry rows, so typing
+                // the owner's name into it filters straight to the entry. Deliberately only a
+                // starting point: it is left for the clerk to CONFIRM against the list, since a
+                // kiosk-typed name is the client's spelling, not the registry's.
+                string owner = string.Join(" ", new[] { Text2(r["owner_last"]), Text2(r["owner_first"]) }
+                    .Where(p => p.Length > 0));
+                if (owner.Length > 0) cboRecord.Text = owner;
+            }
+            catch { /* no ctc_requests table yet, or a counter-created request */ }
         }
 
         private static string Text2(object v) => v == null || v == System.DBNull.Value ? "" : v.ToString();

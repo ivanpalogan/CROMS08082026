@@ -400,7 +400,9 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@date", DateTime.Today),
                 new MySqlParameter("@time", DateTime.Now.ToString("HH:mm")),
                 new MySqlParameter("@doc", s.HasCtc ? (object)s.CtcDocumentType : primary),
-                new MySqlParameter("@purpose", s.HasCtc ? NullIfBlank(s.CtcDetails) : DBNull.Value),
+                // One readable line for the screens that only have room for one (the live queue
+                // grid, the Now Serving card). The full structured request is in ctc_requests.
+                new MySqlParameter("@purpose", s.HasCtc ? NullIfBlank(CtcSummary(s)) : DBNull.Value),
                 new MySqlParameter("@label", joined),
                 new MySqlParameter("@priority", priority));
 
@@ -421,6 +423,7 @@ namespace CROMS.Kiosk
                     new MySqlParameter("@tid", ticketId));
 
             if (s.HasBreqs) SaveBreqsRequest(s, ticketId, code);
+            if (s.HasCtc) SaveCtcRequest(s, ticketId);
 
             EnsureClaimRequest(s);
             string claimToken = s.ClaimQrToken, claimNo = s.ClaimQrNo;
@@ -447,6 +450,8 @@ namespace CROMS.Kiosk
             if (s.HasBreqs && (error = BreqsProblem(s)) != null) return false;
             if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcDocumentType))
             { error = "Please choose the civil registry document for the Certified True Copy request."; return false; }
+            if (s.HasCtc && (string.IsNullOrWhiteSpace(s.CtcOwnerFirst) || string.IsNullOrWhiteSpace(s.CtcOwnerLast)))
+            { error = "Please enter the first and last name on the record you need a certified true copy of."; return false; }
 
             // Returning-client pickup: a typed queue number that maps to a parked request is
             // a reclaim — link the new ticket to that transaction and jump the queue.
@@ -465,6 +470,75 @@ namespace CROMS.Kiosk
             return true;
         }
 
+        // ------------------------------------------------ Certified True Copy (local record)
+        /// <summary>
+        /// The request in one line, for the places that only have room for one — "Birth CTC ·
+        /// 2 copies · SHELLIAN CLEAR TALOSIG · 2018-06-12 · Reg 2018-4555". Built from whatever
+        /// the client actually gave, so a sparse request stays short rather than padding with
+        /// empty separators.
+        /// </summary>
+        public static string CtcSummary(KioskSession s)
+        {
+            var parts = new List<string>();
+            if (!string.IsNullOrWhiteSpace(s.CtcDocumentType)) parts.Add(s.CtcDocumentType + " CTC");
+            if (s.CtcCopies > 1) parts.Add(s.CtcCopies + " copies");
+            string owner = Join(s.CtcOwnerFirst, s.CtcOwnerMiddle, s.CtcOwnerLast);
+            if (!string.IsNullOrWhiteSpace(owner)) parts.Add(owner);
+            string spouse = Join(s.CtcSpouseFirst, s.CtcSpouseMiddle, s.CtcSpouseLast);
+            if (!string.IsNullOrWhiteSpace(spouse)) parts.Add("& " + spouse);
+            if (s.CtcEventDate.HasValue) parts.Add(s.CtcEventDate.Value.ToString("yyyy-MM-dd"));
+            if (!string.IsNullOrWhiteSpace(s.CtcRegistryNo)) parts.Add("Reg " + s.CtcRegistryNo.Trim());
+            string line = string.Join(" · ", parts);
+            return line.Length > 150 ? line.Substring(0, 150) : line;
+        }
+
+        private static string Join(params string[] names)
+        {
+            var kept = new List<string>();
+            foreach (string n in names) if (!string.IsNullOrWhiteSpace(n)) kept.Add(n.Trim());
+            return string.Join(" ", kept);
+        }
+
+        /// <summary>
+        /// Writes the kiosk's Certified True Copy intake, linked to the new ticket. This is what
+        /// the CLIENT described, not a certificate request — staff create the
+        /// `certificate_requests` row once they have found the actual registry entry.
+        /// Never throws: a failure here must not cost the client their queue number, since the
+        /// details are also carried on the ticket and can be re-asked at the counter.
+        /// </summary>
+        public static void SaveCtcRequest(KioskSession s, long ticketId)
+        {
+            bool marriage = s.CtcDocumentType == "Marriage", birth = s.CtcDocumentType == "Birth";
+            try
+            {
+                Db.Push(
+                    "INSERT INTO ctc_requests (source, queue_ticket_id, doc_type, copies, purpose, relationship, registry_no, " +
+                    "owner_first, owner_middle, owner_last, spouse_first, spouse_middle, spouse_last, " +
+                    "event_date, event_city, event_province, father_name, mother_maiden_name, remarks, status) " +
+                    "VALUES ('Kiosk', @tid, @doc, @copies, @purpose, @rel, @reg, @of, @om, @ol, @sf, @sm, @sl, " +
+                    "@ed, @ec, @ep, @fa, @mo, @rem, 'Requested')",
+                    new MySqlParameter("@tid", ticketId),
+                    new MySqlParameter("@doc", s.CtcDocumentType),
+                    new MySqlParameter("@copies", Math.Max(1, s.CtcCopies)),
+                    new MySqlParameter("@purpose", NullIfBlank(s.CtcPurpose)),
+                    new MySqlParameter("@rel", NullIfBlank(s.CtcRelationship)),
+                    new MySqlParameter("@reg", NullIfBlank(s.CtcRegistryNo)),
+                    new MySqlParameter("@of", NullIfBlank(s.CtcOwnerFirst)),
+                    new MySqlParameter("@om", NullIfBlank(s.CtcOwnerMiddle)),
+                    new MySqlParameter("@ol", NullIfBlank(s.CtcOwnerLast)),
+                    new MySqlParameter("@sf", marriage ? NullIfBlank(s.CtcSpouseFirst) : DBNull.Value),
+                    new MySqlParameter("@sm", marriage ? NullIfBlank(s.CtcSpouseMiddle) : DBNull.Value),
+                    new MySqlParameter("@sl", marriage ? NullIfBlank(s.CtcSpouseLast) : DBNull.Value),
+                    new MySqlParameter("@ed", s.CtcEventDate.HasValue ? (object)s.CtcEventDate.Value.Date : DBNull.Value),
+                    new MySqlParameter("@ec", NullIfBlank(s.CtcEventCity)),
+                    new MySqlParameter("@ep", NullIfBlank(s.CtcEventProvince)),
+                    new MySqlParameter("@fa", birth ? NullIfBlank(s.CtcFatherName) : DBNull.Value),
+                    new MySqlParameter("@mo", birth ? NullIfBlank(s.CtcMotherMaidenName) : DBNull.Value),
+                    new MySqlParameter("@rem", NullIfBlank(s.CtcDetails)));
+            }
+            catch { /* ticket already exists; the counter can re-ask */ }
+        }
+
         // ------------------------------------------------------------ PSA copy (BREQS)
         public static readonly string[] BreqsDocTypes = { "Birth", "Marriage", "Death" };
         // Same lists as CROMS.Data.BreqsService on the staff side (the kiosk has no reference to CROMS.exe).
@@ -473,6 +547,13 @@ namespace CROMS.Kiosk
         public static readonly string[] BreqsPurposes =
             { "Passport / DFA", "School / Enrollment", "Employment", "SSS / GSIS / PhilHealth", "Travel / Visa",
               "Marriage", "Legal / Court", "Personal copy", "Others" };
+
+        // A certified true copy is asked for by the same people for the same reasons as a PSA
+        // copy, so the two share one wording — which also keeps them comparable in the monthly
+        // report. Declared AFTER the arrays they alias: a static field initialiser that reads a
+        // field declared further down runs first and reads null.
+        public static readonly string[] CtcPurposes = BreqsPurposes;
+        public static readonly string[] CtcRelationships = BreqsRelationships;
 
         /// <summary>What is still missing from a PSA copy request, in the client's words; null when complete.</summary>
         public static string BreqsProblem(KioskSession s)

@@ -48,7 +48,18 @@ namespace CROMS.Kiosk
 
         // Certified True Copy only — captured once at the kiosk and carried into the
         // staff Certificate Request form with the queue task.
-        public string CtcDocumentType, CtcDetails;
+        //
+        // These are deliberately SEPARATE from the Breqs*/Owner*/Event* fields above even
+        // though they ask similar things: one visit can request a PSA copy AND a local
+        // certified true copy of two different records, so they cannot share storage.
+        // CtcDetails is no longer the whole request — it is the leftover note beside the
+        // structured fields (see migration 55).
+        public string CtcDocumentType, CtcDetails, CtcPurpose, CtcRelationship, CtcRegistryNo;
+        public int CtcCopies = 1;
+        public string CtcOwnerFirst, CtcOwnerMiddle, CtcOwnerLast;
+        public string CtcSpouseFirst, CtcSpouseMiddle, CtcSpouseLast;
+        public System.DateTime? CtcEventDate;
+        public string CtcEventCity, CtcEventProvince, CtcFatherName, CtcMotherMaidenName;
 
         public bool HasClaim => Selected.Contains("CLAIM");
         public bool HasBreqs => Selected.Contains("BREQS");
@@ -85,7 +96,12 @@ namespace CROMS.Kiosk
             OwnerFirst = OwnerMiddle = OwnerLast = SpouseFirst = SpouseMiddle = SpouseLast = null;
             EventDate = null;
             EventCity = EventProvince = FatherName = MotherMaidenName = null;
-            CtcDocumentType = CtcDetails = null;
+            CtcDocumentType = CtcDetails = CtcPurpose = CtcRelationship = CtcRegistryNo = null;
+            CtcCopies = 1;
+            CtcOwnerFirst = CtcOwnerMiddle = CtcOwnerLast = null;
+            CtcSpouseFirst = CtcSpouseMiddle = CtcSpouseLast = null;
+            CtcEventDate = null;
+            CtcEventCity = CtcEventProvince = CtcFatherName = CtcMotherMaidenName = null;
         }
     }
 }
