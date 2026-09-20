@@ -5610,3 +5610,20 @@ VERIFIED: rendered through the .rpt with realistic sample values, looked at the 
 nudging. CROMS builds clean. NOT verified: a real record through the viewer, or a printout on paper.
 TODO FOR THE USER (asked to be reminded): print one real MF-102 on paper for EACH revision (2007 and 1993) and
 hold it against the office's own sheet - positions are eyeballed to ~1-2 pt; check tick boxes and long names.
+
+### 2026-09-20 (final) - Marriage (MF-97) and Death (MF-103) print maps completed
+Both blanks (Form97Blank.png, Form103Blank.png, the office's own sheets) were already right; the maps were
+INCOMPLETE - whole blocks the database holds were never printed. Found by rendering each .rpt with sample
+values and comparing to the sheet, and by listing v_marriage_certificate / v_death_certificate columns.
+MARRIAGE: added licence no / date / place ("I certify further that ..."), solemnizing officer's position,
+both witnesses, and the "received at the office of the civil registrar" block (name, title, date); removed a
+stale comment claiming the parents' names had no column (they do, since migration 30).
+DEATH: added antecedent + underlying cause (19b b/c), time of death and the certifier's name (22), place of
+disposal (25), and the whole of items 26 informant, 27 prepared by, 28 received by, 29 registered by.
+Regenerated MF-97-1993.rpt / MF-103-2016.rpt; rendered and looked at; two nudges (time of death, licence place).
+NOT PRINTED because the record holds no such value: marriage Sex row, both parents' citizenship rows, the
+"persons who gave consent or advice" block (names/relationship/residence), marriage-settlement tick boxes and
+the day/month of signing; death items 14-19a (medical certificate for ages 0-7 days), 19c maternal condition,
+19d external causes, 21 attendant, 24 permit numbers, 20 autopsy, and the certifier's title/address. Adding
+those needs columns (a migration) first - flagged, not invented. Same TODO as before: print a real page on
+paper for each form and compare with the office's sheet.

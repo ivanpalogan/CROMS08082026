@@ -863,9 +863,7 @@ namespace CROMS.Data
             cell("husband_civil_status", 195f, 414f, 7.5f, false);
             cell("wife_civil_status", 363f, 414f, 7.5f, false);
 
-            // The parents' rows are on the form and OCR reads them, but v_marriage_certificate
-            // has no column for them yet, so they print blank until the registry stores them.
-            // Kept mapped so adding the columns is the only change needed.
+            // The parents' names (v_marriage_certificate carries them since migration 30).
             cell("husband_father_name", 205f, 445f, 7.5f, false);
             cell("wife_father_name", 396f, 445f, 7.5f, false);
             cell("husband_mother_name", 205f, 501f, 7.5f, false);
@@ -879,6 +877,20 @@ namespace CROMS.Data
 
             // Above the "(Signature of Solemnizing Officer)" caption at y 1054.
             cell("solemnizer", 300f, 1042f, 8f, false);
+
+            // The certification's own blanks, read from the same view the rest of the sheet uses.
+            // "I certify further that: Marriage License No. ___ Issued on ___ , at ___".
+            cell("license_no", 252f, 971f, 7f, false);
+            cell("license_date", 378f, 971f, 7f, true);
+            cell("license_place", 178f, 981f, 7f, false);
+            // Position / designation of the solemnizing officer, then the two witnesses.
+            cell("solemnizer_position", 252f, 1071f, 7.5f, false);
+            cell("witness1_name", 94f, 1135f, 7.5f, false);
+            cell("witness2_name", 371f, 1135f, 7.5f, false);
+            // "Received at the office of the civil registrar" block (grey panel, right).
+            cell("received_by", 576f, 916f, 7f, false);
+            cell("received_by_title", 576f, 939f, 7f, false);
+            cell("received_by_date", 576f, 962f, 7f, true);
         }
 
         private static FormDefinition Death2016()
@@ -984,11 +996,39 @@ namespace CROMS.Data
             cell("father_name", 200f, 268f, 7.5f, false);
             cell("mother_name", 395f, 268f, 7.5f, false);
 
-            // 19b I. Immediate cause, on the "a." rule.
+            // 19b I. Immediate / antecedent / underlying cause, on the a. b. c. rules.
             cell("immediate_cause", 200f, 320f, 7.5f, false);
+            cell("antecedent_cause", 200f, 335f, 7.5f, false);
+            cell("underlying_cause", 200f, 352f, 7.5f, false);
 
-            // 23. Corpse disposal.
+            // 22. Certification of death: time of death, and the certifier's name in print.
+            cell("time_of_death", 304f, 503f, 7.5f, false);
+            cell("medical_certifier", 128f, 534f, 7.5f, false);
+
+            // 23. Corpse disposal, 25. Name and address of cemetery or crematory.
             cell("disposal_method", 82f, 610f, 7.5f, false);
+            cell("place_of_disposal", 72f, 637f, 7.5f, false);
+
+            // 26. Certification of informant (left column).
+            cell("informant_name", 119f, 702f, 7f, false);
+            cell("informant_relationship", 173f, 718f, 7f, false);
+            cell("informant_address", 101f, 734f, 7f, false);
+            cell("informant_date", 90f, 747f, 7f, true);
+
+            // 27. Prepared by (right column).
+            cell("prepared_by", 392f, 697f, 7f, false);
+            cell("prepared_by_title", 395f, 713f, 7f, false);
+            cell("prepared_by_date", 360f, 729f, 7f, true);
+
+            // 28. Received by (left column).
+            cell("received_by", 119f, 786f, 7f, false);
+            cell("received_by_title", 126f, 803f, 7f, false);
+            cell("received_by_date", 90f, 819f, 7f, true);
+
+            // 29. Registered at the office of the civil registrar (right column).
+            cell("registered_by", 392f, 786f, 7f, false);
+            cell("registered_by_title", 395f, 803f, 7f, false);
+            cell("registered_by_date", 360f, 819f, 7f, true);
         }
 
         /// <summary>
