@@ -15,19 +15,14 @@ namespace CROMS.Forms
     /// (name/password self-edit) only opens from the "Edit Profile" button below, or the
     /// header menu's own Edit Profile item.
     /// </summary>
-    internal sealed class ProfileViewForm : Form
+    internal sealed partial class ProfileViewForm : Form
     {
         private const int AvatarSize = 96;
         private byte[] _photoBytes;
 
         public ProfileViewForm()
         {
-            Text = "My Profile";
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            StartPosition = FormStartPosition.CenterParent;
-            MinimizeBox = false; MaximizeBox = false;
-            BackColor = UiTheme.PageBg;
-            ClientSize = new Size(360, 460);
+            InitializeComponent();
 
             try { _photoBytes = Session.User != null ? ProfilePhoto.Load(Session.User.Id) : null; }
             catch { _photoBytes = null; }

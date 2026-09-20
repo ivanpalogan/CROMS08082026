@@ -21,6 +21,11 @@ namespace CROMS.Forms
     /// </summary>
     public partial class TemplateManagementForm : Form, IRefreshable
     {
+        public TemplateManagementForm()
+        {
+            InitializeComponent();
+        }
+
         public void RefreshData() => BuildCards();
 
         private void BuildCards()
