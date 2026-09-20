@@ -73,6 +73,25 @@ namespace CROMS.ReportGen
                     Form3CCert.Cells, Form3CCert.BuildTable(0), form3cBlank);
                 Console.WriteLine("wrote : " + Path.Combine(outDir, Form3CCert.RptFile));
 
+                // The registry certificates (birth / marriage / death). Each is built from the
+                // form's own print map + blank-sheet image, exactly what the built-in overlay
+                // draws, so the Crystal report and the overlay place every value identically.
+                // A revision with no blank image (MF-102 1993) gets no report of its own:
+                // CertificateReport prints it through the current revision's report.
+                foreach (FormDefinition fd in FormCatalog.All)
+                {
+                    string blank = string.IsNullOrEmpty(fd.BlankAsset) ? null
+                        : Path.Combine(RepoRoot(), "CROMS", "Assets", fd.BlankAsset);
+                    if (blank == null || !File.Exists(blank) || fd.Cells.Count == 0 || string.IsNullOrEmpty(fd.RptFile))
+                    {
+                        Console.WriteLine("skip " + fd.FormCode + ": no blank-form image");
+                        continue;
+                    }
+                    Console.WriteLine("blank : " + blank);
+                    BuildRegistry(seed, outDir, fd, blank);
+                    Console.WriteLine("wrote : " + Path.Combine(outDir, fd.RptFile));
+                }
+
                 // Mission/Vision/Goal/Objectives/Core Values - no per-record data (every
                 // cell is Static text), same generation technique as the three above.
                 string mvcBlank = OfficeMissionCert.RenderBlankTemplate(outDir);
@@ -247,6 +266,121 @@ namespace CROMS.ReportGen
             rcd.SaveAs(rptFile, ref dir, 0);
             doc.Close();
             Console.WriteLine("fields: " + cells.Count(c => c.Kind == "Field"));
+        }
+
+        /// <summary>
+        /// Builds the Crystal report for one registry certificate from FormDefinition's print map:
+        /// the blank sheet as a full-page picture, then one string field per printed box (and a
+        /// blob field for the stamp) bound to the "cert_print" table CertificateReport.BuildPrintTable
+        /// fills at run time. The report holds no logic - dates, place splits and tick boxes are
+        /// already resolved in the table - so it cannot disagree with the overlay.
+        /// </summary>
+        private static void BuildRegistry(string seed, string outDir, FormDefinition fd, string blankPath)
+        {
+            var doc = new ReportDocument();
+            doc.Load(seed);
+            ISCDReportClientDocument rcd = doc.ReportClientDocument;
+
+            var ds = new DataSet("CROMS");
+            ds.Tables.Add(CertificateReport.BuildPrintTable(fd, null).Clone());
+            rcd.DatabaseController.AddDataSource(CrystalDecisions.ReportAppServer.DataSetConversion.DataSetConverter.Convert(ds));
+            DD.Table table = (DD.Table)rcd.Database.Tables[0];
+
+            int pageW = (int)(fd.PrintPage.Width * Twips), pageH = (int)(fd.PrintPage.Height * Twips);
+            rcd.PrintOutputController.ModifyUserPaperSize(pageH, pageW);
+            rcd.PrintOutputController.ModifyPageMargins(0, 0, 0, 0);
+
+            int bodyH = pageH - Twips;
+            RD.ReportDefinition def = rcd.ReportDefController.ReportDefinition;
+            ReportSectionController sections = rcd.ReportDefController.ReportSectionController;
+            foreach (RD.ISCRArea area in new RD.ISCRArea[] { def.ReportHeaderArea, def.PageHeaderArea, def.ReportFooterArea, def.PageFooterArea })
+                foreach (RD.Section sec in area.Sections)
+                {
+                    var f = (RD.SectionFormat)sec.Format.Clone(true);
+                    f.EnableSuppress = true;
+                    sections.SetProperty(sec, CrReportSectionPropertyEnum.crReportSectionPropertyFormat, f);
+                    sections.SetProperty(sec, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, 0);
+                }
+            RD.Section body = def.DetailArea.Sections[0];
+            sections.SetProperty(body, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, bodyH);
+
+            ReportObjectController objects = rcd.ReportDefController.ReportObjectController;
+
+            string gray = ToGrayBmp(blankPath);
+            RD.ISCRReportObject pic = objects.ImportPicture(gray, body, 0, 0);
+            var sized = (RD.ISCRReportObject)pic.Clone(true);
+            sized.Left = 0; sized.Top = 0; sized.Width = pageW; sized.Height = bodyH;
+            objects.Modify(pic, sized);
+
+            int n = 0;
+            foreach (CertificateReport.PrintBox box in CertificateReport.PrintBoxes(fd))
+            {
+                DD.Field field = table.DataFields.Cast<DD.Field>().First(x => string.Equals(x.Name, box.Column, StringComparison.OrdinalIgnoreCase));
+                var fo = new RD.FieldObject
+                {
+                    Name = box.Column,
+                    DataSourceName = field.FormulaForm,
+                    FieldValueType = field.Type,
+                    Left = (int)Math.Round(box.X * Twips),
+                    Top = (int)Math.Round(box.Y * Twips),
+                    Width = (int)Math.Round(box.Width * Twips),
+                    Height = (int)Math.Round(box.Height * Twips)
+                };
+                if (!box.IsStamp)
+                {
+                    var font = new RD.Font { Name = "Arial", Size = (decimal)box.FontSize, Bold = box.Bold };
+                    fo.FontColor = new RD.FontColor { Font = font, Color = 0 };
+                    fo.Format = new RD.ObjectFormat
+                    {
+                        HorizontalAlignment = box.Bold ? RD.CrAlignmentEnum.crAlignmentHorizontalCenter : RD.CrAlignmentEnum.crAlignmentLeft,
+                        EnableCanGrow = false
+                    };
+                }
+                objects.Add(fo, body, -1);
+                n++;
+            }
+
+            // Height LAST (see BuildMf90): importing the picture grows the section.
+            sections.SetProperty(body, CrReportSectionPropertyEnum.crReportSectionPropertyHeight, bodyH);
+
+            string target = Path.Combine(outDir, fd.RptFile);
+            if (File.Exists(target)) File.Delete(target);
+            object dir = outDir;
+            rcd.SaveAs(fd.RptFile, ref dir, 0);
+            doc.Close();
+            try { File.Delete(gray); } catch { }
+            Console.WriteLine("fields: " + n);
+        }
+
+        /// <summary>Crystal stores an embedded picture as an uncompressed bitmap; the blank sheets
+        /// are black line art, so 8-bit grayscale is a fraction of the size with no visible change.</summary>
+        private static string ToGrayBmp(string path)
+        {
+            string outPath = Path.Combine(Path.GetTempPath(), "croms-blank-" + Path.GetFileNameWithoutExtension(path) + ".bmp");
+            using (var src = new System.Drawing.Bitmap(path))
+            using (var dst = new System.Drawing.Bitmap(src.Width, src.Height, System.Drawing.Imaging.PixelFormat.Format8bppIndexed))
+            {
+                var pal = dst.Palette;
+                for (int i = 0; i < 256; i++) pal.Entries[i] = System.Drawing.Color.FromArgb(i, i, i);
+                dst.Palette = pal;
+                dst.SetResolution(150, 150);
+                var bd = dst.LockBits(new System.Drawing.Rectangle(0, 0, dst.Width, dst.Height), System.Drawing.Imaging.ImageLockMode.WriteOnly, dst.PixelFormat);
+                var row = new byte[dst.Width];
+                for (int y = 0; y < dst.Height; y++)
+                {
+                    for (int x = 0; x < dst.Width; x++)
+                    {
+                        System.Drawing.Color c = src.GetPixel(x, y);
+                        double a = c.A / 255.0;   // flatten alpha onto white
+                        double v = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) * a + 255 * (1 - a);
+                        row[x] = (byte)Math.Round(v);
+                    }
+                    System.Runtime.InteropServices.Marshal.Copy(row, 0, bd.Scan0 + y * bd.Stride, dst.Width);
+                }
+                dst.UnlockBits(bd);
+                dst.Save(outPath, System.Drawing.Imaging.ImageFormat.Bmp);
+            }
+            return outPath;
         }
 
         private static string FindSeed()

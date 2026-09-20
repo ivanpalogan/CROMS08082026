@@ -5542,3 +5542,29 @@ VERIFIED: health connected; wrong env password -> unreachable + ER_ACCESS_DENIED
 the current IP. MSBuild clean (temp OutputPath - REBUILD IN VS). claimapp/ORCMobile are separate folders
 (no git) - changes are in place, not committed. Phone camera/upload not tested (no phone).
 STILL true: a self-signed cert shows one warning per phone (Advanced -> Proceed).
+
+### 2026-09-20 (later) - Birth / marriage / death certificates now print through a real Crystal .rpt
+Asked: the certificate should print through the birth certificate's .rpt like the other forms, and
+when a form has no blank image the .rpt should still be what prints.
+
+WHAT WAS WRONG. FormCatalog named `MF-102-2007.rpt` / `MF-97-1993.rpt` / `MF-103-2016.rpt` but none
+existed (only MF-90, FORM-3A/B/C, OFFICE-MVC had a .rpt), so the three registry certificates always
+fell to the built-in overlay; MF-102 (1993) has no blank image at all, so it dropped to the plain
+listing and asked "is the pre-printed form in the printer?".
+FIX. `CROMS.ReportGen` now builds the three .rpt files from the form's OWN print map + blank sheet
+(same Cells/Marks/StampRect the overlay draws, via new `CertificateReport.PrintBoxes`), so the two
+cannot place a value differently. The report binds to a one-row `cert_print` table that
+`CertificateReport.BuildPrintTable` fills at run time (dates formatted, place split, tick box = "X"),
+so the .rpt holds no logic. `CrystalRunner` recognises a generated report by that table name and
+still binds the flat view for a hand-authored one. `CertificateReport.Render`: a revision with no own
+.rpt and no blank image (MF-102 1993) now prints through the current revision's .rpt (2007) instead
+of the listing; a revision WITH a blank but no .rpt still uses the overlay. No Crystal runtime or a
+failing report still falls back exactly as before.
+VERIFIED. Generator run: MF-102-2007 58 fields, MF-97 33, MF-103 21 (MF-102-1993 skipped: no blank).
+Each .rpt loaded, bound to BuildPrintTable and exported to PDF, rasterised and looked at: blank form
+plus values and X marks in their boxes, 1 page at 792x1224 / 792x1224 / 612x936 pt. CROMS builds
+clean (0 errors) into bin\Debug. The Crystal VIEWER dialog itself (CrystalRunner.Show) was not opened
+- no interactive desktop; the binding it does was exercised headlessly.
+NOT FIXED / KNOWN: Form102Blank.png is still the 1993-numbered sheet registered as the 2007 blank
+(see 2026-09-10), so the 2007 .rpt embeds that sheet; swapping it needs the print map re-measured.
+The 1993 record printed on the 2007 layout carries only the fields both sheets share.

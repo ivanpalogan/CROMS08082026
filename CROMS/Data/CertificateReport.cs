@@ -152,6 +152,19 @@ namespace CROMS.Data
             }
 
             string rpt = ReportPath(def);
+            FormDefinition layout = def;
+            if (rpt == null && !def.HasBlankForm)
+            {
+                // This revision has no blank-form image, so it cannot be drawn as a replica
+                // and has no report of its own. Print it through the Crystal report of the
+                // birth / marriage / death certificate the office issues today instead of
+                // dropping to the plain listing - the record's values are the same view
+                // columns whichever revision it was registered on.
+                FormDefinition cur = FormCatalog.Current(def.FormType);
+                string curRpt = cur != null && !ReferenceEquals(cur, def) && cur.HasBlankForm
+                    ? ReportPath(cur) : null;
+                if (curRpt != null) { rpt = curRpt; layout = cur; }
+            }
             if (rpt != null && CrystalAvailable)
             {
                 // Isolated in its own type so this method stays JIT-safe on a machine with
@@ -163,7 +176,7 @@ namespace CROMS.Data
                     CrystalRunner.Show(rpt, def, data,
                         OfficeAssets.GetBytes(AssetKind.Logo, def.FormCode),
                         applyStamp ? OfficeAssets.GetBytes(AssetKind.Stamp, def.FormCode) : null,
-                        owner);
+                        owner, layout);
                     return ReportEngine.Crystal;
                 }
                 catch (Exception ex)
@@ -474,6 +487,118 @@ namespace CROMS.Data
             if (part < 0) return value;
             string[] bits = value.Split(',');
             return part < bits.Length ? bits[part].Trim() : "";
+        }
+
+        // ---- print table: what a generated Crystal report binds to -----------------
+
+        /// <summary>Name of the one-row table a generated registry-certificate .rpt binds to.
+        /// CrystalRunner recognises a report by it.</summary>
+        public const string PrintTableName = "cert_print";
+        public const string StampColumn = "stamp_image";
+
+        /// <summary>One box on the generated report: where a value (or a tick, or the stamp)
+        /// is placed, in points from the top-left of the page.</summary>
+        public class PrintBox
+        {
+            public string Column;
+            public float X, Y, Width, Height, FontSize;
+            public bool Bold, IsStamp;
+        }
+
+        /// <summary>
+        /// The boxes of a form's report, read from the SAME print map (Cells / Marks /
+        /// StampRect) the built-in overlay draws from, so the Crystal report and the overlay
+        /// cannot place a value in different spots. Column names are positional (c000, k000)
+        /// because one stored column can feed several boxes (place of birth feeds three).
+        /// </summary>
+        public static List<PrintBox> PrintBoxes(FormDefinition def)
+        {
+            var list = new List<PrintBox>();
+            float W = def.PrintPage.Width, H = def.PrintPage.Height;
+            for (int i = 0; i < def.Cells.Count; i++)
+            {
+                PrintCell c = def.Cells[i];
+                float x = c.At.X * W, y = c.At.Y * H;
+                list.Add(new PrintBox
+                {
+                    Column = "c" + i.ToString("000"),
+                    X = x, Y = y,
+                    // Wide on purpose: a box on paper cannot grow, so it only clips at the
+                    // page edge, exactly like the overlay's DrawString.
+                    Width = Math.Max(20f, W - x - 6f),
+                    Height = c.FontSize * 1.6f,
+                    FontSize = c.FontSize
+                });
+            }
+            for (int i = 0; i < def.Marks.Count; i++)
+            {
+                PrintMark m = def.Marks[i];
+                list.Add(new PrintBox
+                {
+                    Column = "k" + i.ToString("000"),
+                    X = m.At.X * W, Y = m.At.Y * H, Width = 16f, Height = 15f,
+                    FontSize = 9f, Bold = true
+                });
+            }
+            if (!def.StampRect.IsEmpty)
+                list.Add(new PrintBox
+                {
+                    Column = StampColumn, IsStamp = true,
+                    X = def.StampRect.X * W, Y = def.StampRect.Y * H,
+                    Width = def.StampRect.Width * W, Height = def.StampRect.Height * H
+                });
+            return list;
+        }
+
+        /// <summary>
+        /// The one-row table a generated report binds to: every printed box already resolved
+        /// to its final text (dates formatted, place split into its boxes, a tick box as "X"
+        /// or blank), so the report only PLACES text and holds no logic of its own. Pass a
+        /// null row for the empty schema the generator builds the .rpt from.
+        /// </summary>
+        public static DataTable BuildPrintTable(FormDefinition def, DataRow row, byte[] stamp = null)
+        {
+            var t = new DataTable(PrintTableName);
+            foreach (PrintBox b in PrintBoxes(def))
+                t.Columns.Add(b.Column, b.IsStamp ? typeof(byte[]) : typeof(string));
+
+            DataRow r = t.NewRow();
+            foreach (DataColumn c in t.Columns)
+                if (c.DataType == typeof(string)) r[c] = "";
+
+            if (row != null)
+            {
+                for (int i = 0; i < def.Cells.Count; i++)
+                {
+                    PrintCell c = def.Cells[i];
+                    r["c" + i.ToString("000")] = Part(Value(row, c.Column, c.IsDate), c.Part);
+                }
+                // Same "which option matched" rule as the overlay: the catch-all "*" only
+                // fires when the value matched none of that column's listed options.
+                foreach (var byColumn in def.Marks.GroupBy(m => m.Column,
+                                                           StringComparer.OrdinalIgnoreCase))
+                {
+                    string v = Value(row, byColumn.Key);
+                    if (v.Length == 0) continue;
+                    PrintMark hit = byColumn.FirstOrDefault(m => m.WhenValue != "*" &&
+                        v.StartsWith(m.WhenValue, StringComparison.OrdinalIgnoreCase))
+                        ?? byColumn.FirstOrDefault(m => m.WhenValue == "*");
+                    if (hit != null) r["k" + def.Marks.IndexOf(hit).ToString("000")] = "X";
+                }
+            }
+            if (t.Columns.Contains(StampColumn))
+                r[StampColumn] = (object)stamp ?? DBNull.Value;
+            t.Rows.Add(r);
+            t.AcceptChanges();
+            return t;
+        }
+
+        /// <summary>Full path of a form's blank-sheet image, or null if it is not on file.</summary>
+        public static string BlankPath(FormDefinition def)
+        {
+            if (def == null || string.IsNullOrEmpty(def.BlankAsset)) return null;
+            string p = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", def.BlankAsset);
+            return File.Exists(p) ? p : null;
         }
 
         // ---- overlay: a visual replica of the paper form --------------------------
