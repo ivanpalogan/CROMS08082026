@@ -16,20 +16,17 @@ namespace CROMS.Display
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // If the saved/localhost database isn't reachable (e.g. the server's
-            // Wi-Fi/hotspot IP changed), auto-scan the LAN to find it before opening
-            // the board — same behaviour as the main app, no IP to type.
-            try
-            {
-                if (!ServerConfig.IsReachable())
-                {
-                    string ip = ServerConfig.DiscoverServerAsync(3306).GetAwaiter().GetResult();
-                    if (!string.IsNullOrEmpty(ip)) ServerConfig.Save(ip, 3306);
-                }
-            }
+            // Find the machine that is actually SERVING the registry before opening the
+            // board. Checking only "can a database be opened" is not enough: this PC
+            // very likely has its own MySQL and its own croms database, and a board
+            // showing an empty local copy looks exactly like a board that is working.
+            // EnsureBestServer takes the server whose beacon is freshest, and sweeps the
+            // LAN only when the one in effect is unreachable or unserved.
+            try { ServerConfig.EnsureBestServer(); }
             catch { /* board will show "waiting for connection…" and keep polling */ }
 
-            // Keep reconnecting if the server's IP changes while the board is running.
+            // Keep following the server while the board runs — its IP can change, and
+            // the office can move the registry to the other laptop mid-day.
             ServerConfig.StartAutoReconnect();
 
             Application.Run(new DisplayForm());

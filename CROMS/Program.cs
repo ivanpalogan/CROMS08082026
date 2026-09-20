@@ -49,10 +49,20 @@ namespace CROMS
             // Make sure we know where the database server is AND can reach it.
             // First run: ask for the server IP. Later: if the server moved / is
             // unreachable, re-ask instead of failing with a cryptic error.
+            // If THIS PC hosts the database, say so before going looking for a server:
+            // the search then sees a live beacon and returns instantly instead of
+            // sweeping the LAN on every launch of the server machine.
+            ServerBeacon.BeatNow();
+
             if (!EnsureServerReachable()) return;   // user chose Exit
 
-            // Keep reconnecting if the server's Wi-Fi/hotspot IP changes mid-session.
+            // Keep reconnecting if the server's Wi-Fi/hotspot IP changes mid-session,
+            // or if this PC drifts onto a database nobody is serving.
             ServerConfig.StartAutoReconnect();
+
+            // Tell every kiosk / display / client on the LAN which machine is serving
+            // the registry. Writes only while this PC is the host (see ServerBeacon).
+            ServerBeacon.Start();
 
             // Auto-start the Ionic mobile dev server (background). The Login screen
             // shows its live status + mobile URL + QR. Guaranteed shutdown below.
@@ -123,20 +133,13 @@ namespace CROMS
         /// </summary>
         private static bool EnsureServerReachable()
         {
-            if (Db.IsConnected()) return true;   // already good — nothing to ask
-
-            // Server unreachable — either never configured (first run) or the saved
-            // server moved to a new Wi-Fi/hotspot IP. Either way, try to auto-find it
-            // on the network FIRST. If found, save it and carry on with zero clicks.
-            {
-                int port = ServerConfig.Port > 0 ? ServerConfig.Port : 3306;
-                string found = ServerSetupForm.AutoDiscover(port);
-                if (!string.IsNullOrEmpty(found))
-                {
-                    ServerConfig.Save(found, port);
-                    if (Db.IsConnected()) return true;
-                }
-            }
+            // NOT just "does a connection open". Every office PC has MySQL and a croms
+            // database installed, so opening one proves nothing about whether it is the
+            // live registry — a client PC that answers on localhost would quietly run
+            // against its own empty copy. EnsureBestServer adopts the machine whose
+            // server_beacon is freshest, and only sweeps the LAN when the database in
+            // effect is unreachable or unserved.
+            if (ServerConfig.EnsureBestServer() && Db.IsConnected()) return true;
 
             string msg = ServerConfig.IsConfigured
                 ? "Couldn't reach the CROMS database at " + ServerConfig.Host +

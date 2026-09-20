@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
@@ -17,8 +17,11 @@ namespace CROMS.Display
     /// (the same file the main CROMS app writes). Overrides the Server/Port of this
     /// app's App.config "Croms" string. When pointed at a REMOTE host it automatically
     /// uses the LAN account (croms_user) — the App.config root account is localhost-only.
-    /// If nothing is saved and localhost fails, <see cref="DiscoverServerAsync"/> sweeps
-    /// the LAN to auto-find the server on the current Wi-Fi/hotspot (no IP to type).
+    ///
+    /// The board does NOT trust "localhost opened" as proof it has the live registry:
+    /// this PC almost certainly has its own MySQL and its own <c>croms</c> database, and
+    /// a board quietly showing an empty local copy looks exactly like a board working.
+    /// See the server-beacon section below; mirrors CROMS/Data/ServerConfig.cs.
     /// </summary>
     internal static class ServerConfig
     {
@@ -131,27 +134,180 @@ namespace CROMS.Display
             catch { return Base; }
         }
 
-        /// <summary>True if the current effective connection opens.</summary>
-        public static bool IsReachable()
+
+        /// <summary>
+        /// Same connection string, but with a short connect timeout: a sweep touches
+        /// every answering host on the LAN and must not stall for MySQL's default
+        /// 15 seconds on one router or printer that happens to listen on 3306.
+        /// Probing only — the real connection keeps the normal timeout.
+        /// </summary>
+        private static string ProbeFor(string host, int port)
         {
-            try { using (var c = new MySqlConnection(EffectiveConnectionString)) { c.Open(); return true; } }
+            try
+            {
+                var b = new MySqlConnectionStringBuilder(BuildFor(host, port));
+                b.ConnectionTimeout = 4;
+                return b.ConnectionString;
+            }
+            catch { return BuildFor(host, port); }
+        }
+
+        /// <summary>True if the current effective connection opens.</summary>
+        public static bool IsReachable() { return Opens(EffectiveConnectionString); }
+
+        /// <summary>True if host:port accepts the CROMS credentials.</summary>
+        public static bool TestConnection(string host, int port) { return Opens(BuildFor(host, port)); }
+
+        private static bool Opens(string connectionString)
+        {
+            try { using (var c = new MySqlConnection(connectionString)) { c.Open(); return true; } }
             catch { return false; }
         }
 
-        /// <summary>True if host:port accepts the CROMS credentials.</summary>
-        public static bool TestConnection(string host, int port)
+        // ---- Which machine is actually SERVING the registry ---------------------
+        // server_beacon (migration 56) is stamped by the CROMS app running on the
+        // machine that HOSTS the database. Comparing beacon ages is what tells this
+        // board apart from its own idle local copy of `croms`. The age is computed by
+        // the answering server against its OWN clock, so clock skew between two
+        // laptops cannot distort the comparison.
+
+        public const int LiveBeaconSeconds = 150;
+
+        private const string BeaconAgeSql =
+            "SELECT TIMESTAMPDIFF(SECOND, updated_at, NOW()) FROM server_beacon WHERE id = 1";
+
+        /// <summary>
+        /// Seconds since that database's beacon was written; null when unreachable, not
+        /// migrated, or never served. Null always LOSES — an untouched local copy must
+        /// never beat the real server.
+        /// </summary>
+        public static int? BeaconAge(string connectionString)
         {
-            try { using (var c = new MySqlConnection(BuildFor(host, port))) { c.Open(); return true; } }
-            catch { return false; }
+            try
+            {
+                using (var c = new MySqlConnection(connectionString))
+                {
+                    c.Open();
+                    using (var cmd = new MySqlCommand(BeaconAgeSql, c))
+                    {
+                        cmd.CommandTimeout = 5;
+                        object o = cmd.ExecuteScalar();
+                        if (o == null || o == DBNull.Value) return null;
+                        int age = Convert.ToInt32(o);
+                        return age < 0 ? 0 : age;
+                    }
+                }
+            }
+            catch { return null; }
+        }
+
+        public static int? CurrentBeaconAge() { return BeaconAge(EffectiveConnectionString); }
+
+        public sealed class ServerCandidate
+        {
+            public string Host;
+            public int? Age;
+            public int Rank;
+            public bool IsLive { get { return Age.HasValue && Age.Value <= LiveBeaconSeconds; } }
+        }
+
+        private static bool Beats(ServerCandidate a, ServerCandidate b)
+        {
+            if (b == null) return true;
+            if (a.Age.HasValue != b.Age.HasValue) return a.Age.HasValue;
+            if (a.Age.HasValue && a.Age.Value != b.Age.Value) return a.Age.Value < b.Age.Value;
+            return a.Rank < b.Rank;
+        }
+
+        /// <summary>
+        /// Sweep every /24 this PC is on (plus the saved host, the App.config host and
+        /// localhost) and return the server with the FRESHEST beacon. Falls back to any
+        /// host that accepts the CROMS credentials when no beacon is found anywhere.
+        /// </summary>
+        public static async Task<ServerCandidate> DiscoverBestAsync(int port = 3306)
+        {
+            var hosts = new List<string>();
+            Action<string> add = h =>
+            {
+                if (string.IsNullOrWhiteSpace(h)) return;
+                h = h.Trim();
+                if (!hosts.Any(x => string.Equals(x, h, StringComparison.OrdinalIgnoreCase))) hosts.Add(h);
+            };
+            add(Host);
+            try { add(new MySqlConnectionStringBuilder(Base).Server); } catch { }
+            add("127.0.0.1");
+            foreach (var h in CandidateHosts()) add(h);
+            if (hosts.Count == 0) return null;
+
+            ServerCandidate best = null;
+            object bestLock = new object();
+            var gate = new SemaphoreSlim(64);
+
+            var tasks = hosts.Select(async (ip, index) =>
+            {
+                await gate.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    if (!await PortOpenAsync(ip, port, 400).ConfigureAwait(false)) return;
+                    string cs = ProbeFor(ip, port);
+                    int? age = BeaconAge(cs);
+                    if (!age.HasValue && !Opens(cs)) return;
+                    var c = new ServerCandidate { Host = ip, Age = age, Rank = index };
+                    lock (bestLock) { if (Beats(c, best)) best = c; }
+                }
+                catch { }
+                finally { gate.Release(); }
+            }).ToArray();
+
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+            return best;
+        }
+
+        /// <summary>Address of the best server found, or null.</summary>
+        public static async Task<string> DiscoverServerAsync(int port = 3306)
+        {
+            var best = await DiscoverBestAsync(port).ConfigureAwait(false);
+            return best == null ? null : best.Host;
+        }
+
+        /// <summary>
+        /// Point the board at the machine that is really serving the registry. Cheap
+        /// when already correct (a live beacon skips the sweep entirely); sweeps only
+        /// when the database is unreachable OR nobody is serving the one we are on —
+        /// which is exactly the "board showing its own empty local copy" case.
+        /// </summary>
+        public static bool EnsureBestServer()
+        {
+            int port = Port > 0 ? Port : 3306;
+            int? cur = CurrentBeaconAge();
+            if (cur.HasValue && cur.Value <= LiveBeaconSeconds) return true;
+
+            ServerCandidate best;
+            try { best = DiscoverBestAsync(port).GetAwaiter().GetResult(); }
+            catch { best = null; }
+
+            if (best != null && !string.IsNullOrEmpty(best.Host))
+            {
+                bool fresher = best.Age.HasValue && (!cur.HasValue || best.Age.Value < cur.Value);
+                bool nothingNow = !cur.HasValue && !IsReachable();
+                if (fresher || nothingNow)
+                {
+                    if (!string.Equals(best.Host, Host, StringComparison.OrdinalIgnoreCase))
+                        Save(best.Host, port);
+                    return IsReachable();
+                }
+            }
+            return cur.HasValue || IsReachable();
         }
 
         private static Timer _reconnect;
         private static int _reconnecting;
+        private static DateTime _lastSweep = DateTime.MinValue;
 
         /// <summary>
-        /// Background watcher: while the DB is unreachable (server Wi-Fi/hotspot IP changed
-        /// mid-session), re-scan the LAN and adopt the new IP — the board reconnects with no
-        /// restart. Idle while healthy. Call once at startup.
+        /// Background watcher: keeps the board on the machine that is serving the
+        /// registry. Handles both the server's IP changing and the quieter failure of
+        /// still reaching a database nobody is serving. Idle while healthy.
         /// </summary>
         public static void StartAutoReconnect(int intervalMs = 15000)
         {
@@ -164,43 +320,14 @@ namespace CROMS.Display
             if (Interlocked.Exchange(ref _reconnecting, 1) == 1) return;
             try
             {
-                if (IsReachable()) return;
-                string ip = DiscoverServerAsync(Port).GetAwaiter().GetResult();
-                if (!string.IsNullOrEmpty(ip) &&
-                    !string.Equals(ip, Host, StringComparison.OrdinalIgnoreCase))
-                    Save(ip, Port);
+                int? age = CurrentBeaconAge();
+                if (age.HasValue && age.Value <= LiveBeaconSeconds) return;
+                if (IsReachable() && (DateTime.UtcNow - _lastSweep).TotalSeconds < 120) return;
+                _lastSweep = DateTime.UtcNow;
+                EnsureBestServer();
             }
             catch { }
             finally { Interlocked.Exchange(ref _reconnecting, 0); }
-        }
-
-        /// <summary>
-        /// Sweep every /24 subnet this PC is on, TCP-probe :port, and return the first
-        /// host that also accepts the CROMS credentials. Copes with the server's
-        /// Wi-Fi/hotspot IP changing — no one has to know the number.
-        /// </summary>
-        public static async Task<string> DiscoverServerAsync(int port = 3306)
-        {
-            var hosts = CandidateHosts();
-            if (hosts.Count == 0) return null;
-
-            var found = new TaskCompletionSource<string>();
-            var gate = new SemaphoreSlim(64);
-            var tasks = hosts.Select(async ip =>
-            {
-                await gate.WaitAsync().ConfigureAwait(false);
-                try
-                {
-                    if (found.Task.IsCompleted) return;
-                    if (await PortOpenAsync(ip, port, 400).ConfigureAwait(false) && TestConnection(ip, port))
-                        found.TrySetResult(ip);
-                }
-                catch { }
-                finally { gate.Release(); }
-            }).ToArray();
-
-            var winner = await Task.WhenAny(found.Task, Task.WhenAll(tasks)).ConfigureAwait(false);
-            return winner == found.Task ? found.Task.Result : null;
         }
 
         private static List<string> CandidateHosts()

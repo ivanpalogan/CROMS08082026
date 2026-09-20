@@ -23,6 +23,36 @@ namespace CROMS.Kiosk
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // Find the machine that is actually SERVING the registry BEFORE any client
+            // can touch the screen. This PC almost certainly has its own MySQL and its
+            // own croms database, so "localhost opened" would let the kiosk issue real
+            // queue numbers into a copy nobody is watching — a failure that looks
+            // exactly like the kiosk working. EnsureBestServer takes the server whose
+            // beacon is freshest and only sweeps the LAN when the one in effect is
+            // unreachable or unserved.
+            bool online;
+            try { online = ServerConfig.EnsureBestServer(); }
+            catch { online = false; }
+
+            if (!online)
+            {
+                // Said once, plainly, to whoever is setting the kiosk up — not to a
+                // client halfway through a transaction. The watcher below keeps trying,
+                // so the kiosk recovers on its own once the office PC is up.
+                MessageBox.Show(
+                    "This kiosk cannot reach the CROMS server yet.\r\n\r\n" +
+                    "Check that the office computer running CROMS is switched on and that " +
+                    "this kiosk is on the same Wi-Fi or hotspot. The kiosk will keep trying " +
+                    "and will connect on its own once the server is available.",
+                    "CROMS Kiosk — no server found",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+
+            // Keep following the server while the kiosk runs — its IP can change, and
+            // the office can move the registry to the other laptop mid-day.
+            ServerConfig.StartAutoReconnect();
+
             LocalServices.Start();   // best-effort: brings up claimapp + save-API if nothing already did
             RunFlow();
         }

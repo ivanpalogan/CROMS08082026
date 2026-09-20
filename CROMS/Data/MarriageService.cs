@@ -271,6 +271,16 @@ namespace CROMS.Data
         }
 
         /// <summary>
+        /// Clears an attached document. Status is left as-is - removing the file does not
+        /// silently reopen a requirement that staff already marked Verified/Submitted; the
+        /// operator sees "Attach" again and can change the status themselves if it applies.
+        /// </summary>
+        public static void RemoveRequirementAttachment(int reqId)
+        {
+            Db.Push("UPDATE marriage_requirements SET attachment=NULL, attachment_name=NULL WHERE id=@id", P("@id", reqId));
+        }
+
+        /// <summary>
         /// Make the requirement rows match what the rules say this couple needs. Missing rows
         /// are created. A row that is no longer needed is removed ONLY when nobody has touched
         /// it; one carrying a status, attachment or reference is kept (the screen marks it

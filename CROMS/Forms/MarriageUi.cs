@@ -1054,11 +1054,29 @@ namespace CROMS.Forms
             {
                 var menu = new ContextMenuStrip();
                 menu.Items.Add("View", null, (s, a) => { string n; MUi.OpenAttachment(this, MarriageService.RequirementAttachment(r.Id, out n), n); });
-                if (!ReadOnlyGrid) menu.Items.Add("Replace...", null, (s, a) => Upload(r, e.RowIndex));
+                if (!ReadOnlyGrid)
+                {
+                    menu.Items.Add("Replace...", null, (s, a) => Upload(r, e.RowIndex));
+                    menu.Items.Add("Remove", null, (s, a) => RemoveAttachment(r));
+                }
                 Rectangle cell = _g.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, true);
                 menu.Show(_g, new Point(cell.Left, cell.Bottom));
             }
             else if (!ReadOnlyGrid) Upload(r, e.RowIndex);
+        }
+
+        private void RemoveAttachment(ReqRow r)
+        {
+            if (MessageBox.Show(this, "Remove the attached document for \"" + (r.Label ?? r.Code) + "\"?\n\n" +
+                "This deletes the file only - the status is left as it is.", "Remove attachment",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            try
+            {
+                MarriageService.RemoveRequirementAttachment(r.Id);
+                Bind(_owner, _ownerId, _needs.Values, _filter);
+                var h = Changed; if (h != null) h();
+            }
+            catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
         private void Upload(ReqRow r, int rowIndex)
