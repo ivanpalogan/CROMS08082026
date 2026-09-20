@@ -24,7 +24,7 @@ namespace CROMS.Forms
     /// form still shows a preview of the office-wide default when one exists, and prints
     /// with that fallback; a slot with neither never blocks printing, it just prints blank.
     /// </summary>
-    public class HeaderFooterImagesForm : Form
+    public partial class HeaderFooterImagesForm : Form
     {
         /// <summary>One image position this form's layout uses, and the caption shown
         /// beside it (e.g. "Header logo - left").</summary>
@@ -54,70 +54,13 @@ namespace CROMS.Forms
         private readonly string _formCode;
         private readonly string _formTitle;
         private readonly List<Row> _rows = new List<Row>();
-        private readonly Label _lblStatus = new Label();
 
         public HeaderFooterImagesForm(string formCode, string formTitle, IEnumerable<ImageFieldSpec> fields)
         {
             _formCode = formCode;
             _formTitle = formTitle;
 
-            Text = formTitle + " - Header & Footer Images";
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
-            MinimizeBox = false;
-            BackColor = UiTheme.PageBg;
-
-            var title = new Label
-            {
-                Text = formTitle,
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = UiTheme.Ink,
-                AutoSize = true,
-                Location = new Point(20, 16)
-            };
-            var sub = new Label
-            {
-                Text = "These images print in the header and footer of this form only. " +
-                       "A slot left empty here uses the office-wide default (Settings) if one exists, " +
-                       "or simply prints blank - it never stops the certificate from printing.",
-                Font = new Font("Segoe UI", 8.5f),
-                ForeColor = UiTheme.Muted,
-                AutoSize = false,
-                MaximumSize = new Size(660, 0),
-                Location = new Point(20, 44)
-            };
-            Controls.Add(title);
-            Controls.Add(sub);
-
-            int y = 80;
-            var list = new List<ImageFieldSpec>(fields);
-            foreach (ImageFieldSpec spec in list)
-            {
-                AddRow(spec.Kind, spec.Caption, y);
-                y += RowHeight;
-            }
-
-            _lblStatus.SetBounds(20, y + 6, 560, 34);
-            _lblStatus.Font = new Font("Segoe UI", 9f);
-            _lblStatus.ForeColor = UiTheme.Muted;
-            Controls.Add(_lblStatus);
-
-            var close = new Button
-            {
-                Text = "Close",
-                Location = new Point(600, y),
-                Size = new Size(90, 30),
-                FlatStyle = FlatStyle.Flat,
-                Font = new Font("Segoe UI", 9f)
-            };
-            close.Click += (s, e) => Close();
-            Controls.Add(close);
-
-            ClientSize = new Size(710, y + 60);
-
-            foreach (Row row in _rows) LoadRow(row);
-            UiTheme.Polish(this);
+            InitializeComponent(fields);
         }
 
         private void AddRow(AssetKind kind, string caption, int y)
