@@ -430,14 +430,29 @@ namespace CROMS.Data
             try
             {
                 if (string.IsNullOrEmpty(ip) || ip == "127.0.0.1") return;
-                if (CertCoversIp(ip)) return; // already fine — nothing to do
+                if (CertCoversIp(ip)) return; // already fine - nothing to do
 
+                // 1) ssl/make-cert.js - pure Node (the selfsigned package the app already
+                //    ships with), so it works on any PC that can run `ng serve`.
+                string js = Path.Combine(AppPath, "ssl", "make-cert.js");
+                if (File.Exists(js) && RunCertTool("cmd.exe", "/c node \"ssl/make-cert.js\" " + ip) && CertCoversIp(ip))
+                    return;
+
+                // 2) older apps: ssl/make-cert.sh through Git's bash + openssl, if installed.
                 string script = Path.Combine(AppPath, "ssl", "make-cert.sh");
                 if (!File.Exists(script)) return;
                 string bash = FindBash();
                 if (bash == null) return;
+                RunCertTool(bash, "\"" + script.Replace('\\', '/') + "\" " + ip);
+            }
+            catch { }
+        }
 
-                var psi = new ProcessStartInfo(bash, "\"" + script.Replace('\\', '/') + "\" " + ip)
+        private bool RunCertTool(string exe, string args)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(exe, args)
                 {
                     WorkingDirectory = AppPath,
                     UseShellExecute = false,
@@ -445,9 +460,16 @@ namespace CROMS.Data
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using (var p = Process.Start(psi)) { p.WaitForExit(20000); }
+                using (var p = Process.Start(psi))
+                {
+                    p.OutputDataReceived += (a, b) => { };
+                    p.ErrorDataReceived += (a, b) => { };
+                    p.BeginOutputReadLine(); p.BeginErrorReadLine();
+                    if (!p.WaitForExit(30000)) { try { p.Kill(); } catch { } return false; }
+                    return p.ExitCode == 0;
+                }
             }
-            catch { }
+            catch { return false; }
         }
 
         /// <summary>Locates Git for Windows' bash.exe (the one <c>ssl/make-cert.sh</c>

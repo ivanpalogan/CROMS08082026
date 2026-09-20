@@ -52,6 +52,7 @@ namespace CROMS.Data
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
+                PassDatabaseSettings(psi);
                 _proc = new Process { StartInfo = psi };
                 _proc.OutputDataReceived += OnLog;
                 _proc.ErrorDataReceived += OnLog;
@@ -60,6 +61,27 @@ namespace CROMS.Data
                 _proc.BeginErrorReadLine();
             }
             catch { /* best-effort; Dashboard shows offline if it didn't come up */ }
+        }
+
+        /// <summary>
+        /// Hands the save-API the SAME database CROMS itself is connected to (host, port, user,
+        /// password, schema), as environment variables. dotenv never overrides a variable that is
+        /// already set, so this beats the API's own .env - a stale or missing .env password can no
+        /// longer leave the phone apps "db: unreachable" while the desktop works fine, and a PC that
+        /// reaches the registry over the LAN points the API at that server automatically.
+        /// </summary>
+        private static void PassDatabaseSettings(ProcessStartInfo psi)
+        {
+            try
+            {
+                var b = new MySql.Data.MySqlClient.MySqlConnectionStringBuilder(ServerConfig.EffectiveConnectionString);
+                if (!string.IsNullOrEmpty(b.Server)) psi.EnvironmentVariables["DB_HOST"] = b.Server;
+                psi.EnvironmentVariables["DB_PORT"] = b.Port.ToString();
+                if (!string.IsNullOrEmpty(b.UserID)) psi.EnvironmentVariables["DB_USER"] = b.UserID;
+                psi.EnvironmentVariables["DB_PASSWORD"] = b.Password ?? "";
+                if (!string.IsNullOrEmpty(b.Database)) psi.EnvironmentVariables["DB_NAME"] = b.Database;
+            }
+            catch { /* keep whatever the API's .env says */ }
         }
 
         public void Stop()

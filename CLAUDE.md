@@ -5518,3 +5518,27 @@ other 21. Left alone on purpose: `MarriageUi.cs` (shared helper class, not a for
 VERIFIED: MSBuild clean, 0 errors, 0 warnings, for CROMS and CROMS.Kiosk (temp OutputPath - REBUILD
 IN VS to update bin\Debug). GUI not opened (no interactive desktop); forms were compared against
 their pre-split source, not eyeballed.
+
+### 2026-09-20 (later) - claimapp + ORCMobile: any network, DB always reachable
+Reported: claimapp errors, wanted it to work on any Wi-Fi and to confirm the DB link.
+
+CAUSES, measured. (1) claimapp's config.service turned a `?host=` query into an absolute
+`http://<ip>:3000` API base; the page is HTTPS, so the browser blocks it as mixed content (ORCMobile
+had this fixed on 2026-09-09, claimapp never got it) - now applied only on the installed native app.
+(2) The save-API's server/.env DB password was stale: /api/health said `db: unreachable`
+(ER_ACCESS_DENIED_ERROR) while the desktop worked. (3) Both apps' dev certs listed old IPs only.
+
+FIXES. `ApiServerManager` now passes CROMS's own effective DB connection (host/port/user/password/
+schema) to the save-API as DB_* env vars, which dotenv never overrides - a stale .env can no longer
+break it, and a PC that reaches the registry over the LAN points the API at that server. New pure-Node
+`ssl/make-cert.js` in BOTH apps (uses the `selfsigned` already installed; verified against v2.4.1 and
+v5.5.0; SANs = localhost, hostname, every current IPv4); `IonicServerManager.EnsureCertCoversIp` runs
+it first and falls back to make-cert.sh only if Node route fails - so no Git bash/openssl needed on
+client PCs. Existing behaviour kept: cert re-checked at start and on IP change (10s poll), server
+restarted when a new IP is not covered. `/api/health` now adds `dbError` (MySQL code, never the
+password) when unreachable; startup logs "DB check: connected/UNREACHABLE".
+VERIFIED: health connected; wrong env password -> unreachable + ER_ACCESS_DENIED_ERROR (proves env beats
+.env); both apps served over HTTPS at the LAN IP (200), /api proxy reaches the API, served cert lists
+the current IP. MSBuild clean (temp OutputPath - REBUILD IN VS). claimapp/ORCMobile are separate folders
+(no git) - changes are in place, not committed. Phone camera/upload not tested (no phone).
+STILL true: a self-signed cert shows one warning per phone (Advanced -> Proceed).
