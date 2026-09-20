@@ -27,6 +27,13 @@ namespace CROMS.Data
         public float FontSize = 7.5f;
         public int Part = -1;        // index into the comma-split, -1 = whole value
         public bool IsDate;          // render as "dd MMMM yyyy"
+        /// <summary>Print ONE component of a date in this box: 0 day, 1 month name, 2 year.
+        /// For sheets that give day / month / year their own boxes. -1 = the whole date.</summary>
+        public int DatePart = -1;
+        /// <summary>When set, the box prints these comma-split parts of the stored value, joined
+        /// by ", " (blank parts skipped) - for a printed box that gathers several stored parts,
+        /// e.g. the residence box that holds house/street AND barangay.</summary>
+        public int[] Join;
 
         public PrintCell(string column, float x, float y, float size = 7.5f,
                          int part = -1, bool isDate = false)
@@ -1049,123 +1056,142 @@ namespace CROMS.Data
         }
 
         /// <summary>
-        /// Where each value sits on the blank MF-102 (2007). These are the coordinates
-        /// that were measured against the real PSA form and used to live as literals in
-        /// BirthCertificatePrinter — the same numbers, divided by the 792 x 1224 pt page
-        /// so they are resolution-independent and can be held as DATA rather than code.
-        /// Columns are the report view's, so a Crystal .rpt bound to the same view and
-        /// this overlay draw the same value in the same place.
+        /// Where each value sits on the blank MF-102 (Revised January 2007), Assets\Form102Blank.png
+        /// (1275 x 2100 px = 612 x 1008 pt, 8.5 x 14 in legal). Measured against THAT sheet - the
+        /// item numbers here are the 2007 ones (1-6 child, 7-13 mother, 14-19 father, 20 marriage
+        /// of parents, 21a-b attendant, 22 informant, 23 prepared by, 24 received by, 25 registered
+        /// by). The previous map was measured on a 1993-numbered sheet and mislabelled 2007.
+        /// <para/>
+        /// Coordinates are written in a 850 x 1400 working view of the sheet (the size it was
+        /// measured at) and converted to points below; each is the TOP-LEFT of the text, placed
+        /// just above the rule or under the hint the box belongs to. Columns are the report
+        /// view's, so a Crystal .rpt bound to the same map draws the same value in the same place.
+        /// <para/>
+        /// Stored orders this depends on: place of birth is "facility, province, municipality";
+        /// a residence is "house/street, province, municipality, barangay".
         /// </summary>
         private static void Birth2007PrintMap(FormDefinition d)
         {
-            const float W = 792f, H = 1224f;
-            Action<string, float, float, float, int, bool> cell =
-                (col, x, y, size, part, isDate) =>
-                    d.Cells.Add(new PrintCell(col, x / W, y / H, size, part, isDate));
-            Action<string, string, float, float> mark =
-                (col, when, x, y) => d.Marks.Add(new PrintMark(col, when, x / W, y / H));
+            const float W = 612f, H = 1008f, V = 0.72f;     // view px -> points
+            d.PrintPage = new SizeF(W, H);
 
-            // Header: registering LGU + registry number. These came from the office
-            // profile rather than the record, so a second LGU needs no code change.
-            cell("office_province", 150, 168, 7.5f, -1, false);
-            cell("registry_no", 490, 168, 7.5f, -1, false);
-            cell("office_municipality", 180, 180, 7.5f, -1, false);
+            Action<string, float, float, float> cell = (col, x, y, size) =>
+                d.Cells.Add(new PrintCell(col, x * V / W, y * V / H, size));
+            Action<string, float, float, float, int[]> joined = (col, x, y, size, join) =>
+                d.Cells.Add(new PrintCell(col, x * V / W, y * V / H, size) { Join = join });
+            Action<string, float, float, float, int> partc = (col, x, y, size, part) =>
+                d.Cells.Add(new PrintCell(col, x * V / W, y * V / H, size, part));
+            Action<string, float, float, float, int> datec = (col, x, y, size, dp) =>
+                d.Cells.Add(new PrintCell(col, x * V / W, y * V / H, size, -1, true) { DatePart = dp });
+            Action<string, float, float, float> datew = (col, x, y, size) =>
+                d.Cells.Add(new PrintCell(col, x * V / W, y * V / H, size, -1, true));
+            Action<string, string, float, float> mark = (col, when, x, y) =>
+                d.Marks.Add(new PrintMark(col, when, x * V / W, y * V / H));
+
+            // Header: registering LGU (office profile) + registry number.
+            cell("office_province", 125, 146, 8f);
+            cell("office_municipality", 175, 172, 8f);
+            cell("registry_no", 562, 160, 9f);
 
             // 1. Child's name
-            cell("child_first_name", 250, 234, 9f, -1, false);
-            cell("child_middle_name", 328, 234, 9f, -1, false);
-            cell("child_last_name", 447, 234, 9f, -1, false);
+            cell("child_first_name", 200, 211, 9f);
+            cell("child_middle_name", 400, 211, 9f);
+            cell("child_last_name", 608, 211, 9f);
 
-            // 2. Sex
-            mark("sex", "Male", 155, 261);
-            mark("sex", "Female", 222, 261);
+            // 2. Sex (written: Male / Female)   3. Date of birth: day / month / year
+            cell("sex", 100, 251, 8f);
+            datec("date_of_birth", 437, 251, 8f, 0);
+            datec("date_of_birth", 546, 251, 8f, 1);
+            datec("date_of_birth", 685, 251, 8f, 2);
 
-            // 3. Date of birth
-            cell("date_of_birth", 419, 276, 7.5f, -1, true);
+            // 4. Place of birth: facility / city-municipality / province
+            partc("place_of_birth", 183, 290, 7.5f, 0);
+            partc("place_of_birth", 430, 290, 7.5f, 2);
+            partc("place_of_birth", 617, 290, 7.5f, 1);
 
-            // 4. Place of birth — one column, three printed boxes
-            cell("place_of_birth", 225, 328, 7.5f, 0, false);
-            cell("place_of_birth", 376, 328, 7.5f, 1, false);
-            cell("place_of_birth", 470, 328, 7.5f, 2, false);
+            // 5a type of birth, 5c birth order, 6 weight
+            cell("type_of_birth", 100, 341, 8f);
+            cell("birth_order", 487, 341, 8f);
+            cell("weight_grams", 688, 341, 8f);
 
-            // 5a. Type of birth
-            mark("type_of_birth", "Single", 136, 355);
-            mark("type_of_birth", "Twin", 210, 355);
-            mark("type_of_birth", "*", 170, 365);       // Triplet, Quadruplet, …
+            // 7. Mother's maiden name
+            cell("mother_first_name", 200, 389, 9f);
+            cell("mother_middle_name", 405, 389, 9f);
+            cell("mother_last_name", 622, 389, 9f);
 
-            // 5c/d. Birth order + weight
-            cell("birth_order", 196, 419, 7.5f, -1, false);
-            cell("weight_grams", 408, 419, 7.5f, -1, false);
+            // 8. Citizenship   9. Religion
+            cell("mother_citizenship", 88, 427, 8f);
+            cell("mother_religion", 440, 427, 8f);
 
-            // 6. Mother's maiden name
-            cell("mother_first_name", 253, 469, 7.5f, -1, false);
-            cell("mother_middle_name", 332, 469, 7.5f, -1, false);
-            cell("mother_last_name", 445, 469, 7.5f, -1, false);
+            // 10a / 10b / 10c children      11. Occupation      12. Age
+            cell("mother_children_born_alive", 110, 478, 8f);
+            cell("mother_children_living", 232, 478, 8f);
+            cell("mother_children_dead", 358, 478, 8f);
+            cell("mother_occupation", 447, 471, 8f);
+            cell("mother_age", 700, 476, 8f);
 
-            // 7/8. Mother citizenship / religion
-            cell("mother_citizenship", 152, 500, 7.5f, -1, false);
-            cell("mother_religion", 407, 500, 7.5f, -1, false);
+            // 13. Residence: house/street + barangay / city-municipality / province
+            joined("mother_residence", 185, 516, 7.5f, new[] { 0, 3 });
+            partc("mother_residence", 392, 516, 7.5f, 2);
+            partc("mother_residence", 543, 516, 7.5f, 1);
 
-            // 9a/b/c. Mother's children
-            cell("mother_children_born_alive", 180, 545, 7.5f, -1, false);
-            cell("mother_children_living", 335, 545, 7.5f, -1, false);
-            cell("mother_children_dead", 503, 545, 7.5f, -1, false);
+            // 14. Father's name
+            cell("father_first_name", 200, 561, 9f);
+            cell("father_middle_name", 405, 561, 9f);
+            cell("father_last_name", 622, 561, 9f);
 
-            // 10/11. Mother occupation / age
-            cell("mother_occupation", 152, 595, 7.5f, -1, false);
-            cell("mother_age", 492, 578, 7.5f, -1, false);
+            // 15. Citizenship  16. Religion  17. Occupation  18. Age
+            cell("father_citizenship", 88, 605, 8f);
+            cell("father_religion", 265, 605, 8f);
+            cell("father_occupation", 477, 605, 8f);
+            cell("father_age", 700, 605, 8f);
 
-            // 12. Mother residence
-            cell("mother_residence", 235, 634, 7.5f, -1, false);
+            // 19. Residence
+            joined("father_residence", 185, 650, 7.5f, new[] { 0, 3 });
+            partc("father_residence", 392, 650, 7.5f, 2);
+            partc("father_residence", 548, 650, 7.5f, 1);
 
-            // 13. Father's name
-            cell("father_first_name", 250, 668, 9f, -1, false);
-            cell("father_middle_name", 328, 668, 9f, -1, false);
-            cell("father_last_name", 450, 668, 9f, -1, false);
+            // 20a. Date of marriage of parents (month / day / year)   20b. Place
+            datec("parents_marriage_date", 147, 714, 8f, 1);
+            datec("parents_marriage_date", 213, 714, 8f, 0);
+            datec("parents_marriage_date", 270, 714, 8f, 2);
+            partc("parents_marriage_place", 428, 714, 7.5f, 2);
+            partc("parents_marriage_place", 580, 714, 7.5f, 1);
 
-            // 14/15. Father citizenship / religion
-            cell("father_citizenship", 155, 712, 7.5f, -1, false);
-            cell("father_religion", 432, 712, 7.5f, -1, false);
+            // 21a. Attendant: an X on the blank in front of the chosen number
+            mark("attendant_type", "Physician", 68, 761);
+            mark("attendant_type", "Nurse", 170, 761);
+            mark("attendant_type", "Midwife", 262, 761);
+            mark("attendant_type", "Hilot", 362, 761);
+            mark("attendant_type", "*", 570, 761);
 
-            // 16/17. Father occupation / age
-            cell("father_occupation", 158, 762, 7.5f, -1, false);
-            cell("father_age", 492, 752, 7.5f, -1, false);
+            // 21b. Certification of birth: time, then signature block
+            cell("time_of_birth", 490, 799, 8f);
+            cell("attendant_name", 137, 855, 7.5f);
+            cell("attendant_address", 480, 827, 7.5f);
+            cell("attendant_title", 148, 874, 7.5f);
+            datew("attendant_date", 470, 874, 7.5f);
 
-            // 18. Date and place of marriage of parents. The paper gives this one line;
-            // the printer joins the two columns onto it.
-            cell("parents_marriage_date", 95, 802, 7.5f, -1, true);
-            cell("parents_marriage_place", 185, 802, 7.5f, -1, false);
+            // 22. Certification of informant
+            cell("informant_name", 137, 971, 7.5f);
+            cell("informant_relationship", 192, 992, 7.5f);
+            cell("informant_address", 114, 1013, 7.5f);
+            datew("informant_date", 95, 1036, 7.5f);
 
-            // 19a. Attendant
-            mark("attendant_type", "Physician", 160, 828);
-            mark("attendant_type", "Nurse", 318, 828);
-            mark("attendant_type", "Midwife", 478, 828);
-            mark("attendant_type", "Hilot", 160, 838);
-            mark("attendant_type", "*", 318, 838);
+            // 23. Prepared by (right column)
+            cell("prepared_by", 525, 981, 7.5f);
+            cell("prepared_by_title", 522, 1003, 7.5f);
+            datew("prepared_by_date", 470, 1025, 7.5f);
 
-            // 19b. Certification of birth
-            cell("time_of_birth", 456, 878, 7.5f, -1, false);
-            cell("attendant_address", 404, 908, 7.5f, -1, false);
-            cell("attendant_name", 188, 924, 7.5f, -1, false);
-            cell("attendant_title", 195, 948, 7.5f, -1, false);
+            // 24. Received by (left column)
+            cell("received_by", 138, 1099, 7.5f);
+            cell("received_by_title", 152, 1123, 7.5f);
+            datew("received_by_date", 95, 1146, 7.5f);
 
-            cell("attendant_date", 404, 948, 7.5f, -1, true);
-
-            // 20. Informant
-            cell("informant_address", 404, 1004, 7.5f, -1, false);
-            cell("informant_name", 189, 1020, 7.5f, -1, false);
-            cell("informant_relationship", 228, 1044, 7.5f, -1, false);
-            cell("informant_date", 390, 1044, 7.5f, -1, true);
-
-            // 21/22. Prepared by / Received at the office. Both blocks print a name, then a
-            // title or position, then a date; the two columns share the same row bands, so
-            // the y values are paired.
-            cell("prepared_by", 188, 1118, 7.5f, -1, false);
-            cell("received_by", 425, 1118, 7.5f, -1, false);
-            cell("prepared_by_title", 188, 1145, 7.5f, -1, false);
-            cell("received_by_title", 425, 1145, 7.5f, -1, false);
-            cell("prepared_by_date", 188, 1158, 7.5f, -1, true);
-            cell("received_by_date", 425, 1158, 7.5f, -1, true);
+            // 25. Registered by the civil registrar (right column)
+            cell("registered_by", 513, 1099, 7.5f);
+            cell("registered_by_title", 522, 1123, 7.5f);
+            datew("registered_by_date", 470, 1146, 7.5f);
         }
     }
 }

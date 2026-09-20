@@ -481,6 +481,34 @@ namespace CROMS.Data
             return v.ToString().Trim();
         }
 
+        /// <summary>
+        /// The text one printed box carries: the whole value, one comma-split part, several
+        /// parts joined (a residence box that holds house/street and barangay), or one
+        /// component (day / month / year) of a date. Shared by the overlay and the Crystal
+        /// print table so the two cannot disagree.
+        /// </summary>
+        private static string CellText(DataRow row, PrintCell c)
+        {
+            if (c.DatePart >= 0)
+            {
+                if (c.Column == null || !row.Table.Columns.Contains(c.Column)) return "";
+                object v = row[c.Column];
+                if (v == DBNull.Value || v == null) return "";
+                DateTime d;
+                if (v is DateTime dt) d = dt;
+                else if (!DateTime.TryParse(v.ToString(), CultureInfo.InvariantCulture,
+                                            DateTimeStyles.None, out d)) return "";
+                return c.DatePart == 0 ? d.Day.ToString(CultureInfo.InvariantCulture)
+                     : c.DatePart == 1 ? d.ToString("MMMM", CultureInfo.InvariantCulture)
+                     : d.Year.ToString(CultureInfo.InvariantCulture);
+            }
+            string value = Value(row, c.Column, c.IsDate);
+            if (c.Join != null)
+                return string.Join(", ", c.Join.Select(i => Part(value, i))
+                                               .Where(x => x.Length > 0));
+            return Part(value, c.Part);
+        }
+
         /// <summary>The part of a combined value that belongs in one printed box.</summary>
         private static string Part(string value, int part)
         {
@@ -571,7 +599,7 @@ namespace CROMS.Data
                 for (int i = 0; i < def.Cells.Count; i++)
                 {
                     PrintCell c = def.Cells[i];
-                    r["c" + i.ToString("000")] = Part(Value(row, c.Column, c.IsDate), c.Part);
+                    r["c" + i.ToString("000")] = CellText(row, c);
                 }
                 // Same "which option matched" rule as the overlay: the catch-all "*" only
                 // fires when the value matched none of that column's listed options.
@@ -646,7 +674,7 @@ namespace CROMS.Data
             {
                 foreach (PrintCell c in def.Cells)
                 {
-                    string text = Part(Value(row, c.Column, c.IsDate), c.Part);
+                    string text = CellText(row, c);
                     if (text.Length == 0) continue;
                     PointF p = align.Apply(c.At, W, H);
                     using (var f = new Font("Arial", c.FontSize))

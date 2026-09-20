@@ -5568,3 +5568,26 @@ clean (0 errors) into bin\Debug. The Crystal VIEWER dialog itself (CrystalRunner
 NOT FIXED / KNOWN: Form102Blank.png is still the 1993-numbered sheet registered as the 2007 blank
 (see 2026-09-10), so the 2007 .rpt embeds that sheet; swapping it needs the print map re-measured.
 The 1993 record printed on the 2007 layout carries only the fields both sheets share.
+
+### 2026-09-20 (later still) - MF-102 (2007) now prints on the real 2007 sheet
+Fixes the defect logged on 2026-09-10 / 2026-09-13: `Assets\Form102Blank.png` was a 1993-numbered sheet
+registered as the 2007 blank.
+DONE. Replaced it with the real Revised-January-2007 blank (Docs\AgencyForms page 1, 1275x2100 px =
+612x1008 pt, 8.5x14 legal, colour). `Birth2007PrintMap` was RE-MEASURED against it (item numbers are now
+the 2007 ones: 1-6 child, 7-13 mother, 14-19 father, 20 marriage of parents, 21a/21b attendant, 22
+informant, 23 prepared, 24 received, 25 registered); page size set to 612x1008 in the map. New
+`PrintCell.DatePart` (day/month/year in separate boxes) and `PrintCell.Join` (a box that gathers several
+stored parts, e.g. house/street + barangay), resolved by one `CertificateReport.CellText` used by the
+overlay AND the Crystal print table. Sex is now written (the 2007 sheet has no tick boxes); registered-by
+(item 25) and the province/municipality/barangay boxes are now printed.
+FOUND WHILE DOING IT: the old map printed the PROVINCE in the City/Municipality box. Stored order is
+place_of_birth = "facility, province, municipality" and residence = "house, province, municipality,
+barangay"; the new map takes parts by that order.
+VERIFIED: MF-102-2007.rpt regenerated, bound to BuildPrintTable with realistic sample values, exported to
+PDF (1 page, 612x1008), rasterised and looked at in three crops + full page; two rounds of nudging (informant
+relationship/address vs their labels, time of birth). CROMS builds clean. NOT run against a real record
+through the viewer (no interactive desktop).
+CAVEAT: this sheet is a third-party (studocu) scan, not the office's own stock - the office should confirm it
+matches the sheets they issue. Positions are eyeballed to ~1-2 pt, not pixel-surveyed (the scan is slightly
+skewed), so check one printed page on real paper. Not done: MF-102 (1993) still has no blank; the remarks /
+"to be filled up at the office" boxes are deliberately left blank (office use).
