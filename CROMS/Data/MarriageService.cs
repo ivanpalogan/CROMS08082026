@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
 using System.Linq;
 using MySql.Data.MySqlClient;
 
@@ -252,10 +253,22 @@ namespace CROMS.Data
             if (owner == "License") RecomputeEarliest(ownerId);
         }
 
+/// <summary>
+        /// Scans and PDFs only - one whitelist enforced here regardless of which picker got
+        /// past. The file dialogs already filter to this same set, but a dialog's filter is a
+        /// suggestion the user can still type past (or an internal caller could bypass), so the
+        /// real check has to live at the one place every attach path calls.
+        /// </summary>
+        private static readonly string[] AllowedAttachmentExt =
+            { ".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".pdf" };
+
         public static void AttachRequirement(int reqId, byte[] bytes, string fileName)
         {
             if (bytes == null || bytes.Length == 0) throw new ArgumentException("Empty file.");
             if (bytes.Length > 8 * 1024 * 1024) throw new ArgumentException("File is over 8 MB.");
+            string ext = Path.GetExtension(fileName ?? "").ToLowerInvariant();
+            if (!AllowedAttachmentExt.Contains(ext))
+                throw new ArgumentException("Only images (.jpg, .png, .bmp, .tif) or PDF files can be attached.");
             Db.Push("UPDATE marriage_requirements SET attachment=@b, attachment_name=@n, " +
                     "status = CASE WHEN status = 'Missing' THEN 'Submitted' ELSE status END WHERE id=@id",
                 new MySqlParameter("@b", MySqlDbType.LongBlob) { Value = bytes }, P("@n", fileName), P("@id", reqId));

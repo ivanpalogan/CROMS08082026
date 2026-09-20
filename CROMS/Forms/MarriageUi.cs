@@ -1084,7 +1084,7 @@ namespace CROMS.Forms
             using (var dlg = new OpenFileDialog
             {
                 Title = "Attach " + (r.Label ?? r.Code),
-                Filter = "Scans and documents|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.pdf|All files|*.*"
+                Filter = "Scans and documents|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.pdf"
             })
             {
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
