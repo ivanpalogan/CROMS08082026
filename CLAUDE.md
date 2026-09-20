@@ -5591,3 +5591,22 @@ CAVEAT: this sheet is a third-party (studocu) scan, not the office's own stock -
 matches the sheets they issue. Positions are eyeballed to ~1-2 pt, not pixel-surveyed (the scan is slightly
 skewed), so check one printed page on real paper. Not done: MF-102 (1993) still has no blank; the remarks /
 "to be filled up at the office" boxes are deliberately left blank (office use).
+
+### 2026-09-20 (last) - MF-102 (1993) now has its own blank, map and .rpt
+The 1993 revision no longer prints through the 2007 report.
+FOUND. The sheet that used to sit in Assets as "Form102Blank.png" (replaced by the real 2007 blank earlier
+today) IS the genuine Revised-January-1993 sheet - restored from git history as `Assets\Form102Blank1993.png`
+(1650x2550 px = 792x1224 pt) and registered as MF-102-1993's BlankAsset. The 1993 print map is the old
+hand-measured one, moved to `Birth1993PrintMap` and corrected: place-of-birth boxes 2 and 3 now take
+municipality then province (stored order is "facility, province, municipality"; the old map put the province
+in the City/Municipality box), mother's residence split into the sheet's three boxes, parents' marriage place
+printed municipality-first, and every value nudged 2-12 pt UP (the old map left many values sitting on their
+rules - seen on the render). `CROMS.ReportGen` generated `MF-102-1993.rpt`; registered the PNG in CROMS.csproj.
+The "no blank -> use the current revision's .rpt" fallback in CertificateReport stays for any future revision
+without a blank.
+RESEARCH (web): the Municipal Form No. 102 exists as an official "Revised January 1993" and a "Revised January
+2007" form (many public copies); no published item-by-item comparison, so the sheet itself is the reference.
+VERIFIED: rendered through the .rpt with realistic sample values, looked at the full page; two rounds of
+nudging. CROMS builds clean. NOT verified: a real record through the viewer, or a printout on paper.
+TODO FOR THE USER (asked to be reminded): print one real MF-102 on paper for EACH revision (2007 and 1993) and
+hold it against the office's own sheet - positions are eyeballed to ~1-2 pt; check tick boxes and long names.

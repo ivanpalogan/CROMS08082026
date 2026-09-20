@@ -719,9 +719,7 @@ namespace CROMS.Data
 
         // ---- Certificate of Live Birth, MF-102 (Revised January 1993) --------------
         // Same registry table and report view; different rows and different positions.
-        // No blank scan of the 1993 sheet is on file, so it prints in structured layout
-        // until the office supplies one — a replica drawn on the WRONG blank form would
-        // put every value in the wrong box, which is worse than a clean listing.
+        // Prints on Assets\Form102Blank1993.png with its own hand-measured map.
 
         private static FormDefinition Birth1993()
         {
@@ -736,16 +734,14 @@ namespace CROMS.Data
                 RecordTable = "births",
                 ReportView = "v_birth_certificate",
                 RptFile = "MF-102-1993.rpt",
-                BlankAsset = null,
+                BlankAsset = "Form102Blank1993.png",
                 LogoRect = new RectangleF(0.070f, 0.030f, 0.100f, 0.065f),
                 StampRect = new RectangleF(0.700f, 0.855f, 0.180f, 0.075f),
                 Sections = BirthSections(),
                 ReportSections = BirthReport(),
             };
             BirthColumns(d);
-            // 1416x2048 reference scan -> 8.5 x 12.3 in.
-            d.PrintPage = new SizeF(612f, 885f);
-            PrintMapFromLayout(d);
+            Birth1993PrintMap(d);
             return d;
         }
 
@@ -1053,6 +1049,126 @@ namespace CROMS.Data
             c["RegisteredByName"] = "registered_by";
             c["RegisteredByTitle"] = "registered_by_title";
             c["RegisteredByDate"] = "registered_by_date";
+        }
+
+        /// <summary>
+        /// Where each value sits on the blank MF-102 (Revised January 1993), Assets\Form102Blank1993.png
+        /// (1650 x 2550 px = 792 x 1224 pt). This is the map that was measured against that sheet
+        /// when it was (mis)registered as the 2007 blank, restored to the revision it belongs to and
+        /// corrected: the second and third place boxes now take municipality then province (the stored
+        /// order is "facility, province, municipality"), the residence is split into the sheet's three
+        /// boxes, and the parents' marriage place is printed municipality-first. The 1993 sheet has
+        /// no father's residence, no item 25 and tick boxes for sex / type of birth / attendant.
+        /// </summary>
+        private static void Birth1993PrintMap(FormDefinition d)
+        {
+            const float W = 792f, H = 1224f;
+            d.PrintPage = new SizeF(W, H);
+            Action<string, float, float, float> cell = (col, x, y, size) =>
+                d.Cells.Add(new PrintCell(col, x / W, y / H, size));
+            Action<string, float, float, float, int> partc = (col, x, y, size, part) =>
+                d.Cells.Add(new PrintCell(col, x / W, y / H, size, part));
+            Action<string, float, float, float, int[]> joined = (col, x, y, size, join) =>
+                d.Cells.Add(new PrintCell(col, x / W, y / H, size) { Join = join });
+            Action<string, float, float, float> datew = (col, x, y, size) =>
+                d.Cells.Add(new PrintCell(col, x / W, y / H, size, -1, true));
+            Action<string, string, float, float> mark = (col, when, x, y) =>
+                d.Marks.Add(new PrintMark(col, when, x / W, y / H));
+
+            // Header: registering LGU (office profile) + registry number.
+            cell("office_province", 150, 166, 7.5f);
+            cell("registry_no", 490, 166, 7.5f);
+            cell("office_municipality", 180, 178, 7.5f);
+
+            // 1. Child's name
+            cell("child_first_name", 250, 234, 9f);
+            cell("child_middle_name", 328, 234, 9f);
+            cell("child_last_name", 447, 234, 9f);
+
+            // 2. Sex (tick box)   3. Date of birth
+            mark("sex", "Male", 155, 261);
+            mark("sex", "Female", 222, 261);
+            datew("date_of_birth", 419, 276, 7.5f);
+
+            // 4. Place of birth: facility / city-municipality / province
+            partc("place_of_birth", 225, 319, 7.5f, 0);
+            partc("place_of_birth", 376, 319, 7.5f, 2);
+            partc("place_of_birth", 470, 319, 7.5f, 1);
+
+            // 5a. Type of birth (tick)   c. Birth order   d. Weight
+            mark("type_of_birth", "Single", 136, 355);
+            mark("type_of_birth", "Twin", 210, 355);
+            mark("type_of_birth", "*", 170, 365);       // Triplet, Quadruplet, ...
+            cell("birth_order", 196, 416, 7.5f);
+            cell("weight_grams", 408, 416, 7.5f);
+
+            // 6. Mother's maiden name
+            cell("mother_first_name", 253, 458, 7.5f);
+            cell("mother_middle_name", 332, 458, 7.5f);
+            cell("mother_last_name", 445, 458, 7.5f);
+
+            // 7/8. Mother citizenship / religion
+            cell("mother_citizenship", 152, 488, 7.5f);
+            cell("mother_religion", 407, 488, 7.5f);
+
+            // 9a/b/c. Mother's children
+            cell("mother_children_born_alive", 180, 541, 7.5f);
+            cell("mother_children_living", 335, 541, 7.5f);
+            cell("mother_children_dead", 503, 541, 7.5f);
+
+            // 10/11. Mother occupation / age
+            cell("mother_occupation", 152, 570, 7.5f);
+            cell("mother_age", 492, 576, 7.5f);
+
+            // 12. Mother residence: house/street + barangay / city-municipality / province
+            joined("mother_residence", 235, 624, 7.5f, new[] { 0, 3 });
+            partc("mother_residence", 382, 624, 7.5f, 2);
+            partc("mother_residence", 486, 624, 7.5f, 1);
+
+            // 13. Father's name
+            cell("father_first_name", 250, 668, 9f);
+            cell("father_middle_name", 328, 668, 9f);
+            cell("father_last_name", 450, 668, 9f);
+
+            // 14/15. Father citizenship / religion
+            cell("father_citizenship", 155, 702, 7.5f);
+            cell("father_religion", 432, 702, 7.5f);
+
+            // 16/17. Father occupation / age
+            cell("father_occupation", 158, 748, 7.5f);
+            cell("father_age", 492, 750, 7.5f);
+
+            // 18. Date and place of marriage of parents (one printed line)
+            datew("parents_marriage_date", 95, 802, 7.5f);
+            joined("parents_marriage_place", 185, 802, 7.5f, new[] { 0, 2, 1 });
+
+            // 19a. Attendant (tick)
+            mark("attendant_type", "Physician", 160, 828);
+            mark("attendant_type", "Nurse", 318, 828);
+            mark("attendant_type", "Midwife", 478, 828);
+            mark("attendant_type", "Hilot", 160, 838);
+            mark("attendant_type", "*", 318, 838);
+
+            // 19b. Certification of birth
+            cell("time_of_birth", 456, 872, 7.5f);
+            cell("attendant_address", 404, 905, 7.5f);
+            cell("attendant_name", 188, 921, 7.5f);
+            cell("attendant_title", 195, 940, 7.5f);
+            datew("attendant_date", 404, 940, 7.5f);
+
+            // 20. Informant
+            cell("informant_address", 404, 1001, 7.5f);
+            cell("informant_name", 189, 1017, 7.5f);
+            cell("informant_relationship", 228, 1041, 7.5f);
+            datew("informant_date", 390, 1040, 7.5f);
+
+            // 21. Prepared by (left)   22. Received at the office of the civil registrar (right)
+            cell("prepared_by", 188, 1116, 7.5f);
+            cell("received_by", 425, 1116, 7.5f);
+            cell("prepared_by_title", 198, 1136, 7.5f);
+            cell("received_by_title", 435, 1136, 7.5f);
+            datew("prepared_by_date", 188, 1145, 7.5f);
+            datew("received_by_date", 425, 1145, 7.5f);
         }
 
         /// <summary>
