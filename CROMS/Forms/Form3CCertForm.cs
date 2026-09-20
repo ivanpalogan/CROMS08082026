@@ -13,8 +13,10 @@ namespace CROMS.Forms
     /// Same editable-before-print rule and search/grid layout as <see cref="Form3ACertForm"/>
     /// (marriage, Form 3A) and <see cref="Form3BCertForm"/> (birth, Form 1A) - a wrong reading
     /// on the saved record can be corrected for THIS printout without touching the row itself.
+    /// <para/>
+    /// UI layout lives in Form3CCertForm.Designer.cs; this file holds the data/logic.
     /// </summary>
-    public class Form3CCertForm : Form
+    public partial class Form3CCertForm : Form
     {
         private static readonly Dictionary<string, string> Labels = new Dictionary<string, string>
         {
@@ -40,68 +42,12 @@ namespace CROMS.Forms
             { "date_paid", "Date paid" },
         };
 
-        private readonly TextBox _txtSearch = new TextBox { Left = 16, Top = 16, Width = 320 };
-        private readonly Button _btnSearch = new Button { Left = 344, Top = 14, Width = 90, Text = "Search" };
-        private readonly DataGridView _dgvResults = new DataGridView
-        {
-            Left = 16, Top = 48, Width = 720, Height = 150,
-            ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-            SelectionMode = DataGridViewSelectionMode.FullRowSelect, MultiSelect = false,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-        };
-        private readonly DataGridView _dgvFields = new DataGridView
-        {
-            Left = 16, Top = 210, Width = 720, Height = 360,
-            AllowUserToAddRows = false, AllowUserToDeleteRows = false,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-        };
-        private readonly Button _btnPreview = new Button { Left = 16, Top = 580, Width = 160, Text = "Preview" };
-        private readonly Button _btnPrint = new Button { Left = 184, Top = 580, Width = 160, Text = "Print" };
-        private readonly Button _btnAssets = new Button { Left = 460, Top = 580, Width = 276, Text = "Header/Footer Images..." };
-        private readonly Label _lblStatus = new Label { Left = 16, Top = 616, Width = 720, Height = 20, ForeColor = Color.DimGray };
-
         private int? _deathId;
         private DataTable _wide;
 
         public Form3CCertForm()
         {
-            Text = "Print Certification (Form 2A - Death Available)";
-            Width = 780; Height = 700;
-            StartPosition = FormStartPosition.CenterParent;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false; MinimizeBox = false;
-
-            _dgvFields.Columns.Add("Field", "Field");
-            _dgvFields.Columns.Add("Value", "Value");
-            _dgvFields.Columns[0].ReadOnly = true;
-
-            _btnSearch.Click += (s, e) => RunSearch();
-            _txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; RunSearch(); } };
-            _dgvResults.CellDoubleClick += (s, e) => LoadSelected();
-            _btnPreview.Click += (s, e) => PrintOrPreview(false);
-            _btnPrint.Click += (s, e) => PrintOrPreview(true);
-            _btnAssets.Click += (s, e) =>
-            {
-                using (var f = new HeaderFooterImagesForm(Form3CCert.FormCode, "Form 2A - Death Available",
-                    new[]
-                    {
-                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoLeft, "Header logo - left (municipal seal)"),
-                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.HeaderLogoRight1, "Header badge - right (national badge)"),
-                        new HeaderFooterImagesForm.ImageFieldSpec(AssetKind.FooterBanner, "Footer banner"),
-                    }))
-                    f.ShowDialog(this);
-            };
-
-            Controls.Add(_txtSearch);
-            Controls.Add(_btnSearch);
-            Controls.Add(_dgvResults);
-            Controls.Add(_dgvFields);
-            Controls.Add(_btnPreview);
-            Controls.Add(_btnPrint);
-            Controls.Add(_btnAssets);
-            Controls.Add(_lblStatus);
-
-            RunSearch();
+            InitializeComponent();
         }
 
         /// <summary>Opens directly on one death record - skips the search step.</summary>
