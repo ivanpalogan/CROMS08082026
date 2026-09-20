@@ -18,38 +18,15 @@ namespace CROMS.Forms
     /// plus the two exits (no record at PSA, cancel) and its full history. Moves are decided by
     /// BreqsService, never by this screen.
     /// </summary>
-    internal sealed class BreqsForm : Form, IRefreshable
+    internal sealed partial class BreqsForm : Form, IRefreshable
     {
-        private readonly DataGridView _grid = new DataGridView();
-        private readonly TextBox _search = new TextBox();
-        private readonly CheckBox _showClosed = new CheckBox();
-        private readonly Label _kRequested = new Label(), _kPaid = new Label(), _kAtPsa = new Label(), _kReady = new Label();
-        private readonly Label _kRequestedSub = new Label(), _kPaidSub = new Label(), _kAtPsaSub = new Label(), _kReadySub = new Label();
-        private readonly Panel _detail = new Panel();
         private List<BreqsRequest> _rows = new List<BreqsRequest>();
         private BreqsSettings _s = BreqsService.Settings;
         private int _selectedId;
-        private readonly Timer _searchDelay = new Timer { Interval = 300 };
 
         public BreqsForm()
         {
-            Text = "PSA Copies (BREQS)";
-            BackColor = UiTheme.PageBg;
-            ClientSize = new Size(1400, 900);
-            AutoScrollMinSize = new Size(1100, 700);
-
-            var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(24, 18, 24, 18), BackColor = UiTheme.PageBg };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
-            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.Controls.Add(BuildHeader(), 0, 0);
-            root.Controls.Add(BuildKpis(), 0, 1);
-            root.Controls.Add(BuildBody(), 0, 2);
-            Controls.Add(root);
-
-            _searchDelay.Tick += (s, e) => { _searchDelay.Stop(); LoadList(); };
-            UiTheme.Polish(this);
-            LoadList();
+            InitializeComponent();
         }
 
         public void RefreshData() { _s = BreqsService.Settings; LoadList(); }
