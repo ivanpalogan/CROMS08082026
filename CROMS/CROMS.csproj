@@ -172,6 +172,9 @@
     <Compile Include="Forms\TicketPrepForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\TicketPrepForm.Designer.cs">
+      <DependentUpon>TicketPrepForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\QueueManagementForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -192,6 +195,9 @@
     </Compile>
     <Compile Include="Forms\LauncherForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\LauncherForm.Designer.cs">
+      <DependentUpon>LauncherForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\ReleaseClaimForm.cs">
       <SubType>Form</SubType>
@@ -215,29 +221,62 @@
     <Compile Include="Forms\MarriageLicenseForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\MarriageLicenseForm.Designer.cs">
+      <DependentUpon>MarriageLicenseForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\IssueLicenseForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\IssueLicenseForm.Designer.cs">
+      <DependentUpon>IssueLicenseForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\Form3ACertForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\Form3ACertForm.Designer.cs">
+      <DependentUpon>Form3ACertForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\Form3BCertForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\Form3BCertForm.Designer.cs">
+      <DependentUpon>Form3BCertForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\Form3CCertForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\Form3CCertForm.Designer.cs">
+      <DependentUpon>Form3CCertForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\HeaderFooterImagesForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\HeaderFooterImagesForm.Designer.cs">
+      <DependentUpon>HeaderFooterImagesForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\MarriageEntryForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MarriageEntryForm.Designer.cs">
+      <DependentUpon>MarriageEntryForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\MarriageCaseForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\MarriageCaseForm.Designer.cs">
+      <DependentUpon>MarriageCaseForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\MarriageRecordForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\MarriageRecordForm.Designer.cs">
+      <DependentUpon>MarriageRecordForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\PsaTransmittalForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\PsaTransmittalForm.Designer.cs">
+      <DependentUpon>PsaTransmittalForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\DeathRegistrationForm.cs">
       <SubType>Form</SubType>
@@ -326,11 +365,20 @@
     <Compile Include="Forms\TemplateManagementForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\TemplateManagementForm.Designer.cs">
+      <DependentUpon>TemplateManagementForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\TemplateDesignerForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\TemplateDesignerForm.Designer.cs">
+      <DependentUpon>TemplateDesignerForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\ProfileViewForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ProfileViewForm.Designer.cs">
+      <DependentUpon>ProfileViewForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\AdminVerificationForm.cs">
       <SubType>Form</SubType>
@@ -452,8 +500,14 @@
     <Compile Include="Forms\ReportsAnalyticsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\ReportsAnalyticsForm.Designer.cs">
+      <DependentUpon>ReportsAnalyticsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\CollectionsReportForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\CollectionsReportForm.Designer.cs">
+      <DependentUpon>CollectionsReportForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\Db.cs" />
     <Compile Include="Data\RegistryNumber.cs" />
@@ -491,9 +545,15 @@
     <Compile Include="Forms\DelayedBirthCaseForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\DelayedBirthCaseForm.Designer.cs">
+      <DependentUpon>DelayedBirthCaseForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Data\PetitionDocuments.cs" />
     <Compile Include="Forms\PetitionDocumentsForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\PetitionDocumentsForm.Designer.cs">
+      <DependentUpon>PetitionDocumentsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\BreqsService.cs" />
     <Compile Include="Data\PaymentService.cs" />
@@ -501,19 +561,34 @@
     <Compile Include="Forms\BreqsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\BreqsForm.Designer.cs">
+      <DependentUpon>BreqsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\BreqsDialogs.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\BreqsDialogs.Designer.cs">
+      <DependentUpon>BreqsDialogs.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\CtrlWheelZoom.cs" />
     <Compile Include="Forms\ZoomPrintPreviewForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\ZoomPrintPreviewForm.Designer.cs">
+      <DependentUpon>ZoomPrintPreviewForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Data\SealDetector.cs" />
     <Compile Include="Forms\CertificateViewerForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\CertificateViewerForm.Designer.cs">
+      <DependentUpon>CertificateViewerForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\OfficeAssetsForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\OfficeAssetsForm.Designer.cs">
+      <DependentUpon>OfficeAssetsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\DocVocabulary.cs" />
     <Compile Include="Data\DocLayouts.cs" />
@@ -535,8 +610,14 @@
     <Compile Include="Forms\ReportCustomizeForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\ReportCustomizeForm.Designer.cs">
+      <DependentUpon>ReportCustomizeForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\FormAlignForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\FormAlignForm.Designer.cs">
+      <DependentUpon>FormAlignForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\ServerBeacon.cs" />
 

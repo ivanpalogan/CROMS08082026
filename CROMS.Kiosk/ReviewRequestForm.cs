@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -12,13 +12,9 @@ namespace CROMS.Kiosk
     /// down to centering the card off a Screen.PrimaryScreen snapshot taken before the form was ever
     /// laid out (the same bug already fixed on CtcDetailsForm's card - see its CenterCard comment).
     /// </summary>
-    public sealed class ReviewRequestForm : Form, IMessageFilter
+    public sealed partial class ReviewRequestForm : Form, IMessageFilter
     {
         private readonly KioskSession _session;
-        private readonly Panel _host;
-        private readonly RoundPanel _card;
-        private readonly FlowLayoutPanel _flow;
-        private readonly Button _confirm;
         private Timer _idle;
         private Action _resetIdle;
         // Set by every deliberate close (Back / Add Another / idle / submit) so OnFormClosing can
@@ -29,96 +25,9 @@ namespace CROMS.Kiosk
         public ReviewRequestForm(KioskSession session)
         {
             _session = session;
-            Text = "Review Request";
-            FormBorderStyle = FormBorderStyle.None;
-            WindowState = FormWindowState.Maximized;
-            BackColor = KioskCore.Bg;
-            Font = new Font("Segoe UI", 10F);
-
-            // ---------------------------------------------------------------- header
-            var header = new Panel { Dock = DockStyle.Top, Height = 128, BackColor = KioskCore.Bg };
-            var title = new Label
-            {
-                Text = "Review Your Request", AutoSize = true, Location = new Point(40, 18),
-                Font = new Font("Segoe UI", 30F, FontStyle.Bold), ForeColor = KioskCore.Ink
-            };
-            var stepInd = new StepIndicator
-            {
-                Steps = _session.StepLabels(), Location = new Point(40, 74), Size = new Size(700, 52)
-            };
-            stepInd.SetStep(stepInd.Steps.Length - 1);
-            header.Controls.Add(title);
-            header.Controls.Add(stepInd);
-            // A fixed Width truncated the capsule's last label ("Review") whenever the step
-            // count/labels (which vary with the session - up to 5 with BREQS+CTC both picked)
-            // needed more room than a guessed constant gave them; StepIndicator itself clamps
-            // its capsule to Width and silently clips. Recomputed off the header's OWN current
-            // size on Load/Resize instead, same fix already applied to the card below.
-            void SizeStepIndicator() => stepInd.Width = Math.Max(200, header.ClientSize.Width - 80);
-            header.Resize += (s, e) => SizeStepIndicator();
-
-            // ---------------------------------------------------------------- footer
-            var footer = new Panel { Dock = DockStyle.Bottom, Height = 100, BackColor = Color.White };
-            var footerDivider = new Panel { Dock = DockStyle.Top, Height = 1, BackColor = KioskCore.Line };
-
-            var back = new Button { Text = "Back", Size = new Size(190, 64), Location = new Point(40, 18) };
-            back.Click += (s, e) => { _navigating = true; DialogResult = DialogResult.Cancel; Close(); };
-
-            var addAnother = new Button
-            {
-                Text = "Add Another Transaction", Size = new Size(280, 64), Anchor = AnchorStyles.Bottom | AnchorStyles.Right
-            };
-            addAnother.Click += (s, e) => { _navigating = true; DialogResult = DialogResult.Retry; Close(); };
-
-            _confirm = new Button
-            {
-                Text = "Confirm && Print Ticket", Size = new Size(260, 64), Anchor = AnchorStyles.Bottom | AnchorStyles.Right
-            };
-            _confirm.Click += Confirm;
-
-            footer.Controls.Add(footerDivider);
-            footer.Controls.Add(back);
-            footer.Controls.Add(addAnother);
-            footer.Controls.Add(_confirm);
-            KioskButtons.Style(back, KioskButtonKind.Secondary, KioskCore.IconArrowLeft, backdrop: footer.BackColor);
-            KioskButtons.Style(addAnother, KioskButtonKind.Secondary, backdrop: footer.BackColor);
-            KioskButtons.Style(_confirm, KioskButtonKind.Success, KioskCore.IconPrinter, iconRight: true, backdrop: footer.BackColor);
-
-            void PlaceFooterButtons()
-            {
-                _confirm.Location = new Point(footer.Width - 40 - _confirm.Width, 18);
-                addAnother.Location = new Point(_confirm.Left - 16 - addAnother.Width, 18);
-            }
-            footer.Resize += (s, e) => PlaceFooterButtons();
-
-            // ---------------------------------------------------------------- card
-            _card = new RoundPanel { Radius = 16, Fill = Color.White, BorderColor = KioskCore.Line, Shadow = 6 };
-            var hint = new Label
-            {
-                Text = "One queue number will cover all services below.", Dock = DockStyle.Top, Height = 32,
-                Font = new Font("Segoe UI", 10.5F), ForeColor = KioskCore.Muted
-            };
-            var scroll = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
-            _flow = new FlowLayoutPanel
-            {
-                FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.White
-            };
-            scroll.Controls.Add(_flow);
-            _card.Padding = new Padding(36, 28, 36, 24);
-            _card.Controls.Add(scroll);
-            _card.Controls.Add(hint);
-
-            _host = new Panel { Dock = DockStyle.Fill, BackColor = KioskCore.Bg };
-            _host.Controls.Add(_card);
-            _host.Resize += (s, e) => LayoutCard();
-
-            Controls.Add(_host);
-            Controls.Add(footer);
-            Controls.Add(header);
+            InitializeComponent();
 
             BuildRows();
-            Load += (s, e) => { LayoutCard(); PlaceFooterButtons(); SizeStepIndicator(); };
 
             // ---------------------------------------------------------------- idle timeout
             // A client can walk away right here (their name is already on screen) exactly as
@@ -142,6 +51,26 @@ namespace CROMS.Kiosk
             _idle.Start();
             Application.AddMessageFilter(this);
         }
+
+        private void SizeStepIndicator() => _stepInd.Width = Math.Max(200, _header.ClientSize.Width - 80);
+
+        private void PlaceFooterButtons()
+        {
+            _confirm.Location = new Point(_footer.Width - 40 - _confirm.Width, 18);
+            _addAnother.Location = new Point(_confirm.Left - 16 - _addAnother.Width, 18);
+        }
+
+        private void Header_Resize(object sender, EventArgs e) => SizeStepIndicator();
+
+        private void Footer_Resize(object sender, EventArgs e) => PlaceFooterButtons();
+
+        private void Host_Resize(object sender, EventArgs e) => LayoutCard();
+
+        private void ReviewRequestForm_Load(object sender, EventArgs e) { LayoutCard(); PlaceFooterButtons(); SizeStepIndicator(); }
+
+        private void Back_Click(object sender, EventArgs e) { _navigating = true; DialogResult = DialogResult.Cancel; Close(); }
+
+        private void AddAnother_Click(object sender, EventArgs e) { _navigating = true; DialogResult = DialogResult.Retry; Close(); }
 
         public bool PreFilterMessage(ref Message m)
         {

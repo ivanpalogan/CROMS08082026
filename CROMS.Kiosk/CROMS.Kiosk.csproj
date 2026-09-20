@@ -116,6 +116,9 @@
     <Compile Include="CtcDetailsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="CtcDetailsForm.Designer.cs">
+      <DependentUpon>CtcDetailsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -123,6 +126,9 @@
     </Compile>
     <Compile Include="ReviewRequestForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="ReviewRequestForm.Designer.cs">
+      <DependentUpon>ReviewRequestForm.cs</DependentUpon>
     </Compile>
     <Compile Include="WelcomeForm.cs">
       <SubType>Form</SubType>

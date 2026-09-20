@@ -19,7 +19,7 @@ namespace CROMS.Forms
     /// from. It never writes to a civil registry record; saving only changes how a
     /// certificate looks the next time it is printed.
     /// </summary>
-    public class TemplateDesignerForm : Form
+    public partial class TemplateDesignerForm : Form
     {
         private readonly TemplateFormInfo _info;
         private bool _editable;
@@ -31,12 +31,6 @@ namespace CROMS.Forms
         private readonly Stack<string> _redo = new Stack<string>();
         private readonly Dictionary<int, Image> _imageCache = new Dictionary<int, Image>();
 
-        private TemplateCanvas _canvas;
-        private ListBox _lstElements;
-        private Panel _propsHost;
-        private Label _lblMode;
-        private Button _btnSave, _btnUndo, _btnRedo, _btnDataSource, _btnEditToggle;
-        private Button _btnApplyHeader, _btnApplyFooter;
         private string _realRecordLabel;
 
         public TemplateDesignerForm(TemplateFormInfo info, bool startInEditMode)
@@ -51,15 +45,8 @@ namespace CROMS.Forms
             };
             _savedJson = _json.Serialize(_current.Elements);
 
-            Text = info.FormName + " — Template Designer";
-            StartPosition = FormStartPosition.CenterScreen;
-            Size = new Size(1440, 920);
-            WindowState = FormWindowState.Maximized;
-            BackColor = UiTheme.PageBg;
-            Font = new Font("Segoe UI", 9f);
-            FormClosing += TemplateDesignerForm_FormClosing;
-
-            BuildLayout();
+            InitializeComponent();
+            RebuildPropertiesPanel();
             LoadSampleValues();
             RebuildElementsList();
             UpdateModeUi();
@@ -67,152 +54,30 @@ namespace CROMS.Forms
             UiTheme.Polish(this);
         }
 
-        // ============================================================== layout
+        // ============================================================== toolbar / canvas events
 
-        private void BuildLayout()
+        private void BtnClose_Click(object sender, EventArgs e) => Close();
+        private void BtnSave_Click(object sender, EventArgs e) => SaveTemplate();
+        private void BtnEditToggle_Click(object sender, EventArgs e) => TryEnterEditMode();
+        private void BtnDataSource_Click(object sender, EventArgs e) => ShowDataSourceMenu();
+        private void BtnRedo_Click(object sender, EventArgs e) => DoRedo();
+        private void BtnUndo_Click(object sender, EventArgs e) => DoUndo();
+        private void BtnApplyFooter_Click(object sender, EventArgs e) => ApplyBandToFamily("Footer");
+        private void BtnApplyHeader_Click(object sender, EventArgs e) => ApplyBandToFamily("Header");
+        private void BtnAddText_Click(object sender, EventArgs e) => AddTextElement();
+        private void BtnAddField_Click(object sender, EventArgs e) => ShowAddFieldMenu(_btnAddField);
+        private void BtnAddImage_Click(object sender, EventArgs e) => ShowAddImageMenu(_btnAddImage);
+        private void BtnAddLine_Click(object sender, EventArgs e) => AddLineElement();
+        private void BtnAddRect_Click(object sender, EventArgs e) => AddRectElement();
+
+        private void LstElements_SelectedIndexChanged(object sender, EventArgs e)
         {
-            var top = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = UiTheme.Surface };
-            top.Paint += (s, e) => e.Graphics.DrawLine(Pens.Gainsboro, 0, top.Height - 1, top.Width, top.Height - 1);
-
-            var title = new Label
-            {
-                Text = _info.FormName,
-                Font = new Font("Segoe UI", 13f, FontStyle.Bold),
-                ForeColor = UiTheme.Ink,
-                AutoSize = true,
-                Location = new Point(18, 14),
-            };
-            _lblMode = new Label
-            {
-                AutoSize = true,
-                Font = new Font("Segoe UI", 8.5f, FontStyle.Bold),
-                Location = new Point(20, 36),
-            };
-
-            var bar = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Right,
-                AutoSize = true,
-                AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                FlowDirection = FlowDirection.RightToLeft,
-                Padding = new Padding(10),
-                WrapContents = false,
-            };
-            var btnClose = Btn("Close", UiTheme.Chrome, UiTheme.Ink);
-            btnClose.Click += (s, e) => Close();
-            _btnSave = Btn("Save Template", UiTheme.Accent, Color.White);
-            _btnSave.Click += (s, e) => SaveTemplate();
-            _btnEditToggle = Btn("Edit Template", UiTheme.Accent, Color.White);
-            _btnEditToggle.Click += (s, e) => TryEnterEditMode();
-            _btnDataSource = Btn("Preview: Sample Data", UiTheme.Chrome, UiTheme.Ink);
-            _btnDataSource.Width = 220;
-            _btnDataSource.Click += (s, e) => ShowDataSourceMenu();
-            _btnRedo = Btn("Redo ↷", UiTheme.Chrome, UiTheme.Ink);
-            _btnRedo.Click += (s, e) => DoRedo();
-            _btnUndo = Btn("↶ Undo", UiTheme.Chrome, UiTheme.Ink);
-            _btnUndo.Click += (s, e) => DoUndo();
-
-            bool inFamily = TemplateStore.FactsCertificationFamily.Contains(_info.FormCode);
-            if (inFamily)
-            {
-                _btnApplyFooter = Btn("Apply Footer to 1A/2A/3A", UiTheme.Chrome, UiTheme.Ink);
-                _btnApplyFooter.Width = 172;
-                _btnApplyFooter.Click += (s, e) => ApplyBandToFamily("Footer");
-                _btnApplyHeader = Btn("Apply Header to 1A/2A/3A", UiTheme.Chrome, UiTheme.Ink);
-                _btnApplyHeader.Width = 172;
-                _btnApplyHeader.Click += (s, e) => ApplyBandToFamily("Header");
-                bar.Controls.Add(_btnApplyFooter);
-                bar.Controls.Add(_btnApplyHeader);
-            }
-
-            bar.Controls.Add(btnClose);
-            bar.Controls.Add(_btnSave);
-            bar.Controls.Add(_btnEditToggle);
-            bar.Controls.Add(_btnDataSource);
-            bar.Controls.Add(_btnRedo);
-            bar.Controls.Add(_btnUndo);
-
-            top.Controls.Add(bar);
-            top.Controls.Add(_lblMode);
-            top.Controls.Add(title);
-
-            // ---- left: toolbox + elements list
-            var left = new Panel { Dock = DockStyle.Left, Width = 210, BackColor = UiTheme.Surface, Padding = new Padding(12) };
-            left.Paint += (s, e) => e.Graphics.DrawLine(Pens.Gainsboro, left.Width - 1, 0, left.Width - 1, left.Height);
-
-            var lblAdd = new Label { Text = "COMPONENTS", Font = new Font("Segoe UI", 8f, FontStyle.Bold), ForeColor = UiTheme.Faint, Location = new Point(12, 8), AutoSize = true };
-            int y = 30;
-            Button MakeAdd(string text) { var b = ToolboxButton(text); b.Location = new Point(12, y); y += 40; return b; }
-            var btnAddText = MakeAdd("＋ Text");
-            var btnAddField = MakeAdd("＋ Data Field");
-            var btnAddImage = MakeAdd("＋ Image");
-            var btnAddLine = MakeAdd("＋ Line");
-            var btnAddRect = MakeAdd("＋ Rectangle");
-            btnAddText.Click += (s, e) => AddTextElement();
-            btnAddField.Click += (s, e) => ShowAddFieldMenu(btnAddField);
-            btnAddImage.Click += (s, e) => ShowAddImageMenu(btnAddImage);
-            btnAddLine.Click += (s, e) => AddLineElement();
-            btnAddRect.Click += (s, e) => AddRectElement();
-
-            var lblElements = new Label { Text = "ELEMENTS ON THIS PAGE", Font = new Font("Segoe UI", 8f, FontStyle.Bold), ForeColor = UiTheme.Faint, Location = new Point(12, y + 8), AutoSize = true };
-            _lstElements = new ListBox
-            {
-                Location = new Point(12, y + 30),
-                Size = new Size(184, 420),
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Bottom,
-                IntegralHeight = false,
-                FormattingEnabled = true,
-            };
-            _lstElements.Format += ListBox_Format;
-            _lstElements.SelectedIndexChanged += (s, e) =>
-            {
-                if (_lstElements.SelectedItem is TemplateElement el) _canvas.SelectedId = el.Id;
-            };
-
-            left.Controls.Add(_lstElements);
-            left.Controls.Add(lblElements);
-            left.Controls.Add(btnAddText);
-            left.Controls.Add(btnAddField);
-            left.Controls.Add(btnAddImage);
-            left.Controls.Add(btnAddLine);
-            left.Controls.Add(btnAddRect);
-            left.Controls.Add(lblAdd);
-
-            // ---- right: properties
-            _propsHost = new Panel { Dock = DockStyle.Right, Width = 270, BackColor = UiTheme.Surface, AutoScroll = true, Padding = new Padding(14) };
-            _propsHost.Paint += (s, e) => e.Graphics.DrawLine(Pens.Gainsboro, 0, 0, 0, _propsHost.Height);
-
-            // ---- center: canvas
-            _canvas = new TemplateCanvas
-            {
-                Dock = DockStyle.Fill,
-                Template = _current,
-            };
-            _canvas.SelectionChanged += (s, e) => { RebuildPropertiesPanel(); SyncListSelection(); };
-            _canvas.BeforeMutate += (s, e) => PushUndo();
-            _canvas.ElementsChanged += (s, e) => { RebuildElementsList(); RebuildPropertiesPanel(); };
-
-            Controls.Add(_canvas);
-            Controls.Add(_propsHost);
-            Controls.Add(left);
-            Controls.Add(top);
-
-            RebuildPropertiesPanel();
+            if (_lstElements.SelectedItem is TemplateElement el) _canvas.SelectedId = el.Id;
         }
 
-        private static Button Btn(string text, Color back, Color fore) => new Button
-        {
-            Text = text, AutoSize = false, Size = new Size(120, 32),
-            BackColor = back, ForeColor = fore, FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(4, 0, 0, 0),
-        };
-
-        private static Button ToolboxButton(string text) => new Button
-        {
-            Text = text, Size = new Size(184, 34), TextAlign = ContentAlignment.MiddleLeft,
-            Padding = new Padding(8, 0, 0, 0), BackColor = UiTheme.Chrome, ForeColor = UiTheme.Ink,
-            FlatStyle = FlatStyle.Flat,
-        };
+        private void Canvas_SelectionChanged(object sender, EventArgs e) { RebuildPropertiesPanel(); SyncListSelection(); }
+        private void Canvas_BeforeMutate(object sender, EventArgs e) => PushUndo();
+        private void Canvas_ElementsChanged(object sender, EventArgs e) { RebuildElementsList(); RebuildPropertiesPanel(); }
 
         private void UpdateModeUi()
         {

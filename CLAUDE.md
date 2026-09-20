@@ -5495,3 +5495,26 @@ NOT DONE, stated plainly: the BREQS desk and the OCR/Document AI paths do not re
 `transaction_id`, and is left NULL), so the two cannot yet be reported on together. And the
 abandon reason is free text beside a suggested list, so it is a note, not a category — counting
 abandonments BY reason would need the list fixed first, which is the office's call.
+
+### 2026-09-20 — Code/design split finished for every Form (CROMS + CROMS.Kiosk)
+Continuation of a session that split the 24 code-built forms into `X.cs` + `X.Designer.cs` and died
+on a usage limit mid-batch. State found: 21 Designer files existed but NONE were in `CROMS.csproj`
+(so the build failed with CS0103 "InitializeComponent does not exist"), `IssueLicenseForm.cs` called
+`InitializeComponent()` with no Designer at all, and three forms were never split.
+
+Done: wrote `IssueLicenseForm.Designer.cs`; registered 26 missing `.Designer.cs` entries (with
+`<DependentUpon>`) plus `IssueLicenseForm.cs` in `CROMS.csproj`; split `TemplateDesignerForm`
+(toolbox/list/props/canvas + toolbar in Designer, click and canvas handlers now named methods in
+the `.cs`), and the kiosk `CtcDetailsForm` and `ReviewRequestForm` (kiosk csproj entries added).
+Behaviour is unchanged: same controls, same order, same handlers - lambdas became named handlers,
+and logic that must run after layout (`RebuildPropertiesPanel`, `BuildRows`, idle timer) stays in
+the constructor after `InitializeComponent()`.
+
+These are FILE splits, not drag-designer-loadable: the layout code still calls helper methods
+(`Field`, `Btn`, `BuildChrome`...), which the VS designer cannot parse - same limitation as the
+other 21. Left alone on purpose: `MarriageUi.cs` (shared helper class, not a form) and the
+`Analytics\*` / `ClientTasksPanel` UserControls (custom-painted controls, not forms).
+
+VERIFIED: MSBuild clean, 0 errors, 0 warnings, for CROMS and CROMS.Kiosk (temp OutputPath - REBUILD
+IN VS to update bin\Debug). GUI not opened (no interactive desktop); forms were compared against
+their pre-split source, not eyeballed.
