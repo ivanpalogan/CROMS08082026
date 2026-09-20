@@ -54,9 +54,13 @@ namespace CROMS.Forms
 
         public void RefreshData() => LoadDeaths();
 
+        /// <summary>Medical-certificate and permit entries (migration 57), built in code as their own tab.</summary>
+        private readonly DeathExtraFields _extras = new DeathExtraFields();
+
         public DeathRegistrationForm()
         {
             InitializeComponent();
+            tabControl.TabPages.Add(_extras.Page);
             LoadCombos();
             BuildLookups();
             LoadDeaths();
@@ -450,11 +454,12 @@ namespace CROMS.Forms
                         new MySqlParameter("@reg", registryNo),
                         new MySqlParameter("@status", "Registered")
                     };
+                    ps.AddRange(_extras.Params());
                     try
                     {
                         newId = Db.Insert(
-                            "INSERT INTO deaths (registry_no, status, " + Columns + ") " +
-                            "VALUES (@reg, @status, " + ValuePlaceholders + ")", ps.ToArray());
+                            "INSERT INTO deaths (registry_no, status, " + Columns + ", " + DeathExtraFields.Columns + ") " +
+                            "VALUES (@reg, @status, " + ValuePlaceholders + ", " + DeathExtraFields.Placeholders + ")", ps.ToArray());
                         break;
                     }
                     catch (MySqlException ex)
@@ -539,6 +544,7 @@ namespace CROMS.Forms
             txtDispPlace.Text = Str(r["place_of_disposal"]);
             SetOptionalDate(dtpDispDate, r["date_of_disposal"]);
             SetCombo(cboPermit, r["permit_type"]);
+            _extras.Load(r);
             _scanImage = dt.Columns.Contains("scan_image") && r["scan_image"] != DBNull.Value
                 ? (byte[])r["scan_image"] : null;
         }
@@ -557,9 +563,10 @@ namespace CROMS.Forms
             {
                 new MySqlParameter("@id", _editingId.Value)
             };
+            ps.AddRange(_extras.Params());
             try
             {
-                Db.Push("UPDATE deaths SET " + SetClause + " WHERE id = @id", ps.ToArray());
+                Db.Push("UPDATE deaths SET " + SetClause + ", " + DeathExtraFields.SetClause + " WHERE id = @id", ps.ToArray());
                 SaveScan(_editingId.Value);
                 Audit.Write(Audit.Update, "deaths", _editingId.Value, FullName());
                 MessageBox.Show("Record updated.", "Updated",
@@ -1001,6 +1008,7 @@ namespace CROMS.Forms
             _scanImage = null;
             _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;
             _formName = FormCatalog.Current(DocKind.Death)?.FormName;
+            _extras.Clear();
             txtLastName.Clear();
             txtFirstName.Clear();
             txtMiddleName.Clear();

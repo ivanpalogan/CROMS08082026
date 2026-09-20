@@ -46,9 +46,9 @@ DROP PROCEDURE IF EXISTS _croms_oop_license;
 INSERT INTO `marriage_requirement_types`
     (code, label, applies_to, rule_key, per_party, blocking, legal_basis, is_active, sort_order)
 SELECT 'OUT_OF_PROVINCE_LICENSE',
-       'Licence obtained in another province (informational - no proof document required; attach a copy only if the applicant has one)',
+       'Licence from another province (informational; attach a copy if the applicant has one)',
        'Marriage', 'OutOfProvinceLicense', 0, 0,
-       'Office confirmed 2026-09-13: it is lawful to license in one province and marry in another; nothing beyond the licence number/date is required. Non-blocking.',
+       'Office 2026-09-13: licence from another province is valid; only its number/date is needed.',
        1, 50
 WHERE NOT EXISTS (
     SELECT 1 FROM `marriage_requirement_types` WHERE code = 'OUT_OF_PROVINCE_LICENSE' AND applies_to = 'Marriage'

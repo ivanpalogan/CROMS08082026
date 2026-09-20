@@ -5627,3 +5627,31 @@ the day/month of signing; death items 14-19a (medical certificate for ages 0-7 d
 19d external causes, 21 attendant, 24 permit numbers, 20 autopsy, and the certifier's title/address. Adding
 those needs columns (a migration) first - flagged, not invented. Same TODO as before: print a real page on
 paper for each form and compare with the office's sheet.
+
+### 2026-09-20 (final+) - The missing marriage and death columns now exist end to end
+Migration `57_marriage_death_missing_fields.sql` (APPLIED to the live DB, idempotent, ASCII). Depends on 46.
+MARRIAGE (`marriages`, 13 cols): husband_sex / wife_sex, {husband,wife}_{father,mother}_citizenship, the
+consent-or-advice person per party ({h,w}_consent_name / _relationship / _residence - ONE person per party, as on
+the sheet and Form 90) and marriage_settlement (None / Entered).
+DEATH (`deaths`, 20 cols): interval_immediate/antecedent/underlying, other_conditions, maternal_condition (19c),
+external_manner + external_place (19d), autopsy (20), attendant_type (21a), attendance_from/to (21b),
+certifier_attended + certifier_title + certifier_address (22), burial_permit_no/date (24a), transfer_permit_no/date
+(24b), reviewed_by + reviewed_by_date. NOT added: items 14-19a (infant deaths, ages 0-7 days) - they are on the
+BACK of the form and no scan of the back is on file. Nothing backfilled; NULL = not stated. Both certificate
+views restated (v_marriage_certificate 78 cols, v_death_certificate 76).
+SCREENS (so nothing is stored that staff cannot see): Marriage Form 97 - Sex on each party card (pre-picked
+Male/Female for a NEW record, shown blank for an old one), Parents tab gains each parent's citizenship and the
+consent/advice person block, Solemnization tab gains marriage settlement. Death - a new code-built
+"Medical & Permits" tab (`Forms/DeathExtraFields.cs`, kept out of the Designer on purpose), wired into
+Register / Update / load / clear. PRINT MAPS: all of it placed on both blanks (sex, parents' citizenship, consent
+block, settlement ticks; intervals, 19c/21a ticks, 19d, autopsy, 21b dates, 22 tick + title/address, permits,
+reviewer) - rendered through the .rpt and looked at.
+ALSO FIXED (pending migrations that were never applied): 45 (out-of-province licence) failed on two over-long
+text values (label > 120, legal_basis > 120) - shortened and applied; 46 (marriage place of birth, which the
+Form 97 screen already writes) applied. Without them Marriage Registration could not save. 52 and 54 are still
+NOT applied (petition documents; phone-scan upload).
+VERIFIED: rows with every new column inserted and read back through both views inside a rolled-back
+transaction; Form 97 rendered (Sex row present, layout fits); Death form constructed against the live DB and
+its new tab rendered; CROMS builds clean. NOT run: an actual save of a marriage / death through the screens'
+buttons (they raise message boxes), the OCR review grid and structured (no-blank) printout do not know the new
+fields yet. Same TODO: print real pages on paper.

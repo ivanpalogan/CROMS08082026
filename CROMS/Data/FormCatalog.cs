@@ -878,6 +878,25 @@ namespace CROMS.Data
             // Above the "(Signature of Solemnizing Officer)" caption at y 1054.
             cell("solemnizer", 300f, 1042f, 8f, false);
 
+            // Sex, the parents' citizenship rows and the consent/advice person (migration 57).
+            Action<string, string, float, float> mark = (col, when, x, y) =>
+                d.Marks.Add(new PrintMark(col, when, x / W, y / H));
+            cell("husband_sex", 195f, 286f, 7.5f, false);
+            cell("wife_sex", 363f, 286f, 7.5f, false);
+            cell("husband_father_citizenship", 195f, 470f, 7.5f, false);
+            cell("wife_father_citizenship", 363f, 470f, 7.5f, false);
+            cell("husband_mother_citizenship", 195f, 526f, 7.5f, false);
+            cell("wife_mother_citizenship", 363f, 526f, 7.5f, false);
+            cell("husband_consent_name", 205f, 567f, 7.5f, false);
+            cell("wife_consent_name", 396f, 567f, 7.5f, false);
+            cell("husband_consent_relationship", 195f, 597f, 7.5f, false);
+            cell("wife_consent_relationship", 363f, 597f, 7.5f, false);
+            cell("husband_consent_residence", 195f, 628f, 7.5f, false);
+            cell("wife_consent_residence", 363f, 628f, 7.5f, false);
+            // Marriage settlement: an X in the box in front of the sentence that applies.
+            mark("marriage_settlement", "None", 148f, 799f);
+            mark("marriage_settlement", "Entered", 148f, 820f);
+
             // The certification's own blanks, read from the same view the rest of the sheet uses.
             // "I certify further that: Marriage License No. ___ Issued on ___ , at ___".
             cell("license_no", 252f, 971f, 7f, false);
@@ -1000,6 +1019,47 @@ namespace CROMS.Data
             cell("immediate_cause", 200f, 320f, 7.5f, false);
             cell("antecedent_cause", 200f, 335f, 7.5f, false);
             cell("underlying_cause", 200f, 352f, 7.5f, false);
+
+            // Medical-certificate items (migration 57). Interval column sits beside each cause.
+            Action<string, string, float, float> mark = (col, when, x, y) =>
+                d.Marks.Add(new PrintMark(col, when, x / W, y / H));
+            cell("interval_immediate", 382f, 320f, 7f, false);
+            cell("interval_antecedent", 382f, 335f, 7f, false);
+            cell("interval_underlying", 382f, 352f, 7f, false);
+            cell("other_conditions", 272f, 361f, 7f, false);
+            // 19c maternal condition: an X on the blank in front of the chosen option.
+            mark("maternal_condition", "Pregnant, not in labour", 79f, 391f);
+            mark("maternal_condition", "Pregnant, in labour", 171f, 391f);
+            mark("maternal_condition", "Less than 42 days", 266f, 391f);
+            mark("maternal_condition", "42 days to 1 year", 389f, 391f);
+            mark("maternal_condition", "None of the choices", 508f, 391f);
+            // 19d external causes, 20 autopsy.
+            cell("external_manner", 357f, 415f, 7f, false);
+            cell("external_place", 391f, 431f, 7f, false);
+            cell("autopsy", 548f, 422f, 7.5f, false);
+            // 21a attendant (an X on the blank), 21b duration of attendance.
+            mark("attendant_type", "Private Physician", 72.6f, 467f);
+            mark("attendant_type", "Public Health Officer", 144.4f, 467f);
+            mark("attendant_type", "Hospital Authority", 205.6f, 467f);
+            mark("attendant_type", "None", 276.4f, 467f);
+            mark("attendant_type", "*", 334.7f, 467f);
+            cell("attendance_from", 463f, 469f, 7f, true);
+            cell("attendance_to", 537f, 469f, 7f, true);
+            // 22: attended / did not attend (tinyint reads back as True/False or 1/0).
+            mark("certifier_attended", "True", 517f, 493f);
+            mark("certifier_attended", "1", 517f, 493f);
+            mark("certifier_attended", "False", 72f, 504f);
+            mark("certifier_attended", "0", 72f, 504f);
+            cell("certifier_title", 131f, 547f, 7.5f, false);
+            cell("certifier_address", 101f, 562f, 7.5f, false);
+            // Reviewed by the health officer.
+            cell("reviewed_by", 392f, 535f, 7.5f, false);
+            cell("reviewed_by_date", 425f, 561f, 7f, true);
+            // 24a burial/cremation permit, 24b transfer permit.
+            cell("burial_permit_no", 255f, 599f, 7.5f, false);
+            cell("burial_permit_date", 274f, 611f, 7f, true);
+            cell("transfer_permit_no", 442f, 599f, 7.5f, false);
+            cell("transfer_permit_date", 455f, 611f, 7f, true);
 
             // 22. Certification of death: time of death, and the certifier's name in print.
             cell("time_of_death", 304f, 503f, 7.5f, false);

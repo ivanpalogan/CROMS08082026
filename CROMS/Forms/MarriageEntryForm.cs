@@ -34,12 +34,14 @@ namespace CROMS.Forms
     {
         private sealed class SP
         {
-            public TextBox First, Middle, Last, Father, Mother;
+            public TextBox First, Middle, Last, Father, Mother, ConsentName, ConsentRel, ConsentRes;
+            public ComboBox Sex, FatherCit, MotherCit;
             public DateTimePicker Dob;
             public Label Age;
             public ComboBox BirthCountry, BirthProv, BirthMuni, Cit, Rel, Res, Civil;
         }
 
+        private ComboBox _settle;   // marriage settlement: None / Entered (null = not stated)
         private int? _id;
         private string _status = "Draft";
         private string _formCode = FormCatalog.Current(DocKind.Marriage)?.FormCode;
@@ -260,7 +262,14 @@ namespace CROMS.Forms
             cr.Controls.Add(MUi.Field("Citizenship", p.Cit), 0, 0); cr.Controls.Add(MUi.Field("Religion", p.Rel), 1, 0);
             TableLayoutPanel cs = MUi.Grid(2, 1, 56);
             cs.Controls.Add(MUi.Field("Civil status", p.Civil), 0, 0); cs.Controls.Add(MUi.Field("Residence", p.Res), 1, 0);
-            Stack(inner, names, dob, pob1, pob2, cr, cs);
+            // Sex (item on the printed sheet): pre-picked from the column - the Family Code makes the
+            // husband male and the wife female - but stored and editable, never derived at print time.
+            p.Sex = MUi.Combo(false, new[] { "Male", "Female" });
+            p.Sex.SelectedItem = pre == "Husband" ? "Male" : "Female";
+            p.Sex.SelectedIndexChanged += (s, e) => Changed(p.Sex);
+            TableLayoutPanel sx = MUi.Grid(2, 1, 56);
+            sx.Controls.Add(MUi.Field("Sex", p.Sex), 0, 0);
+            Stack(inner, names, dob, pob1, pob2, cr, cs, sx);
 
             _keyControls[pre + "First"] = p.First; _keyControls[pre + "Middle"] = p.Middle; _keyControls[pre + "Last"] = p.Last;
             foreach (Control c in new Control[] { p.First, p.Middle, p.Last }) c.TextChanged += (s, e) => Changed(c);
@@ -286,7 +295,7 @@ namespace CROMS.Forms
             // to two (country+province, then municipality alone) when Country was added
             // 2026-09-14 - `inner` has no AutoScroll of its own, so a card shorter than its
             // content would silently clip the Civil status/Residence row off the bottom.
-            var cols = TwoColumns(400,
+            var cols = TwoColumns(456,
                 SpouseCard("HUSBAND / PARTY 1", UiTheme.AccentTint, Color.FromArgb(27, 62, 158), PartyInner(_h, "Husband")),
                 SpouseCard("WIFE / PARTY 2", Color.FromArgb(245, 237, 251), Color.FromArgb(107, 48, 150), PartyInner(_w, "Wife")));
             Stack(pg, Section("Contracting parties", "Read down the paper: the husband's column on the left, the wife's on the right. Age is computed from the date of birth on the marriage date."),
@@ -296,21 +305,31 @@ namespace CROMS.Forms
         private void BuildParents()
         {
             Panel pg = _pages[1];
+            List<string> nations = Read("nationalities").Rows.Cast<DataRow>().Select(x => Convert.ToString(x["name"])).Where(x => x.Length > 0).ToList();
             Func<SP, string, Control> par = (p, pre) =>
             {
                 var inner = new Panel { Padding = new Padding(12, 6, 2, 6), BackColor = Color.Transparent };
                 p.Father = MUi.Box(); p.Mother = MUi.Box();
-                TableLayoutPanel g1 = MUi.Grid(1, 1, 56); g1.Controls.Add(MUi.Field("Name of father", p.Father), 0, 0);
-                TableLayoutPanel g2 = MUi.Grid(1, 1, 56); g2.Controls.Add(MUi.Field("Maiden name of mother", p.Mother), 0, 0);
-                Stack(inner, g1, g2);
+                p.FatherCit = MUi.Combo(true, nations); p.MotherCit = MUi.Combo(true, nations);
+                p.ConsentName = MUi.Box(); p.ConsentRel = MUi.Box(); p.ConsentRes = MUi.Box();
+                TableLayoutPanel g1 = MUi.Grid(2, 1, 56);
+                g1.Controls.Add(MUi.Field("Name of father", p.Father), 0, 0); g1.Controls.Add(MUi.Field("Father's citizenship", p.FatherCit), 1, 0);
+                TableLayoutPanel g2 = MUi.Grid(2, 1, 56);
+                g2.Controls.Add(MUi.Field("Maiden name of mother", p.Mother), 0, 0); g2.Controls.Add(MUi.Field("Mother's citizenship", p.MotherCit), 1, 0);
+                // "Persons who gave consent or advice": ONE person per party, as on the sheet and Form 90.
+                TableLayoutPanel g3 = MUi.Grid(1, 1, 56); g3.Controls.Add(MUi.Field("Person who gave consent or advice (name)", p.ConsentName), 0, 0);
+                TableLayoutPanel g4 = MUi.Grid(2, 1, 56);
+                g4.Controls.Add(MUi.Field("Relationship", p.ConsentRel), 0, 0); g4.Controls.Add(MUi.Field("Residence", p.ConsentRes), 1, 0);
+                Stack(inner, g1, g2, g3, g4);
                 _keyControls[pre + "FatherName"] = p.Father; _keyControls[pre + "MotherName"] = p.Mother;
-                p.Father.TextChanged += (s, e) => Changed(p.Father); p.Mother.TextChanged += (s, e) => Changed(p.Mother);
+                foreach (Control c in new Control[] { p.Father, p.Mother, p.FatherCit, p.MotherCit, p.ConsentName, p.ConsentRel, p.ConsentRes })
+                    c.TextChanged += (s, e) => Changed(c);
                 return inner;
             };
-            var cols = TwoColumns(160,
+            var cols = TwoColumns(250,
                 SpouseCard("HUSBAND'S PARENTS", UiTheme.AccentTint, Color.FromArgb(27, 62, 158), par(_h, "Husband")),
                 SpouseCard("WIFE'S PARENTS", Color.FromArgb(245, 237, 251), Color.FromArgb(107, 48, 150), par(_w, "Wife")));
-            Stack(pg, Section("Parents of the contracting parties", "Items 9-12."), cols);
+            Stack(pg, Section("Parents of the contracting parties", "Items 9-12, and the person who gave consent or advice."), cols);
         }
 
         private void BuildLicense()
@@ -398,6 +417,10 @@ namespace CROMS.Forms
             so.Controls.Add(MUi.Field("Solemnizing officer", _sol), 0, 0); so.Controls.Add(MUi.Field("Position / designation", _solPos), 1, 0);
             TableLayoutPanel wi = MUi.Grid(2, 1, 58);
             wi.Controls.Add(MUi.Field("Witness 1", _w1), 0, 0); wi.Controls.Add(MUi.Field("Witness 2", _w2), 1, 0);
+            _settle = MUi.Combo(false, new[] { "None", "Entered" });
+            _settle.SelectedIndexChanged += (s, e) => Changed(_settle);
+            TableLayoutPanel st = MUi.Grid(2, 1, 58);
+            st.Controls.Add(MUi.Field("Marriage settlement (have not entered / have entered)", _settle), 0, 0);
             var note = new Banner();
             note.Set(RuleSeverity.Info, "CROMS records the officer; it does not certify the officer's authority.",
                 "Whether this officer may solemnize (Family Code Art. 7) is confirmed by the registrar from the office's own records.");
@@ -407,7 +430,7 @@ namespace CROMS.Forms
             foreach (Control c in new Control[] { _tom, _sol, _solPos, _w1, _w2 }) c.TextChanged += (s, e) => Changed(c);
             _church.SelectedIndexChanged += (s, e) => Changed(_church); _muni.SelectedIndexChanged += (s, e) => Changed(_muni);
             LearningLibrary.Attach(_sol, LearningLibrary.Officer);
-            Stack(pg, Section("Solemnization", "Items 17-19: when, where, by whom, before whom."), d, p, so, wi, note);
+            Stack(pg, Section("Solemnization", "Items 17-19: when, where, by whom, before whom."), d, p, so, wi, st, note);
         }
 
         private void BuildCertification()
@@ -565,7 +588,14 @@ namespace CROMS.Forms
                 else
                     GeoLookup.Select(p.BirthCountry, GeoLookup.HomeCountry);   // pre-2026-09-14 row: nothing stored, default to home
                 p.Father.Text = S(pre + "_father_name"); p.Mother.Text = S(pre + "_mother_name");
+                Func<string, string> SC = c => dt.Columns.Contains(c) ? S(c) : "";
+                // NULL in the column means "not stated": show blank rather than re-deriving Male/Female.
+                p.Sex.SelectedItem = SC(pre + "_sex") == "" ? null : SC(pre + "_sex");
+                p.FatherCit.Text = SC(pre + "_father_citizenship"); p.MotherCit.Text = SC(pre + "_mother_citizenship");
+                p.ConsentName.Text = SC(pre + "_consent_name"); p.ConsentRel.Text = SC(pre + "_consent_relationship");
+                p.ConsentRes.Text = SC(pre + "_consent_residence");
             }
+            _settle.SelectedItem = dt.Columns.Contains("marriage_settlement") && S("marriage_settlement") != "" ? S("marriage_settlement") : null;
             MUi.Put(_dom, D("date_of_marriage")); _tom.Text = S("time_of_marriage");
             SetId(_church, r["church_id"]);
             SetPlace(_prov, _muni, r["place_municipality_id"], r["place_province_id"]);
@@ -658,7 +688,12 @@ namespace CROMS.Forms
                 v[pre + "_citizenship_id"] = FkVal(p.Cit); v[pre + "_religion_id"] = FkVal(p.Rel); v[pre + "_residence_id"] = FkVal(p.Res);
                 v[pre + "_civil_status"] = p.Civil.SelectedItem as string;
                 v[pre + "_father_name"] = Nz(p.Father.Text); v[pre + "_mother_name"] = Nz(p.Mother.Text);
+                v[pre + "_sex"] = p.Sex.SelectedItem as string;
+                v[pre + "_father_citizenship"] = Nz(p.FatherCit.Text); v[pre + "_mother_citizenship"] = Nz(p.MotherCit.Text);
+                v[pre + "_consent_name"] = Nz(p.ConsentName.Text); v[pre + "_consent_relationship"] = Nz(p.ConsentRel.Text);
+                v[pre + "_consent_residence"] = Nz(p.ConsentRes.Text);
             }
+            v["marriage_settlement"] = _settle.SelectedItem as string;
             if (_scanImage != null) v["scan_image"] = _scanImage;
             if (status != null && _status != "Registered") v["status"] = status;
             return v;
