@@ -262,6 +262,15 @@ namespace CROMS.Forms
 
             try
             {
+                // Birth / Marriage / Death open straight on the certificate (Crystal .rpt when
+                // present, else the built-in replica). Hold Shift to get the field list, scans
+                // and requirements dialog instead; it is also the fallback if no report renders.
+                if (_current.CertKind.HasValue && (Control.ModifierKeys & Keys.Shift) == 0)
+                {
+                    if (CertificateReport.ShowFor(_current.CertKind.Value, id, this) != null)
+                        return;
+                }
+
                 DataTable dt = Db.Pull("SELECT * FROM " + _current.DetailTable + " WHERE id = @id",
                     new MySqlParameter("@id", id));
                 if (dt.Rows.Count == 0)
