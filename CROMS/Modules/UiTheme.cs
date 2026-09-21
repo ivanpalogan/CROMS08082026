@@ -399,8 +399,19 @@ namespace CROMS.Modules
 
             // Only force a row height where the grid isn't auto-sizing its rows to content.
             if (g.AutoSizeRowsMode == DataGridViewAutoSizeRowsMode.None)
-                g.RowTemplate.Height = 34;
+            {
+                // RowTemplate only shapes rows created AFTER this point. A grid bound in its form's
+                // constructor already holds rows at the default height (~22px), which with the 4px
+                // cell padding clips the text (descenders cut off). Bring those existing rows up too,
+                // but only the ones still at the old default so a deliberately sized row is left alone.
+                int oldH = g.RowTemplate.Height;
+                g.RowTemplate.Height = RowHeight;
+                foreach (DataGridViewRow r in g.Rows)
+                    if (r.Height == oldH) r.Height = RowHeight;
+            }
         }
+
+        private const int RowHeight = 34;
 
         /// <summary>Multiplies each RGB channel by <paramref name="f"/> (｢0.9｣ ≈ 10% darker).</summary>
         private static Color Shade(Color c, float f)
