@@ -99,7 +99,7 @@ namespace CROMS.Forms
                 {
                     post.Set(RuleSeverity.Warning, "Notice not yet posted", "Post the notice of the pending delayed registration for " + _s.DelayedPostingDays + " days (setting MARRIAGE_DELAYED_POSTING_DAYS).");
                     items.Add(post);
-                    _postStart.Value = DateTime.Today; _postStart.MaxDate = DateTime.Today;
+                    _postStart.MinDate = DateTime.Today; _postStart.Value = DateTime.Today; _postStart.MaxDate = DateTime.Today;
                     TableLayoutPanel pg = MUi.Grid(3, 1, 58);
                     pg.Controls.Add(MUi.Field("Posted on", _postStart), 0, 0);
                     items.Add(pg);

@@ -392,6 +392,9 @@ namespace CROMS.Forms
             string st = _l.StoredStatus;
             bool draft = st == "Draft" || _l.Id <= 0;
             _startPosting.Visible = draft; _postStart.Enabled = draft && !_readOnly; _postPreview.Visible = true;
+            // The notice goes up today - it cannot be dated yesterday or last year. Only while the
+            // picker is still editable: an already-posted licence keeps its (past) stored date.
+            if (draft && !_readOnly) _postStart.MinDate = DateTime.Today;
             _hold.Visible = st == "Posting" || st == "On Hold" || (st == "Draft" && _l.Id > 0);
             _hold.Text = st == "On Hold" ? "Release hold" : "Put on hold";
             _cancelApp.Visible = _l.Id > 0 && !new[] { "Used", "Cancelled", "Issued", "Expired" }.Contains(st);
@@ -829,9 +832,9 @@ namespace CROMS.Forms
         {
             if (!SaveDraft(false)) return;
             DateTime st = _postStart.Value.Date;
-            if (st > DateTime.Today)
+            if (st != DateTime.Today)
             {
-                MessageBox.Show(this, "The posting start is the day the notice actually goes up - it cannot be in the future.", "Posting",
+                MessageBox.Show(this, "The posting start is the day the notice actually goes up - it cannot be in the past or the future. Use today's date.", "Posting",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }

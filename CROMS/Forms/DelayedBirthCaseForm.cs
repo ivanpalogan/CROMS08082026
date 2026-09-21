@@ -43,6 +43,8 @@ namespace CROMS.Forms
                 _tglParentDeceased.SetCheckedSilently(_c.ParentDeceased);
                 _lblParentsMarried.Text = _c.ParentsMarried == true ? "Married" : _c.ParentsMarried == false ? "Not married" : "Not stated on the record";
 
+                // Not yet posted: the notice goes up today, never backdated. Already posted: show the stored date.
+                if (!_c.PostingStart.HasValue) _dtpPostingStart.MinDate = DateTime.Today;
                 _dtpPostingStart.Value = _c.PostingStart ?? DateTime.Today;
                 _dtpPostingStart.Enabled = !_c.PostingStart.HasValue;
                 _btnStartPosting.Enabled = !_c.PostingStart.HasValue;
@@ -94,6 +96,12 @@ namespace CROMS.Forms
 
         private void DoStartPosting()
         {
+            if (_dtpPostingStart.Value.Date < DateTime.Today)
+            {
+                MessageBox.Show(this, "The posting start is the day the notice actually goes up - it cannot be in the past. Use today's date.", "Posting",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
             if (!MUi.Confirm(this, "Start posting", "Start the 10-day posting period for this delayed registration?",
                     "Start date|" + _dtpPostingStart.Value.ToString("dd MMM yyyy"),
                     "Ends|" + DelayedBirthRules.PostingEnd(_dtpPostingStart.Value.Date, DelayedBirthService.PostingDays).ToString("dd MMM yyyy")))
