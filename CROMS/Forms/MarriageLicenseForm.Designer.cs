@@ -63,6 +63,7 @@ namespace CROMS.Forms
             StartPosition = FormStartPosition.CenterParent;
             ClientSize = new Size(1220, 780);
             MinimumSize = new Size(1080, 700);
+            WindowState = FormWindowState.Maximized;
             BackColor = UiTheme.PageBg;
             ShowInTaskbar = false;
             KeyPreview = true;
