@@ -1559,100 +1559,284 @@ namespace CROMS.Forms
 
         private static List<ManualTopic> BuildManual() => new List<ManualTopic>
         {
+            // ------------------------------------------------------------ Getting started
+            new ManualTopic("Getting Started", "What CROMS does",
+                "CROMS follows one client from the front desk to release:\n" +
+                "1. The client takes a queue number at the kiosk.\n" +
+                "2. A window accepts the ticket and calls the client.\n" +
+                "3. The request is processed (registration, certificate request, PSA copy, petition...).\n" +
+                "4. The fee is paid at the Treasury and the O.R. number is recorded in Fees & Payments.\n" +
+                "5. The certificate is handed over in Release & Claim.\n" +
+                "Every step is written to the audit trail. The sidebar groups the modules the same way: " +
+                "Transactions, Civil Registration, Petitions & Cases, Records & Documents, Reports, System."),
+            new ManualTopic("Getting Started", "Which screens can I see?",
+                "Every signed-in role sees the same operational modules (queue, certificates, PSA copies, " +
+                "release, fees, birth/marriage/death, case tracking, record search, document processing, reports).\n" +
+                "Only an Administrator also sees Records Archive and Settings (users, master files, forms & " +
+                "templates, windows, audit trail, app updates).\n" +
+                "Use the Collapse button at the bottom of the sidebar to shrink it to an icon rail."),
+
+            // ------------------------------------------------------------ Login
             new ManualTopic("Login", "How to log in",
                 "1. Launch CROMS. The Sign In window appears.\n" +
-                "2. Enter your username and password, then click Sign In (or press Enter).\n" +
-                "3. If the details are correct you continue to Window Assignment.\n" +
-                "Accounts are created by an administrator under Users & Audit Trail."),
-            new ManualTopic("Login", "How to select a service window",
-                "After signing in, the Window Assignment screen lists every Active window.\n" +
-                "• Pick the window you will occupy. A window already taken by another operator " +
-                "is shown as 'occupied' and cannot be chosen.\n" +
-                "• Choosing a window sets it Online and locks it to you until you log out.\n" +
-                "• If you are not manning a window (e.g. an administrator), click Skip."),
-            new ManualTopic("Login", "How to select transaction types",
-                "On the Window Assignment screen, tick the transactions your window will handle " +
-                "(New Registration, CTC, Marriage, Death, Petition, Verification), or tick " +
-                "'All Transactions'. Queue routing then only sends this window the tickets it is " +
-                "authorized to process. You can change this by logging out and back in."),
+                "2. Enter your username and password, then click Sign In (or press Enter). The eye button " +
+                "shows or hides the password.\n" +
+                "3. After 5 wrong attempts that username is locked for 60 seconds.\n" +
+                "4. On your first sign-in, or after an administrator resets your password, you must choose " +
+                "a new password (at least 8 characters) before you continue.\n" +
+                "Accounts are created by an administrator under Settings > Users & Access."),
+            new ManualTopic("Login", "How to select your service window",
+                "After signing in, the Window Assignment screen lists every Active window with its status:\n" +
+                "• Available - free to take.\n" +
+                "• In use by <name> - occupied by another operator; it is greyed out.\n" +
+                "• Priority - handles ALL transactions.\n" +
+                "Pick your window, choose the transactions it handles, then click Start Serving. " +
+                "Skip for now enters CROMS without a window (for administrators or monitoring). " +
+                "Log out returns to the sign-in screen. You configure only YOUR window."),
+            new ManualTopic("Login", "How to choose transaction types",
+                "On the right of Window Assignment, tick the services your window will handle " +
+                "(New Registration, CTC, Marriage, Death, Petition, Verification, ...). " +
+                "Several windows may handle the same service - that is allowed and lets the queue clear faster.\n" +
+                "A Priority window handles every transaction, keeps its ticket until it is completed, and " +
+                "cannot forward tickets without administrator approval.\n" +
+                "Your choices are saved when you press Start Serving, Skip for now or Log out."),
 
-            new ManualTopic("Queue Management", "Calling the next ticket",
-                "Click 'Call Next'. CROMS finds the oldest waiting ticket (priority lane first) " +
-                "that an online, free window is authorized to handle and assigns it there. " +
-                "If no online window matches the waiting transactions, a message explains why."),
-            new ManualTopic("Queue Management", "Processing requests",
-                "Click the Now Serving card for your window to open the form for the current " +
-                "service (e.g. Certificate Request). Complete and save that form."),
-            new ManualTopic("Queue Management", "Completing transactions",
-                "After saving the service form, click the window card again to mark the service " +
-                "complete. When every service on the ticket is done the ticket is marked Completed " +
-                "and the window is freed — press Call Next for the next client."),
-            new ManualTopic("Queue Management", "Handling multiple transactions under one ticket",
-                "A client can request several services on ONE queue number at the kiosk. CROMS keeps " +
-                "the same ticket number and walks through the services one at a time. Each service is " +
-                "processed, then the ticket moves on to the next required service until all are done."),
+            // ------------------------------------------------------------ Queue
+            new ManualTopic("Queue Management", "The screen at a glance",
+                "Top: live clock and four tiles - Waiting now, Average wait, Served today, Longest wait.\n" +
+                "Middle: the Now Serving card for your window (an administrator with no window sees every window).\n" +
+                "Toolbar: Call Next, Call Client, Recall, Forward, and a line that states the NEXT step in words.\n" +
+                "Below: the Priority Lane table (Senior/PWD/Pregnant, served first) and the regular queue. " +
+                "Use the service chips and the search box to filter both; Export CSV saves what is on screen.\n" +
+                "Only the buttons that apply to the current ticket are enabled."),
+            new ManualTopic("Queue Management", "Calling the next client",
+                "1. Press Call Next. CROMS picks the oldest waiting ticket (priority lane first) that your " +
+                "window may handle and ACCEPTS it. The client is not yet on the public board.\n" +
+                "2. A checklist appears with the documents to get ready for this client's services. Tick them " +
+                "as you locate them - it is guidance, not a lock.\n" +
+                "3. Press Call Client (or click your window card). The ticket becomes Serving, the number is " +
+                "announced by voice and shown on the public display.\n" +
+                "This lets you find the documents BEFORE the client stands at the counter."),
+            new ManualTopic("Queue Management", "Processing services (Client Tasks)",
+                "After the client is called, the Client Tasks panel shows who is at the window and what they " +
+                "asked for: name, contact, priority lane, the ID they will present, and each service with the " +
+                "details entered at the kiosk.\n" +
+                "Open each task to work on it (it opens the right module, e.g. Certificate Request, prefilled " +
+                "from the kiosk). Mark a task complete when it is done. Press Complete Client Visit when all " +
+                "tasks are finished - the ticket closes and your window is freed for Call Next."),
+            new ManualTopic("Queue Management", "Recall, Forward and Abandon",
+                "Recall - calls the same number again (client stepped away) and counts the recall.\n" +
+                "Forward - moves the ticket's next service to another window that handles it; the queue " +
+                "number stays the same.\n" +
+                "Abandon This Task / Abandon All Tasks - use when the client leaves or the request cannot " +
+                "be done today. A reason is REQUIRED and is stored; nothing is deleted. Abandon All ends the " +
+                "visit and frees the window."),
+            new ManualTopic("Queue Management", "Priority lane and pausing",
+                "Senior citizens, PWD and pregnant clients are tagged at the kiosk and appear in the Priority " +
+                "Lane table, which is served ahead of the regular queue (RA 11261).\n" +
+                "Pause Queue stops Call Next from issuing new tickets until you resume."),
 
-            new ManualTopic("Window Management", "Viewing online and offline windows",
-                "The Dashboard 'Service Windows' panel lists every window as 🟢 Online (an operator " +
-                "is signed in) or 🔴 Offline. It refreshes automatically every few seconds — a login " +
-                "or logout anywhere shows up without restarting the app."),
-            new ManualTopic("Window Management", "Understanding window status",
-                "Two independent things: ACTIVE/INACTIVE is set by an admin in Settings and decides " +
-                "whether the window exists on the board at all. ONLINE/OFFLINE reflects whether an " +
-                "operator is currently signed in to that window. An Inactive window never receives " +
-                "tickets; an Active but Offline window has nobody manning it yet."),
-            new ManualTopic("Window Management", "Assigning operators to windows",
-                "Operators assign themselves at login via Window Assignment — one operator per window. " +
-                "There is no separate admin step; whoever signs in to a window owns it until logout."),
+            // ------------------------------------------------------------ Certificates
+            new ManualTopic("Certificates & Releasing", "Certificate Request (CTC)",
+                "Flow: Create request > Find & Print the certificate > Payment > Release.\n" +
+                "1. Enter the requester, choose the certificate type and the record (type part of the name to " +
+                "search). Opened from the queue, the form is prefilled from what the client typed at the kiosk.\n" +
+                "2. Create Request opens the Find/Print window. Print the certificate on the printer.\n" +
+                "3. Proceed to Payment sends it to Fees & Payments. Or use No-show - Put to Waiting-to-Release " +
+                "if the client left; the Call/Recall Client button announces the number first."),
+            new ManualTopic("Certificates & Releasing", "PSA Copies (BREQS)",
+                "For certificates issued by PSA. Status flow: Requested > Paid > Submitted to PSA > Received " +
+                "from PSA > Released (or No Record at PSA / Cancelled).\n" +
+                "• New request captures the certificate type, copies and the details of the record.\n" +
+                "• Record the Treasury O.R. number when paid, then Submit to PSA.\n" +
+                "• Receive & scan PSA copy attaches the scan and checks that the name matches the request.\n" +
+                "• Release asks for the claimant and ID. Details are locked once sent to PSA.\n" +
+                "Overdue at PSA and Unclaimed are flagged automatically on the tiles."),
+            new ManualTopic("Certificates & Releasing", "Release & Claim",
+                "Pick a request from the list on the left; the workspace shows only what applies to its state:\n" +
+                "• Waiting / awaiting print - press Send to Payment.\n" +
+                "• For Payment - opens Fees & Payments.\n" +
+                "• For Release - enter the claimant (tick 'representative' for ID type and number), compare the " +
+                "kiosk photo with the uploaded ID, optionally take a camera photo, then Verify & Release.\n" +
+                "• Released - read-only receipt.\n" +
+                "Find by number: type a queue number or transaction code and press Enter. Use Scan claim QR " +
+                "for clients who uploaded their ID from the claim app."),
+            new ManualTopic("Certificates & Releasing", "Claim QR and ID upload",
+                "A claim request prints a QR code. The client scans it with their phone camera to open the " +
+                "claim app and upload a photo of their valid ID. The releasing officer then sees the uploaded " +
+                "ID beside the kiosk photo in Release & Claim. CROMS never matches faces automatically - the " +
+                "officer compares them."),
 
-            new ManualTopic("Settings", "Adding a new window",
-                "Settings → Window Management → Add Window. Enter a Window Name, an optional " +
-                "Description, and a default Status (Active/Inactive), then Save. The new window " +
-                "immediately appears in the Login picker, Dashboard, Now Serving board and routing — " +
-                "no restart or code change."),
-            new ManualTopic("Settings", "Editing windows",
-                "Select a window and click Edit Window to rename it, change its description, or switch " +
-                "its status. You cannot set a window Inactive while it is serving a ticket."),
-            new ManualTopic("Settings", "Disabling windows",
-                "Select a window and click Disable. An Inactive window cannot be selected at login and " +
-                "receives no queue tickets. Disabling is blocked while the window is serving a ticket."),
-            new ManualTopic("Settings", "Activating windows",
-                "Select an Inactive window and click Enable to make it Active and available again."),
-            new ManualTopic("Settings", "Deleting windows",
-                "Select a window and click Delete Window. Deletion is allowed only when no operator is " +
-                "logged in and no active/pending ticket is assigned; otherwise CROMS blocks it. You " +
-                "must confirm — deletion cannot be undone."),
+            // ------------------------------------------------------------ Fees
+            new ManualTopic("Fees & Payments", "Recording a payment",
+                "Collection is done by the Municipal Treasury, which issues the Official Receipt. CROMS " +
+                "records it.\n" +
+                "1. Awaiting payment tab - pick the request; the assessed fee (fee x copies) is shown.\n" +
+                "2. Choose the payment method. Cash needs the amount tendered; GCash and Bank Transfer need a " +
+                "reference number.\n" +
+                "3. Enter the Official Receipt number (required) and press Record Payment.\n" +
+                "The request then moves to For Release. Print Receipt prints a 58mm payment slip - it is NOT an " +
+                "Official Receipt."),
+            new ManualTopic("Fees & Payments", "Walk-in payments, log and schedule",
+                "Walk-in / other payment - record a payment that does not come from a CROMS request: payer, " +
+                "purpose, one or more fee lines, method, O.R. number.\n" +
+                "Payment log - every payment from every source, filter by date and export CSV.\n" +
+                "Monthly collection - the month's total by fee, by source and by method.\n" +
+                "Fee schedule - the fees from the office fee card. Changing an amount is recorded in the audit " +
+                "trail. A fee with no amount is typed in by the cashier."),
 
-            new ManualTopic("Reports", "Viewing daily reports",
-                "Open Reports & PSA, choose the month and year, and click Generate to see registered " +
-                "births/marriages/deaths, the timely-vs-delayed split, collections, and a detail roster."),
-            new ManualTopic("Reports", "Printing reports",
-                "Generate the report first, then use your system print dialog on the exported file, or " +
-                "print the exported CSV from a spreadsheet application."),
-            new ManualTopic("Reports", "Exporting reports",
-                "Click Export CSV on the report (and on the Queue screen) to save a spreadsheet-ready " +
-                "file for the PSA submission packet or office records."),
+            // ------------------------------------------------------------ Civil registration
+            new ManualTopic("Civil Registration", "Birth Registration (Form 102)",
+                "New Birth opens the entry form; the step strip (Child, Mother, Father, Marriage of Parents, " +
+                "Attendant, Informant, Certification) shows your progress and the panel on the right lists " +
+                "what is still missing.\n" +
+                "• Required: child's first and last name and sex. Save Draft keeps an unfinished record " +
+                "(no registry number); Submit assigns the registry number.\n" +
+                "• Place of birth: choose Country, then Province, City/Municipality. Foreign births type the place.\n" +
+                "• 'Parents married?' - switch off to grey out the marriage date and place.\n" +
+                "• A birth registered more than 30 days late is flagged Delayed. Use Delayed Registration for " +
+                "its checklist and 10-day posting.\n" +
+                "Print Certificate saves first if needed, then prints on the form."),
+            new ManualTopic("Civil Registration", "Marriage: application, licence and registration",
+                "Marriage Registration is the desk for the whole flow:\n" +
+                "1. Application (Form 90) - both applicants, parents, consent (age 18-20) or advice (age 21-25), " +
+                "and previous marriage if widowed/annulled. Under-18 cannot be filed.\n" +
+                "2. Posting - a 10-day posting period; the licence can be issued from day 11. Missing advice " +
+                "defers issue by three months.\n" +
+                "3. Issue - after the requirements and the Treasury O.R. are recorded. The licence is valid " +
+                "120 days.\n" +
+                "4. Register the marriage (Form 97) by picking the issued licence, then attach the scan.\n" +
+                "5. Copies and PSA transmittal are recorded on the marriage record.\n" +
+                "Print application prints Municipal Form 90; Consent and Advice forms print from the licence."),
+            new ManualTopic("Civil Registration", "Death Registration (Form 103)",
+                "Enter the deceased (last, first, middle name), date and place of death, cause of death, " +
+                "disposal, informant and the certification block. Use the Medical & Permits tab for the " +
+                "medical items and permit numbers.\n" +
+                "Register Death assigns the registry number. Print Certificate prints on Form 103 and can " +
+                "also print the Burial / Transfer Permit; Facts Certification (Form 2A) is under the same menu. " +
+                "View Softcopy opens the saved scan."),
+            new ManualTopic("Civil Registration", "Softcopy scan and printing",
+                "A scanned certificate saved with a record can be reopened with View Softcopy and reprinted " +
+                "exactly as scanned. Certificates print through the Crystal Reports layout when the runtime is " +
+                "installed and otherwise through the built-in layout on the same blank form.\n" +
+                "Administrators can adjust the letterhead, text and fields under Settings > Forms & Templates."),
 
+            // ------------------------------------------------------------ Cases and records
+            new ManualTopic("Cases & Records", "Case Tracking (petitions)",
+                "Tracks RA 9048 and RA 10172 petitions, legitimation, supplemental reports, legal instruments " +
+                "and court orders. Choose the case type, the record it concerns and the filing date, then " +
+                "Advance Stage as it progresses.\n" +
+                "RA 9048/10172 run Filed > Posted > Decision > PSA Endorsement. The other types run Filed > " +
+                "Under Review > Decision > PSA Endorsement.\n" +
+                "Case Documents attaches the supporting papers (e.g. decision and certificate of finality " +
+                "for a court order). CROMS tracks the case; it does not apply the correction to the record."),
+            new ManualTopic("Cases & Records", "Record Search",
+                "One search across births, marriages and deaths. Type part of a name or a registry number. " +
+                "Tick Sound-alike matching to find spelling variants (Dela Cruz / de la Cruz). Filter by " +
+                "register with the buttons above the results.\n" +
+                "Select a result to see its registry book, page, registry year and form revision on the right. " +
+                "Double-click it to open the record in its registration screen."),
+            new ManualTopic("Cases & Records", "Records Archive (administrators)",
+                "A read-only browser over everything saved, grouped by category (civil registry, marriage " +
+                "licensing, petitions and cases, certificates and PSA copies, claims and releases, front desk). " +
+                "View Full Record shows every column and a button for each stored scan or photo."),
+            new ManualTopic("Cases & Records", "Document Processing (OCR)",
+                "Load a scanned certificate, or open a scan sent from the mobile scanner. CROMS reads the form, " +
+                "identifies the type and fills a review grid with a confidence for each field.\n" +
+                "• Orange or red rows need checking - handwriting and poor scans are not read reliably; type " +
+                "them in. Editing a value re-checks it immediately.\n" +
+                "• Preview on Form shows the values on the certificate (watermarked, not an official copy).\n" +
+                "• Commit to Birth Registry saves a birth. Auto-Fill opens the marriage/death screen with the " +
+                "values. Send to Manual Review holds a doubtful scan.\n" +
+                "Nothing is saved until you confirm."),
+
+            // ------------------------------------------------------------ Reports
+            new ManualTopic("Reports", "Reports & Analytics",
+                "Tabs: PSA / Statutory, Fees & Collections, Birth, Death, Marriage, Queuing, Certificates. " +
+                "A tab loads only when you open it. Charts show 'not enough data' instead of guessing when a " +
+                "field is empty in the records.\n" +
+                "PSA / Statutory - choose the month and year and Generate the monthly report of registered " +
+                "births, marriages and deaths with the timely-vs-delayed split and a roster; Export CSV for " +
+                "the submission packet.\n" +
+                "Print Assessment Report prints the tab's figures. On the Birth tab, Customize Report chooses " +
+                "which charts are included."),
+            new ManualTopic("Reports", "Transaction History",
+                "A searchable, read-only ledger of every transaction from queue to release. Filter by status " +
+                "and search by code or client name."),
+
+            // ------------------------------------------------------------ Settings
+            new ManualTopic("Settings", "The Settings pages",
+                "Settings (administrators only) lists its pages on the left:\n" +
+                "General - office identity, database status and who is signed in.\n" +
+                "Users & Access - create users, set roles, reset passwords, activate or deactivate accounts. " +
+                "Passwords need at least 8 characters and a reset forces a new password at next sign-in.\n" +
+                "Master Files - the dropdown lists (barangays, hospitals, religions...). Search to find a " +
+                "value; the country's provinces, cities and barangays are already loaded.\n" +
+                "Forms & Templates - logo and stamp, certificate templates, print alignment, and which " +
+                "certificate forms have a Crystal report.\n" +
+                "Window Management, Audit Trail, App Updates and this User Manual."),
+            new ManualTopic("Settings", "Managing service windows",
+                "Settings > Window Management. The first time you open it you re-enter your administrator " +
+                "password; the controls stay unlocked for the session.\n" +
+                "• Add Window: name, optional description, Active/Inactive, and Priority type if it should " +
+                "handle every transaction.\n" +
+                "• Edit, Enable, Disable, Move Up/Down. The Active? tick box switches one window on or off.\n" +
+                "• Activate All / Deactivate All switch every window; busy windows are skipped.\n" +
+                "• Delete is blocked while an operator is signed in or a ticket is assigned.\n" +
+                "Changes show immediately on the login picker, dashboard, queue board and the public display."),
+            new ManualTopic("Settings", "Online and offline windows",
+                "Active/Inactive is set by an administrator and decides whether a window exists on the board. " +
+                "Online/Offline shows whether an operator is signed in (the app confirms every 30 seconds). " +
+                "An Inactive window never receives tickets; an Active but Offline window has nobody at it yet.\n" +
+                "The Dashboard 'Service Windows' panel shows each window's state, current ticket, priority " +
+                "type and assigned services, refreshed automatically."),
+            new ManualTopic("Settings", "Audit Trail",
+                "Every create, update, delete, sign-in and failed sign-in is recorded with the user, time and " +
+                "details. Filter by date range and user, search the text, tick 'Flagged only' for bypasses and " +
+                "failed sign-ins, double-click a row for the full entry, and Export CSV."),
+            new ManualTopic("Settings", "App Updates",
+                "On the server PC, Publish New Release to Clients makes the latest build available on the " +
+                "network share (administrator password required). On any other PC, Check for Updates & Install " +
+                "downloads it, restarts CROMS and keeps you signed in. Kiosk and Display apps are installed " +
+                "from the same release."),
+
+            // ------------------------------------------------------------ Other apps
+            new ManualTopic("Other Apps", "Client kiosk",
+                "The client takes a number in two steps: choose the services (a service is greyed out when no " +
+                "window handles it), then enter their name, priority, valid ID type and photo, and scan the QR " +
+                "with their phone to upload the ID. A queue ticket prints with the number and the people ahead. " +
+                "If no window is online the kiosk shows that the office is unavailable."),
+            new ManualTopic("Other Apps", "Mobile scanner and public display",
+                "Mobile scanner: the Dashboard shows a QR; open it on a phone on the same Wi-Fi, accept the " +
+                "one-time certificate warning, and photograph a certificate. It is sent to Document " +
+                "Processing for reading - the phone does not save records.\n" +
+                "Public display (CROMS.Display) shows only the queue number being served at each online window."),
+
+            // ------------------------------------------------------------ FAQ
             new ManualTopic("FAQ", "Why can't I log in?",
-                "Check the username/password spelling (the message is the same for a wrong user or " +
-                "wrong password). If it says the account is deactivated, ask an administrator to " +
-                "re-activate it under Users & Audit Trail."),
+                "Check the spelling (the message is the same for a wrong user or wrong password). After 5 " +
+                "failed tries wait 60 seconds. A deactivated account must be re-activated by an administrator " +
+                "in Settings > Users & Access."),
             new ManualTopic("FAQ", "Why is my window unavailable?",
-                "It is either Inactive (an admin disabled it in Settings) or already occupied by " +
-                "another operator who is signed in. Pick a different window or ask an admin to enable one."),
+                "It is either Inactive or already occupied by another signed-in operator. Choose another " +
+                "window or ask an administrator to enable one."),
             new ManualTopic("FAQ", "Why can't I call the next ticket?",
-                "Either the queue is empty, the queue is paused, no window is Online, or no online " +
-                "window is assigned to the transaction the waiting ticket needs. The on-screen message " +
-                "says which."),
-            new ManualTopic("FAQ", "Why is a ticket locked?",
-                "A ticket/service being processed is locked to one window so two windows can't call the " +
-                "same client. The lock clears when the service is completed or the ticket finishes."),
+                "The queue is empty or paused, your window is not Online, or no waiting ticket needs a " +
+                "transaction your window handles. The on-screen message says which."),
+            new ManualTopic("FAQ", "Why is a button greyed out?",
+                "CROMS only enables what applies right now. For example Call Client is enabled only when a " +
+                "ticket is accepted, and Recall/Forward only while a ticket is being served. The line under " +
+                "the queue toolbar tells you the next step."),
             new ManualTopic("FAQ", "How do I complete a transaction?",
-                "Open the service form from your Now Serving card, fill and save it, then click the card " +
-                "again to mark it done. Repeat for each service; the ticket closes when all are complete."),
+                "Work each task in Client Tasks, mark it complete, then press Complete Client Visit. For a " +
+                "certificate the full path is Create > Print > Pay (O.R. number) > Verify & Release."),
+            new ManualTopic("FAQ", "A client left before paying or claiming",
+                "In Certificate Request use 'No-show - Put to Waiting-to-Release'. The request appears on the " +
+                "Waiting to Release tab of Release & Claim. When the client returns, take their old queue " +
+                "number at the kiosk (Release & Claim) so they are served first, then Resume - Send to Payment."),
             new ManualTopic("FAQ", "How do I add a new service window?",
-                "Only an Administrator or Registrar can. Go to Settings → Window Management → Add Window, " +
-                "fill in the details and Save. It appears everywhere automatically."),
+                "An administrator goes to Settings > Window Management > Add Window, fills in the details and " +
+                "saves. It appears everywhere automatically."),
         };
     }
 
