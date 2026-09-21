@@ -687,7 +687,58 @@ namespace CROMS.Forms
                     "Applicants", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+            if (i > _step)
+            {
+                // A forward move (Next, or a click further along the strip) has to clear every
+                // step it passes over, so the strip cannot be used to skip the age checks.
+                for (int s = _step; s < i; s++)
+                {
+                    string stop = StepGate(s);
+                    if (stop != null)
+                    {
+                        MessageBox.Show(this, stop, "Cannot continue", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        if (s != _step) ShowStep(s);
+                        return;
+                    }
+                }
+            }
             ShowStep(i);
+        }
+
+        /// <summary>
+        /// Why the operator may not leave <paramref name="step"/> going forward, or null when
+        /// they may. Applicants: an age we cannot compute, or under 18 (RA 11596 - void, so no
+        /// point collecting requirements). Consent &amp; Advice: parental consent (18-20) not yet
+        /// verified. Advice (21-25) is deliberately NOT gated - unfavourable or absent advice
+        /// only defers issue by three months (Art. 15), it does not stop the application.
+        /// An Admin override on the licence lifts the consent gate, as it does at issue.
+        /// </summary>
+        private string StepGate(int step)
+        {
+            if (_readOnly) return null;
+            LicenseFacts l = Current();
+            DateTime on = l.FiledDate ?? DateTime.Today;
+            if (step == 0)
+            {
+                foreach (Party p in new[] { l.Husband, l.Wife })
+                {
+                    if (!p.Dob.HasValue)
+                        return p.RoleLabel + ": enter the date of birth first - CROMS works out the age, and with it whether parental consent or advice is required.";
+                    int a = MarriageRules.AgeOn(p.Dob.Value, on);
+                    if (a < 18)
+                        return "Cannot proceed - " + p.Called + " is " + a + " years old on the filing date.\n\nA marriage where either party is under 18 is void and prohibited (RA 11596). Correct the date of birth if it was mistyped; otherwise the application cannot continue.";
+                }
+            }
+            else if (step == 2 && !l.RequirementsOverrideBy.HasValue)
+            {
+                List<Need> needs = MarriageRules.Needs(l.Husband, l.Wife, on, _catalog, "License", _s);
+                List<RuleIssue> open = MarriageRules.RequirementIssues(needs, _l.Requirements ?? new List<ReqRow>(), l.Husband, l.Wife, "Consent & Advice")
+                    .Where(x => x.Code == "REQ_PARENTAL_CONSENT").ToList();
+                if (open.Count > 0)
+                    return string.Join("\n", open.Select(x => x.Message)) +
+                        "\n\nParental consent is required for an applicant aged 18-20 (Family Code Art. 14). Mark it Verified in the list before moving on.";
+            }
+            return null;
         }
 
         private void ShowStep(int i)
