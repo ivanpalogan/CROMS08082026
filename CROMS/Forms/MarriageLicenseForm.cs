@@ -709,8 +709,8 @@ namespace CROMS.Forms
         /// Why the operator may not leave <paramref name="step"/> going forward, or null when
         /// they may. Applicants: an age we cannot compute, or under 18 (RA 11596 - void, so no
         /// point collecting requirements). Consent &amp; Advice: parental consent (18-20) not yet
-        /// verified. Advice (21-25) is deliberately NOT gated - unfavourable or absent advice
-        /// only defers issue by three months (Art. 15), it does not stop the application.
+        /// verified, or advice (21-25) not yet recorded. Advice may be recorded as unfavourable /
+        /// not obtained - that defers issue three months (Art. 15) but is still an answer.
         /// An Admin override on the licence lifts the consent gate, as it does at issue.
         /// </summary>
         private string StepGate(int step)
@@ -733,10 +733,11 @@ namespace CROMS.Forms
             {
                 List<Need> needs = MarriageRules.Needs(l.Husband, l.Wife, on, _catalog, "License", _s);
                 List<RuleIssue> open = MarriageRules.RequirementIssues(needs, _l.Requirements ?? new List<ReqRow>(), l.Husband, l.Wife, "Consent & Advice")
-                    .Where(x => x.Code == "REQ_PARENTAL_CONSENT").ToList();
+                    .Where(x => x.Code == "REQ_PARENTAL_CONSENT" || x.Code == "REQ_PARENTAL_ADVICE").ToList();
                 if (open.Count > 0)
                     return string.Join("\n", open.Select(x => x.Message)) +
-                        "\n\nParental consent is required for an applicant aged 18-20 (Family Code Art. 14). Mark it Verified in the list before moving on.";
+                        "\n\nConsent (age 18-20, Art. 14) and advice (age 21-25, Art. 15) must be recorded before moving on. " +
+                        "If the advice was unfavourable or not obtained, mark it Verified with that outcome - issue is then deferred three months after posting.";
             }
             return null;
         }
