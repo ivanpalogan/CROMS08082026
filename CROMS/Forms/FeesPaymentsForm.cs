@@ -54,7 +54,6 @@ namespace CROMS.Forms
 
             _cboMethod.Items.AddRange(PaymentService.Methods);
             _cboMethod.SelectedIndex = 0;
-            _txtAdd.TextChanged += (s, e) => Recalc();
             _txtTendered.TextChanged += (s, e) => Recalc();
             lblDocFeeCap.Text = "Assessed Fee";
             // The designer caption ran under the bold total beside it ("Total Amou"), and a Label eats
@@ -162,7 +161,8 @@ namespace CROMS.Forms
             return decimal.TryParse((s ?? "").Replace("PHP", "").Replace(",", "").Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out v) ? v : 0m;
         }
 
-        private decimal Additional() => Math.Max(0m, ParseMoney(_txtAdd.Text));
+        // No additional fee is charged - the total is just the assessed fee.
+        private decimal Additional() => 0m;
         private decimal Gross() => _assessed == null ? 0m : _assessed.LineAmount;
         private decimal Total() => Gross() + Additional();
 
@@ -261,7 +261,7 @@ namespace CROMS.Forms
         private void ResetPanel()
         {
             _txnId = null; _assessed = null;
-            _txtAdd.Text = "0.00"; _txtTendered.Text = "0.00";
+            _txtTendered.Text = "0.00";
             _txtOr.Clear(); _txtRef.Clear(); _txtRemarks.Clear();
             _cboMethod.SelectedIndex = 0;
             _lblSel.Text = "Select a payment on the left  ->";
@@ -270,7 +270,7 @@ namespace CROMS.Forms
         }
 
         // ================================================================ walk-in payment
-        private readonly TextBox _wPayer = MUi.Box(), _wOr = MUi.Box(), _wRef = MUi.Box(), _wTendered = MUi.Box(), _wAdditional = MUi.Box(), _wRemarks = MUi.Box();
+        private readonly TextBox _wPayer = MUi.Box(), _wOr = MUi.Box(), _wRef = MUi.Box(), _wTendered = MUi.Box(), _wRemarks = MUi.Box();
         private readonly ComboBox _wPurpose = MUi.Combo(true, PaymentService.Purposes), _wMethod = MUi.Combo(false, PaymentService.Methods), _wFee = MUi.Combo(false);
         private readonly NumericUpDown _wQty = new NumericUpDown { Minimum = 1, Maximum = 99, Value = 1, Dock = DockStyle.Fill, Font = MUi.F(9.75F), Margin = new Padding(0, 0, 10, 0) };
         private readonly TextBox _wUnit = MUi.Box();
@@ -314,11 +314,10 @@ namespace CROMS.Forms
             var removeRow = new FlowLayoutPanel { Height = 40, BackColor = Color.Transparent, Padding = new Padding(0, 4, 0, 0) };
             removeRow.Controls.Add(remove);
 
-            var money = MUi.Grid(4, 1, 58);
-            money.Controls.Add(MUi.Field("Additional charge (PHP)", _wAdditional), 0, 0);
-            money.Controls.Add(MUi.Field("Payment method", _wMethod), 1, 0);
-            money.Controls.Add(MUi.Field("Reference no. (GCash / bank)", _wRef), 2, 0);
-            money.Controls.Add(MUi.Field("Treasury O.R. no.", _wOr), 3, 0);
+            var money = MUi.Grid(3, 1, 58);
+            money.Controls.Add(MUi.Field("Payment method", _wMethod), 0, 0);
+            money.Controls.Add(MUi.Field("Reference no. (GCash / bank)", _wRef), 1, 0);
+            money.Controls.Add(MUi.Field("Treasury O.R. no.", _wOr), 2, 0);
             var money2 = MUi.Grid(4, 1, 58);
             money2.Controls.Add(MUi.Field("Amount tendered (cash)", _wTendered), 0, 0);
             var remarksField = MUi.Field("Remarks", _wRemarks);
@@ -349,8 +348,7 @@ namespace CROMS.Forms
             _wMethod.SelectedIndex = 0;
             _wMethod.SelectedIndexChanged += (s, e) => { bool cash = IsCash(_wMethod.SelectedItem as string); _wRef.Enabled = !cash; if (cash) _wRef.Clear(); _wTendered.Enabled = cash; WalkInTotals(); };
             _wRef.Enabled = false;
-            _wAdditional.Text = "0.00"; _wTendered.Text = "0.00";
-            _wAdditional.TextChanged += (s, e) => WalkInTotals();
+            _wTendered.Text = "0.00";
             _wTendered.TextChanged += (s, e) => WalkInTotals();
             ReloadFeeCombo();
             BindLines();
@@ -400,7 +398,7 @@ namespace CROMS.Forms
             WalkInTotals();
         }
 
-        private decimal WalkInTotal() { return _wItems.Sum(l => l.LineAmount) + Math.Max(0m, ParseMoney(_wAdditional.Text)); }
+        private decimal WalkInTotal() { return _wItems.Sum(l => l.LineAmount); }
 
         private void WalkInTotals()
         {
@@ -416,7 +414,7 @@ namespace CROMS.Forms
             var entry = new PaymentEntry
             {
                 Source = PaymentService.SourceWalkIn, PayerName = _wPayer.Text, Purpose = _wPurpose.Text, OrNumber = _wOr.Text, Method = method,
-                ReferenceNo = _wRef.Text, Additional = Math.Max(0m, ParseMoney(_wAdditional.Text)),
+                ReferenceNo = _wRef.Text,
                 Tendered = IsCash(method) ? ParseMoney(_wTendered.Text) : (decimal?)null, Remarks = _wRemarks.Text, Lines = _wItems.ToList()
             };
             List<string> errors = PaymentService.Validate(entry);
@@ -440,7 +438,7 @@ namespace CROMS.Forms
         {
             _wItems.Clear(); BindLines();
             _wPayer.Clear(); _wPurpose.Text = ""; _wOr.Clear(); _wRef.Clear(); _wRemarks.Clear();
-            _wAdditional.Text = "0.00"; _wTendered.Text = "0.00"; _wMethod.SelectedIndex = 0; _wFee.SelectedIndex = -1; _wUnit.Clear();
+            _wTendered.Text = "0.00"; _wMethod.SelectedIndex = 0; _wFee.SelectedIndex = -1; _wUnit.Clear();
         }
 
         // ================================================================ fee schedule

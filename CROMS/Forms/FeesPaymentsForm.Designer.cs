@@ -30,8 +30,6 @@ namespace CROMS.Forms
             this.grpSummary = new System.Windows.Forms.GroupBox();
             this.lblDocFeeCap = new System.Windows.Forms.Label();
             this._lblDocFee = new System.Windows.Forms.Label();
-            this.lblAddCap = new System.Windows.Forms.Label();
-            this._txtAdd = new System.Windows.Forms.TextBox();
             this.lblTotalCap = new System.Windows.Forms.Label();
             this._lblTotal = new System.Windows.Forms.Label();
             this.lblTenderedCap = new System.Windows.Forms.Label();
@@ -120,8 +118,6 @@ namespace CROMS.Forms
             //
             this.grpSummary.Controls.Add(this.lblDocFeeCap);
             this.grpSummary.Controls.Add(this._lblDocFee);
-            this.grpSummary.Controls.Add(this.lblAddCap);
-            this.grpSummary.Controls.Add(this._txtAdd);
             this.grpSummary.Controls.Add(this.lblTotalCap);
             this.grpSummary.Controls.Add(this._lblTotal);
             this.grpSummary.Controls.Add(this.lblTenderedCap);
@@ -159,33 +155,12 @@ namespace CROMS.Forms
             this._lblDocFee.Text = "₱ 0.00";
             this._lblDocFee.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             //
-            // lblAddCap
-            //
-            this.lblAddCap.AutoSize = true;
-            this.lblAddCap.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.lblAddCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblAddCap.Location = new System.Drawing.Point(18, 82);
-            this.lblAddCap.Name = "lblAddCap";
-            this.lblAddCap.Size = new System.Drawing.Size(89, 19);
-            this.lblAddCap.TabIndex = 2;
-            this.lblAddCap.Text = "Additional Fee";
-            //
-            // _txtAdd
-            //
-            this._txtAdd.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this._txtAdd.Location = new System.Drawing.Point(150, 79);
-            this._txtAdd.Name = "_txtAdd";
-            this._txtAdd.Size = new System.Drawing.Size(122, 25);
-            this._txtAdd.TabIndex = 3;
-            this._txtAdd.Text = "0.00";
-            this._txtAdd.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
-            //
             // lblTotalCap
             //
             this.lblTotalCap.AutoSize = true;
             this.lblTotalCap.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
             this.lblTotalCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(37)))), ((int)(((byte)(41)))));
-            this.lblTotalCap.Location = new System.Drawing.Point(18, 128);
+            this.lblTotalCap.Location = new System.Drawing.Point(18, 86);
             this.lblTotalCap.Name = "lblTotalCap";
             this.lblTotalCap.Size = new System.Drawing.Size(96, 20);
             this.lblTotalCap.TabIndex = 4;
@@ -195,7 +170,7 @@ namespace CROMS.Forms
             //
             this._lblTotal.Font = new System.Drawing.Font("Segoe UI", 14F, System.Drawing.FontStyle.Bold);
             this._lblTotal.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(13)))), ((int)(((byte)(110)))), ((int)(((byte)(253)))));
-            this._lblTotal.Location = new System.Drawing.Point(120, 122);
+            this._lblTotal.Location = new System.Drawing.Point(120, 80);
             this._lblTotal.Name = "_lblTotal";
             this._lblTotal.Size = new System.Drawing.Size(152, 30);
             this._lblTotal.TabIndex = 5;
@@ -207,7 +182,7 @@ namespace CROMS.Forms
             this.lblTenderedCap.AutoSize = true;
             this.lblTenderedCap.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.lblTenderedCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblTenderedCap.Location = new System.Drawing.Point(18, 188);
+            this.lblTenderedCap.Location = new System.Drawing.Point(18, 146);
             this.lblTenderedCap.Name = "lblTenderedCap";
             this.lblTenderedCap.Size = new System.Drawing.Size(114, 19);
             this.lblTenderedCap.TabIndex = 6;
@@ -216,7 +191,7 @@ namespace CROMS.Forms
             // _txtTendered
             //
             this._txtTendered.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this._txtTendered.Location = new System.Drawing.Point(150, 185);
+            this._txtTendered.Location = new System.Drawing.Point(150, 143);
             this._txtTendered.Name = "_txtTendered";
             this._txtTendered.Size = new System.Drawing.Size(122, 25);
             this._txtTendered.TabIndex = 7;
@@ -228,7 +203,7 @@ namespace CROMS.Forms
             this.lblChangeCap.AutoSize = true;
             this.lblChangeCap.Font = new System.Drawing.Font("Segoe UI", 10F);
             this.lblChangeCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblChangeCap.Location = new System.Drawing.Point(18, 236);
+            this.lblChangeCap.Location = new System.Drawing.Point(18, 194);
             this.lblChangeCap.Name = "lblChangeCap";
             this.lblChangeCap.Size = new System.Drawing.Size(56, 19);
             this.lblChangeCap.TabIndex = 8;
@@ -238,7 +213,7 @@ namespace CROMS.Forms
             //
             this._lblChange.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             this._lblChange.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(135)))), ((int)(((byte)(84)))));
-            this._lblChange.Location = new System.Drawing.Point(120, 232);
+            this._lblChange.Location = new System.Drawing.Point(120, 190);
             this._lblChange.Name = "_lblChange";
             this._lblChange.Size = new System.Drawing.Size(152, 28);
             this._lblChange.TabIndex = 9;
@@ -423,8 +398,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.GroupBox grpSummary;
         private System.Windows.Forms.Label lblDocFeeCap;
         private System.Windows.Forms.Label _lblDocFee;
-        private System.Windows.Forms.Label lblAddCap;
-        private System.Windows.Forms.TextBox _txtAdd;
         private System.Windows.Forms.Label lblTotalCap;
         private System.Windows.Forms.Label _lblTotal;
         private System.Windows.Forms.Label lblTenderedCap;
