@@ -263,10 +263,40 @@ namespace CROMS.Forms
             try
             {
                 // Birth / Marriage / Death open straight on the certificate (Crystal .rpt when
-                // present, else the built-in replica). Hold Shift to get the field list, scans
-                // and requirements dialog instead; it is also the fallback if no report renders.
+                // present, else the built-in replica). When the original scan is also on file
+                // the operator is asked which one to see. Hold Shift to get the field list,
+                // scans and requirements dialog instead; it is also the fallback if no report
+                // renders.
                 if (_current.CertKind.HasValue && (Control.ModifierKeys & Keys.Shift) == 0)
                 {
+                    byte[] pic = null;
+                    string picLabel = null;
+                    if (_current.Images.Length > 0)
+                    {
+                        // Column names are compile-time literals from the category list above.
+                        var cols = new List<string>();
+                        foreach (var img in _current.Images) cols.Add("`" + img.Column + "`");
+                        DataTable it = Db.Pull(
+                            "SELECT " + string.Join(", ", cols) + " FROM " + _current.DetailTable + " WHERE id = @id",
+                            new MySqlParameter("@id", id));
+                        if (it.Rows.Count > 0)
+                        {
+                            foreach (var img in _current.Images)
+                            {
+                                var b = it.Columns.Contains(img.Column) ? it.Rows[0][img.Column] as byte[] : null;
+                                if (b != null && b.Length > 0) { pic = b; picLabel = img.Label; break; }
+                            }
+                        }
+                    }
+
+                    // 0 = cancelled, 1 = digital certificate, 2 = picture of the original.
+                    int choice = pic == null ? 1 : AskCertificateView();
+                    if (choice == 0) return;
+                    if (choice == 2)
+                    {
+                        SoftcopyViewer.Show(pic, _current.Label + " — " + picLabel, this);
+                        return;
+                    }
                     if (CertificateReport.ShowFor(_current.CertKind.Value, id, this) != null)
                         return;
                 }
@@ -286,6 +316,81 @@ namespace CROMS.Forms
                 MessageBox.Show("Could not load the record: " + ex.Message, "Records Archive",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+        }
+
+        /// <summary>
+        /// Asks which copy of a certificate to open when both exist. Returns 0 when
+        /// cancelled, 1 for the digital certificate, 2 for the picture of the original.
+        /// </summary>
+        private int AskCertificateView()
+        {
+            int result = 0;
+            using (var dlg = new Form())
+            {
+                dlg.Text = "View Certificate";
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dlg.MinimizeBox = false;
+                dlg.MaximizeBox = false;
+                dlg.ShowInTaskbar = false;
+                dlg.ClientSize = new Size(440, 168);
+                dlg.BackColor = UiTheme.PageBg;
+
+                var lbl = new Label
+                {
+                    Text = "Which copy do you want to view?",
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                    ForeColor = UiTheme.Ink,
+                    AutoSize = false,
+                    Location = new Point(20, 16),
+                    Size = new Size(400, 26)
+                };
+                var hint = new Label
+                {
+                    Text = "The original scan is on file for this record.",
+                    ForeColor = UiTheme.Muted,
+                    AutoSize = false,
+                    Location = new Point(20, 44),
+                    Size = new Size(400, 20)
+                };
+
+                var btnDigital = new Button
+                {
+                    Text = "Digital Certificate",
+                    Location = new Point(20, 80),
+                    Size = new Size(195, 44),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = UiTheme.Accent,
+                    ForeColor = Color.White
+                };
+                var btnPicture = new Button
+                {
+                    Text = "Picture of Original",
+                    Location = new Point(225, 80),
+                    Size = new Size(195, 44),
+                    FlatStyle = FlatStyle.Flat,
+                    BackColor = UiTheme.Navy,
+                    ForeColor = Color.White
+                };
+                var btnCancel = new Button
+                {
+                    Text = "Cancel",
+                    DialogResult = DialogResult.Cancel,
+                    Location = new Point(325, 132),
+                    Size = new Size(95, 28),
+                    FlatStyle = FlatStyle.Flat
+                };
+
+                btnDigital.Click += (s, e) => { result = 1; dlg.DialogResult = DialogResult.OK; };
+                btnPicture.Click += (s, e) => { result = 2; dlg.DialogResult = DialogResult.OK; };
+
+                dlg.Controls.AddRange(new Control[] { lbl, hint, btnDigital, btnPicture, btnCancel });
+                dlg.AcceptButton = btnDigital;
+                dlg.CancelButton = btnCancel;
+                UiTheme.Polish(dlg);
+                dlg.ShowDialog(this);
+            }
+            return result;
         }
 
         private void ShowDetail(DataRow row, ArchiveCategory cat)
