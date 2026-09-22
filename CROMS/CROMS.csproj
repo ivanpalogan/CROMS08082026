@@ -594,6 +594,7 @@
     <Compile Include="Data\DocVocabulary.cs" />
     <Compile Include="Data\DocLayouts.cs" />
     <Compile Include="Data\DocumentAI.cs" />
+    <Compile Include="Data\DocumentDewarp.cs" />
     <Compile Include="Data\LearningLibrary.cs" />
     <Compile Include="Data\ProfilePhoto.cs" />
     <Compile Include="Forms\SoftcopyViewer.cs">
@@ -846,7 +847,7 @@
     <None Include="Database\52_petition_documents.sql" />
     <None Include="Database\53_requirement_bypass.sql" />
     <None Include="Database\54_mobile_scan_upload.sql" />
-    <None Include="Database\55_ctc_request_details.sql" />
+    <None Include="Database\55_ctc_request_details.sql" />
     <None Include="Database\56_server_beacon.sql" />
     <None Include="Database\46_marriage_registration_birthplace.sql" />
     <None Include="Database\57_marriage_death_missing_fields.sql" />

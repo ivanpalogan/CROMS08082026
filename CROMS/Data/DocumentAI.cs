@@ -99,6 +99,13 @@ namespace CROMS.Data
         public string ScanQualityNote = "";
         /// <summary>True when image quality itself is too poor for safe automatic routing.</summary>
         public bool RescanRecommended;
+        /// <summary>
+        /// True when the ordinary pipeline found nothing usable and a perspective-corrected
+        /// re-read (see <see cref="DocumentDewarp"/>) is what actually produced this result —
+        /// so a photographed, not-square-to-the-camera page still yielded values instead of
+        /// falling through to the refused-template blanks.
+        /// </summary>
+        public bool PerspectiveCorrected;
         /// <summary>True when the certificate kind is known but its printed layout is not in CROMS.</summary>
         public bool PossibleNewForm => Kind != DocKind.Unknown && LayoutCode == null
             && LayoutRejected != null && !RescanRecommended;
@@ -244,6 +251,7 @@ namespace CROMS.Data
             }
             catch { rotation = 0; upright = image; }
 
+            Bitmap straightened = null;
             try
             {
                 DocAiResult best = AnalyzeAt(upright, PreferredLongSide);
@@ -258,13 +266,45 @@ namespace CROMS.Data
                     DocAiResult native = AnalyzeAt(upright, longest);
                     if (Score(native) > Score(best)) best = native;
                 }
+
+                Bitmap qualityImage = upright;
+
+                // The ordinary pipeline refused the template outright — no scale+offset
+                // placed the anchors, which is exactly what a photograph taken at an angle
+                // does (the marriage-certificate sample that never got past this: 2026-09-06).
+                // Try once more on a perspective-corrected copy of the page. This can only
+                // help: it runs only when the normal attempt already produced nothing to
+                // lose, and the two results are compared by the same Score() used for the
+                // two-resolution pass above, so a bad correction just loses the comparison.
+                if (best.LayoutRejected != null)
+                {
+                    try
+                    {
+                        straightened = DocumentDewarp.TryStraighten(upright);
+                        if (straightened != null)
+                        {
+                            DocAiResult warped = AnalyzeAt(straightened, PreferredLongSide);
+                            if (Score(warped) > Score(best))
+                            {
+                                warped.PerspectiveCorrected = true;
+                                warped.FitNote = "(read from a perspective-corrected copy — the photo was not "
+                                    + "square to the page) " + (warped.FitNote ?? "");
+                                best = warped;
+                                qualityImage = straightened;
+                            }
+                        }
+                    }
+                    catch { /* the correction is a bonus attempt; never let it break the real result */ }
+                }
+
                 best.RotationApplied = rotation;
-                AssessScanQuality(upright, best);
+                AssessScanQuality(qualityImage, best);
                 return best;
             }
             finally
             {
                 if (!ReferenceEquals(upright, image)) upright.Dispose();
+                if (straightened != null) straightened.Dispose();
             }
         }
 
