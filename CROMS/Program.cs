@@ -73,6 +73,18 @@ namespace CROMS
                 // Save-API first (port 3000 — DB writes + phone pairing), then BOTH
                 // mobile dev servers: the certificate scanner (:4200) and the claimapp
                 // ID-upload app (:4300). All proxy /api to the save-API.
+                //
+                // Both managers already catch their OWN startup exceptions internally
+                // (Fail() -> Status=Error), so the try/catch here is a last-resort net,
+                // not the real safety mechanism. What used to be missing is a durable
+                // record of an Error status: the only place it showed was a passive
+                // Dashboard label nobody was looking at, and a failure left no trace
+                // once the app was closed. WatchMobileServer logs every status change
+                // to a persistent file and retries once automatically, so a one-off
+                // failure (e.g. a leftover process still releasing the port) self-heals
+                // instead of silently leaving that app dead for the whole session.
+                WatchMobileServer(IonicServerManager.Instance);
+                WatchMobileServer(IonicServerManager.ClaimApp);
                 try { ApiServerManager.Instance.Start(); } catch { }
                 try { IonicServerManager.Instance.Start(); } catch { }
                 try { IonicServerManager.ClaimApp.Start(); } catch { }
@@ -158,6 +170,51 @@ namespace CROMS
                 msg = "Still can't reach the database. Check that the server PC is on and " +
                       "that this PC is on the same Wi-Fi/hotspot, then try again.";
             }
+        }
+
+        private static readonly object _mobileLogLock = new object();
+
+        /// <summary>
+        /// Subscribes to an IonicServerManager's status changes so a failure is (1) written
+        /// to a durable log instead of vanishing with the process, and (2) retried once
+        /// automatically. Call BEFORE Start() so the very first transition is captured too.
+        /// </summary>
+        private static void WatchMobileServer(IonicServerManager mgr)
+        {
+            bool retried = false;
+            mgr.Changed += () =>
+            {
+                LogMobileServerEvent(mgr.Label + ": " + mgr.Status +
+                    (mgr.Status == IonicStatus.Error ? " — " + mgr.LastError : ""));
+
+                if (mgr.Status == IonicStatus.Error && !retried)
+                {
+                    retried = true;
+                    LogMobileServerEvent(mgr.Label + ": retrying once after Error");
+                    try { mgr.Retry(); } catch (Exception ex) { LogMobileServerEvent(mgr.Label + ": retry threw — " + ex.Message); }
+                }
+            };
+        }
+
+        /// <summary>
+        /// Appends one timestamped line to %APPDATA%\CROMS\mobile-servers.log. Best-effort —
+        /// a logging failure must never affect startup.
+        /// </summary>
+        private static void LogMobileServerEvent(string line)
+        {
+            try
+            {
+                lock (_mobileLogLock)
+                {
+                    string dir = System.IO.Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CROMS");
+                    System.IO.Directory.CreateDirectory(dir);
+                    System.IO.File.AppendAllText(
+                        System.IO.Path.Combine(dir, "mobile-servers.log"),
+                        DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + line + Environment.NewLine);
+                }
+            }
+            catch { /* logging must never block startup */ }
         }
     }
 }

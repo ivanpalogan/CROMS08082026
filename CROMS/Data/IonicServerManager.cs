@@ -63,6 +63,7 @@ namespace CROMS.Data
         }
 
         // ---- public state ----
+        public string Label => _label;
         public IonicStatus Status { get; private set; } = IonicStatus.Stopped;
         public string MobileUrl { get; private set; } = "";
         public string LanIp { get; private set; } = "";
