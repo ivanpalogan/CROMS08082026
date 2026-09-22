@@ -1448,7 +1448,7 @@ namespace CROMS.Forms
             this.btnNewRegistration.TabIndex = 0;
             this.btnNewRegistration.Text = "+ New Death Registration";
             this.btnNewRegistration.UseVisualStyleBackColor = false;
-            this.btnNewRegistration.Click += new System.EventHandler(this.btnNew_Click);
+            this.btnNewRegistration.Click += new System.EventHandler(this.btnNewRegistration_Click);
             //
             // pnlSearch
             //

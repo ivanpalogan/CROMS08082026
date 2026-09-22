@@ -52,7 +52,17 @@ namespace CROMS.Forms
         /// <summary>Relationship to the Deceased, item 26.</summary>
         private ComboBox _cboInfRel;
 
-        public void RefreshData() => LoadDeaths();
+        // The screen shows ONE of two things: the list of recent registrations
+        // (cardRecords), or the Municipal Form 103 entry panel (cardForm) — opened in its
+        // own popup window, the same "list screen / separate entry form" split Birth
+        // Registration uses, so the two never compete for space on one screen.
+        private Form _entryDialog;
+
+        public void RefreshData()
+        {
+            LoadDeaths();
+            ShowListView();
+        }
 
         /// <summary>Medical-certificate and permit entries (migration 57), built in code as their own tab.</summary>
         private readonly DeathExtraFields _extras = new DeathExtraFields();
@@ -69,6 +79,94 @@ namespace CROMS.Forms
             LearningLibrary.Attach(txtDispPlace, LearningLibrary.Cemetery);
             LearningLibrary.Attach(txtCertifier, LearningLibrary.Officer);
             CenterContent();
+            ShowListView();
+        }
+
+        // ---------- list view / entry form popup ----------
+
+        /// <summary>Shows the records list; hides the entry panel and closes the entry
+        /// popup if it is open.</summary>
+        private void ShowListView()
+        {
+            cardRecords.Visible = true;
+            cardForm.Visible = false;
+            layoutMain.RowStyles[1].SizeType = SizeType.Absolute;
+            layoutMain.RowStyles[1].Height = 0F;
+
+            btnSave.Visible = false;
+            btnCertificate.Visible = false;
+            lblSubtitle.Text = "Search recent death registrations, or start a new one.";
+
+            if (_entryDialog != null) _entryDialog.Close();
+        }
+
+        /// <summary>Opens the Municipal Form 103 entry panel in its own popup window —
+        /// the same "separate registration form" split Birth Registration uses.</summary>
+        private void ShowEntryView()
+        {
+            cardForm.Visible = true;
+            lblSubtitle.Text = "MUNICIPAL FORM 103  •  CERTIFICATE OF DEATH";
+            OpenEntryDialog();
+        }
+
+        /// <summary>
+        /// Reparents the header (title/subtitle + Register Death / Print) and the entry
+        /// panel (cardForm — the tabbed fields and the New/Update/Delete row) into a
+        /// stand-alone popup, mirroring Birth Registration's entry dialog. Blocks until
+        /// closed, then hands everything back to the embedded list screen.
+        /// </summary>
+        private void OpenEntryDialog()
+        {
+            if (_entryDialog != null) { _entryDialog.Activate(); return; }
+
+            layoutMain.Controls.Remove(pnlHeader);
+            layoutMain.Controls.Remove(cardForm);
+            btnSave.Visible = true;
+            btnCertificate.Visible = true;
+
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(20, 16, 20, 16),
+                BackColor = UiTheme.PageBg
+            };
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            root.Controls.Add(pnlHeader, 0, 0);
+            root.Controls.Add(cardForm, 0, 1);
+
+            var dlg = new Form
+            {
+                Text = "Death Registration - Municipal Form 103",
+                StartPosition = FormStartPosition.CenterParent,
+                ClientSize = new Size(1400, 620),
+                MinimumSize = new Size(1100, 560),
+                MaximizeBox = true,
+                MinimizeBox = true,
+                ShowIcon = false,
+                BackColor = UiTheme.PageBg
+            };
+            dlg.Controls.Add(root);
+            _entryDialog = dlg;
+
+            UiTheme.Polish(dlg);
+            dlg.ShowDialog(this);
+
+            root.Controls.Remove(pnlHeader);
+            root.Controls.Remove(cardForm);
+            layoutMain.Controls.Add(pnlHeader, 0, 0);
+            layoutMain.Controls.Add(cardForm, 0, 1);
+            _entryDialog = null;
+            dlg.Dispose();
+            if (!cardRecords.Visible) ShowListView();
+        }
+
+        private void btnNewRegistration_Click(object sender, EventArgs e)
+        {
+            ClearForm();
+            ShowEntryView();
         }
 
         private void DeathRegistrationForm_Resize(object sender, EventArgs e) => CenterContent();
@@ -475,6 +573,7 @@ namespace CROMS.Forms
                     MessageBox.Show("Death registered.  Registry No: " + registryNo, "Saved",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     ClearForm();
+                    ShowListView();
                 }
                 LoadDeaths();
                 // Reload from the row actually written, so what is shown - and printed -
@@ -491,6 +590,7 @@ namespace CROMS.Forms
         {
             if (e.RowIndex < 0) return;
             LoadDeath(Convert.ToInt32(dgvDeaths.Rows[e.RowIndex].Cells["id"].Value));
+            ShowEntryView();
         }
 
         /// <summary>Load one death record into the form for editing or printing.</summary>
@@ -573,6 +673,7 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadDeaths();
+                ShowListView();
             }
             catch (Exception ex) { Fail(ex); }
         }
@@ -597,10 +698,12 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadDeaths();
+                ShowListView();
             }
             catch (Exception ex) { Fail(ex); }
         }
 
+        // Inside the entry popup only - starts a fresh record without closing the dialog.
         private void btnNew_Click(object sender, EventArgs e) => ClearForm();
 
         // ---------- PRINT (Certificate of Death + Burial/Transfer Permit) ----------
@@ -1000,6 +1103,8 @@ namespace CROMS.Forms
                 DateTime.TryParse(Get("DateOfDeath"), System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.None, out DateTime d))
                 dtpDod.Value = d;
+
+            ShowEntryView();   // the auto-filled record needs to be reviewed, not left in the list
         }
 
         private void ClearForm()
