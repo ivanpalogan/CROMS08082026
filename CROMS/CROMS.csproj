@@ -594,7 +594,6 @@
     <Compile Include="Data\DocVocabulary.cs" />
     <Compile Include="Data\DocLayouts.cs" />
     <Compile Include="Data\DocumentAI.cs" />
-    <Compile Include="Data\DocumentDewarp.cs" />
     <Compile Include="Data\LearningLibrary.cs" />
     <Compile Include="Data\ProfilePhoto.cs" />
     <Compile Include="Forms\SoftcopyViewer.cs">
