@@ -5655,3 +5655,31 @@ transaction; Form 97 rendered (Sex row present, layout fits); Death form constru
 its new tab rendered; CROMS builds clean. NOT run: an actual save of a marriage / death through the screens'
 buttons (they raise message boxes), the OCR review grid and structured (no-blank) printout do not know the new
 fields yet. Same TODO: print real pages on paper.
+
+### 2026-09-22 - claimapp + ORCMobile: reconnect UI for "the office changed wifi" (installed app only)
+Asked directly what happens to the phone apps if the office changes wifi. Traced it: BROWSER mode (the normal
+path - phone opens the office PC's own https URL from a freshly-shown QR) was already fine, confirmed from the
+2026-09-20 entry - same-origin, so it follows whatever IP the PC currently has, and `IonicServerManager` already
+re-certs and restarts the server when the PC's IP changes. The gap is the INSTALLED (native, `npx cap sync`)
+app: `ConfigService` reads `?host=&api=` ONCE off the very first launch's query string and then persists that
+address in `localStorage` forever - if the office's wifi/IP later changes, every save silently fails against the
+dead IP, `PairingService`'s heartbeat retries the SAME dead address every 8s forever (its own comment says
+"re-pair" but it only re-registers, never re-resolves the host), and there was no UI anywhere surfacing that
+failure or a way to fix it - `pairing.status` was set but never displayed, and there is no in-app QR rescanner
+or deep-link listener wired up (`@capacitor/app`'s `appUrlOpen` is never subscribed to), so on native the only
+fix was reinstall or clearing app storage.
+
+FIXED, same shape in both apps (separate repos, no shared package, so duplicated deliberately):
+`ConfigService.setServer(host, port)` / `.clearServer()` (persist immediately), `PairingService.retry()` +
+a `failCount` that climbs on consecutive heartbeat failures (a wifi/IP change reads as this climbing, not just
+a single blip), and a new `/connect` page reachable from a wifi icon in the Home header (red when
+`pairing.status !== 'paired'`). On BROWSER it explains the page is same-origin and always follows the PC's
+current address (nothing to type, just rescan the QR if it ever breaks). On the INSTALLED app it shows a host
++ port form, Save & Reconnect (calls `setServer` then `pairing.retry()` then re-tests via `/api/health`), and
+a live Connected/Not-connected badge with `api.health()`'s own db-status text.
+
+NOT DONE, on purpose: no in-app QR rescanner (no barcode-scanning plugin in either package.json - adding one
+means native project/gradle changes, out of scope for this pass) and no `appUrlOpen` deep-link listener - the
+manual host/port entry is the fix that needed no new native dependency and no native build to verify, matching
+how the office already hands out its LAN IP (Settings -> Server IP on the desktop app). `ng build` clean on
+both apps (0 errors); no live phone, save-API, or native (Android/iOS) build exercised this pass.
