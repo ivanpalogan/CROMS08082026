@@ -203,6 +203,13 @@ namespace CROMS.Forms
         // Softcopy of the source certificate (scan from Document AI), saved with the record.
         private byte[] _scanImage;
 
+        /// <summary>
+        /// The OCR upload this record was primed from, if any (see PrimeFromExtraction).
+        /// Written to `deaths.ocr_scan_id` and used to mark that upload Processed the
+        /// moment this record is first saved — see Register()/SubmitPendingVerification().
+        /// </summary>
+        private string _ocrScanId;
+
         /// <summary>Attach the original scanned document to the next saved record.</summary>
         public void SetScanImage(byte[] bytes) => _scanImage = bytes;
 
@@ -212,6 +219,20 @@ namespace CROMS.Forms
             Db.Push("UPDATE deaths SET scan_image = @img WHERE id = @id",
                 new MySqlParameter("@img", MySqlDbType.LongBlob) { Value = _scanImage },
                 new MySqlParameter("@id", id));
+        }
+
+        /// <summary>
+        /// Close the loop back to the OCR upload that produced this record — see the
+        /// matching comment on BirthRegistrationForm.Create(). Blank registry numbers are
+        /// written as NULL, never as the upload id.
+        /// </summary>
+        private void MarkOcrProcessed(long id, string registryNo)
+        {
+            if (string.IsNullOrEmpty(_ocrScanId)) return;
+            Db.Push("UPDATE deaths SET ocr_scan_id = @s WHERE id = @id",
+                new MySqlParameter("@s", _ocrScanId), new MySqlParameter("@id", id));
+            OcrAudit.MarkProcessed(_ocrScanId, "deaths", id, registryNo);
+            _ocrScanId = null;
         }
 
         private void btnViewScan_Click(object sender, EventArgs e)
@@ -567,6 +588,7 @@ namespace CROMS.Forms
                     }
                 }
                 SaveScan(newId);
+                MarkOcrProcessed(newId, registryNo);
                 Audit.Write(Audit.Create, "deaths", registryNo, FullName());
                 if (!keepOpen)
                 {
@@ -623,6 +645,7 @@ namespace CROMS.Forms
                     }
                 }
                 SaveScan(newId);
+                MarkOcrProcessed(newId, registryNo);
                 Audit.Write(Audit.Create, "deaths", registryNo, "Submitted for verification: " + FullName());
                 if (!keepOpen)
                 {
@@ -1144,6 +1167,8 @@ namespace CROMS.Forms
                 _formCode = fcode.Trim();
             if (f.TryGetValue("FormName", out string fname) && !string.IsNullOrWhiteSpace(fname))
                 _formName = fname.Trim();
+            if (f.TryGetValue("OcrScanId", out string scanId) && !string.IsNullOrWhiteSpace(scanId))
+                _ocrScanId = scanId.Trim();
 
             string Get(string key) => f.TryGetValue(key, out string v) && v != null ? v.Trim() : "";
 
@@ -1220,6 +1245,7 @@ namespace CROMS.Forms
         {
             _editingId = null;
             _scanImage = null;
+            _ocrScanId = null;
             _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;
             _formName = FormCatalog.Current(DocKind.Death)?.FormName;
             _extras.Clear();

@@ -1483,3 +1483,76 @@ VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings (temp Outp
 clicked (no interactive desktop) — the cell-anchored fix is the same mechanism already proven
 working on Birth Registration; rebuild in VS to see the Deceased tab's captions/combos land
 under their own labels and the new three-field name row.
+
+### 2026-09-23 — Mobile OCR uploads carry a stable Upload ID end to end; Pending/Processed
+### split in Intelligent Document Processing; lightweight phone-side name OCR before upload
+
+Reworked the mobile-scan flow per spec: the phone now does a LIGHTWEIGHT, name-only OCR guess
+(not the full pipeline — that stays desktop-only, per 2026-09-19), the client confirms/corrects
+the name and picks a document type, then uploads with an auto-generated Upload ID. The desktop
+Intelligent Document Processing screen splits into Pending (awaiting review) and Processed
+(history), and the Upload ID is now the SAME id from creation through to whichever registration
+module finally saves the record — closing the "which registry number did this upload become"
+question the architecture had left open since the 2026-09-19 mobile-routing change.
+
+THE REAL GAP FOUND BEFORE BUILDING ANYTHING. Opening a mobile scan used to generate a BRAND NEW
+`SCN-...` batch row (`LogBatch`) and retire the original `MOBILE-...` row as a dead stub with no
+forward link — so the id printed on nothing, and by the time the target module (Birth/Death) or
+the Marriage dialog actually saved the record, the original upload id was already orphaned.
+Marriage alone had half a fix (`marriages.ocr_scan_id`, migration 33) but nothing wrote back to
+`ocr_batch` from it, and Birth/Death had no such column at all.
+
+FIX: `OcrDigitizationForm.LogBatch` now UPDATEs the existing row IN PLACE (clearing
+`source_image`, per 54's own documented intent, once it has actually been read) whenever
+`_scanId` is already set, instead of inserting a second row — `DgvBatch_CellDoubleClick` keeps
+the row's own `scan_id` rather than nulling it before calling `Analyze()`. One id, one row, from
+the phone's upload through to `Committed`/`Draft`/`Auto-Filled`.
+
+`Data/OcrAudit.MarkProcessed(scanId, table, recordId, registryNo)` (new, best-effort, never
+throws — mirrors every other audit write in this project) closes the other half: it is called by
+the birth/death/marriage save path itself, not by this screen, since Auto-Fill hands the values
+to the target module and that module's own Save is a separate, later click this screen isn't
+open for. `births.ocr_scan_id` / `deaths.ocr_scan_id` (new, mirroring `marriages.ocr_scan_id`)
+carry the id onto the record so `BirthRegistrationForm.Create()`, `DeathRegistrationForm.
+Register()`/`SubmitPendingVerification()`, and `MarriageEntryForm.Save()` can each call
+`MarkProcessed` the moment they save — writing the record's OWN registry number, never
+substituting the upload id for it, and leaving it NULL when the certificate's number was never
+read (handwritten, as this project has held since 2026-09-06). Migration
+`58_ocr_upload_metadata.sql` adds those two columns plus `ocr_batch.client_name` /
+`requested_type` (the phone's confirmed guess and chosen type, kept separate from `doc_kind` —
+the ENGINE's own classification, set only once the desktop reads the page in full) /
+`final_registry_no`.
+
+DESKTOP SCREEN: two toggle buttons (Pending / Processed (History)) over the one batch grid —
+not two separate grids, since the two views never need to agree on a column set and a mode
+switch is less to keep in sync. Pending (`record_id IS NULL`, oldest first — first-come,
+first-served): Upload ID, Name, Type, Date, Status; double-click on an unopened mobile row runs
+the full desktop OCR pass exactly as before, on a row still under review with no stored bytes
+it explains that plainly instead of guessing. Processed (`record_id IS NOT NULL`, newest first):
+Reg. No., Name, Type, Processed Date, Status; double-click shows what the scan became and offers
+to jump to the record's module. Both fall back to the original combined "today's documents" view
+on an unmigrated database (1054 caught), same convention as every earlier ocr_batch migration.
+
+MOBILE (`ORCMobile_Application`, separate repo): `scan.page.ts` runs a quick
+`OcrService.recognize(imageDataUrl, { targetLongSide: 900 })` pass right after capture (a
+SMALL page, for speed — nowhere near the desktop's 2400/4200px two-pass region reading) and a
+plain heuristic (`guessNameFromText` — longest 2-5-word alphabetic line that isn't one of the
+form's own printed headings) fills the confirm screen's name field, never overwriting something
+already typed. The client picks Birth/Marriage/Death from a select and can edit the guessed name;
+"Send to Office" is disabled until a name is present. `ApiService.uploadScan` gained
+`clientName`/`docType` params; the save-API's `POST /api/scans` writes them to the new columns
+(falling back to the old insert if migration 58 isn't applied yet, same 1054-guard convention as
+the desktop side).
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings (temp OutDir). `ng build`
+(ORCMobile_Application) clean. Migration 58 NOT yet applied to the live croms database — run it
+before relying on the Pending/Processed split or the name-only confirm step reaching the new
+columns (both sides degrade to the pre-existing behaviour without it, they don't break). GUI not
+clicked (no interactive desktop) — the row-reuse path was reasoned from the exact existing
+Analyze()/LogBatch/MarkBatch call chain, not run end to end against a live phone.
+
+NOT DONE, stated plainly: no change to the FULL desktop OCR pipeline itself (DocLayouts/
+DocIntelligence) — the phone's name guess is deliberately separate and lighter, exactly as the
+2026-09-19 architecture decision intended; the Petitions/Certificate-Request/BREQS OCR paths are
+untouched; and the mobile confirm screen has no camera-based rescan-if-name-guess-looks-wrong
+affordance — Retake already exists and clears the guess, that is the whole mechanism.

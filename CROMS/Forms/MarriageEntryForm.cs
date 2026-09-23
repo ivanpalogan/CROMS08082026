@@ -715,6 +715,10 @@ namespace CROMS.Forms
                 if (_ocrPending)
                 {
                     MarriageService.SetOcrContext(_id.Value, _ocrScanId, _ocr != null ? _ocr.OverallConfidence : 0, WeakCount(), _ocr != null && _ocr.NeedsManualReview);
+                    // Close the loop back to the upload that produced this record — see the
+                    // matching comment on BirthRegistrationForm.Create(). Blank stays blank,
+                    // never the upload id standing in for a registry number.
+                    OcrAudit.MarkProcessed(_ocrScanId, "marriages", _id.Value, _reg.Text);
                     _ocrPending = false;
                 }
                 // SaveMarriage already synced marriage_requirements (it runs SyncMarriageRequirements

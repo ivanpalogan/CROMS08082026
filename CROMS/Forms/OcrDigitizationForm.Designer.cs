@@ -48,6 +48,8 @@
             this.btnCommit = new System.Windows.Forms.Button();
             this.lblBatch = new System.Windows.Forms.Label();
             this.dgvBatch = new System.Windows.Forms.DataGridView();
+            this.btnBatchPending = new System.Windows.Forms.Button();
+            this.btnBatchProcessed = new System.Windows.Forms.Button();
             this.grpScan.SuspendLayout();
             this.pnlScanHost.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pbScan)).BeginInit();
@@ -429,6 +431,30 @@
             this.lblBatch.TabIndex = 9;
             this.lblBatch.Text = "OCR BATCH — TODAY";
             //
+            // btnBatchPending
+            //
+            this.btnBatchPending.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnBatchPending.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBatchPending.Location = new System.Drawing.Point(1416, 706);
+            this.btnBatchPending.Name = "btnBatchPending";
+            this.btnBatchPending.Size = new System.Drawing.Size(110, 26);
+            this.btnBatchPending.TabIndex = 11;
+            this.btnBatchPending.Text = "Pending";
+            this.btnBatchPending.UseVisualStyleBackColor = true;
+            this.btnBatchPending.Click += new System.EventHandler(this.btnBatchPending_Click);
+            //
+            // btnBatchProcessed
+            //
+            this.btnBatchProcessed.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnBatchProcessed.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBatchProcessed.Location = new System.Drawing.Point(1536, 706);
+            this.btnBatchProcessed.Name = "btnBatchProcessed";
+            this.btnBatchProcessed.Size = new System.Drawing.Size(130, 26);
+            this.btnBatchProcessed.TabIndex = 12;
+            this.btnBatchProcessed.Text = "Processed (History)";
+            this.btnBatchProcessed.UseVisualStyleBackColor = true;
+            this.btnBatchProcessed.Click += new System.EventHandler(this.btnBatchProcessed_Click);
+            //
             // dgvBatch
             //
             this.dgvBatch.AllowUserToAddRows = false;
@@ -459,6 +485,8 @@
             this.Controls.Add(this.grpScan);
             this.Controls.Add(this.grpFields);
             this.Controls.Add(this.lblBatch);
+            this.Controls.Add(this.btnBatchPending);
+            this.Controls.Add(this.btnBatchProcessed);
             this.Controls.Add(this.dgvBatch);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "OcrDigitizationForm";
@@ -501,6 +529,8 @@
         private System.Windows.Forms.Button btnDraft;
         private System.Windows.Forms.Button btnCommit;
         private System.Windows.Forms.Label lblBatch;
+        private System.Windows.Forms.Button btnBatchPending;
+        private System.Windows.Forms.Button btnBatchProcessed;
         private System.Windows.Forms.Label lblEngine;
         private System.Windows.Forms.DataGridView dgvFields;
         private System.Windows.Forms.ProgressBar progress;

@@ -33,6 +33,13 @@ namespace CROMS.Forms
         private int _queueTicketId;   // set when a "New Registration" queue ticket is served here
 
         /// <summary>
+        /// The OCR upload this record was primed from, if any (see PrimeFromExtraction).
+        /// Written to `births.ocr_scan_id` and used to mark that upload Processed the
+        /// moment this record is first saved — see Create().
+        /// </summary>
+        private string _ocrScanId;
+
+        /// <summary>
         /// The date the loaded record was registered, or null for a new entry and for any
         /// record that predates the column. Held here so an edit keeps the record's own
         /// registration date instead of silently re-dating it to today, which would make a
@@ -131,6 +138,8 @@ namespace CROMS.Forms
                 _formCode = fc.Trim();
             if (f.TryGetValue("FormName", out string fn) && !string.IsNullOrWhiteSpace(fn))
                 _formName = fn.Trim();
+            if (f.TryGetValue("OcrScanId", out string scanId) && !string.IsNullOrWhiteSpace(scanId))
+                _ocrScanId = scanId.Trim();
 
             Set(txtRegNo, "RegistryNo");
             Set(txtFirstName, "ChildFirst");
@@ -1366,6 +1375,20 @@ namespace CROMS.Forms
                 if (status == "Pending Approval") SaveTypedLookupValues();
                 long newId = InsertTakingNextFreeNumber(sql, status);
                 SaveScan(newId);   // attach the scanned softcopy, if this came from Document AI
+
+                // Close the loop back to the OCR upload that produced this record: the
+                // scan keeps its own record of the record it produced, and the pending
+                // upload flips to Processed with the registry number this save assigned
+                // (blank if the certificate's own number was never read — never the scan
+                // id standing in for it).
+                if (!string.IsNullOrEmpty(_ocrScanId))
+                {
+                    Db.Push("UPDATE births SET ocr_scan_id = @s WHERE id = @id",
+                        new MySqlParameter("@s", _ocrScanId), new MySqlParameter("@id", newId));
+                    OcrAudit.MarkProcessed(_ocrScanId, "births", newId, txtRegNo.Text);
+                    _ocrScanId = null;
+                }
+
                 Audit.Write(Audit.Create, "births", newId,
                     txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim() + " (" + status + ")");
 
@@ -1865,6 +1888,7 @@ namespace CROMS.Forms
             _editingId = null;
             RefreshRequirementsTab();
             _scanImage = null;
+            _ocrScanId = null;
             // A new record is on the revision the office issues today. Without this reset
             // the form would keep the revision of the last scan it was primed from.
             _formCode = FormCatalog.Current(DocKind.Birth)?.FormCode;

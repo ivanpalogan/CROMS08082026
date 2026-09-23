@@ -64,6 +64,36 @@ namespace CROMS.Data
             }
         }
 
+        /// <summary>
+        /// Close the loop between an OCR upload and the record it produced. Called by the
+        /// birth/marriage/death module itself, right after it saves the record — never by
+        /// this screen, which has usually already closed by the time that save happens
+        /// (Auto-Fill hands the values to the target module and its own Save is a separate,
+        /// later click). Matches on <paramref name="scanId"/>, the upload's own stable id,
+        /// so the row a client's phone created is the SAME row this update finds — nothing
+        /// here substitutes the upload id for a registry number; a blank
+        /// <paramref name="registryNo"/> is written as NULL, not as the scan id.
+        /// <para/>
+        /// Best-effort, like every other audit write in this project: a failure here must
+        /// never roll back or block the real record that was just saved.
+        /// </summary>
+        public static void MarkProcessed(string scanId, string table, long recordId, string registryNo)
+        {
+            if (string.IsNullOrEmpty(scanId)) return;
+            try
+            {
+                Db.Push(
+                    "UPDATE ocr_batch SET status = 'Processed', record_table = @table, " +
+                    "record_id = @rid, final_registry_no = @reg WHERE scan_id = @scan",
+                    new MySqlParameter("@table", table),
+                    new MySqlParameter("@rid", recordId),
+                    new MySqlParameter("@reg", string.IsNullOrWhiteSpace(registryNo)
+                        ? (object)DBNull.Value : registryNo.Trim()),
+                    new MySqlParameter("@scan", scanId));
+            }
+            catch { /* the record itself is already saved; a missed link is not fatal */ }
+        }
+
         /// <summary>The audit trail for one scan, newest disposition first, for display.</summary>
         public static System.Data.DataTable ForScan(string scanId)
         {

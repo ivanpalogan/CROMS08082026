@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.Globalization;
 using System.Linq;
@@ -97,6 +98,7 @@ namespace CROMS.Forms
             dgvBatch.CellDoubleClick += DgvBatch_CellDoubleClick;
 
             ApplyResultToUi();
+            UpdateBatchModeButtons();
             LoadBatch();
         }
 
@@ -1429,6 +1431,12 @@ namespace CROMS.Forms
                 return false;
             }
 
+            // Carry the upload's own id along with the values (same convention as
+            // FormCode/FormName above), so the registration module can write back to
+            // ocr_batch — mark it Processed, with the final registry number — the moment
+            // IT saves the record. Marriage gets this through SetOcrContext below instead.
+            if (!string.IsNullOrEmpty(_scanId)) vals["OcrScanId"] = _scanId;
+
             // PrimeFromExtraction calls ClearForm(), which nulls the pending scan, so the
             // image is attached only AFTER the extracted values are primed.
             if (kind == DocKind.Birth)
@@ -1523,58 +1531,124 @@ namespace CROMS.Forms
 
         // ---- batch log --------------------------------------------------------
 
+        /// <summary>
+        /// Log this OCR run to <c>ocr_batch</c>. When <see cref="_scanId"/> is already set —
+        /// a mobile upload's own id, carried in by <see cref="DgvBatch_CellDoubleClick"/> —
+        /// the SAME row is updated in place rather than a second row being inserted and the
+        /// first retired. That keeps ONE stable Upload ID for a scan from the moment the
+        /// client's phone creates it through to the record it finally produces, which is
+        /// what lets <see cref="OcrAudit.MarkProcessed"/> find it again by that id. A scan
+        /// loaded locally on this PC has no prior id and still gets a fresh SCN- one.
+        /// </summary>
         private void LogBatch(DocAiResult r)
         {
-            int n = Db.GetCount("SELECT id FROM ocr_batch WHERE DATE(created_at) = CURDATE()") + 1;
-            _scanId = "SCN-" + DateTime.Now.ToString("yyMMdd") + "-" + n.ToString("D3");
+            bool reuse = !string.IsNullOrEmpty(_scanId);
+            if (!reuse)
+            {
+                int n = Db.GetCount("SELECT id FROM ocr_batch WHERE DATE(created_at) = CURDATE()") + 1;
+                _scanId = "SCN-" + DateTime.Now.ToString("yyMMdd") + "-" + n.ToString("D3");
+            }
 
             string status = r.Kind == DocKind.Unknown ? "Unclassified"
                           : r.NeedsManualReview ? "Needs Review" : "For Review";
 
+            // form_code is NULL when the layout was refused, while doc_kind still says
+            // Birth — which is exactly the distinction an auditor needs between "read box
+            // by box off this revision" and "read by labels".
+            object formCode = r.LayoutRejected == null
+                ? (object)(FormCatalog.ByLayoutCode(r.LayoutCode)?.FormCode) ?? DBNull.Value
+                : DBNull.Value;
+            object formName = (object)_formDef?.FormName ?? DBNull.Value;
+            object reason = string.IsNullOrEmpty(r.ReviewReason)
+                ? (object)DBNull.Value : Truncate(r.ReviewReason, 250);
+            string username = Session.User?.Username ?? "(unknown)";
+            string book = grpScan.Text.Replace("SCANNED DOCUMENT — ", "");
+
             try
             {
-                Db.Push(
-                    "INSERT INTO ocr_batch (scan_id, source_book, doc_class, doc_kind, form_code, " +
-                    "form_name, confidence, " +
-                    "overall_confidence, needs_review, review_reason, rotation_applied, username, " +
-                    "status, raw_text) " +
-                    "VALUES (@id, @book, @class, @kind, @fcode, @fname, @conf, @oconf, @need, " +
-                    "@reason, @rot, @user, @status, @raw)",
-                    new MySqlParameter("@id", _scanId),
-                    new MySqlParameter("@book", grpScan.Text.Replace("SCANNED DOCUMENT — ", "")),
-                    new MySqlParameter("@class", ClassLabel(r.Kind)),
-                    new MySqlParameter("@kind", r.Kind.ToString()),
-                    // form_code is NULL when the layout was refused, while doc_kind still
-                    // says Birth — which is exactly the distinction an auditor needs
-                    // between "read box by box off this revision" and "read by labels".
-                    new MySqlParameter("@fcode", r.LayoutRejected == null
-                        ? (object)(FormCatalog.ByLayoutCode(r.LayoutCode)?.FormCode) ?? DBNull.Value
-                        : DBNull.Value),
-                    new MySqlParameter("@fname", (object)_formDef?.FormName ?? DBNull.Value),
-                    new MySqlParameter("@conf", r.OcrConfidence),
-                    new MySqlParameter("@oconf", r.OverallConfidence),
-                    new MySqlParameter("@need", r.NeedsManualReview ? 1 : 0),
-                    new MySqlParameter("@reason", string.IsNullOrEmpty(r.ReviewReason)
-                        ? (object)DBNull.Value : Truncate(r.ReviewReason, 250)),
-                    new MySqlParameter("@rot", r.RotationApplied),
-                    new MySqlParameter("@user", Session.User?.Username ?? "(unknown)"),
-                    new MySqlParameter("@status", status),
-                    new MySqlParameter("@raw", r.RawText));
+                if (reuse)
+                {
+                    // source_image's only job was carrying the bytes here from the phone;
+                    // clear it now the scan has actually been read, per 54_mobile_scan_
+                    // upload.sql's own stated intent — everything else the mobile row
+                    // carried (source, client_name, requested_type, created_at) is left
+                    // untouched by this UPDATE.
+                    Db.Push(
+                        "UPDATE ocr_batch SET source_book=@book, doc_class=@class, doc_kind=@kind, " +
+                        "form_code=@fcode, form_name=@fname, confidence=@conf, " +
+                        "overall_confidence=@oconf, needs_review=@need, review_reason=@reason, " +
+                        "rotation_applied=@rot, username=@user, status=@status, raw_text=@raw, " +
+                        "source_image=NULL WHERE scan_id=@id",
+                        new MySqlParameter("@id", _scanId),
+                        new MySqlParameter("@book", book),
+                        new MySqlParameter("@class", ClassLabel(r.Kind)),
+                        new MySqlParameter("@kind", r.Kind.ToString()),
+                        new MySqlParameter("@fcode", formCode),
+                        new MySqlParameter("@fname", formName),
+                        new MySqlParameter("@conf", r.OcrConfidence),
+                        new MySqlParameter("@oconf", r.OverallConfidence),
+                        new MySqlParameter("@need", r.NeedsManualReview ? 1 : 0),
+                        new MySqlParameter("@reason", reason),
+                        new MySqlParameter("@rot", r.RotationApplied),
+                        new MySqlParameter("@user", username),
+                        new MySqlParameter("@status", status),
+                        new MySqlParameter("@raw", r.RawText));
+                }
+                else
+                {
+                    Db.Push(
+                        "INSERT INTO ocr_batch (scan_id, source_book, doc_class, doc_kind, form_code, " +
+                        "form_name, confidence, " +
+                        "overall_confidence, needs_review, review_reason, rotation_applied, username, " +
+                        "status, raw_text) " +
+                        "VALUES (@id, @book, @class, @kind, @fcode, @fname, @conf, @oconf, @need, " +
+                        "@reason, @rot, @user, @status, @raw)",
+                        new MySqlParameter("@id", _scanId),
+                        new MySqlParameter("@book", book),
+                        new MySqlParameter("@class", ClassLabel(r.Kind)),
+                        new MySqlParameter("@kind", r.Kind.ToString()),
+                        new MySqlParameter("@fcode", formCode),
+                        new MySqlParameter("@fname", formName),
+                        new MySqlParameter("@conf", r.OcrConfidence),
+                        new MySqlParameter("@oconf", r.OverallConfidence),
+                        new MySqlParameter("@need", r.NeedsManualReview ? 1 : 0),
+                        new MySqlParameter("@reason", reason),
+                        new MySqlParameter("@rot", r.RotationApplied),
+                        new MySqlParameter("@user", username),
+                        new MySqlParameter("@status", status),
+                        new MySqlParameter("@raw", r.RawText));
+                }
             }
             catch (MySqlException ex) when (ex.Number == 1054)
             {
-                // Migration 25 has not been run: keep working on the older columns rather
-                // than losing the batch row entirely.
-                Db.Push(
-                    "INSERT INTO ocr_batch (scan_id, source_book, doc_class, doc_kind, confidence, " +
-                    "status, raw_text) VALUES (@id, @book, @class, @kind, @conf, @status, @raw)",
-                    new MySqlParameter("@id", _scanId),
-                    new MySqlParameter("@book", grpScan.Text.Replace("SCANNED DOCUMENT — ", "")),
-                    new MySqlParameter("@class", ClassLabel(r.Kind)),
-                    new MySqlParameter("@kind", r.Kind.ToString()),
-                    new MySqlParameter("@conf", r.OcrConfidence),
-                    new MySqlParameter("@status", status),
-                    new MySqlParameter("@raw", r.RawText));
+                // Migration 25 (or 58, for the reuse path) has not been run: keep working
+                // on the older columns rather than losing the batch row entirely.
+                if (reuse)
+                {
+                    Db.Push(
+                        "UPDATE ocr_batch SET source_book=@book, doc_class=@class, doc_kind=@kind, " +
+                        "confidence=@conf, status=@status, raw_text=@raw WHERE scan_id=@id",
+                        new MySqlParameter("@id", _scanId),
+                        new MySqlParameter("@book", book),
+                        new MySqlParameter("@class", ClassLabel(r.Kind)),
+                        new MySqlParameter("@kind", r.Kind.ToString()),
+                        new MySqlParameter("@conf", r.OcrConfidence),
+                        new MySqlParameter("@status", status),
+                        new MySqlParameter("@raw", r.RawText));
+                }
+                else
+                {
+                    Db.Push(
+                        "INSERT INTO ocr_batch (scan_id, source_book, doc_class, doc_kind, confidence, " +
+                        "status, raw_text) VALUES (@id, @book, @class, @kind, @conf, @status, @raw)",
+                        new MySqlParameter("@id", _scanId),
+                        new MySqlParameter("@book", book),
+                        new MySqlParameter("@class", ClassLabel(r.Kind)),
+                        new MySqlParameter("@kind", r.Kind.ToString()),
+                        new MySqlParameter("@conf", r.OcrConfidence),
+                        new MySqlParameter("@status", status),
+                        new MySqlParameter("@raw", r.RawText));
+                }
             }
         }
 
@@ -1709,16 +1783,87 @@ namespace CROMS.Forms
                     { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes });
         }
 
+        /// <summary>
+        /// Pending = not yet linked to a final record (<c>record_id IS NULL</c>): a mobile
+        /// upload nobody has opened yet, or one already opened but not yet saved into a
+        /// registration module. Processed = the history — every scan that DID produce a
+        /// record, newest first, with the registry number it finally carries. One physical
+        /// grid, switched by <see cref="_batchMode"/>, rather than two grids that would have
+        /// to agree on every column.
+        /// </summary>
+        private string _batchMode = "Pending";
+
+        private void btnBatchPending_Click(object sender, EventArgs e)
+        {
+            _batchMode = "Pending";
+            UpdateBatchModeButtons();
+            LoadBatch();
+        }
+
+        private void btnBatchProcessed_Click(object sender, EventArgs e)
+        {
+            _batchMode = "Processed";
+            UpdateBatchModeButtons();
+            LoadBatch();
+        }
+
+        private void UpdateBatchModeButtons()
+        {
+            bool pending = _batchMode == "Pending";
+            btnBatchPending.BackColor = pending ? Color.FromArgb(13, 110, 253) : Color.FromArgb(233, 236, 239);
+            btnBatchPending.ForeColor = pending ? Color.White : Color.FromArgb(33, 37, 41);
+            btnBatchProcessed.BackColor = pending ? Color.FromArgb(233, 236, 239) : Color.FromArgb(13, 110, 253);
+            btnBatchProcessed.ForeColor = pending ? Color.FromArgb(33, 37, 41) : Color.White;
+        }
+
         private void LoadBatch()
         {
             try
             {
-                // id + source are hidden lookup columns (id: which row to reopen; source:
-                // 'Mobile' rows still awaiting their first desktop pass can be double-clicked
-                // to open — see DgvBatch_CellDoubleClick). Both need migration 54; caught
-                // below and re-tried without them so an unmigrated database still lists scans.
+                if (_batchMode == "Processed") LoadProcessedBatch();
+                else LoadPendingBatch();
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)
+            {
+                // Migration 58 (client_name/requested_type/final_registry_no) has not been
+                // run yet — fall back to the original combined "today's documents" view
+                // rather than showing nothing.
+                LoadBatchLegacy();
+            }
+        }
+
+        /// <summary>Outstanding scans, oldest first — first-come-first-served, like a queue.</summary>
+        private void LoadPendingBatch()
+        {
+            dgvBatch.DataSource = Db.Pull(
+                "SELECT id AS '_Id', scan_id AS 'Upload ID', COALESCE(client_name, '') AS 'Name', " +
+                "COALESCE(requested_type, doc_kind, '') AS 'Type', created_at AS 'Date', " +
+                "CASE WHEN needs_review = 1 THEN CONCAT(status, ' ⚠') ELSE status END AS 'Status' " +
+                "FROM ocr_batch WHERE record_id IS NULL AND status <> 'Opened on Desktop' " +
+                "ORDER BY created_at ASC");
+            lblBatch.Text = "PENDING OCR — " + dgvBatch.Rows.Count + " AWAITING REVIEW (double-click to open)";
+            HideLookupColumns();
+        }
+
+        /// <summary>Everything a scan HAS produced, newest first — the permanent history.</summary>
+        private void LoadProcessedBatch()
+        {
+            dgvBatch.DataSource = Db.Pull(
+                "SELECT id AS '_Id', COALESCE(final_registry_no, '') AS 'Reg. No.', " +
+                "COALESCE(client_name, '') AS 'Name', COALESCE(requested_type, doc_kind, '') AS 'Type', " +
+                "created_at AS 'Processed Date', status AS 'Status' " +
+                "FROM ocr_batch WHERE record_id IS NOT NULL ORDER BY created_at DESC");
+            lblBatch.Text = "PROCESSED — " + dgvBatch.Rows.Count + " (double-click to view)";
+            HideLookupColumns();
+        }
+
+        /// <summary>Pre-migration-58 fallback — the original combined "today's documents" list.</summary>
+        private void LoadBatchLegacy()
+        {
+            try
+            {
                 dgvBatch.DataSource = Db.Pull(
-                    "SELECT id AS '_Id', source AS '_Source', " +
+                    "SELECT id AS '_Id', " +
                     "scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
                     "CONCAT(COALESCE(overall_confidence, confidence), '%') AS Conf, " +
                     "CASE WHEN needs_review = 1 THEN CONCAT(status, ' ⚠') ELSE status END AS Status, " +
@@ -1728,25 +1873,7 @@ namespace CROMS.Forms
                     "ELSE CONCAT(record_table, ' #', record_id) END AS 'Saved To', " +
                     "COALESCE(username, '') AS 'User' " +
                     "FROM ocr_batch WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
-                lblBatch.Text = "TODAY'S DOCUMENTS";
-                HideLookupColumns();
-                return;
-            }
-            catch (MySqlException ex) when (ex.Number == 1054) { /* fall through */ }
-
-            try
-            {
-                dgvBatch.DataSource = Db.Pull(
-                    "SELECT id AS '_Id', scan_id AS 'Scan ID', source_book AS 'Document', doc_class AS Class, " +
-                    "CONCAT(COALESCE(overall_confidence, confidence), '%') AS Conf, " +
-                    "CASE WHEN needs_review = 1 THEN CONCAT(status, ' ⚠') ELSE status END AS Status, " +
-                    "COALESCE(review_reason, '') AS 'Reason', " +
-                    "CASE WHEN record_table IS NULL THEN '' " +
-                    "WHEN record_id IS NULL THEN CONCAT(record_table, ' (pending)') " +
-                    "ELSE CONCAT(record_table, ' #', record_id) END AS 'Saved To', " +
-                    "COALESCE(username, '') AS 'User' " +
-                    "FROM ocr_batch WHERE DATE(created_at) = CURDATE() ORDER BY id DESC");
-                lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATION 54_mobile_scan_upload.sql TO OPEN PHONE SCANS HERE";
+                lblBatch.Text = "TODAY'S DOCUMENTS — RUN MIGRATION 58_ocr_upload_metadata.sql FOR PENDING/PROCESSED VIEWS";
                 HideLookupColumns();
                 return;
             }
@@ -1777,39 +1904,54 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// A phone scan double-clicked before anyone has looked at it: pull its stored
-        /// bytes, load them into the page the same way a local file load does, and run
-        /// the engine — so a mobile capture is read by the same DocLayouts/DocIntelligence
-        /// pipeline as a scan loaded on this PC, not the phone's own weaker in-browser OCR.
+        /// Double-click a row in either grid mode. Always re-reads the FULL row by its
+        /// hidden id rather than trusting whatever columns happen to be bound on screen, so
+        /// the same handler works for the Pending and the Processed layouts without either
+        /// one needing to carry columns the other does not.
         /// </summary>
         private async void DgvBatch_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            var row = dgvBatch.Rows[e.RowIndex];
-            if (!dgvBatch.Columns.Contains("_Id") || !dgvBatch.Columns.Contains("_Source")) return;
-
-            string source = row.Cells["_Source"].Value as string;
-            if (!string.Equals(source, "Mobile", StringComparison.OrdinalIgnoreCase)) return;
-
-            object idVal = row.Cells["_Id"].Value;
+            if (!dgvBatch.Columns.Contains("_Id")) return;
+            object idVal = dgvBatch.Rows[e.RowIndex].Cells["_Id"].Value;
             if (idVal == null || idVal == DBNull.Value) return;
             long batchId = Convert.ToInt64(idVal);
 
-            var result = Db.Pull(
-                "SELECT scan_id, source_book, status, source_image FROM ocr_batch WHERE id = @id",
+            DataTable result = Db.Pull(
+                "SELECT scan_id, source, source_book, status, record_table, record_id, " +
+                "final_registry_no, client_name FROM ocr_batch WHERE id = @id",
                 new MySqlParameter("@id", batchId));
             if (result.Rows.Count == 0) return;
-            var dr = result.Rows[0];
+            DataRow dr = result.Rows[0];
 
-            if (!string.Equals(dr["status"] as string, "Pending Review", StringComparison.OrdinalIgnoreCase))
+            if (_batchMode == "Processed" || dr["record_id"] != DBNull.Value)
             {
-                MessageBox.Show("This phone scan has already been opened — find its result in " +
-                    "today's list above under a SCN- scan id.", "Document",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                ViewProcessed(dr);
                 return;
             }
 
-            byte[] bytes = dr["source_image"] as byte[];
+            string source = dr["source"] as string;
+            string status = dr["status"] as string;
+
+            if (!string.Equals(source, "Mobile", StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(status, "Pending Review", StringComparison.OrdinalIgnoreCase))
+            {
+                // A desktop-loaded scan still under review, or a mobile scan already opened
+                // in a PRIOR run of Analyze() this session — there is no separately stored
+                // image to reopen; the scan is either already on screen above, or (if the
+                // app was closed mid-review) has nothing left here for this screen to load.
+                MessageBox.Show(
+                    "This document is still being reviewed and has no separate image stored " +
+                    "here to reopen. If it is not already showing in the panel above, load it " +
+                    "again from its original file.",
+                    "Still under review", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var img = Db.Pull(
+                "SELECT source_image FROM ocr_batch WHERE id = @id",
+                new MySqlParameter("@id", batchId));
+            byte[] bytes = img.Rows.Count > 0 ? img.Rows[0]["source_image"] as byte[] : null;
             if (bytes == null || bytes.Length == 0)
             {
                 MessageBox.Show("This scan has no image attached.", "Document",
@@ -1835,7 +1977,11 @@ namespace CROMS.Forms
             pbScan.Image = _image;
             grpScan.Text = "SCANNED DOCUMENT — " + (dr["source_book"] as string ?? "Phone scan");
 
-            _scanId = null;
+            // Keep the SAME upload id rather than clearing it — LogBatch (inside Analyze,
+            // below) sees a non-null _scanId and UPDATEs this exact row in place instead of
+            // inserting a second one, so the client's own upload id is what eventually gets
+            // linked to the record it produces.
+            _scanId = dr["scan_id"] as string;
             _result = null;
             _kind = DocKind.Unknown;
             _formDef = null;
@@ -1845,15 +1991,43 @@ namespace CROMS.Forms
             dgvFields.Rows.Clear();
             ApplyResultToUi();
 
-            // The mobile row's only job was to carry the bytes here — once opened, Analyze()
-            // below logs its own SCN- batch row (LogBatch), so this placeholder is retired
-            // rather than left in the list forever as a second, orphaned entry for the same
-            // page.
-            Db.Push("UPDATE ocr_batch SET status = 'Opened on Desktop' WHERE id = @id",
-                new MySqlParameter("@id", batchId));
-
             await Analyze();
             LoadBatch();
+        }
+
+        /// <summary>
+        /// The "view" action for a processed row — what it was, what it became, and the
+        /// registry number it carries (or a plain statement that none was read/assigned).
+        /// A shortcut to the record itself when this PC has that module open.
+        /// </summary>
+        private void ViewProcessed(DataRow dr)
+        {
+            string name = dr["client_name"] as string;
+            string reg = dr["final_registry_no"] as string;
+            string table = dr["record_table"] as string;
+            object recIdObj = dr["record_id"];
+
+            string detail =
+                "Upload ID: " + dr["scan_id"] + "\n" +
+                "Name: " + (string.IsNullOrWhiteSpace(name) ? "(not given)" : name) + "\n" +
+                "Status: " + dr["status"] + "\n" +
+                "Registry No.: " + (string.IsNullOrWhiteSpace(reg) ? "(none — handwritten or not yet assigned)" : reg) + "\n" +
+                "Saved to: " + (string.IsNullOrWhiteSpace(table) ? "(not saved)" : table +
+                    (recIdObj == DBNull.Value ? "" : " #" + recIdObj));
+
+            string moduleKey = table == "births" ? "birth" : table == "deaths" ? "death"
+                              : table == "marriages" ? "marriage" : null;
+
+            if (moduleKey != null && recIdObj != DBNull.Value
+                && MessageBox.Show(detail + "\n\nOpen this record now?", "Processed document",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+            {
+                Shell()?.GoToModule(moduleKey);
+            }
+            else if (moduleKey == null || recIdObj == DBNull.Value)
+            {
+                MessageBox.Show(detail, "Processed document", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         // ---- image tools ----

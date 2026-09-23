@@ -852,6 +852,7 @@
     <None Include="Database\56_server_beacon.sql" />
     <None Include="Database\46_marriage_registration_birthplace.sql" />
     <None Include="Database\57_marriage_death_missing_fields.sql" />
+    <None Include="Database\58_ocr_upload_metadata.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />
