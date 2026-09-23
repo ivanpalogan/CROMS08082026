@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Modules;
@@ -48,6 +49,12 @@ namespace CROMS.Forms
         private static string[] StageCodesFor(string typeCode) => IsRa(typeCode) ? StageCodesRA : StageCodesTrack;
         private static string[] StageLabelsFor(string typeCode) => IsRa(typeCode) ? StageLabelsRA : StageLabelsTrack;
 
+        // The fee card (Database/41_fee_schedule_and_payment_log.sql) prices RA 9048 and RA 10172
+        // filing - PET-9048-CCE/PET-9048-CFN and PET-10172. The four track-only case types
+        // (Legitimation, Supplemental Report, Legal Instrument, Court Order) carry no fee on the
+        // card - CROMS "records and tracks" those, it does not assess a charge for them.
+        private static bool IsPayable(string typeCode) => IsRa(typeCode);
+
         // ------------------------------------------------------------ controls (all built in code)
         private DataGridView grid;
         private TextBox txtSearch;
@@ -68,6 +75,9 @@ namespace CROMS.Forms
         private Label lblValidation;
         private Button btnAdvance;
         private Button btnDocuments;
+        private Label lblFeeStatus;
+        private Button btnFee;
+        private Button btnAck;
         private Button btnSave;
         private Button btnNew;
         private Button btnDelete;
@@ -256,7 +266,9 @@ namespace CROMS.Forms
 
         private Control BuildEditorCard()
         {
-            var card = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20) };
+            // AutoScroll so the fee/acknowledgment row added below the existing fields can never
+            // clip off the bottom of a shorter screen — the card scrolls instead of hiding a button.
+            var card = new CardPanel { Dock = DockStyle.Fill, Padding = new Padding(20), AutoScroll = true };
 
             lblSel = new Label
             {
@@ -384,6 +396,51 @@ namespace CROMS.Forms
             card.Controls.Add(btnDocuments);
             y += 50;
 
+            // Fee & receipt — payable case types (RA 9048 / RA 10172) record their Treasury filing
+            // fee here, connected to the same Fees & Payments log every other module writes to
+            // (BREQS, the marriage licence). A track-only case type has no fee on the office's card,
+            // so it gets a printed Acknowledgment of Submission instead — only one of the two
+            // buttons is ever shown for a given case type.
+            lblFeeStatus = new Label
+            {
+                AutoSize = false,
+                Location = new Point(20, y),
+                Size = new Size(320, 36),
+                Font = new Font("Segoe UI", 8.25F),
+                ForeColor = UiTheme.Muted
+            };
+            card.Controls.Add(lblFeeStatus);
+            y += 40;
+
+            btnFee = new Button
+            {
+                Location = new Point(20, y),
+                Size = new Size(320, 38),
+                Text = "💳 Record Filing Fee",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BackColor = UiTheme.Success,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnFee.Click += btnFee_Click;
+            card.Controls.Add(btnFee);
+
+            btnAck = new Button
+            {
+                Location = new Point(20, y),
+                Size = new Size(320, 38),
+                Text = "🖨 Print Acknowledgment",
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                BackColor = UiTheme.Chrome,
+                ForeColor = UiTheme.Ink,
+                FlatStyle = FlatStyle.Flat,
+                UseVisualStyleBackColor = false
+            };
+            btnAck.Click += btnAck_Click;
+            card.Controls.Add(btnAck);
+            y += 50;
+
             // Secondary actions — visibly lighter weight than Advance.
             btnSave = new Button
             {
@@ -487,6 +544,8 @@ namespace CROMS.Forms
             int cur = cboStage.SelectedIndex;
             lblStageInfo.Text = "Step " + (cur + 1) + " of " + labels.Length + " — " + string.Join(" › ", labels);
 
+            RefreshFeeAckUi();
+
             if (_editingId == null)
             {
                 btnAdvance.Visible = false;
@@ -531,6 +590,109 @@ namespace CROMS.Forms
             {
                 dlg.ShowDialog(this);
             }
+        }
+
+        /// <summary>Shows exactly one of Record Filing Fee / Print Acknowledgment, and states the
+        /// fee's paid/unpaid status — driven by the SAME fee schedule and payment log every other
+        /// module (BREQS, the marriage licence) writes to, never a second one invented here.</summary>
+        private void RefreshFeeAckUi()
+        {
+            bool haveType = cboType.SelectedIndex >= 0;
+            bool payable = haveType && IsPayable(TypeCodes[cboType.SelectedIndex]);
+            btnFee.Visible = !haveType || payable;
+            btnAck.Visible = haveType && !payable;
+
+            if (_editingId == null)
+            {
+                btnFee.Enabled = false;
+                btnAck.Enabled = false;
+                lblFeeStatus.Text = "Save the case first to record its filing fee or print an acknowledgment.";
+                lblFeeStatus.ForeColor = UiTheme.Faint;
+                return;
+            }
+
+            if (payable)
+            {
+                DataRow paid = LoadPetitionPayment(_editingId.Value);
+                if (paid == null)
+                {
+                    btnFee.Enabled = true;
+                    btnFee.Text = "💳 Record Filing Fee";
+                    lblFeeStatus.Text = "Filing fee not yet paid at the Treasury.";
+                    lblFeeStatus.ForeColor = UiTheme.Warning;
+                }
+                else
+                {
+                    btnFee.Enabled = false;
+                    btnFee.Text = "✓ Filing Fee Paid";
+                    lblFeeStatus.Text = "Paid — O.R. " + paid["or_number"] + ", " +
+                        PaymentService.Money(Convert.ToDecimal(paid["net_amount"])) + " on " +
+                        Convert.ToDateTime(paid["paid_at"]).ToString("MMM d, yyyy") +
+                        ". See Fees & Payments → Payment Log for the receipt.";
+                    lblFeeStatus.ForeColor = UiTheme.Success;
+                }
+            }
+            else
+            {
+                btnAck.Enabled = true;
+                lblFeeStatus.Text = "This case type has no filing fee on the office's fee schedule — " +
+                                     "print an acknowledgment of filing instead.";
+                lblFeeStatus.ForeColor = UiTheme.Muted;
+            }
+        }
+
+        /// <summary>The most recent payment recorded against this petition (source_table
+        /// 'petitions'), or null when its filing fee has not been paid yet.</summary>
+        private static DataRow LoadPetitionPayment(int petitionId)
+        {
+            DataTable t = Db.Pull(
+                "SELECT p.or_number, p.net_amount, p.paid_at FROM payments p " +
+                "WHERE p.source_table = 'petitions' AND p.source_id = @id ORDER BY p.id DESC LIMIT 1",
+                new MySqlParameter("@id", petitionId));
+            return t.Rows.Count == 0 ? null : t.Rows[0];
+        }
+
+        private void btnFee_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null || cboType.SelectedIndex < 0)
+            {
+                ShowValidation("Save the case first, then record its filing fee.");
+                return;
+            }
+            string typeCode = TypeCodes[cboType.SelectedIndex];
+            string recordName = cboRecord.SelectedIndex >= 0 ? cboRecord.Text : "(no record linked)";
+            using (var dlg = new PetitionFeeDialog(typeCode, _editingId.Value, recordName, TypeFilterLabelFor(typeCode)))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    RefreshFeeAckUi();
+                    MessageBox.Show(this, "Filing fee recorded. It now appears in Fees & Payments → Payment Log, " +
+                        "itemised against this case.", "Filing Fee", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+        }
+
+        /// <summary>Prints the Acknowledgment of Submission slip for a track-only case type that
+        /// carries no filing fee - reuses the SAME slip Birth/Marriage/Death Registration already
+        /// print (Data/AcknowledgmentSlip.cs), which already carries the reference no., name, type,
+        /// date, status, receiving staff and the "NOT a certificate" disclaimer this asked for.</summary>
+        private void btnAck_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null || cboType.SelectedIndex < 0)
+            {
+                ShowValidation("Save the case first, then print its acknowledgment.");
+                return;
+            }
+            string typeCode = TypeCodes[cboType.SelectedIndex];
+            string recordName = cboRecord.SelectedIndex >= 0 ? cboRecord.Text : "(no record linked)";
+            string reference = "PET-" + dtpFiled.Value.Year + "-" + _editingId.Value.ToString("D6");
+            string statusLabel = cboStage.SelectedIndex >= 0 ? cboStage.Text : "Filed";
+            List<string> docLines = PetitionDocumentService.Requirements(_editingId.Value)
+                .Select(r => r.Label + " — " + r.Status).ToList();
+
+            AcknowledgmentSlip.Print(this, reference, recordName,
+                TypeFilterLabelFor(typeCode) + " (Case Tracking)", dtpFiled.Value, statusLabel,
+                docLines, Session.User != null ? Session.User.FullName : "Front Desk");
         }
 
         private void ApplyFilter()
@@ -786,5 +948,171 @@ namespace CROMS.Forms
         private static void Fail(Exception ex) =>
             MessageBox.Show("Operation failed: " + ex.Message, "Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+    }
+
+    /// <summary>
+    /// Records a petition's Treasury filing fee against the same fee schedule and payment log
+    /// every other module writes to (Data/PaymentService.cs) - the same reuse this project already
+    /// applies for BREQS and the marriage licence (Forms/BreqsDialogs.cs, MarriageLicenseForm.cs).
+    /// CROMS does not collect money here; it records the Official Receipt the Treasury issued.
+    /// RA 9048 prices two different filings under one petition type (PET-9048-CCE / PET-9048-CFN),
+    /// so it alone gets a Filing Type picker; RA 10172 has one fixed fee (PET-10172).
+    /// </summary>
+    internal sealed class PetitionFeeDialog : Form
+    {
+        private readonly string _typeCode;
+        private readonly int _petitionId;
+        private readonly string _payerName;
+        private readonly string _caseLabel;
+
+        private ComboBox _cboFilingType;
+        private Label _lblFeeDesc;
+        private TextBox _txtOr;
+        private DateTimePicker _dtpPaid;
+        private TextBox _txtAmount;
+
+        private static readonly string[] Ra9048Codes = { "PET-9048-CCE", "PET-9048-CFN" };
+        private static readonly string[] Ra9048Labels =
+            { "Clerical Error Correction (CCE)", "Change of First Name (CFN)" };
+
+        public PetitionFeeDialog(string typeCode, int petitionId, string payerName, string caseLabel)
+        {
+            _typeCode = typeCode; _petitionId = petitionId; _payerName = payerName; _caseLabel = caseLabel;
+
+            Text = "Record Filing Fee";
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            StartPosition = FormStartPosition.CenterParent;
+            MinimizeBox = false; MaximizeBox = false;
+            BackColor = Color.White;
+            ClientSize = new Size(420, typeCode == "RA9048" ? 458 : 414);
+
+            int y = 20;
+            Controls.Add(Info("Filed under: " + caseLabel +
+                (string.IsNullOrWhiteSpace(payerName) ? "" : "\n" + payerName), y, 44));
+            y += 52;
+
+            if (typeCode == "RA9048")
+            {
+                Controls.Add(Cap("Filing Type", y)); y += 24;
+                _cboFilingType = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Location = new Point(20, y), Width = 380, Font = new Font("Segoe UI", 9.75F)
+                };
+                _cboFilingType.Items.AddRange(Ra9048Labels);
+                _cboFilingType.SelectedIndexChanged += (s, e) => UpdateFee();
+                Controls.Add(_cboFilingType);
+                y += 44;
+            }
+
+            _lblFeeDesc = new Label
+            {
+                AutoSize = false, Location = new Point(20, y), Size = new Size(380, 20),
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = UiTheme.Accent
+            };
+            Controls.Add(_lblFeeDesc);
+            y += 32;
+
+            Controls.Add(Cap("Treasury Official Receipt No.", y)); y += 24;
+            _txtOr = Field(y); Controls.Add(_txtOr); y += 40;
+
+            Controls.Add(Cap("Date Paid", y)); y += 24;
+            _dtpPaid = new DateTimePicker
+            {
+                Format = DateTimePickerFormat.Short, MaxDate = DateTime.Today, Value = DateTime.Today,
+                Location = new Point(20, y), Width = 380
+            };
+            Controls.Add(_dtpPaid); y += 44;
+
+            Controls.Add(Cap("Amount (PHP)", y)); y += 24;
+            _txtAmount = Field(y); Controls.Add(_txtAmount); y += 44;
+
+            var record = new Button
+            {
+                Text = "Record Payment", Location = new Point(20, y), Size = new Size(180, 42),
+                FlatStyle = FlatStyle.Flat, ForeColor = Color.White, BackColor = UiTheme.Success,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold), UseVisualStyleBackColor = false
+            };
+            record.Click += Record_Click;
+            var cancel = new Button
+            {
+                Text = "Cancel", Location = new Point(216, y), Size = new Size(184, 42),
+                FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.Cancel,
+                Font = new Font("Segoe UI", 9.75F)
+            };
+            Controls.Add(record); Controls.Add(cancel);
+            AcceptButton = record; CancelButton = cancel;
+
+            if (_cboFilingType != null) _cboFilingType.SelectedIndex = 0; else UpdateFee();
+        }
+
+        private string CurrentFeeCode() =>
+            _typeCode == "RA9048" ? Ra9048Codes[Math.Max(0, _cboFilingType.SelectedIndex)] : "PET-10172";
+
+        private void UpdateFee()
+        {
+            FeeItem f = PaymentService.Fee(CurrentFeeCode());
+            _lblFeeDesc.Text = f != null ? f.Description + "  —  " + PaymentService.Money(f.Amount)
+                                          : "Fee not found on the schedule.";
+            _txtAmount.Text = f != null && f.Amount.HasValue ? f.Amount.Value.ToString("0.00") : "";
+        }
+
+        private void Record_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(_txtOr.Text))
+            {
+                MessageBox.Show(this, "Enter the Treasury official receipt number.", "Filing Fee",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            decimal amt;
+            if (!decimal.TryParse(_txtAmount.Text.Trim(), out amt) || amt <= 0)
+            {
+                MessageBox.Show(this, "Enter the amount on the receipt.", "Filing Fee",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string code = CurrentFeeCode();
+            FeeItem f = PaymentService.Fee(code);
+            try
+            {
+                // Checked BEFORE the payment is written, so a receipt already used elsewhere is
+                // refused rather than silently double-counting a Treasury collection.
+                PaymentService.EnsureOrFree(_txtOr.Text, "petitions", _petitionId);
+                PaymentService.RecordForModule(new PaymentEntry
+                {
+                    Source = PaymentService.SourcePetition, SourceTable = "petitions", SourceId = _petitionId,
+                    PayerName = _payerName, Purpose = "Petition filing - " + _caseLabel,
+                    OrNumber = _txtOr.Text, PaidAt = _dtpPaid.Value.Date,
+                    Lines = { new PaymentLine
+                    {
+                        FeeCode = code, Description = f != null ? f.Description : code,
+                        Quantity = 1, UnitAmount = amt
+                    } }
+                }, Session.User == null ? (int?)null : Session.User.Id);
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Filing Fee", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static Label Cap(string t, int y) => new Label
+        {
+            Text = t, AutoSize = true, Location = new Point(20, y),
+            Font = new Font("Segoe UI", 9F), ForeColor = UiTheme.Muted
+        };
+        private static Label Info(string t, int y, int h) => new Label
+        {
+            Text = t, AutoSize = false, Location = new Point(20, y), Size = new Size(380, h),
+            Font = new Font("Segoe UI", 8.75F), ForeColor = UiTheme.Faint
+        };
+        private static TextBox Field(int y) => new TextBox
+        {
+            Location = new Point(20, y), Size = new Size(380, 26), Font = new Font("Segoe UI", 9.75F)
+        };
     }
 }

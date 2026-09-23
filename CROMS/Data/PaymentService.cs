@@ -60,7 +60,7 @@ namespace CROMS.Data
     /// </summary>
     public static class PaymentService
     {
-        public const string SourceTransaction = "Transaction", SourceWalkIn = "Walk-in", SourceBreqs = "BREQS", SourceMarriage = "Marriage License";
+        public const string SourceTransaction = "Transaction", SourceWalkIn = "Walk-in", SourceBreqs = "BREQS", SourceMarriage = "Marriage License", SourcePetition = "Petition";
         public static readonly string[] Methods = { "Cash", "GCash", "Bank Transfer" };
 
         /// <summary>Purposes a walk-in payment is commonly for - an editable suggestion list.</summary>
