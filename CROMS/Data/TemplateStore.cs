@@ -74,6 +74,14 @@ namespace CROMS.Data
             new TemplateFormInfo(OfficeMissionCert.FormCode, OfficeMissionCert.FormName,
                 "Office", OfficeMissionCert.PageWidth, OfficeMissionCert.PageHeight,
                 () => OfficeMissionCert.Cells.Select(ToElement).ToList()),
+
+            // Acknowledgment of Submission — shared by Birth/Marriage/Death Registration for a
+            // transaction that has been submitted but is still pending verification. Every
+            // field, including both disclaimer notes and the documents-received list, is
+            // editable here exactly like 1A/2A/3A.
+            new TemplateFormInfo(AcknowledgmentSlipCert.FormCode, AcknowledgmentSlipCert.FormName,
+                "Receipt", AcknowledgmentSlipCert.PageWidth, AcknowledgmentSlipCert.PageHeight,
+                () => AcknowledgmentSlipCert.Cells.Select(ToElementAck).ToList()),
         };
 
         /// <summary>The 1A/2A/3A "Facts Certification" family, in that order — the set every
@@ -307,6 +315,48 @@ namespace CROMS.Data
                 case "Rule":
                     e.Kind = "Line";
                     e.Height = 1f;
+                    break;
+                default:
+                    e.Kind = "Text";
+                    e.Text = c.Text ?? "";
+                    break;
+            }
+            e.Band = BandForY(e.Y);
+            return e;
+        }
+
+        /// <summary>Same conversion as <see cref="ToElement(Form3ACell)"/> for the
+        /// Acknowledgment Slip's own cell type — kept separate because it has one extra
+        /// kind ("Box", the disclaimer border) that nothing else in the app draws.</summary>
+        private static TemplateElement ToElementAck(AckSlipCell c)
+        {
+            var e = new TemplateElement
+            {
+                X = c.X, Y = c.Top, Width = c.Width, Height = c.Height,
+                FontSize = c.FontSize, Bold = c.Bold, Italic = c.Italic,
+                Align = c.Center ? "Center" : "Left",
+            };
+            switch (c.Kind)
+            {
+                case "Static":
+                    e.Kind = "Text";
+                    e.Text = c.Text;
+                    break;
+                case "Field":
+                    e.Kind = "Field";
+                    e.Column = c.Column;
+                    break;
+                case "Picture":
+                    e.Kind = "Image";
+                    e.OfficeAsset = c.Asset.ToString();
+                    break;
+                case "Rule":
+                    e.Kind = "Line";
+                    e.Height = 1f;
+                    break;
+                case "Box":
+                    e.Kind = "Rectangle";
+                    e.StrokeWidth = 1.2f;
                     break;
                 default:
                     e.Kind = "Text";
