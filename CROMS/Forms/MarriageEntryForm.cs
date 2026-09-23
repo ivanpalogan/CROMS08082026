@@ -174,8 +174,8 @@ namespace CROMS.Forms
 
             var footer = new Panel { Dock = DockStyle.Bottom, Height = 58, BackColor = Color.FromArgb(250, 251, 253), Padding = new Padding(14, 12, 14, 12) };
             footer.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, 0, footer.Width, 0); };
-            var left = new FlowLayoutPanel { Dock = DockStyle.Left, Width = 450, BackColor = Color.Transparent };
-            left.Controls.Add(_btnSoft); left.Controls.Add(_btnPreview); left.Controls.Add(_btnCase);
+            var left = new FlowLayoutPanel { Dock = DockStyle.Left, Width = 590, BackColor = Color.Transparent };
+            left.Controls.Add(_btnSoft); left.Controls.Add(_btnPreview); left.Controls.Add(_btnCase); left.Controls.Add(_btnAckSlip);
             var right = new FlowLayoutPanel { Dock = DockStyle.Right, Width = 470, FlowDirection = FlowDirection.RightToLeft, BackColor = Color.Transparent };
             right.Controls.Add(_btnRegister); right.Controls.Add(_btnReview); right.Controls.Add(_btnDraft);
             _footInfo.AutoSize = false; _footInfo.Dock = DockStyle.Fill; _footInfo.TextAlign = ContentAlignment.MiddleRight; _footInfo.AutoEllipsis = true;
@@ -183,6 +183,7 @@ namespace CROMS.Forms
             _btnSoft.Click += (s, e) => ViewSoftcopy();
             _btnPreview.Click += (s, e) => PreviewOnForm();
             _btnCase.Click += (s, e) => OpenCase();
+            _btnAckSlip.Click += (s, e) => PrintAckSlip();
             _btnDraft.Click += (s, e) => Save("Draft");
             _btnReview.Click += (s, e) => Save("For Review");
             _btnRegister.Click += (s, e) => Register();
@@ -947,6 +948,7 @@ namespace CROMS.Forms
             _btnDraft.Enabled = !registered || MarriageService.IsRegistrar;
             _btnCase.Enabled = _id.HasValue && (m.Basis == "Exempt" || MarriageRules.WouldBeDelayed(m, _s));
             _btnSoft.Enabled = _scanImage != null;
+            _btnAckSlip.Enabled = _id.HasValue && _status == "For Review";
             _footInfo.ForeColor = blocks == 0 ? UiTheme.Success : UiTheme.Muted;
             _footInfo.Text = registered ? "Registered " + _reg.Text + " - corrections to a registered entry go through Petitions."
                 : !MarriageService.IsRegistrar && blocks == 0 ? "Checks pass - a Registrar registers the marriage."
@@ -1105,6 +1107,57 @@ namespace CROMS.Forms
                 return;
             }
             SoftcopyViewer.Show(_scanImage, "Certificate of Marriage - original softcopy", this);
+        }
+
+        /// <summary>Prints a receipt for a marriage submission that has been sent For Review
+        /// but not yet registered. Only acknowledges the transaction was received - never a
+        /// certificate, never tied to Fees & Payments. A Draft has not been submitted yet
+        /// (nothing to acknowledge), and a Registered marriage has nothing left pending, so
+        /// both are refused rather than printing a slip that would misstate the record.</summary>
+        private void PrintAckSlip()
+        {
+            if (!_id.HasValue || _status != "For Review")
+            {
+                MessageBox.Show(this, "The acknowledgment slip is only for a submission that " +
+                    "has been sent for review and is still awaiting registration. Use \"Send " +
+                    "for review\" first.", "Print Acknowledgment Slip",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DataTable dt = Db.Pull("SELECT created_at FROM marriages WHERE id=@id", new MySqlParameter("@id", _id.Value));
+            DateTime submitted = dt.Rows.Count > 0 && dt.Rows[0]["created_at"] != DBNull.Value
+                ? Convert.ToDateTime(dt.Rows[0]["created_at"]) : DateTime.Now;
+
+            string husband = JoinNonEmpty(_h.First.Text, _h.Middle.Text, _h.Last.Text);
+            string wife = JoinNonEmpty(_w.First.Text, _w.Middle.Text, _w.Last.Text);
+            string names = string.IsNullOrWhiteSpace(husband) && string.IsNullOrWhiteSpace(wife)
+                ? "" : husband + (husband.Length > 0 && wife.Length > 0 ? " & " : "") + wife;
+
+            string reg = _reg.Text;
+            string reference = string.IsNullOrWhiteSpace(reg) ? "MR-PENDING-" + _id.Value : reg;
+
+            AcknowledgmentSlip.Print(this, reference, names,
+                "Marriage Registration (Municipal Form 97)", submitted, "For Review",
+                new[]
+                {
+                    "Certificate of Marriage (Municipal Form 97), accomplished",
+                    "Marriage License (or exemption basis, if applicable)",
+                    "Valid ID of both contracting parties"
+                },
+                Session.User != null ? Session.User.FullName : "Front Desk");
+        }
+
+        private static string JoinNonEmpty(params string[] parts)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (string p in parts)
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(p.Trim());
+            }
+            return sb.ToString();
         }
 
         private IDictionary<string, string> PreviewValues()

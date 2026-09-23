@@ -22,7 +22,8 @@ namespace CROMS.Forms
         private readonly StatusPill _formPill = new StatusPill(), _statusPill = new StatusPill();
         private readonly Label _footInfo = MUi.Txt("", 9F, FontStyle.Regular, UiTheme.Muted);
         private readonly Button _btnSoft = MUi.Btn("View softcopy", MUi.Kind.Ghost), _btnPreview = MUi.Btn("Preview on form", MUi.Kind.Ghost),
-                                _btnCase = MUi.Btn("Case workflow...", MUi.Kind.Ghost), _btnDraft = MUi.Btn("Save as draft", MUi.Kind.Secondary),
+                                _btnCase = MUi.Btn("Case workflow...", MUi.Kind.Ghost), _btnAckSlip = MUi.Btn("Print acknowledgment slip", MUi.Kind.Ghost),
+                                _btnDraft = MUi.Btn("Save as draft", MUi.Kind.Secondary),
                                 _btnReview = MUi.Btn("Send for review", MUi.Kind.Secondary), _btnRegister = MUi.Btn("REGISTER MARRIAGE", MUi.Kind.Success);
         private readonly IssueList _issues = new IssueList();
 

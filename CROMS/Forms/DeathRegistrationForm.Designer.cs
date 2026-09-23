@@ -32,6 +32,7 @@ namespace CROMS.Forms
             this.mnuFactsCert = new System.Windows.Forms.ToolStripMenuItem();
             this.btnCertificate = new CROMS.Modules.SplitButton();
             this.btnSave = new System.Windows.Forms.Button();
+            this.btnAckSlip = new System.Windows.Forms.Button();
             this.layoutRoot = new System.Windows.Forms.TableLayoutPanel();
             this.layoutMain = new System.Windows.Forms.TableLayoutPanel();
             this.pnlHeader = new System.Windows.Forms.TableLayoutPanel();
@@ -224,6 +225,21 @@ namespace CROMS.Forms
             this.btnSave.UseVisualStyleBackColor = false;
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             //
+            // btnAckSlip
+            //
+            this.btnAckSlip.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(238)))), ((int)(((byte)(241)))), ((int)(((byte)(246)))));
+            this.btnAckSlip.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnAckSlip.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnAckSlip.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(36)))));
+            this.btnAckSlip.Location = new System.Drawing.Point(300, 4);
+            this.btnAckSlip.Margin = new System.Windows.Forms.Padding(8, 0, 0, 0);
+            this.btnAckSlip.Name = "btnAckSlip";
+            this.btnAckSlip.Size = new System.Drawing.Size(160, 40);
+            this.btnAckSlip.TabIndex = 2;
+            this.btnAckSlip.Text = "Print Acknowledgment Slip";
+            this.btnAckSlip.UseVisualStyleBackColor = false;
+            this.btnAckSlip.Click += new System.EventHandler(this.btnAckSlip_Click);
+            //
             // layoutRoot
             //
             this.layoutRoot.ColumnCount = 3;
@@ -314,6 +330,7 @@ namespace CROMS.Forms
             this.pnlHeadActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlHeadActions.Controls.Add(this.btnSave);
             this.pnlHeadActions.Controls.Add(this.btnCertificate);
+            this.pnlHeadActions.Controls.Add(this.btnAckSlip);
             this.pnlHeadActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlHeadActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlHeadActions.Location = new System.Drawing.Point(732, 0);
@@ -1571,6 +1588,7 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblTitle;
         private System.Windows.Forms.Label lblSubtitle;
         private System.Windows.Forms.Button btnSave;
+        private System.Windows.Forms.Button btnAckSlip;
         private CROMS.Modules.CardPanel cardForm;
         private System.Windows.Forms.TabControl tabControl;
 

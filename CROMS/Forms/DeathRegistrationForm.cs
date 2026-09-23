@@ -585,6 +585,115 @@ namespace CROMS.Forms
             return null;
         }
 
+        /// <summary>
+        /// Saves the death with status "Pending Verification" instead of "Registered" — a
+        /// separate action from <see cref="Register"/>, which is completely untouched by
+        /// this: Register still always writes "Registered" and behaves exactly as before.
+        /// This exists only so a submission that has been received but not yet reviewed by
+        /// the registrar can be saved as such and given an acknowledgment slip, mirroring
+        /// Birth's "Pending Approval" and Marriage's "For Review" stages, which Death never
+        /// had. Same registry-number retry-on-collision as Register.
+        /// </summary>
+        private long? SubmitPendingVerification(bool keepOpen = false)
+        {
+            if (!ValidateName()) return null;
+            string registryNo = NextRegistryNo();
+            try
+            {
+                long newId;
+                for (int attempt = 0; ; attempt++)
+                {
+                    var ps = new List<MySqlParameter>(FieldParams())
+                    {
+                        new MySqlParameter("@reg", registryNo),
+                        new MySqlParameter("@status", "Pending Verification")
+                    };
+                    ps.AddRange(_extras.Params());
+                    try
+                    {
+                        newId = Db.Insert(
+                            "INSERT INTO deaths (registry_no, status, " + Columns + ", " + DeathExtraFields.Columns + ") " +
+                            "VALUES (@reg, @status, " + ValuePlaceholders + ", " + DeathExtraFields.Placeholders + ")", ps.ToArray());
+                        break;
+                    }
+                    catch (MySqlException ex)
+                        when (RegistryNumber.WasTaken(ex, "deaths") && attempt < RegistryNumber.MaxRetries)
+                    {
+                        registryNo = NextRegistryNo();
+                    }
+                }
+                SaveScan(newId);
+                Audit.Write(Audit.Create, "deaths", registryNo, "Submitted for verification: " + FullName());
+                if (!keepOpen)
+                {
+                    MessageBox.Show("Submitted for verification.  Registry No: " + registryNo, "Saved",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    ClearForm();
+                    ShowListView();
+                }
+                LoadDeaths();
+                if (keepOpen) LoadDeath((int)newId);
+                return newId;
+            }
+            catch (Exception ex) { Fail(ex); }
+            return null;
+        }
+
+        /// <summary>Prints a receipt for a death submission that has been saved but is still
+        /// awaiting verification. Only acknowledges the transaction was received — never a
+        /// certificate, never tied to Fees & Payments. A brand-new, unsaved form is offered
+        /// the chance to be saved as "Pending Verification" first (Register Death itself is
+        /// untouched and still always finalizes as "Registered"); an already-Registered
+        /// record has nothing left pending, so the slip is refused for it.</summary>
+        private void btnAckSlip_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null)
+            {
+                if (MessageBox.Show(this,
+                        "This death has not been saved yet.\n\nSave it now as \"Pending " +
+                        "Verification\" and print an acknowledgment slip? (This is separate " +
+                        "from Register Death — the record will still need to be reviewed and " +
+                        "registered afterward.)",
+                        "Print Acknowledgment Slip", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+                        != DialogResult.Yes) return;
+
+                long? created = SubmitPendingVerification(keepOpen: true);
+                if (!created.HasValue || _editingId == null) return;
+            }
+
+            DataTable dt = Db.Pull(
+                "SELECT registry_no, full_name, status, created_at FROM deaths WHERE id = @id",
+                new MySqlParameter("@id", _editingId.Value));
+            if (dt.Rows.Count == 0) return;
+            DataRow r = dt.Rows[0];
+
+            string status = r["status"] == DBNull.Value ? "" : r["status"].ToString();
+            if (status == "Registered")
+            {
+                MessageBox.Show(this, "This record has already been registered — there is " +
+                    "nothing pending to acknowledge. The acknowledgment slip is only for a " +
+                    "submission still awaiting verification.",
+                    "Print Acknowledgment Slip", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string reg = r["registry_no"] == DBNull.Value ? "" : r["registry_no"].ToString();
+            string reference = string.IsNullOrWhiteSpace(reg) ? "DR-PENDING-" + _editingId.Value : reg;
+            string name = r["full_name"] == DBNull.Value ? "" : r["full_name"].ToString();
+            DateTime submitted = r["created_at"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(r["created_at"]);
+
+            AcknowledgmentSlip.Print(this, reference, name,
+                "Death Registration (Municipal Form 103)", submitted,
+                string.IsNullOrWhiteSpace(status) ? "Pending Verification" : status,
+                new[]
+                {
+                    "Certificate of Death (Municipal Form 103), accomplished",
+                    "Valid ID of the informant / attending physician",
+                    "Burial or transfer permit request, if applicable"
+                },
+                Session.User != null ? Session.User.FullName : "Front Desk");
+        }
+
         // ---------- READ (row -> form) ----------
         private void dgvDeaths_CellClick(object sender, DataGridViewCellEventArgs e)
         {

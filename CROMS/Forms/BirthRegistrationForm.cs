@@ -542,6 +542,71 @@ namespace CROMS.Forms
         {
             mnuViewSoftcopy.Enabled = _scanImage != null || _editingId != null;
             mnuFactsCert.Enabled = _editingId != null;
+            mnuAckSlip.Enabled = _editingId != null;
+        }
+
+        /// <summary>Prints a receipt for a submission that has been SAVED but not yet
+        /// verified/registered ("Pending Approval" / "Delayed Posting"). It only acknowledges
+        /// the transaction was received — never a certificate, never tied to Fees & Payments.
+        /// A record already Registered has no "pending" left to acknowledge, so it is refused
+        /// rather than printing a slip that would misstate the record's real status.</summary>
+        private void mnuAckSlip_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null)
+            {
+                MessageBox.Show(this, "Open a saved record first — the slip is printed from " +
+                    "the registry entry, not from the form on screen.",
+                    "Print Acknowledgment Slip", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DataTable dt = Db.Pull(
+                "SELECT registry_no, first_name, middle_name, last_name, status, created_at " +
+                "FROM births WHERE id = @id", new MySqlParameter("@id", _editingId.Value));
+            if (dt.Rows.Count == 0) return;
+            DataRow r = dt.Rows[0];
+
+            string status = r["status"] == DBNull.Value ? "" : r["status"].ToString();
+            if (status != "Pending Approval" && status != "Delayed Posting")
+            {
+                MessageBox.Show(this, "This record is not awaiting verification (current " +
+                    "status: " + status + "). The acknowledgment slip is only for a " +
+                    "submission that has been received but not yet reviewed.",
+                    "Print Acknowledgment Slip", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string reg = r["registry_no"] == DBNull.Value ? "" : r["registry_no"].ToString();
+            string reference = string.IsNullOrWhiteSpace(reg) ? "BR-PENDING-" + _editingId.Value : reg;
+
+            string first = r["first_name"] == DBNull.Value ? "" : r["first_name"].ToString();
+            string mid = r["middle_name"] == DBNull.Value ? "" : r["middle_name"].ToString();
+            string last = r["last_name"] == DBNull.Value ? "" : r["last_name"].ToString();
+            string name = JoinNonEmpty(first, mid, last);
+
+            DateTime submitted = r["created_at"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(r["created_at"]);
+
+            AcknowledgmentSlip.Print(this, reference, name,
+                "Birth Registration (Municipal Form 102)", submitted, status,
+                new[]
+                {
+                    "Certificate of Live Birth (Municipal Form 102), accomplished",
+                    "Marriage Certificate of parents (if applicable)",
+                    "Valid ID of the informant"
+                },
+                Session.User != null ? Session.User.FullName : "Front Desk");
+        }
+
+        private static string JoinNonEmpty(params string[] parts)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (string p in parts)
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                if (sb.Length > 0) sb.Append(' ');
+                sb.Append(p.Trim());
+            }
+            return sb.ToString();
         }
 
         /// <summary>Civil Registry Form No. 1A - CERTIFICATION (Birth Available), the birth

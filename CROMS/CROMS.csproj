@@ -608,6 +608,7 @@
     <Compile Include="Data\SessionResume.cs" />
     <Compile Include="Data\PrintCalibration.cs" />
     <Compile Include="Data\ReportWidgetPrefs.cs" />
+    <Compile Include="Data\AcknowledgmentSlip.cs" />
     <Compile Include="Forms\ReportCustomizeForm.cs">
       <SubType>Form</SubType>
     </Compile>
