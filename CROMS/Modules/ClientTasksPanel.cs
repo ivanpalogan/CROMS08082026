@@ -2,6 +2,7 @@
 using System.Data;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO;
 using System.Text;
 using System.Windows.Forms;
 using CROMS.Data;
@@ -64,6 +65,11 @@ namespace CROMS.Modules
         private readonly Label _client = new Label();
         private readonly Label _meta = new Label();
         private readonly Label _summary = new Label();
+        private readonly PictureBox _picClient = new PictureBox();
+        private readonly PictureBox _picId = new PictureBox();
+        private readonly Label _lblClientState = new Label();
+        private readonly Label _lblIdState = new Label();
+        private int _photosForTicket = -1;
         private readonly Panel _currentHost = new Panel { Dock = DockStyle.Top, AutoSize = false, Height = 0 };
         private readonly FlowLayoutPanel _tasks = new FlowLayoutPanel();
         private readonly Panel _footer = new Panel { Dock = DockStyle.Bottom, Height = 132, BackColor = UiTheme.Surface, Padding = new Padding(10, 8, 10, 10) };
@@ -137,7 +143,7 @@ namespace CROMS.Modules
             // Who is at the window, above what they came for. The queue number alone identifies
             // the ticket but not the person — an operator holding a birth certificate has to be
             // able to check the name in front of them without opening another module.
-            var head = new Panel { Dock = DockStyle.Top, Height = 116, BackColor = UiTheme.Surface, Padding = new Padding(16, 12, 16, 8) };
+            var head = new Panel { Dock = DockStyle.Top, Height = 208, BackColor = UiTheme.Surface, Padding = new Padding(16, 12, 16, 8) };
             _queue.AutoSize = false;
             _queue.Dock = DockStyle.Top;
             _queue.Height = 28;
@@ -163,7 +169,16 @@ namespace CROMS.Modules
             _summary.Font = new Font("Segoe UI", 9F);
             _summary.ForeColor = UiTheme.Muted;
 
+            // Client photo + uploaded ID, side by side — the officer holding this task has to
+            // be able to compare a face and a government ID without opening another module.
+            var photos = new Panel { Dock = DockStyle.Top, Height = 92, Padding = new Padding(0, 6, 0, 0) };
+            Panel clientBlock = BuildPhotoBlock("Client Photo", _picClient, _lblClientState, DockStyle.Left);
+            Panel idBlock = BuildPhotoBlock("Uploaded ID", _picId, _lblIdState, DockStyle.Right);
+            photos.Controls.Add(idBlock);
+            photos.Controls.Add(clientBlock);
+
             // Dock=Top stacks in reverse add order, so add bottom-most first.
+            head.Controls.Add(photos);
             head.Controls.Add(_summary);
             head.Controls.Add(_meta);
             head.Controls.Add(_client);
@@ -231,6 +246,78 @@ namespace CROMS.Modules
             _body.Controls.Add(_currentHost);
             _body.Controls.Add(_footer);
             _body.Controls.Add(head);
+        }
+
+        /// <summary>One labeled photo tile (caption on top, image box, state line under it).</summary>
+        private static Panel BuildPhotoBlock(string caption, PictureBox pic, Label state, DockStyle side)
+        {
+            var block = new Panel { Dock = side, Width = 150 };
+            var cap = new Label
+            {
+                Text = caption, Dock = DockStyle.Top, Height = 16,
+                Font = new Font("Segoe UI", 8F, FontStyle.Bold), ForeColor = UiTheme.Muted
+            };
+            pic.Dock = DockStyle.Top;
+            pic.Height = 62;
+            pic.SizeMode = PictureBoxSizeMode.Zoom;
+            pic.BackColor = UiTheme.PageBg;
+            pic.BorderStyle = BorderStyle.FixedSingle;
+
+            state.Dock = DockStyle.Top;
+            state.Height = 14;
+            state.AutoEllipsis = true;
+            state.Font = new Font("Segoe UI", 7.5F);
+            state.ForeColor = UiTheme.Muted;
+            state.Text = "—";
+
+            block.Controls.Add(state);
+            block.Controls.Add(pic);
+            block.Controls.Add(cap);
+            return block;
+        }
+
+        /// <summary>
+        /// Client face photo (queue_tickets.id_image, already on the ticket row) and the ID
+        /// uploaded via the claimapp QR (claim_requests, linked by queue_ticket_id — every kiosk
+        /// visit now creates that row, not only Release &amp; Claim pickups). Requeried only when
+        /// the ticket changes, not on every 3-second refresh.
+        /// </summary>
+        private void UpdatePhotos(DataRow t, int ticketId)
+        {
+            if (_photosForTicket == ticketId) return;
+            _photosForTicket = ticketId;
+
+            _picClient.Image?.Dispose();
+            _picClient.Image = null;
+            if (t.Table.Columns.Contains("id_image") && t["id_image"] != DBNull.Value)
+            {
+                try { using (var ms = new MemoryStream((byte[])t["id_image"])) _picClient.Image = Image.FromStream(ms); }
+                catch { /* stored value wasn't a readable image */ }
+            }
+            _lblClientState.Text = _picClient.Image != null ? "On file" : "No kiosk photo";
+
+            _picId.Image?.Dispose();
+            _picId.Image = null;
+            DataTable dt = Db.Pull(
+                "SELECT id_image FROM claim_requests WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
+                new MySqlParameter("@id", ticketId));
+            if (dt.Rows.Count > 0 && dt.Rows[0]["id_image"] != DBNull.Value)
+            {
+                try { using (var ms = new MemoryStream((byte[])dt.Rows[0]["id_image"])) _picId.Image = Image.FromStream(ms); }
+                catch { /* stored value wasn't a readable image */ }
+            }
+            _lblIdState.Text = _picId.Image != null ? "On file" : "Not yet uploaded";
+        }
+
+        private void ClearPhotos()
+        {
+            _photosForTicket = -1;
+            _picClient.Image?.Dispose();
+            _picClient.Image = null;
+            _picId.Image?.Dispose();
+            _picId.Image = null;
+            _lblClientState.Text = "—";
+            _lblIdState.Text = "—";
         }
 
         private void BuildTab()
@@ -380,7 +467,7 @@ namespace CROMS.Modules
 
             DataTable ticket = Db.Pull(
                 "SELECT id, ticket_code, full_name, spouse_full_name, contact_no, priority, " +
-                "document_type, purpose, type_label, valid_id_type, " +
+                "document_type, purpose, type_label, valid_id_type, id_image, " +
                 "TIME_FORMAT(TIME(created_at), '%h:%i %p') AS issued " +
                 "FROM queue_tickets " +
                 "WHERE window_no = @w AND status IN ('Accepted','Serving') " +
@@ -393,6 +480,7 @@ namespace CROMS.Modules
                 _ticketCode = null;
                 _renderSignature = null;
                 QueueTaskContext.Clear();
+                ClearPhotos();
                 UpdateVisibility();
                 return;
             }
@@ -404,6 +492,7 @@ namespace CROMS.Modules
             _client.Text = Cell(t, "full_name", "(name not given)");
             _meta.Text = ClientMeta(t);
             _client.ForeColor = UiTheme.Ink;
+            UpdatePhotos(t, _ticketId);
             UpdateVisibility();
 
             DataTable rows = LoadServices();
