@@ -923,7 +923,7 @@ namespace CROMS.Forms
                            : "No longer required - kept because it holds a record";
                 int i = _g.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code, why,
                     r.Status, r.Outcome ?? "", r.GivenBy, r.ReferenceNo, r.DocDate.HasValue ? MUi.D(r.DocDate) : "",
-                    r.HasAttachment ? "View" : (r.IsBypassed ? "Not needed" : "Attach"),
+                    r.HasAttachment ? (ReadOnlyGrid ? "View" : "Remove") : (r.IsBypassed ? "Not needed" : "Attach"),
                     r.IsBypassed ? "⛔ Bypassed" : (r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : ""),
                     r.IsBypassed ? "Reinstate" : "Bypass");
                 DataGridViewRow row = _g.Rows[i];
@@ -1052,15 +1052,10 @@ namespace CROMS.Forms
             }
             if (r.HasAttachment)
             {
-                var menu = new ContextMenuStrip();
-                menu.Items.Add("View", null, (s, a) => { string n; MUi.OpenAttachment(this, MarriageService.RequirementAttachment(r.Id, out n), n); });
-                if (!ReadOnlyGrid)
-                {
-                    menu.Items.Add("Replace...", null, (s, a) => Upload(r, e.RowIndex));
-                    menu.Items.Add("Remove", null, (s, a) => RemoveAttachment(r));
-                }
-                Rectangle cell = _g.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, true);
-                menu.Show(_g, new Point(cell.Left, cell.Bottom));
+                // Editable grid: the button IS Remove (View is gone). Read-only grid can't
+                // remove, so it keeps View - otherwise the file would be unreachable.
+                if (!ReadOnlyGrid) RemoveAttachment(r);
+                else { string n; MUi.OpenAttachment(this, MarriageService.RequirementAttachment(r.Id, out n), n); }
             }
             else if (!ReadOnlyGrid) Upload(r, e.RowIndex);
         }
