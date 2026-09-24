@@ -395,6 +395,85 @@ namespace CROMS.Forms
             try { System.Diagnostics.Process.Start(tmp); } catch (Exception ex) { Fail(owner, ex); }
         }
 
+        /// <summary>
+        /// Pick a file, show it straight away, and let the operator Proceed or Cancel. Cancel returns to the
+        /// file picker so another file/image can be chosen; closing the picker itself ends the flow.
+        /// Returns false when the operator gave up without proceeding.
+        /// </summary>
+        public static bool PickAndPreview(IWin32Window owner, string title, string filter, out byte[] bytes, out string fileName)
+        {
+            bytes = null; fileName = null;
+            while (true)
+            {
+                using (var dlg = new OpenFileDialog { Title = title, Filter = filter })
+                {
+                    if (dlg.ShowDialog(owner) != DialogResult.OK) return false;
+                    byte[] data;
+                    try { data = File.ReadAllBytes(dlg.FileName); }
+                    catch (Exception ex) { Fail(owner, ex); continue; }
+                    string name = Path.GetFileName(dlg.FileName);
+                    if (PreviewDialog(owner, title, data, name)) { bytes = data; fileName = name; return true; }
+                    // Cancel: loop back to the picker so another file can be chosen.
+                }
+            }
+        }
+
+        private static bool PreviewDialog(IWin32Window owner, string title, byte[] data, string name)
+        {
+            Image img = null;
+            string ext = Path.GetExtension(name ?? "").ToLowerInvariant();
+            if (ext != ".pdf")
+            {
+                try { using (var ms = new MemoryStream(data)) using (var raw = Image.FromStream(ms)) img = new Bitmap(raw); }
+                catch { img = null; }
+            }
+            using (var f = new Form
+            {
+                Text = "Preview - " + title, StartPosition = FormStartPosition.CenterParent,
+                ClientSize = new Size(820, 660), BackColor = UiTheme.PageBg, MinimizeBox = false, MaximizeBox = false,
+                ShowInTaskbar = false, FormBorderStyle = FormBorderStyle.FixedDialog
+            })
+            {
+                var caption = new Label
+                {
+                    Dock = DockStyle.Top, Height = 40, Padding = new Padding(16, 12, 16, 0), UseMnemonic = false,
+                    Text = name + "   (" + (data.Length / 1024) + " KB)", Font = F(9.75F, FontStyle.Bold), ForeColor = UiTheme.Ink
+                };
+                var bar = new Panel { Dock = DockStyle.Bottom, Height = 64, BackColor = UiTheme.Surface };
+                var ok = new Button { Text = "Proceed", Size = new Size(150, 40), Location = new Point(820 - 16 - 150, 12), DialogResult = DialogResult.OK, BackColor = UiTheme.Success, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+                var cancel = new Button { Text = "Cancel - choose another", Size = new Size(210, 40), Location = new Point(820 - 16 - 150 - 10 - 210, 12), DialogResult = DialogResult.Cancel, FlatStyle = FlatStyle.Flat };
+                bar.Controls.Add(ok); bar.Controls.Add(cancel);
+                Control body;
+                if (img != null)
+                    body = new PictureBox { Dock = DockStyle.Fill, Image = img, SizeMode = PictureBoxSizeMode.Zoom, BackColor = UiTheme.Surface };
+                else
+                {
+                    var p = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.Surface };
+                    var note = new Label { Dock = DockStyle.Top, Height = 80, Padding = new Padding(16), UseMnemonic = false, ForeColor = UiTheme.Muted, Font = F(9.75F),
+                        Text = "No inline preview for this file type. Open it to check it, then choose Proceed or Cancel." };
+                    var open = new Button { Text = "Open file", Size = new Size(140, 38), Location = new Point(16, 84), FlatStyle = FlatStyle.Flat };
+                    open.Click += (s, a) =>
+                    {
+                        try
+                        {
+                            string tmp = Path.Combine(Path.GetTempPath(), "croms_" + Guid.NewGuid().ToString("N").Substring(0, 8) + "_" + name);
+                            File.WriteAllBytes(tmp, data);
+                            System.Diagnostics.Process.Start(tmp);
+                        }
+                        catch (Exception ex) { Fail(f, ex); }
+                    };
+                    p.Controls.Add(open); p.Controls.Add(note);
+                    body = p;
+                }
+                f.Controls.Add(body); f.Controls.Add(caption); f.Controls.Add(bar);
+                f.AcceptButton = ok; f.CancelButton = cancel;
+                UiTheme.Polish(f);
+                bool result = f.ShowDialog(owner) == DialogResult.OK;
+                if (img != null) img.Dispose();
+                return result;
+            }
+        }
+
         public static void HistoryDialog(IWin32Window owner, string entity, int id, string title)
         {
             using (var f = new Form
@@ -1076,21 +1155,16 @@ namespace CROMS.Forms
 
         private void Upload(ReqRow r, int rowIndex)
         {
-            using (var dlg = new OpenFileDialog
+            byte[] bytes; string fileName;
+            if (!MUi.PickAndPreview(this, "Attach " + (r.Label ?? r.Code),
+                "Scans and documents|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.pdf", out bytes, out fileName)) return;
+            try
             {
-                Title = "Attach " + (r.Label ?? r.Code),
-                Filter = "Scans and documents|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff;*.pdf"
-            })
-            {
-                if (dlg.ShowDialog(this) != DialogResult.OK) return;
-                try
-                {
-                    MarriageService.AttachRequirement(r.Id, File.ReadAllBytes(dlg.FileName), Path.GetFileName(dlg.FileName));
-                    Bind(_owner, _ownerId, _needs.Values, _filter);
-                    var h = Changed; if (h != null) h();
-                }
-                catch (Exception ex) { MUi.Fail(this, ex); }
+                MarriageService.AttachRequirement(r.Id, bytes, fileName);
+                Bind(_owner, _ownerId, _needs.Values, _filter);
+                var h = Changed; if (h != null) h();
             }
+            catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
         /// <summary>
