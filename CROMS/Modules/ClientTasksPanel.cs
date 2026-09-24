@@ -147,26 +147,26 @@ namespace CROMS.Modules
             _queue.AutoSize = false;
             _queue.Dock = DockStyle.Top;
             _queue.Height = 28;
-            _queue.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+            _queue.Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             _queue.ForeColor = UiTheme.Ink;
 
             _client.AutoSize = false;
             _client.Dock = DockStyle.Top;
             _client.Height = 22;
             _client.AutoEllipsis = true;
-            _client.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            _client.Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             _client.ForeColor = UiTheme.Ink;
 
             _meta.AutoSize = false;
             _meta.Dock = DockStyle.Top;
             _meta.Height = 34;
-            _meta.Font = new Font("Segoe UI", 8.5F);
+            _meta.Font = new Font("Segoe UI", UiTheme.MinTextPt);
             _meta.ForeColor = UiTheme.Muted;
 
             _summary.AutoSize = false;
             _summary.Dock = DockStyle.Top;
             _summary.Height = 20;
-            _summary.Font = new Font("Segoe UI", 9F);
+            _summary.Font = new Font("Segoe UI", UiTheme.MinTextPt);
             _summary.ForeColor = UiTheme.Muted;
 
             // Client photo + uploaded ID, side by side — the officer holding this task has to
@@ -198,7 +198,7 @@ namespace CROMS.Modules
             _complete.FlatAppearance.BorderSize = 0;
             _complete.BackColor = UiTheme.Success;
             _complete.ForeColor = Color.White;
-            _complete.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            _complete.Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             _complete.Click += (s, e) => CompleteVisit();
 
             // Abandon is the answer to a client who walked away, or who asked for something the
@@ -213,7 +213,7 @@ namespace CROMS.Modules
             _abandonTask.FlatAppearance.BorderSize = 0;
             _abandonTask.BackColor = UiTheme.WarningTint;
             _abandonTask.ForeColor = UiTheme.Warning;
-            _abandonTask.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _abandonTask.Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             _abandonTask.Click += (s, e) => AbandonCurrentTask();
 
             _abandonAll.Text = "Abandon All Tasks · End Visit";
@@ -224,7 +224,7 @@ namespace CROMS.Modules
             _abandonAll.FlatAppearance.BorderSize = 0;
             _abandonAll.BackColor = UiTheme.DangerTint;
             _abandonAll.ForeColor = UiTheme.Danger;
-            _abandonAll.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            _abandonAll.Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             _abandonAll.Click += (s, e) => AbandonAllTasks();
 
             var spacerA = new Panel { Dock = DockStyle.Top, Height = 6, BackColor = UiTheme.Surface };
@@ -255,7 +255,7 @@ namespace CROMS.Modules
             var cap = new Label
             {
                 Text = caption, Dock = DockStyle.Top, Height = 16,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold), ForeColor = UiTheme.Muted
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold), ForeColor = UiTheme.Muted
             };
             pic.Dock = DockStyle.Top;
             pic.Height = 62;
@@ -266,7 +266,7 @@ namespace CROMS.Modules
             state.Dock = DockStyle.Top;
             state.Height = 14;
             state.AutoEllipsis = true;
-            state.Font = new Font("Segoe UI", 7.5F);
+            state.Font = new Font("Segoe UI", UiTheme.MinTextPt);
             state.ForeColor = UiTheme.Muted;
             state.Text = "—";
 
@@ -365,7 +365,7 @@ namespace CROMS.Modules
             // returns when the drawer is open and has room to read as an attached tab.
             if (_expanded)
             {
-                using (var font = new Font("Segoe UI", 9F, FontStyle.Bold))
+                using (var font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold))
                 using (var format = new StringFormat
                 {
                     Alignment = StringAlignment.Center,
@@ -770,7 +770,7 @@ namespace CROMS.Modules
                 AutoSize = false,
                 Dock = DockStyle.Top,
                 Height = 18,
-                Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 ForeColor = UiTheme.Accent,
                 BackColor = Color.Transparent
             };
@@ -781,7 +781,7 @@ namespace CROMS.Modules
                 Dock = DockStyle.Top,
                 Height = 26,
                 AutoEllipsis = true,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 ForeColor = UiTheme.Ink,
                 BackColor = Color.Transparent
             };
@@ -791,7 +791,7 @@ namespace CROMS.Modules
                 AutoSize = false,
                 Dock = DockStyle.Top,
                 Height = 18,
-                Font = new Font("Segoe UI", 8F),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt),
                 ForeColor = UiTheme.Muted,
                 BackColor = Color.Transparent
             };
@@ -833,7 +833,7 @@ namespace CROMS.Modules
                 AutoSize = false,
                 Dock = DockStyle.Top,
                 Height = height,
-                Font = new Font("Segoe UI", 8F),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt),
                 ForeColor = UiTheme.Ink,
                 BackColor = Color.Transparent,
                 Padding = new Padding(0, 4, 0, 2),
@@ -870,7 +870,7 @@ namespace CROMS.Modules
                 AutoEllipsis = true,
                 Location = new Point(10, 9),
                 Size = new Size(266, 23),
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 ForeColor = finished ? UiTheme.Muted : UiTheme.Ink
             };
             var state = new Label
@@ -878,7 +878,7 @@ namespace CROMS.Modules
                 Text = abandoned ? "Abandoned" : finished ? "Finished" : "Pending",
                 Location = new Point(10, 35),
                 Size = new Size(140, 22),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 ForeColor = abandoned ? UiTheme.Warning : finished ? UiTheme.Success : UiTheme.Muted
             };
 
@@ -890,7 +890,7 @@ namespace CROMS.Modules
                     AutoSize = false,
                     Location = new Point(10, detailTop),
                     Size = new Size(266, detailH),
-                    Font = new Font("Segoe UI", 8F),
+                    Font = new Font("Segoe UI", UiTheme.MinTextPt),
                     ForeColor = abandoned ? UiTheme.Muted : UiTheme.Ink,
                 });
             }
@@ -904,7 +904,7 @@ namespace CROMS.Modules
                         Text = "✓",
                         Location = new Point(250, 33),
                         Size = new Size(26, 26),
-                        Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                        Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                         ForeColor = UiTheme.Success,
                         TextAlign = ContentAlignment.MiddleCenter
                     };
@@ -934,7 +934,7 @@ namespace CROMS.Modules
                 FlatStyle = FlatStyle.Flat,
                 BackColor = back,
                 ForeColor = fore,
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold)
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold)
             };
             button.FlatAppearance.BorderSize = 0;
             return button;
@@ -1138,14 +1138,14 @@ namespace CROMS.Modules
             MinimizeBox = MaximizeBox = false;
             ClientSize = new Size(470, 214);
             BackColor = UiTheme.Surface;
-            Font = new Font("Segoe UI", 9.5F);
+            Font = new Font("Segoe UI", UiTheme.MinTextPt);
 
             Controls.Add(new Label
             {
                 Text = title,
                 Location = new Point(20, 18),
                 Size = new Size(430, 46),
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 ForeColor = UiTheme.Ink,
             });
             Controls.Add(new Label
@@ -1160,7 +1160,7 @@ namespace CROMS.Modules
                 Text = "Reason (required)",
                 Location = new Point(20, 106),
                 Size = new Size(430, 20),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 ForeColor = UiTheme.Ink,
             });
 
@@ -1206,7 +1206,7 @@ namespace CROMS.Modules
                 FlatStyle = FlatStyle.Flat,
                 BackColor = back,
                 ForeColor = fore,
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
             };
             b.FlatAppearance.BorderSize = 0;
             return b;

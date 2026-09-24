@@ -124,7 +124,7 @@ namespace CROMS.Modules
 
             using (var pen = new Pen(Color.FromArgb(120, 37, 99, 235)) { DashStyle = DashStyle.Dash })
             using (var brush = new SolidBrush(Color.FromArgb(150, 37, 99, 235)))
-            using (var font = new Font("Segoe UI", 7.5f, FontStyle.Bold))
+            using (var font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold))
             {
                 g.DrawLine(pen, page.X, headerY, page.Right, headerY);
                 g.DrawLine(pen, page.X, footerY, page.Right, footerY);

@@ -85,7 +85,7 @@ namespace CROMS
         /// </summary>
         private void SetupBrandMark()
         {
-            brandPanel.Height = 68;
+            brandPanel.Height = 88;
 
             var mark = new Panel
             {
@@ -100,17 +100,17 @@ namespace CROMS
             brandPanel.Controls.Add(mark);
             mark.BringToFront();
 
-            brandLabel.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
+            brandLabel.Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             brandLabel.Location = new Point(mark.Right + 10, 14);
 
             _brandSubtitle = new Label
             {
                 AutoSize = true,
-                Font = new Font("Segoe UI", 8F),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt),
                 ForeColor = Color.FromArgb(150, 162, 188),
                 BackColor = Color.Transparent,
                 Text = "LCRO Peñablanca",
-                Location = new Point(mark.Right + 10, 38)
+                Location = new Point(mark.Right + 10, 44)
             };
             brandPanel.Controls.Add(_brandSubtitle);
             _brandSubtitle.BringToFront();
@@ -234,7 +234,7 @@ namespace CROMS
         //  reacting to screen size the same way as always (both panels stay Dock-based).
         // ================================================================
 
-        private const int SidebarExpandedWidth = 220;
+        private const int SidebarExpandedWidth = 330;
         private const int SidebarCollapsedWidth = 64;
         private bool _railCollapsed;
         private ToolTip _navTip;
@@ -257,7 +257,7 @@ namespace CROMS
                 FlatStyle = FlatStyle.Flat,
                 BackColor = UiTheme.NavyHover,
                 ForeColor = NavIdleFore,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                 TextAlign = ContentAlignment.MiddleCenter,
                 Cursor = Cursors.Hand,
                 TabStop = false
@@ -489,7 +489,7 @@ namespace CROMS
             var chip = new Panel
             {
                 AutoSize = false,
-                Size = new Size(230, 44),
+                Size = new Size(330, 64),
                 Margin = new Padding(0, 6, 0, 6),
                 Cursor = Cursors.Hand,
                 BackColor = UiTheme.PageBg
@@ -512,11 +512,11 @@ namespace CROMS
                 {
                     Text = "⟳ Update",
                     AutoSize = false,
-                    Size = new Size(104, 36),
+                    Size = new Size(170, 46),
                     FlatStyle = FlatStyle.Flat,
                     ForeColor = Color.White,
                     BackColor = Color.FromArgb(13, 110, 253),
-                    Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
+                    Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold),
                     Cursor = Cursors.Hand,
                     Margin = new Padding(0, 10, 10, 10)
                 };
@@ -568,8 +568,8 @@ namespace CROMS
             string role = Session.User?.Role ?? "";
             int textX = avatarRect.Right + 10;
             int textW = chip.Width - textX - 18;   // leaves room for the caret
-            var nameFont = new Font("Segoe UI", 9.5F, FontStyle.Bold);
-            var roleFont = new Font("Segoe UI", 8F);
+            var nameFont = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
+            var roleFont = new Font("Segoe UI", UiTheme.MinTextPt);
             var nameSize = g.MeasureString(name, nameFont);
             var roleSize = g.MeasureString(role, roleFont);
             float totalH = nameSize.Height + roleSize.Height - 2;
@@ -615,14 +615,14 @@ namespace CROMS
         /// </summary>
         private void ShowUserMenu(Control anchor)
         {
-            var menu = new ContextMenuStrip { Font = new Font("Segoe UI", 9.5F) };
+            var menu = new ContextMenuStrip { Font = new Font("Segoe UI", UiTheme.MinTextPt) };
             UiTheme.StyleMenu(menu);
 
             var header = new ToolStripMenuItem(
                 (Session.User?.FullName ?? "Not signed in") + "  ·  " + (Session.User?.Role ?? ""))
             {
                 Enabled = false,
-                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
+                Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold)
             };
             menu.Items.Add(header);
             menu.Items.Add(new ToolStripSeparator());
@@ -995,7 +995,7 @@ namespace CROMS
                 bool active = pair.Key == key;
                 pair.Value.BackColor = active ? NavActiveBack : SidebarBack;
                 pair.Value.ForeColor = active ? Color.White : NavIdleFore;
-                pair.Value.Font = new Font("Segoe UI", 10F, active ? FontStyle.Bold : FontStyle.Regular);
+                pair.Value.Font = new Font("Segoe UI", UiTheme.MinTextPt, active ? FontStyle.Bold : FontStyle.Regular);
             }
         }
 

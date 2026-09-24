@@ -35,7 +35,7 @@ namespace CROMS.Modules
             UseVisualStyleBackColor = false;
             BackColor = UiTheme.Chrome;
             ForeColor = UiTheme.Ink;
-            Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
             Cursor = Cursors.Hand;
             SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint
                    | ControlStyles.OptimizedDoubleBuffer, true);
