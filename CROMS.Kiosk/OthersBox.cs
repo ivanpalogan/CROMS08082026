@@ -5,10 +5,10 @@ using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
-namespace CROMS.Modules
+namespace CROMS.Kiosk
 {
     /// <summary>
-    /// "Others, specify ______" — the pattern every PSA form uses, wired once.
+    /// "Others, specify ______" — same helper as CROMS.Modules.OthersBox (the kiosk has no reference to CROMS.exe).
     /// <para/>
     /// A dropdown that offers "Others" and nothing else is a dead end: the encoder picks it,
     /// the record says "Others", and what the paper actually says is lost. These forms print

@@ -291,6 +291,7 @@ namespace CROMS.Forms
             var who = MUi.Grid(2, 1, 58);
             who.Controls.Add(MUi.Field("Payer's name", _wPayer), 0, 0);
             who.Controls.Add(MUi.Field("Purpose of payment", _wPurpose), 1, 0);
+            OthersBox.AttachInline(_wPurpose, 150);
 
             var add = new TableLayoutPanel { Height = 58, ColumnCount = 4, BackColor = Color.Transparent };
             add.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58)); add.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
@@ -413,7 +414,7 @@ namespace CROMS.Forms
             string method = _wMethod.SelectedItem as string ?? "Cash";
             var entry = new PaymentEntry
             {
-                Source = PaymentService.SourceWalkIn, PayerName = _wPayer.Text, Purpose = _wPurpose.Text, OrNumber = _wOr.Text, Method = method,
+                Source = PaymentService.SourceWalkIn, PayerName = _wPayer.Text, Purpose = OthersBox.Value(_wPurpose), OrNumber = _wOr.Text, Method = method,
                 ReferenceNo = _wRef.Text,
                 Tendered = IsCash(method) ? ParseMoney(_wTendered.Text) : (decimal?)null, Remarks = _wRemarks.Text, Lines = _wItems.ToList()
             };

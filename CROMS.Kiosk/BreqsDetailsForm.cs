@@ -44,6 +44,8 @@ namespace CROMS.Kiosk
             _cboPurpose.Items.AddRange(KioskCore.BreqsPurposes);
             _cboRelationship.Items.AddRange(KioskCore.BreqsRelationships);
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
+            OthersBox.AttachInline(_cboPurpose, 80);
+            OthersBox.AttachInline(_cboIdType, 60);
 
             // One certificate per request: picking one clears the others.
             _pillBirth.CheckedChanged += (s, e) => { if (_pillBirth.Checked) { _pillMarriage.SetChecked(false); _pillDeath.SetChecked(false); } ApplyDocType(); };
@@ -105,9 +107,9 @@ namespace CROMS.Kiosk
             _pillMarriage.SetChecked(_session.BreqsDocType == "Marriage");
             _pillDeath.SetChecked(_session.BreqsDocType == "Death");
             _cboCopies.SelectedItem = Math.Max(1, Math.Min(10, _session.BreqsCopies)).ToString();
-            _cboPurpose.Text = _session.BreqsPurpose ?? "";
+            OthersBox.SetValue(_cboPurpose, _session.BreqsPurpose);
             _cboRelationship.Text = _session.BreqsRelationship ?? "";
-            _cboIdType.Text = _session.IdType ?? "";
+            OthersBox.SetValue(_cboIdType, _session.IdType);
             _txtIdNo.Text = _session.IdNo ?? "";
             _txtOwnerFirst.Text = _session.OwnerFirst ?? ""; _txtOwnerMiddle.Text = _session.OwnerMiddle ?? ""; _txtOwnerLast.Text = _session.OwnerLast ?? "";
             _txtSpouseFirst.Text = _session.SpouseFirst ?? ""; _txtSpouseMiddle.Text = _session.SpouseMiddle ?? ""; _txtSpouseLast.Text = _session.SpouseLast ?? "";
@@ -122,9 +124,9 @@ namespace CROMS.Kiosk
             _session.BreqsDocType = DocType;
             int copies;
             _session.BreqsCopies = int.TryParse(_cboCopies.SelectedItem as string, out copies) ? copies : 1;
-            _session.BreqsPurpose = Blank(_cboPurpose.Text);
+            _session.BreqsPurpose = Blank(OthersBox.Value(_cboPurpose));
             _session.BreqsRelationship = Blank(_cboRelationship.Text);
-            _session.IdType = Blank(_cboIdType.Text);   // shared with Personal Info - picked once
+            _session.IdType = Blank(OthersBox.Value(_cboIdType));   // shared with Personal Info - picked once
             _session.IdNo = Blank(_txtIdNo.Text);
             _session.OwnerFirst = Blank(_txtOwnerFirst.Text); _session.OwnerMiddle = Blank(_txtOwnerMiddle.Text); _session.OwnerLast = Blank(_txtOwnerLast.Text);
             bool marriage = DocType == "Marriage", birth = DocType == "Birth";

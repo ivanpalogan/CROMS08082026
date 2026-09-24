@@ -24,15 +24,17 @@ namespace CROMS.Forms
         {
             _r = r; _s = s;
             InitializeComponent();
+            OthersBox.AttachInline(_purpose, 80);
+            OthersBox.AttachInline(_idType, 60);
         }
 
         private void Fill()
         {
             _rFirst.Text = _r.RequesterFirst; _rMiddle.Text = _r.RequesterMiddle; _rLast.Text = _r.RequesterLast;
-            _contact.Text = _r.ContactNo; _relationship.Text = _r.Relationship ?? ""; _idType.Text = _r.ValidIdType ?? ""; _idNo.Text = _r.ValidIdNo;
+            _contact.Text = _r.ContactNo; _relationship.Text = _r.Relationship ?? ""; OthersBox.SetValue(_idType, _r.ValidIdType); _idNo.Text = _r.ValidIdNo;
             _docType.SelectedItem = BreqsService.DocTypes.Contains(_r.DocType) ? _r.DocType : BreqsService.Birth;
             _copies.Value = Math.Max(1, Math.Min(20, _r.Copies));
-            _purpose.Text = _r.Purpose ?? "";
+            OthersBox.SetValue(_purpose, _r.Purpose);
             _oFirst.Text = _r.OwnerFirst; _oMiddle.Text = _r.OwnerMiddle; _oLast.Text = _r.OwnerLast;
             _sFirst.Text = _r.SpouseFirst; _sMiddle.Text = _r.SpouseMiddle; _sLast.Text = _r.SpouseLast;
             MUi.Put(_eventDate, _r.EventDate);
@@ -60,8 +62,8 @@ namespace CROMS.Forms
         private void DoSave()
         {
             _r.RequesterFirst = _rFirst.Text; _r.RequesterMiddle = _rMiddle.Text; _r.RequesterLast = _rLast.Text;
-            _r.ContactNo = _contact.Text; _r.Relationship = _relationship.Text; _r.ValidIdType = _idType.Text; _r.ValidIdNo = _idNo.Text;
-            _r.DocType = _docType.SelectedItem as string; _r.Copies = (int)_copies.Value; _r.Purpose = _purpose.Text;
+            _r.ContactNo = _contact.Text; _r.Relationship = _relationship.Text; _r.ValidIdType = OthersBox.Value(_idType); _r.ValidIdNo = _idNo.Text;
+            _r.DocType = _docType.SelectedItem as string; _r.Copies = (int)_copies.Value; _r.Purpose = OthersBox.Value(_purpose);
             _r.OwnerFirst = _oFirst.Text; _r.OwnerMiddle = _oMiddle.Text; _r.OwnerLast = _oLast.Text;
             _r.SpouseFirst = _sFirst.Text; _r.SpouseMiddle = _sMiddle.Text; _r.SpouseLast = _sLast.Text;
             _r.EventDate = MUi.Val(_eventDate); _r.EventProvince = _province.Text; _r.EventCity = _city.Text;
@@ -155,15 +157,17 @@ namespace CROMS.Forms
                 rep.CheckedChanged += (x, e) =>
                 {
                     if (rep.Checked) { claimant.Text = ""; idType.Text = ""; idNo.Text = ""; claimant.Focus(); }
-                    else { claimant.Text = r.RequesterName; idType.Text = r.ValidIdType ?? ""; idNo.Text = r.ValidIdNo ?? ""; }
+                    else { claimant.Text = r.RequesterName; OthersBox.SetValue(idType, r.ValidIdType); idNo.Text = r.ValidIdNo ?? ""; }
                 };
                 var g = MUi.Grid(2, 1, 56);
                 g.Controls.Add(MUi.Field("Valid ID presented", idType), 0, 0); g.Controls.Add(MUi.Field("ID number", idNo), 1, 0);
+                OthersBox.AttachInline(idType, 60);
+                OthersBox.SetValue(idType, r.ValidIdType);
                 f.Controls.Add(Body(f, "Hand over " + r.Copies + " PSA " + r.DocType.ToLowerInvariant() + " cop" + (r.Copies == 1 ? "y" : "ies") + " for " + r.OwnerName + ". Check the claimant's ID against what is recorded.",
                                     rep, MUi.Field("Claimant's full name", claimant), g));
                 f.Controls.Add(Foot(f, "Release", MUi.Kind.Success, () =>
                 {
-                    BreqsService.Release(r.Id, claimant.Text, idType.Text, idNo.Text, rep.Checked, Uid);
+                    BreqsService.Release(r.Id, claimant.Text, OthersBox.Value(idType), idNo.Text, rep.Checked, Uid);
                     return true;
                 }));
                 UiTheme.Polish(f);

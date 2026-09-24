@@ -66,6 +66,7 @@ namespace CROMS.Kiosk
             KioskButtons.Style(_btnPersonA, KioskButtonKind.Primary);
             KioskButtons.Style(_btnPersonB, KioskButtonKind.Secondary);
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
+            OthersBox.AttachInline(_cboIdType, 60);
             // The camera-state line draws its own status dot (no emoji).
             AttachStateDot(_lblCamState);
 
@@ -138,7 +139,7 @@ namespace CROMS.Kiosk
             _priPwd.SetChecked(_session.Pwd);
             _priPregnant.SetChecked(_session.Pregnant);
             _txtClaimTicket.Text = _session.ClaimTicketEntry ?? "";
-            _cboIdType.Text = _session.IdType ?? "";
+            OthersBox.SetValue(_cboIdType, _session.IdType);
             _txtIdNo.Text = _session.IdNo ?? "";
 
             if (_session.HasMarriage)
@@ -164,7 +165,7 @@ namespace CROMS.Kiosk
             _session.Pwd = _priPwd.Checked;
             _session.Pregnant = _priPregnant.Checked;
             _session.ClaimTicketEntry = _txtClaimTicket.Text.Trim();
-            _session.IdType = _cboIdType.Text.Trim();
+            _session.IdType = OthersBox.Value(_cboIdType);
             _session.IdNo = _txtIdNo.Text.Trim();
         }
 

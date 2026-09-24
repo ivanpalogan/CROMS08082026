@@ -741,10 +741,12 @@ namespace CROMS.Forms
                 };
                 ok.FlatAppearance.BorderSize = 0;
                 d.Controls.Add(l); d.Controls.Add(cbo); d.Controls.Add(ok);
+                OthersBox.AttachInline(cbo, 160);
                 d.AcceptButton = ok;
                 if (d.ShowDialog(this) == DialogResult.OK)
                 {
-                    ParkReason = string.IsNullOrWhiteSpace(cbo.Text) ? null : cbo.Text.Trim();
+                    string reason = OthersBox.Value(cbo);
+                    ParkReason = string.IsNullOrWhiteSpace(reason) ? null : reason;
                     Result = CertNextStep.WaitingToRelease;
                     Close();
                 }

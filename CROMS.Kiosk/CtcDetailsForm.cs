@@ -34,6 +34,7 @@ namespace CROMS.Kiosk
         {
             _session = session;
             InitializeComponent();
+            OthersBox.AttachInline(_purpose, 80);
 
             _idle = new Timer { Interval = 1000 };
             int ticks = 0;
@@ -127,7 +128,7 @@ namespace CROMS.Kiosk
         {
             if (!string.IsNullOrWhiteSpace(_session.CtcDocumentType)) _document.SelectedItem = _session.CtcDocumentType;
             _copies.SelectedItem = Math.Max(1, Math.Min(10, _session.CtcCopies)).ToString();
-            _purpose.Text = _session.CtcPurpose ?? "";
+            OthersBox.SetValue(_purpose, _session.CtcPurpose);
             _relationship.Text = _session.CtcRelationship ?? "";
             _registryNo.Text = _session.CtcRegistryNo ?? "";
             _ownerFirst.Text = _session.CtcOwnerFirst ?? "";
@@ -150,7 +151,7 @@ namespace CROMS.Kiosk
             _session.CtcDocumentType = _document.SelectedItem as string;
             int copies;
             _session.CtcCopies = int.TryParse(_copies.SelectedItem as string, out copies) ? copies : 1;
-            _session.CtcPurpose = Trim(_purpose.Text);
+            _session.CtcPurpose = Trim(OthersBox.Value(_purpose));
             _session.CtcRelationship = Trim(_relationship.Text);
             _session.CtcRegistryNo = Trim(_registryNo.Text);
             _session.CtcOwnerFirst = Trim(_ownerFirst.Text);

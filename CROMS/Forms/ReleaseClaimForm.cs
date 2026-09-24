@@ -708,6 +708,7 @@ namespace CROMS.Forms
             txtIdType.Font = new Font("Segoe UI", 11F);
             txtIdNum.Font = new Font("Segoe UI", 11F);
             AddFieldRow(_repBlock, lblIdType, txtIdType);
+            OthersBox.AttachInline(txtIdType, 50);
             AddFieldRow(_repBlock, lblIdNum, txtIdNum);
             _repRow = t.RowCount;
             AddStack(t, _repBlock, 0);   // 0 until the box is ticked (see ShowRepFields)
@@ -1793,7 +1794,7 @@ namespace CROMS.Forms
             // details, the kiosk face photo and the uploaded valid ID side by side. The admin
             // confirms the ID matches, then presses Release inside that window.
             string repInfo = chkRep.Checked
-                ? (txtIdType.Text.Trim() + "  " + txtIdNum.Text.Trim()).Trim()
+                ? (OthersBox.Value(txtIdType) + "  " + txtIdNum.Text.Trim()).Trim()
                 : null;
             using (var v = new ReleaseVerifyDialog(_selectedTxnId.Value, txtClaimant.Text.Trim(), repInfo))
                 if (v.ShowDialog(this) != DialogResult.OK) return;
@@ -1811,7 +1812,7 @@ namespace CROMS.Forms
                     new MySqlParameter("@txn", _selectedTxnId.Value),
                     new MySqlParameter("@name", txtClaimant.Text.Trim()),
                     new MySqlParameter("@rep", chkRep.Checked ? 1 : 0),
-                    new MySqlParameter("@idtype", chkRep.Checked ? NullIfEmpty(txtIdType.Text) : DBNull.Value),
+                    new MySqlParameter("@idtype", chkRep.Checked ? NullIfEmpty(OthersBox.Value(txtIdType)) : DBNull.Value),
                     new MySqlParameter("@idnum", chkRep.Checked ? NullIfEmpty(txtIdNum.Text) : DBNull.Value),
                     photoParam,
                     new MySqlParameter("@by", Session.UserIdParam));
@@ -1869,7 +1870,7 @@ namespace CROMS.Forms
             try
             {
                 string info = "Released to " + txtClaimant.Text.Trim() +
-                    (chkRep.Checked ? " (rep: " + txtIdType.Text + " " + txtIdNum.Text + ")" : "");
+                    (chkRep.Checked ? " (rep: " + OthersBox.Value(txtIdType) + " " + txtIdNum.Text + ")" : "");
                 Db.Push(
                     "UPDATE claim_requests SET status = 'Released', release_info = @ri, " +
                     "released_by = @by, released_at = NOW() WHERE id = @id",

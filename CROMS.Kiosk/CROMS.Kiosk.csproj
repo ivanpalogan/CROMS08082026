@@ -108,6 +108,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="KioskCore.cs" />
+    <Compile Include="OthersBox.cs" />
     <Compile Include="KioskIcons.cs" />
     <Compile Include="KioskButtons.cs" />
     <Compile Include="IconFont.cs" />
