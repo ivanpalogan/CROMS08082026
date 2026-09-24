@@ -156,7 +156,7 @@ namespace CROMS.Modules
                    | ControlStyles.SupportsTransparentBackColor, true);
             BackColor = UiTheme.Surface;
             ForeColor = UiTheme.Muted;
-            Font = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             AutoSize = false;
         }
 

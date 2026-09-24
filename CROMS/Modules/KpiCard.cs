@@ -23,12 +23,12 @@ namespace CROMS.Modules
 
         private static readonly Padding Inset = new Padding(16, 9, 16, 8);
 
-        private readonly Font _labelFont = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
+        private readonly Font _labelFont = new Font("Segoe UI", 8.25F, FontStyle.Bold);
         private readonly Font _valueFont = new Font("Segoe UI", 24F, FontStyle.Bold);
-        private readonly Font _affixFont = new Font("Segoe UI Semibold", UiTheme.MinTextPt, FontStyle.Bold);
-        private readonly Font _captionFont = new Font("Segoe UI", UiTheme.MinTextPt);
-        private readonly Font _capBoldFont = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
-        private readonly Font _deltaFont = new Font("Segoe UI", UiTheme.MinTextPt, FontStyle.Bold);
+        private readonly Font _affixFont = new Font("Segoe UI Semibold", 12.75F, FontStyle.Bold);
+        private readonly Font _captionFont = new Font("Segoe UI", 8.5F);
+        private readonly Font _capBoldFont = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        private readonly Font _deltaFont = new Font("Segoe UI", 8.25F, FontStyle.Bold);
 
         private double[] _spark = new double[0];
 

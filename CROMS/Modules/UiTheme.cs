@@ -113,17 +113,10 @@ namespace CROMS.Modules
             if (fam.IndexOf("Emoji", System.StringComparison.OrdinalIgnoreCase) >= 0) return;
             if (fam == "Consolas") return;
 
-            float size = System.Math.Max(BodySize(c, f.Size), MinTextPt);
+            float size = BodySize(c, f.Size);
             if (fam == BaseFamily && size == f.Size) return;
             c.Font = new Font(BaseFamily, size, f.Style);
         }
-
-        /// <summary>
-        /// Readability floor: no text in the app is drawn smaller than this. Body text, inputs,
-        /// buttons, menus and grid cells all sit at this size; headings already above it keep
-        /// their own larger size so the type scale still has a hierarchy.
-        /// </summary>
-        public const float MinTextPt = 16F;
 
         /// <summary>Every field label on every screen.</summary>
         public const float LabelSize = 9F;
@@ -339,7 +332,7 @@ namespace CROMS.Modules
         {
             if (menu.Renderer == MenuRenderer) return;   // already styled
             menu.Renderer = MenuRenderer;
-            menu.Font = new Font(BaseFamily, MinTextPt);
+            menu.Font = new Font(BaseFamily, 9F);
             menu.ShowImageMargin = false;
         }
 
@@ -381,19 +374,19 @@ namespace CROMS.Modules
                 g.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             g.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            g.ColumnHeadersHeight = 56;
+            g.ColumnHeadersHeight = 40;
 
             var h = g.ColumnHeadersDefaultCellStyle;
             h.BackColor = HeaderBack;
             h.ForeColor = HeaderInk;
             h.SelectionBackColor = HeaderBack;
             h.SelectionForeColor = HeaderInk;
-            h.Font = new Font("Segoe UI", MinTextPt, FontStyle.Bold);
+            h.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
             h.Padding = new Padding(8, 0, 8, 0);
             h.Alignment = DataGridViewContentAlignment.MiddleLeft;
 
             var c = g.DefaultCellStyle;
-            c.Font = new Font("Segoe UI", MinTextPt);
+            c.Font = new Font("Segoe UI", 9.5f);
             c.ForeColor = Ink;
             c.BackColor = Color.White;
             c.SelectionBackColor = SelBack;
@@ -418,7 +411,7 @@ namespace CROMS.Modules
             }
         }
 
-        private const int RowHeight = 48;
+        private const int RowHeight = 34;
 
         /// <summary>Multiplies each RGB channel by <paramref name="f"/> (｢0.9｣ ≈ 10% darker).</summary>
         private static Color Shade(Color c, float f)
