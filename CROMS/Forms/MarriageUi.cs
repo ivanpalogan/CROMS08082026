@@ -924,8 +924,8 @@ namespace CROMS.Forms
                 int i = _g.Rows.Add(r.Party == "Both" ? "Both" : r.Party, r.Label ?? r.Code, why,
                     r.Status, r.Outcome ?? "", r.GivenBy, r.ReferenceNo, r.DocDate.HasValue ? MUi.D(r.DocDate) : "",
                     r.HasAttachment ? "View" : (r.IsBypassed ? "Not needed" : "Attach"),
-                    r.IsBypassed ? "⛔ Waived" : (r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : ""),
-                    r.IsBypassed ? "Reinstate" : "Waive");
+                    r.IsBypassed ? "⛔ Bypassed" : (r.VerifiedAt.HasValue ? MUi.D(r.VerifiedAt) : ""),
+                    r.IsBypassed ? "Reinstate" : "Bypass");
                 DataGridViewRow row = _g.Rows[i];
                 row.Tag = r;
                 if (n != null && !string.IsNullOrEmpty(n.Basis)) row.Cells["Req"].ToolTipText = n.Basis;
@@ -938,29 +938,29 @@ namespace CROMS.Forms
                 {
                     row.Cells["Bypass"].Style.ForeColor = UiTheme.Faint;
                     row.Cells["Bypass"].Style.SelectionForeColor = UiTheme.Faint;
-                    row.Cells["Bypass"].ToolTipText = "A document is already attached - waiving is not needed.";
+                    row.Cells["Bypass"].ToolTipText = "A document is already attached - bypass is not needed.";
                 }
                 if (r.IsBypassed)
                 {
                     row.DefaultCellStyle.BackColor = UiTheme.WarningTint;
                     string who = string.IsNullOrEmpty(r.BypassedByName) ? "an Admin" : r.BypassedByName;
                     string when = r.BypassedAt.HasValue ? MUi.D(r.BypassedAt) : "";
-                    string bypassNote = "Waived by " + who + (when == "" ? "" : " on " + when) +
+                    string bypassNote = "Bypassed by " + who + (when == "" ? "" : " on " + when) +
                         (string.IsNullOrEmpty(r.BypassReason) ? "" : ": " + r.BypassReason);
                     row.Cells["Bypass"].ToolTipText = bypassNote;
-                    row.Cells["Status"].ToolTipText = "This requirement is waived - it counts as satisfied even though " +
+                    row.Cells["Status"].ToolTipText = "This requirement is bypassed - it counts as satisfied even though " +
                         "its status still says \"" + r.Status + "\".";
                     row.Cells["Checked"].Style.ForeColor = UiTheme.Warning;
                     row.Cells["Checked"].Style.Font = MUiFonts.Bold9;
                     row.Cells["Checked"].ToolTipText = bypassNote;
                     if (!r.HasAttachment)
                     {
-                        string reasonText = string.IsNullOrEmpty(r.BypassReason) ? "Waived" : "Waived: " + r.BypassReason;
+                        string reasonText = string.IsNullOrEmpty(r.BypassReason) ? "Bypassed" : "Bypassed: " + r.BypassReason;
                         row.Cells["File"].Value = reasonText.Length > 40 ? reasonText.Substring(0, 37) + "..." : reasonText;
                         row.Cells["File"].ReadOnly = true;
                         row.Cells["File"].Style.ForeColor = UiTheme.Faint;
                         row.Cells["File"].Style.SelectionForeColor = UiTheme.Faint;
-                        row.Cells["File"].ToolTipText = bypassNote + "\n\nNot needed - this requirement is waived. Reinstate it first to attach a document.";
+                        row.Cells["File"].ToolTipText = bypassNote + "\n\nNot needed - this requirement is bypassed. Reinstate first to attach a document.";
                     }
                 }
             }
@@ -1045,7 +1045,7 @@ namespace CROMS.Forms
             if (r == null) return;
             if (r.IsBypassed && !r.HasAttachment)
             {
-                MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" is waived, so no document is needed. " +
+                MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" is bypassed, so no document is needed. " +
                     "Click Reinstate first if you want to attach one.", "Not needed",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -1118,7 +1118,7 @@ namespace CROMS.Forms
             if (r == null) return;
             if (!r.IsBypassed && r.HasAttachment)
             {
-                MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" already has a document attached - waiving is not needed.",
+                MessageBox.Show(this, "\"" + (r.Label ?? r.Code) + "\" already has a document attached - bypass is not needed.",
                     "Not needed", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
@@ -1127,7 +1127,7 @@ namespace CROMS.Forms
                 if (verify.ShowDialog(this) != DialogResult.OK) return;
                 if (verify.VerifiedUser == null || verify.VerifiedUser.Role != "Admin")
                 {
-                    MessageBox.Show(this, "Only an Administrator account can waive a requirement.",
+                    MessageBox.Show(this, "Only an Administrator account can bypass a requirement.",
                         "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
@@ -1136,15 +1136,15 @@ namespace CROMS.Forms
             {
                 if (r.IsBypassed)
                 {
-                    if (!MUi.Confirm(this, "Reinstate requirement", "Reinstate (stop waiving) \"" + (r.Label ?? r.Code) + "\"?",
+                    if (!MUi.Confirm(this, "Withdraw bypass", "Withdraw the bypass on \"" + (r.Label ?? r.Code) + "\"?",
                             "Reason on file|" + r.BypassReason)) return;
                     MarriageService.ClearBypass(r.Id);
                 }
                 else
                 {
-                    string reason = MUi.Ask(this, "Waive requirement",
+                    string reason = MUi.Ask(this, "Bypass requirement",
                         "\"" + (r.Label ?? r.Code) + "\" will count as satisfied even though it has not been checked. " +
-                        "This is an Admin decision and is permanently recorded in the audit trail.\n\nReason for waiving:", "");
+                        "This is an Admin decision and is permanently recorded in the audit trail.\n\nReason for bypassing:", "");
                     if (reason == null) return;
                     MarriageService.BypassRequirement(r.Id, reason);
                 }
