@@ -568,17 +568,37 @@ namespace CROMS.Forms
                     "Print Acknowledgment Slip", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+            PrintAckSlipFor(_editingId.Value, this);
+        }
 
+        /// <summary>Right after a successful Submit for Approval: offers the slip so the
+        /// clerk can hand it to the client before the form clears. Never throws.</summary>
+        private void OfferAckSlip(long id, IWin32Window owner)
+        {
+            try
+            {
+                if (MessageBox.Show(owner,
+                        "Print an acknowledgment slip for this submission?\n\n" +
+                        "It only acknowledges receipt - it is not a certificate.",
+                        "Acknowledgment Slip", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+                    == DialogResult.Yes)
+                    PrintAckSlipFor((int)id, owner);
+            }
+            catch (Exception ex) { Fail(ex); }
+        }
+
+        private void PrintAckSlipFor(int id, IWin32Window owner)
+        {
             DataTable dt = Db.Pull(
                 "SELECT registry_no, first_name, middle_name, last_name, status, created_at " +
-                "FROM births WHERE id = @id", new MySqlParameter("@id", _editingId.Value));
+                "FROM births WHERE id = @id", new MySqlParameter("@id", id));
             if (dt.Rows.Count == 0) return;
             DataRow r = dt.Rows[0];
 
             string status = r["status"] == DBNull.Value ? "" : r["status"].ToString();
             if (status != "Pending Approval" && status != "Delayed Posting")
             {
-                MessageBox.Show(this, "This record is not awaiting verification (current " +
+                MessageBox.Show(owner, "This record is not awaiting verification (current " +
                     "status: " + status + "). The acknowledgment slip is only for a " +
                     "submission that has been received but not yet reviewed.",
                     "Print Acknowledgment Slip", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -586,7 +606,7 @@ namespace CROMS.Forms
             }
 
             string reg = r["registry_no"] == DBNull.Value ? "" : r["registry_no"].ToString();
-            string reference = string.IsNullOrWhiteSpace(reg) ? "BR-PENDING-" + _editingId.Value : reg;
+            string reference = string.IsNullOrWhiteSpace(reg) ? "BR-PENDING-" + id : reg;
 
             string first = r["first_name"] == DBNull.Value ? "" : r["first_name"].ToString();
             string mid = r["middle_name"] == DBNull.Value ? "" : r["middle_name"].ToString();
@@ -595,7 +615,7 @@ namespace CROMS.Forms
 
             DateTime submitted = r["created_at"] == DBNull.Value ? DateTime.Now : Convert.ToDateTime(r["created_at"]);
 
-            AcknowledgmentSlip.Print(this, reference, name,
+            AcknowledgmentSlip.Print(owner, reference, name,
                 "Birth Registration (Municipal Form 102)", submitted, status,
                 new[]
                 {
@@ -1255,6 +1275,7 @@ namespace CROMS.Forms
 
                 MessageBox.Show(owner, "Submitted for approval." + extra, "Saved",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
+                OfferAckSlip(id, owner);
                 ClearForm();
                 LoadBirths();
                 ShowListView();
@@ -1411,6 +1432,7 @@ namespace CROMS.Forms
                     MessageBox.Show(
                         (status == "Draft" ? "Saved as draft." : "Submitted for approval.") + extra,
                         "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (status == "Pending Approval") OfferAckSlip(newId, _entryDialog ?? (IWin32Window)this);
                     ClearForm();
                     ShowListView();
                 }

@@ -185,7 +185,15 @@ namespace CROMS.Forms
             _btnCase.Click += (s, e) => OpenCase();
             _btnAckSlip.Click += (s, e) => PrintAckSlip();
             _btnDraft.Click += (s, e) => Save("Draft");
-            _btnReview.Click += (s, e) => Save("For Review");
+            _btnReview.Click += (s, e) =>
+            {
+                if (!Save("For Review")) return;
+                if (MessageBox.Show(this,
+                        "Sent for review.\n\nPrint an acknowledgment slip for this submission?\n" +
+                        "It only acknowledges receipt - it is not a certificate.",
+                        "Acknowledgment Slip", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
+                    == DialogResult.Yes) PrintAckSlip();
+            };
             _btnRegister.Click += (s, e) => Register();
 
             var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, BackColor = UiTheme.Surface };
