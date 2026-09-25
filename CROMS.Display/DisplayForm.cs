@@ -259,7 +259,7 @@ namespace CROMS.Display
                     Margin = new Padding((int)(CardGap / 2 * sc)),
                     BackColor = Color.FromArgb(31, 41, 55)
                 };
-                var code = new Label
+                var code = new SingleLineLabel
                 {
                     Text = "—",
                     ForeColor = Color.FromArgb(96, 165, 250),
@@ -349,6 +349,22 @@ namespace CROMS.Display
                 Font old = lbl.Font;
                 lbl.Font = new Font(family, best, style);
                 old.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Label that always paints on ONE line, centred, using the same TextRenderer flags
+        /// FitFont measures with. A stock Label word-wraps at the hyphen ("Q-04" / "3") when
+        /// its own rendering comes out a few pixels wider than the measurement.
+        /// </summary>
+        private sealed class SingleLineLabel : Label
+        {
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, ForeColor,
+                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine |
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                    TextFormatFlags.NoClipping);
             }
         }
 
