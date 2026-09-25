@@ -820,7 +820,14 @@ namespace CROMS.Kiosk
                             Text = "Token:\n" + claimToken, Dock = DockStyle.Fill,
                             TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Consolas", 9F)
                         });
-                    else claimPanel.Controls.Add(pic);
+                    else
+                    {
+                        claimPanel.Controls.Add(pic);
+                        // Dock=Fill added last is laid out FIRST and claims the whole panel, so the
+                        // caption label covered the QR's top rows and it would not scan. Sending the
+                        // fill to the front makes it dock last, into what the caption leaves over.
+                        pic.BringToFront();
+                    }
                 }
 
                 var list = new Label
