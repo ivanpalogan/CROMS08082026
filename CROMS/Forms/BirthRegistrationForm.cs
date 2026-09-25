@@ -1959,7 +1959,11 @@ namespace CROMS.Forms
             _cboMCit = CreateLookupCells(txtMCitizen, 1, null)[0];
             _cboMRel = CreateLookupCells(txtMReligion, 1, null)[0];
             _cboMOcc = CreateLookupCells(txtMOccupation, 1, null)[0];
-            _mres = CreateLookupCells(txtMResidence, 4, new[] { "House / St.", "Province", "Municipality", "Barangay" });
+            // Screen order is Province, Municipality, Barangay, House/St. (optional); the array
+            // and the stored value stay house, province, municipality, barangay.
+            int[] resOrder = { 3, 0, 1, 2 };
+            _mres = CreateLookupCells(txtMResidence, 4,
+                new[] { "House / St. (optional)", "Province", "Municipality", "Barangay" }, resOrder);
             _mProvince = _mres[1];
             _mMunicipality = _mres[2];
             _mBarangay = _mres[3];
@@ -1967,7 +1971,8 @@ namespace CROMS.Forms
             _cboFCit = CreateLookupCells(txtFCitizen, 1, null)[0];
             _cboFRel = CreateLookupCells(txtFReligion, 1, null)[0];
             _cboFOcc = CreateLookupCells(txtFOccupation, 1, null)[0];
-            _fres = CreateLookupCells(txtFResidence, 4, new[] { "House / St.", "Province", "Municipality", "Barangay" });
+            _fres = CreateLookupCells(txtFResidence, 4,
+                new[] { "House / St. (optional)", "Province", "Municipality", "Barangay" }, resOrder);
             _fProvince = _fres[1];
             _fMunicipality = _fres[2];
             _fBarangay = _fres[3];
@@ -2568,7 +2573,13 @@ namespace CROMS.Forms
             }
         }
 
-        private ComboBox[] CreateLookupCells(TextBox tb, int count, string[] captions)
+        /// <param name="displayOrder">
+        /// Optional: screen column for each returned combo (element i sits in column
+        /// displayOrder[i]). Lets a screen show Province, Municipality, Barangay, House/St.
+        /// while the returned array — and so the stored, comma-joined value — keeps its
+        /// original order.
+        /// </param>
+        private ComboBox[] CreateLookupCells(TextBox tb, int count, string[] captions, int[] displayOrder = null)
         {
             var owner = tb.Parent as TableLayoutPanel;
             if (owner == null) throw new InvalidOperationException(
@@ -2605,6 +2616,7 @@ namespace CROMS.Forms
             var made = new ComboBox[count];
             for (int i = 0; i < count; i++)
             {
+                int col = displayOrder != null ? displayOrder[i] : i;
                 var cbo = new ComboBox
                 {
                     Name = tb.Name + "Lookup" + i,
@@ -2613,9 +2625,9 @@ namespace CROMS.Forms
                     AutoCompleteSource = AutoCompleteSource.ListItems,
                     Dock = DockStyle.Top,
                     Font = tb.Font,
-                    Margin = new Padding(0, 0, i == count - 1 ? 0 : 6, 0)
+                    Margin = new Padding(0, 0, col == count - 1 ? 0 : 6, 0)
                 };
-                grid.Controls.Add(cbo, i, 0);
+                grid.Controls.Add(cbo, col, 0);
                 made[i] = cbo;
 
                 if (captioned)
@@ -2626,7 +2638,7 @@ namespace CROMS.Forms
                         ForeColor = UiTheme.Faint,
                         Font = new System.Drawing.Font("Segoe UI", 7.5F),
                         Margin = new Padding(1, 1, 6, 0)
-                    }, i, 1);
+                    }, col, 1);
             }
 
             owner.Controls.Remove(tb);
