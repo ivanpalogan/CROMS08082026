@@ -244,7 +244,7 @@ namespace CROMS.Display
             // "Q-037") GROWS to fill the card and reads across the room; AutoFit shrinks a
             // long code back down to fit. Scales down a little as more windows share the
             // screen, then with the screen size (small laptop ↔ big TV).
-            float codeSize = (count <= 3 ? 190F : count <= 6 ? 125F : 85F) * sc;
+            float codeSize = (count <= 3 ? 120F : count <= 6 ? 90F : 62F) * sc;
             ApplyGridPadding();
 
             int i = 0;
@@ -323,7 +323,7 @@ namespace CROMS.Display
         {
             if (lbl == null || lbl.IsDisposed || !lbl.IsHandleCreated) return;
             // Small safety margin so the biggest fitted size doesn't kiss the card edges.
-            int w = (int)((lbl.ClientSize.Width - lbl.Padding.Horizontal) * 0.90f);
+            int w = (int)((lbl.ClientSize.Width - lbl.Padding.Horizontal) * 0.85f);
             int h = (int)((lbl.ClientSize.Height - lbl.Padding.Vertical) * 0.90f);
             if (w <= 2 || h <= 2) return;
 
