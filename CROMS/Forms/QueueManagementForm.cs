@@ -581,7 +581,7 @@ namespace CROMS.Forms
             window = OperatingWindow();
             if (window == 0) return null;
             DataTable t = Db.Pull(
-                "SELECT id, ticket_code, status FROM queue_tickets " +
+                "SELECT id, ticket_code, status, priority FROM queue_tickets " +
                 "WHERE status IN ('Accepted','Serving') AND window_no = @w AND DATE(created_at) = CURDATE() " +
                 "ORDER BY id DESC LIMIT 1", new MySqlParameter("@w", window));
             return t.Rows.Count > 0 ? t.Rows[0] : null;
@@ -691,8 +691,14 @@ namespace CROMS.Forms
             int id = Convert.ToInt32(t["id"]);
             string code = t["ticket_code"].ToString();
 
-            if (IsPriorityWindow(window) && !AdminOverride(
-                "This is a Priority Window — its tickets stay until completion and are not " +
+            // A Regular ticket may always be forwarded, even from a Priority Window. Only a
+            // priority-lane ticket (Senior/PWD/Pregnant) held at a Priority Window stays put
+            // unless an administrator overrides.
+            string ticketPriority = t["priority"] == DBNull.Value ? "" : t["priority"].ToString();
+            bool isRegular = ticketPriority.Length == 0 ||
+                             string.Equals(ticketPriority, "Regular", StringComparison.OrdinalIgnoreCase);
+            if (!isRegular && IsPriorityWindow(window) && !AdminOverride(
+                "This is a Priority Window — its priority-lane tickets stay until completion and are not " +
                 "normally forwarded. An administrator override is required to forward."))
                 return;
 
