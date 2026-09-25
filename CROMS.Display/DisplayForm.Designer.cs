@@ -34,18 +34,18 @@ namespace CROMS.Display
             // _header
             //
             this._header.Dock = DockStyle.Top;
-            this._header.Font = new Font("Segoe UI", 40F, FontStyle.Bold);
+            this._header.Font = new Font("Segoe UI", 34F, FontStyle.Bold);
             this._header.ForeColor = Color.White;
-            this._header.Height = 150;
+            this._header.Height = 110;
             this._header.Text = "NOW SERVING";
             this._header.TextAlign = ContentAlignment.MiddleCenter;
             //
             // _clock
             //
             this._clock.Dock = DockStyle.Bottom;
-            this._clock.Font = new Font("Segoe UI", 14F);
+            this._clock.Font = new Font("Segoe UI", 12F);
             this._clock.ForeColor = Color.FromArgb(148, 163, 184);
-            this._clock.Height = 50;
+            this._clock.Height = 40;
             this._clock.TextAlign = ContentAlignment.MiddleCenter;
             //
             // DisplayForm

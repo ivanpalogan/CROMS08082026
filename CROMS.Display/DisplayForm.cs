@@ -70,16 +70,40 @@ namespace CROMS.Display
             float s = Scale;
             if (_header != null)
             {
-                _header.Font = new Font(_header.Font.FontFamily, 40F * s, FontStyle.Bold);
-                _header.Height = (int)(150 * s);
+                _header.Font = new Font(_header.Font.FontFamily, 34F * s, FontStyle.Bold);
+                _header.Height = (int)(110 * s);
             }
             if (_clock != null)
             {
-                _clock.Font = new Font(_clock.Font.FontFamily, 14F * s);
-                _clock.Height = (int)(50 * s);
+                _clock.Font = new Font(_clock.Font.FontFamily, 12F * s);
+                _clock.Height = (int)(40 * s);
             }
-            if (_grid != null)
-                _grid.Padding = new Padding((int)(40 * s));
+            ApplyGridPadding();
+        }
+
+        // Card footprint (design baseline 1080p). Cards are capped at this size and the
+        // grid is padded so the whole row sits centred, instead of stretching to the screen.
+        private const float CardW = 350F, CardH = 620F, CardGap = 28F;
+
+        /// <summary>Pads the grid so equal-size cards sit centred in the free area.</summary>
+        private void ApplyGridPadding()
+        {
+            if (_grid == null || _header == null || _clock == null) return;
+            float s = Scale;
+            int outer = (int)(40 * s);
+            int count = _lastWins == null ? 0 : _lastWins.Rows.Count;
+            if (count == 0) { _grid.Padding = new Padding(outer); return; }
+
+            int cols = Math.Min(count, 4);
+            int rows = (int)Math.Ceiling(count / (double)cols);
+            int areaW = ClientSize.Width;
+            int areaH = ClientSize.Height - _header.Height - _clock.Height;
+
+            int cellW = Math.Min((areaW - 2 * outer) / cols, (int)((CardW + CardGap) * s));
+            int cellH = Math.Min((areaH - 2 * outer) / rows, (int)((CardH + CardGap) * s));
+            int padX = Math.Max(outer, (areaW - cellW * cols) / 2);
+            int padY = Math.Max(outer / 2, (areaH - cellH * rows) / 2);
+            _grid.Padding = new Padding(padX, padY, padX, padY);
         }
 
         private void Reload()
@@ -220,7 +244,8 @@ namespace CROMS.Display
             // "Q-037") GROWS to fill the card and reads across the room; AutoFit shrinks a
             // long code back down to fit. Scales down a little as more windows share the
             // screen, then with the screen size (small laptop ↔ big TV).
-            float codeSize = (count <= 3 ? 230F : count <= 6 ? 150F : 100F) * sc;
+            float codeSize = (count <= 3 ? 190F : count <= 6 ? 125F : 85F) * sc;
+            ApplyGridPadding();
 
             int i = 0;
             foreach (DataRow w in wins.Rows)
@@ -231,7 +256,7 @@ namespace CROMS.Display
                 var card = new Panel
                 {
                     Dock = DockStyle.Fill,
-                    Margin = new Padding((int)(20 * sc)),
+                    Margin = new Padding((int)(CardGap / 2 * sc)),
                     BackColor = Color.FromArgb(31, 41, 55)
                 };
                 var code = new Label
@@ -246,18 +271,18 @@ namespace CROMS.Display
                 {
                     Text = "idle",
                     ForeColor = Color.FromArgb(148, 163, 184),
-                    Font = new Font("Segoe UI", 18F * sc),
+                    Font = new Font("Segoe UI", 15F * sc),
                     Dock = DockStyle.Bottom,
-                    Height = (int)(70 * sc),
+                    Height = (int)(56 * sc),
                     TextAlign = ContentAlignment.MiddleCenter
                 };
                 var title = new Label
                 {
                     Text = name.ToUpper(),
                     ForeColor = Color.FromArgb(148, 163, 184),
-                    Font = new Font("Segoe UI", 20F * sc, FontStyle.Bold),
+                    Font = new Font("Segoe UI", 17F * sc, FontStyle.Bold),
                     Dock = DockStyle.Top,
-                    Height = (int)(70 * sc),
+                    Height = (int)(56 * sc),
                     TextAlign = ContentAlignment.MiddleCenter
                 };
 
@@ -268,7 +293,7 @@ namespace CROMS.Display
 
                 // Ticket code shrinks to fit its card so a long queue number stays
                 // readable on the public board — never clipped or cut in half.
-                AttachAutoFit(code, codeSize, 30F * sc);
+                AttachAutoFit(code, codeSize, 24F * sc);
 
                 _codeLabels[id] = code;
                 _subLabels[id] = sub;
@@ -298,8 +323,8 @@ namespace CROMS.Display
         {
             if (lbl == null || lbl.IsDisposed || !lbl.IsHandleCreated) return;
             // Small safety margin so the biggest fitted size doesn't kiss the card edges.
-            int w = (int)((lbl.ClientSize.Width - lbl.Padding.Horizontal) * 0.94f);
-            int h = (int)((lbl.ClientSize.Height - lbl.Padding.Vertical) * 0.94f);
+            int w = (int)((lbl.ClientSize.Width - lbl.Padding.Horizontal) * 0.90f);
+            int h = (int)((lbl.ClientSize.Height - lbl.Padding.Vertical) * 0.90f);
             if (w <= 2 || h <= 2) return;
 
             string text = string.IsNullOrEmpty(lbl.Text) ? " " : lbl.Text;
@@ -307,16 +332,15 @@ namespace CROMS.Display
             FontFamily family = lbl.Font.FontFamily;
 
             float best = minPt;
-            using (var g = lbl.CreateGraphics())
+            // Measure with TextRenderer (what Label paints with) on a single line; GDI+
+            // MeasureString reads narrower, so a fitted code still wrapped ("Q-" / "04").
+            const TextFormatFlags flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+            for (float size = maxPt; size >= minPt; size -= 1f)
             {
-                for (float size = maxPt; size >= minPt; size -= 1f)
+                using (var f = new Font(family, size, style))
                 {
-                    using (var f = new Font(family, size, style))
-                    {
-                        SizeF sz = g.MeasureString(text, f, int.MaxValue,
-                            StringFormat.GenericTypographic);
-                        if (sz.Width <= w && sz.Height <= h) { best = size; break; }
-                    }
+                    Size sz = TextRenderer.MeasureText(text, f, new Size(int.MaxValue, int.MaxValue), flags);
+                    if (sz.Width <= w && sz.Height <= h) { best = size; break; }
                 }
             }
 
