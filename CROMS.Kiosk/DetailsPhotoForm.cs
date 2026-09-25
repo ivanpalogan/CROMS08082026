@@ -10,9 +10,7 @@ using AForge.Video.DirectShow;
 namespace CROMS.Kiosk
 {
     /// <summary>
-    /// Step 2 of 2 — details + priority + live webcam photo + a claimapp QR to upload a photo of
-    /// a valid ID from the client's own phone. The QR is shown on EVERY visit now, not only a
-    /// Release &amp; Claim pickup. For Marriage Application / Marriage Registration the personal
+    /// Step 2 of 2 — details + priority + live webcam photo. For Marriage Application / Marriage Registration the personal
     /// info and photo are for TWO people (husband and wife) — see
     /// <see cref="ApplyMarriagePersons"/>; every other service is a single person, unchanged.
     /// Reads/writes the shared <see cref="KioskSession"/>. Print submits via
@@ -35,10 +33,6 @@ namespace CROMS.Kiosk
         private VideoCaptureDevice _camera;
         private Bitmap _lastFrame;
         private readonly object _frameLock = new object();
-
-        // Numbered step headers on the right card ("1. Take Your Photo" / "2. Upload Your ID"),
-        // shown on every visit now. Created lazily.
-        private Label _stepPhoto, _stepId;
 
         // Marriage services only: one camera, two people — which one Capture writes to next.
         private bool _capturingWife;
@@ -85,7 +79,7 @@ namespace CROMS.Kiosk
                 LoadFromSession();
                 ApplyIdentityStep(_session.HasClaim);
                 // Everything above (LoadFromSession -> ApplyMarriagePersons,
-                // ApplyIdentityStep -> LayoutIdentityStep) just wrote the per-session
+                // ApplyIdentityStep -> LayoutPhotoStep) just wrote the per-session
                 // baseline layout in raw, design-scale coordinates. Only NOW is it safe to
                 // let FitToScreen scale the tree — see _baselineReady.
                 _baselineReady = true;
@@ -224,7 +218,6 @@ namespace CROMS.Kiosk
             hostIdType.Location = new Point(30, 622 + shift);
             lblIdNo.Location = new Point(30, 674 + shift);
             hostIdNo.Location = new Point(30, 698 + shift);
-            _lblIdHint.Location = new Point(30, 750 + shift);
             _claimPanel.Location = new Point(30, 812 + shift);
         }
 
@@ -267,10 +260,11 @@ namespace CROMS.Kiosk
             }
         }
 
-        // ---------------------------------------------------- identity step
+        // ---------------------------------------------------- photo step
         /// <summary>
-        /// Every visit now shows BOTH steps on the right card — take a photo, and scan a QR to
-        /// upload a photo of a valid ID from your phone — not only a Release &amp; Claim pickup.
+        /// Right card is the client's photo only: a large live camera, the Capture button and
+        /// its status line. (The ID-upload QR was removed from this step.) The husband/wife
+        /// toggle row sits above the camera for marriage services, one camera and two people.
         /// <paramref name="resumingPickup"/> only controls the LEFT card's "previous queue
         /// number" field, which is specific to resuming an earlier parked pickup.
         /// </summary>
@@ -278,71 +272,22 @@ namespace CROMS.Kiosk
         {
             _claimPanel.Visible = resumingPickup;
             if (!resumingPickup) _txtClaimTicket.Clear();
-            _claimQrPanel.Visible = true;
 
-            EnsureStepHeaders();
-            _stepPhoto.Visible = true;
-            _stepId.Visible = true;
-
-            LayoutIdentityStep();
+            LayoutPhotoStep();
         }
 
-        /// <summary>Two big numbered step headers on the right card, created once.</summary>
-        private void EnsureStepHeaders()
+        private void LayoutPhotoStep()
         {
-            if (_stepPhoto != null) return;
-            _stepPhoto = new Label
-            {
-                AutoSize = false, TextAlign = ContentAlignment.MiddleLeft,
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(29, 78, 216),
-                Text = "1.  Take Your Photo"
-            };
-            _stepId = new Label
-            {
-                AutoSize = false, TextAlign = ContentAlignment.MiddleCenter,
-                Font = new Font("Segoe UI", 13F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(29, 78, 216),
-                Text = "2.  Upload Your ID"
-            };
-            rightCard.Controls.Add(_stepPhoto);
-            rightCard.Controls.Add(_stepId);
-        }
+            _rightTitle.Text = "Take Your Photo";
+            _rightHint.Text = "Look at the camera, then tap Capture Photo.";
+            _rightTitle.Location = new Point(26, 22);
+            _rightHint.Location = new Point(26, 60);
 
-        /// <summary>
-        /// Right-card layout used for EVERY visit: big camera + Capture on the left (step 1),
-        /// a large QR to upload a photo of the ID via phone on the right (step 2). Fewer words,
-        /// larger text, more spacing so a first-time / non-technical client can follow it at a
-        /// glance.
-        /// </summary>
-        private void LayoutIdentityStep()
-        {
-            _rightTitle.Text = "Verify Your Identity";
-            _rightHint.Text = "Please finish both steps below.";
-            _rightTitle.Location = new Point(26, 20);
-            _rightHint.Location = new Point(26, 56);
-
-            // ---- Step 1 (left): take photo
-            _stepPhoto.Location = new Point(26, 96);
-            _stepPhoto.Size = new Size(268, 30);
-
-            // Marriage services need the husband/wife toggle row above the camera; one camera,
-            // two people, captured one after the other. Everything below shifts down to fit it.
             bool marriage = _session.HasMarriage;
             _btnPersonA.Visible = marriage;
             _btnPersonB.Visible = marriage;
-            int camY = marriage ? 176 : 132;
-
-            _camFrame.Size = new Size(268, 268);
-            _camFrame.Location = new Point(26, camY);
-
-            _lblCamState.Location = new Point(26, camY + 278);
-
-            _btnCapture.Location = new Point(26, camY + 310);
-            _btnCapture.Size = new Size(268, 62);
-
-            _lblCamStatus.Location = new Point(26, camY + 380);
-            _lblCamStatus.Size = new Size(268, 60);
+            int camY = marriage ? 148 : 104;
+            int camH = marriage ? 440 : 500;
 
             if (marriage)
             {
@@ -350,66 +295,17 @@ namespace CROMS.Kiosk
                 _btnPersonB.Location = new Point(162, camY - 44);
             }
 
-            // ---- Step 2 (right): upload ID via phone
-            _stepId.Location = new Point(300, 96);
-            _stepId.Size = new Size(244, 30);
+            _camFrame.Location = new Point(26, camY);
+            _camFrame.Size = new Size(518, camH);
 
-            _claimQrPanel.Location = new Point(300, 132);
-            _claimQrPanel.Size = new Size(244, 452);
+            _lblCamState.Location = new Point(26, camY + camH + 14);
 
-            // QR-panel children — re-laid for the wider spacing + bigger, plainer text.
-            lblClaimScan.Text = "Scan with your phone camera";
-            lblClaimScan.Font = new Font("Segoe UI", 10.5F, FontStyle.Bold);
-            lblClaimScan.ForeColor = Color.FromArgb(91, 100, 114);
-            lblClaimScan.Location = new Point(0, 12);
-            lblClaimScan.Size = new Size(244, 24);
+            _btnCapture.Location = new Point(26, camY + camH + 46);
+            _btnCapture.Size = new Size(518, 62);
 
-            _picClaimQr.Location = new Point(14, 42);
-            _picClaimQr.Size = new Size(216, 216);
-
-            lblClaimOptional.Text = "Your Claim Ticket Number";
-            lblClaimOptional.Font = new Font("Segoe UI", 10F);
-            lblClaimOptional.ForeColor = Color.FromArgb(91, 100, 114);
-            lblClaimOptional.Location = new Point(0, 270);
-            lblClaimOptional.Size = new Size(244, 22);
-
-            _lblClaimQrCap.Font = new Font("Segoe UI", 20F, FontStyle.Bold);
-            _lblClaimQrCap.Location = new Point(0, 294);
-            _lblClaimQrCap.Size = new Size(244, 36);
-
-            lblClaimInstr.Text = "Keep this number. Show it at the counter.";
-            lblClaimInstr.Font = new Font("Segoe UI", 9.5F);
-            lblClaimInstr.Location = new Point(0, 336);
-            lblClaimInstr.Size = new Size(244, 40);
-
-            _lblClaimUrl.Location = new Point(0, 384);
-            _lblClaimUrl.Size = new Size(244, 62);
-
-            EnsureClaimQr();
+            _lblCamStatus.Location = new Point(26, camY + camH + 118);
+            _lblCamStatus.Size = new Size(518, 44);
         }
-
-        private void EnsureClaimQr()
-        {
-            KioskCore.EnsureClaimRequest(_session);
-            if (_session.ClaimQrToken == null)
-            {
-                if (_picClaimQr != null) _picClaimQr.Image = null;
-                _lblClaimQrCap.Text = "QR unavailable — the staff will assist you at the window.";
-                return;
-            }
-            try
-            {
-                var old = _picClaimQr.Image;
-                _picClaimQr.Image = QrHelper.TryCreate(ClaimLink.Build(_session.ClaimQrToken), 8);
-                old?.Dispose();
-            }
-            catch { /* QR lib missing → text only */ }
-
-            _lblClaimQrCap.Text = _session.ClaimQrNo ?? "";
-            _lblClaimUrl.Text = "No phone camera? On your phone open " + ClaimLink.BaseUrl() +
-                "\nand enter the number above.";
-        }
-
         // ------------------------------------------------- availability
         private void UpdateAvailability()
         {
@@ -439,7 +335,7 @@ namespace CROMS.Kiosk
         // panelStep2 can receive its real (maximized) size and fire Resize BEFORE Load runs —
         // if FitToScreen scaled the tree on that early event, it would shrink rightCard itself
         // using the stock Designer positions, and _appliedScale would then read as "already
-        // correct" for the final size. Load's ApplyMarriagePersons/LayoutIdentityStep would
+        // correct" for the final size. Load's ApplyMarriagePersons/LayoutPhotoStep would
         // then overwrite rightCard's (and, in marriage mode, leftCard's) CHILDREN back to raw,
         // unscaled coordinates without rightCard's own (already-shrunk) size being touched —
         // an inconsistent tree where the children overflow their own container, and the later

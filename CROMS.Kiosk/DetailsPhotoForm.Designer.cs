@@ -45,7 +45,6 @@ namespace CROMS.Kiosk
         private Label lblIdNo;
         private RoundPanel hostIdNo;
         private TextBox _txtIdNo;
-        private Label _lblIdHint;
         private Panel _claimPanel;
         private Label lblClaimField, lblClaimHelp;
         private RoundPanel hostClaim;
@@ -56,9 +55,6 @@ namespace CROMS.Kiosk
         private RoundPanel _camFrame;
         private PictureBox _picCam;
         private Label _lblLive;
-        private Panel _claimQrPanel;
-        private Label lblClaimScan, _lblClaimQrCap, _lblClaimUrl, lblClaimOptional, lblClaimInstr;
-        private PictureBox _picClaimQr;
         private Label _lblCamState, _lblCamStatus;
         private Button _btnCapture;
 
@@ -113,7 +109,6 @@ namespace CROMS.Kiosk
             this.lblIdNo = new Label();
             this.hostIdNo = new RoundPanel();
             this._txtIdNo = new TextBox();
-            this._lblIdHint = new Label();
             this._claimPanel = new Panel();
             this.lblClaimField = new Label();
             this.hostClaim = new RoundPanel();
@@ -125,13 +120,6 @@ namespace CROMS.Kiosk
             this._camFrame = new RoundPanel();
             this._picCam = new PictureBox();
             this._lblLive = new Label();
-            this._claimQrPanel = new Panel();
-            this.lblClaimScan = new Label();
-            this._picClaimQr = new PictureBox();
-            this._lblClaimQrCap = new Label();
-            this._lblClaimUrl = new Label();
-            this.lblClaimOptional = new Label();
-            this.lblClaimInstr = new Label();
             this._lblCamState = new Label();
             this._btnCapture = new Button();
             this._btnPersonA = new Button();
@@ -268,7 +256,6 @@ namespace CROMS.Kiosk
             this.leftCard.Controls.Add(this.hostIdType);
             this.leftCard.Controls.Add(this.lblIdNo);
             this.leftCard.Controls.Add(this.hostIdNo);
-            this.leftCard.Controls.Add(this._lblIdHint);
             this.leftCard.Controls.Add(this._claimPanel);
             //
             // lblPersonalInfo
@@ -558,14 +545,6 @@ namespace CROMS.Kiosk
             this._txtIdNo.Enter += new System.EventHandler(this.Field_Enter);
             this._txtIdNo.Leave += new System.EventHandler(this.Field_Leave);
             //
-            // _lblIdHint
-            //
-            this._lblIdHint.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
-            this._lblIdHint.ForeColor = Color.FromArgb(137, 145, 163);
-            this._lblIdHint.Location = new Point(30, 750);
-            this._lblIdHint.Size = new Size(536, 40);
-            this._lblIdHint.Text = "Or scan the QR code on the right to upload a photo of this ID from your phone.";
-            //
             // _claimPanel
             //
             this._claimPanel.BackColor = Color.White;
@@ -610,7 +589,6 @@ namespace CROMS.Kiosk
             this.rightCard.Controls.Add(this._rightTitle);
             this.rightCard.Controls.Add(this._rightHint);
             this.rightCard.Controls.Add(this._camFrame);
-            this.rightCard.Controls.Add(this._claimQrPanel);
             this.rightCard.Controls.Add(this._lblCamState);
             this.rightCard.Controls.Add(this._btnPersonA);
             this.rightCard.Controls.Add(this._btnPersonB);
@@ -668,58 +646,6 @@ namespace CROMS.Kiosk
             this._btnPersonB.Text = "Wife";
             this._btnPersonB.Visible = false;
             this._btnPersonB.Click += new System.EventHandler(this.BtnPersonB_Click);
-            //
-            // _claimQrPanel
-            //
-            this._claimQrPanel.BackColor = Color.FromArgb(250, 251, 254);
-            this._claimQrPanel.Location = new Point(288, 92);
-            this._claimQrPanel.Size = new Size(266, 412);
-            this._claimQrPanel.Visible = false;
-            this._claimQrPanel.Controls.Add(this.lblClaimScan);
-            this._claimQrPanel.Controls.Add(this._picClaimQr);
-            this._claimQrPanel.Controls.Add(this.lblClaimOptional);
-            this._claimQrPanel.Controls.Add(this._lblClaimQrCap);
-            this._claimQrPanel.Controls.Add(this.lblClaimInstr);
-            this._claimQrPanel.Controls.Add(this._lblClaimUrl);
-            // "Upload Your ID" heading
-            this.lblClaimScan.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
-            this.lblClaimScan.ForeColor = Color.FromArgb(23, 26, 36);
-            this.lblClaimScan.Location = new Point(0, 4);
-            this.lblClaimScan.Size = new Size(266, 24);
-            this.lblClaimScan.TextAlign = ContentAlignment.MiddleCenter;
-            this.lblClaimScan.Text = "Upload Your ID";
-            // QR in a clean white bordered container
-            this._picClaimQr.BackColor = Color.White;
-            this._picClaimQr.BorderStyle = BorderStyle.FixedSingle;
-            this._picClaimQr.Location = new Point(25, 32);
-            this._picClaimQr.Size = new Size(216, 216);
-            this._picClaimQr.SizeMode = PictureBoxSizeMode.Zoom;
-            // "Scan this QR code with your phone camera."
-            this.lblClaimOptional.Font = new Font("Segoe UI", 9.5F);
-            this.lblClaimOptional.ForeColor = Color.FromArgb(91, 100, 114);
-            this.lblClaimOptional.Location = new Point(6, 252);
-            this.lblClaimOptional.Size = new Size(254, 20);
-            this.lblClaimOptional.TextAlign = ContentAlignment.MiddleCenter;
-            this.lblClaimOptional.Text = "Scan this QR code with your phone camera.";
-            // "Claim Ticket: CLM-..." (set at runtime)
-            this._lblClaimQrCap.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-            this._lblClaimQrCap.ForeColor = Color.FromArgb(29, 78, 216);
-            this._lblClaimQrCap.Location = new Point(6, 274);
-            this._lblClaimQrCap.Size = new Size(254, 24);
-            this._lblClaimQrCap.TextAlign = ContentAlignment.MiddleCenter;
-            // "After scanning, enter the claim ticket shown above."
-            this.lblClaimInstr.Font = new Font("Segoe UI", 9F);
-            this.lblClaimInstr.ForeColor = Color.FromArgb(91, 100, 114);
-            this.lblClaimInstr.Location = new Point(6, 300);
-            this.lblClaimInstr.Size = new Size(254, 32);
-            this.lblClaimInstr.TextAlign = ContentAlignment.MiddleCenter;
-            this.lblClaimInstr.Text = "After scanning, enter the claim ticket shown above.";
-            // no-camera fallback URL
-            this._lblClaimUrl.Font = new Font("Segoe UI", 8.5F);
-            this._lblClaimUrl.ForeColor = Color.FromArgb(137, 145, 163);
-            this._lblClaimUrl.Location = new Point(6, 336);
-            this._lblClaimUrl.Size = new Size(254, 72);
-            this._lblClaimUrl.TextAlign = ContentAlignment.MiddleCenter;
             //
             // _lblCamState
             //
