@@ -113,6 +113,7 @@
     <Compile Include="KioskButtons.cs" />
     <Compile Include="IconFont.cs" />
     <Compile Include="HoverFade.cs" />
+    <Compile Include="AutoCaps.cs" />
     <Compile Include="KioskSession.cs" />
     <Compile Include="CtcDetailsForm.cs">
       <SubType>Form</SubType>

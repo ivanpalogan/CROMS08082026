@@ -287,6 +287,7 @@ namespace CROMS.Forms
             p.Dob.ValueChanged += (s, e) => Changed(p.Dob);
             LearningLibrary.Attach(p.First, LearningLibrary.GivenName);
             LearningLibrary.Attach(p.Last, LearningLibrary.Surname);
+            AutoCaps.Attach(p.First, p.Middle, p.Last);
             return inner;
         }
 
@@ -333,6 +334,7 @@ namespace CROMS.Forms
                 _keyControls[pre + "FatherName"] = p.Father; _keyControls[pre + "MotherName"] = p.Mother;
                 foreach (Control c in new Control[] { p.Father, p.Mother, p.FatherCit, p.MotherCit, p.ConsentName, p.ConsentRel, p.ConsentRes })
                     c.TextChanged += (s, e) => Changed(c);
+                AutoCaps.Attach(p.Father, p.Mother, p.ConsentName);
                 return inner;
             };
             var cols = TwoColumns(250,
@@ -439,6 +441,7 @@ namespace CROMS.Forms
             foreach (Control c in new Control[] { _tom, _sol, _solPos, _w1, _w2 }) c.TextChanged += (s, e) => Changed(c);
             _church.SelectedIndexChanged += (s, e) => Changed(_church); _muni.SelectedIndexChanged += (s, e) => Changed(_muni);
             LearningLibrary.Attach(_sol, LearningLibrary.Officer);
+            AutoCaps.Attach(_sol, _w1, _w2);
             Stack(pg, Section("Solemnization", "Items 17-19: when, where, by whom, before whom."), d, p, so, wi, st, note);
         }
 
@@ -453,6 +456,7 @@ namespace CROMS.Forms
             _keyControls["ReceivedByName"] = _recvBy; _keyControls["ReceivedByTitle"] = _recvTitle; _keyControls["ReceivedByDate"] = _recv;
             foreach (Control c in new Control[] { _recvBy, _recvTitle, _delay, _remarks }) c.TextChanged += (s, e) => Changed(c);
             _recv.ValueChanged += (s, e) => Changed(_recv);
+            AutoCaps.Attach(_recvBy);
             Stack(pg, Section("Certification and receipt", "The date the certificate reached this office decides timely vs delayed registration."), r, _regBanner, dl, rm);
         }
 

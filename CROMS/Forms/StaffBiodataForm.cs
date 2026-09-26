@@ -33,6 +33,7 @@ namespace CROMS.Forms
             LockAsReadOnly();
             LoadAccount();
             LoadOwnRow();
+            CROMS.Modules.AutoCaps.Attach(txtEmergencyName);
         }
 
         private void LoadAccount()

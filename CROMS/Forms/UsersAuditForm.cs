@@ -33,6 +33,7 @@ namespace CROMS.Forms
             LoadUsers();
             LoadUserPicker();
             LoadBiodata();
+            AutoCaps.Attach(txtFullName);
         }
 
         public void RefreshData()

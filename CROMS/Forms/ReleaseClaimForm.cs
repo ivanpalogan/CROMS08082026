@@ -90,6 +90,7 @@ namespace CROMS.Forms
             BuildResponsiveLayout();     // docked card layout (replaces the absolute one)
             dgvPending.CellClick += dgvPending_CellClick;
             txtClaimant.TextChanged += (s, e) => UpdateChecklist();
+            AutoCaps.Attach(txtClaimant);
             this.Disposed += (s, e) => StopCamera();
 
             // Camera is optional per release — default to Off so nothing is initialized

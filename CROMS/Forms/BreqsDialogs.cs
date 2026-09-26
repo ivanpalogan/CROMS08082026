@@ -26,6 +26,8 @@ namespace CROMS.Forms
             InitializeComponent();
             OthersBox.AttachInline(_purpose, 80);
             OthersBox.AttachInline(_idType, 60);
+            AutoCaps.Attach(_rFirst, _rMiddle, _rLast, _oFirst, _oMiddle, _oLast,
+                _sFirst, _sMiddle, _sLast, _father, _mother);
         }
 
         private void Fill()
@@ -163,6 +165,7 @@ namespace CROMS.Forms
                 g.Controls.Add(MUi.Field("Valid ID presented", idType), 0, 0); g.Controls.Add(MUi.Field("ID number", idNo), 1, 0);
                 OthersBox.AttachInline(idType, 60);
                 OthersBox.SetValue(idType, r.ValidIdType);
+                AutoCaps.Attach(claimant);
                 f.Controls.Add(Body(f, "Hand over " + r.Copies + " PSA " + r.DocType.ToLowerInvariant() + " cop" + (r.Copies == 1 ? "y" : "ies") + " for " + r.OwnerName + ". Check the claimant's ID against what is recorded.",
                                     rep, MUi.Field("Claimant's full name", claimant), g));
                 f.Controls.Add(Foot(f, "Release", MUi.Kind.Success, () =>

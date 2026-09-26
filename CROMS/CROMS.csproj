@@ -655,6 +655,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\HoverFade.cs" />
+    <Compile Include="Modules\AutoCaps.cs" />
     <Compile Include="Modules\NextStepGlow.cs" />
     <Compile Include="Modules\NavIcons.cs" />
     <Compile Include="Modules\SplitButton.cs">

@@ -61,6 +61,7 @@ namespace CROMS.Kiosk
             KioskButtons.Style(_btnPersonB, KioskButtonKind.Secondary);
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
             OthersBox.AttachInline(_cboIdType, 60);
+            AutoCaps.Attach(_txtFirst, _txtMiddle, _txtLast, _txtFirst2, _txtMiddle2, _txtLast2);
             // The camera-state line draws its own status dot (no emoji).
             AttachStateDot(_lblCamState);
 

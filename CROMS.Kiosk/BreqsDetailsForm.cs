@@ -46,6 +46,8 @@ namespace CROMS.Kiosk
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
             OthersBox.AttachInline(_cboPurpose, 80);
             OthersBox.AttachInline(_cboIdType, 60);
+            AutoCaps.Attach(_txtOwnerFirst, _txtOwnerMiddle, _txtOwnerLast,
+                _txtSpouseFirst, _txtSpouseMiddle, _txtSpouseLast, _txtFather, _txtMother);
 
             // One certificate per request: picking one clears the others.
             _pillBirth.CheckedChanged += (s, e) => { if (_pillBirth.Checked) { _pillMarriage.SetChecked(false); _pillDeath.SetChecked(false); } ApplyDocType(); };

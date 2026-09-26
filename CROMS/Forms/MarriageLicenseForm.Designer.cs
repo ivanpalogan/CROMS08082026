@@ -187,6 +187,9 @@ namespace CROMS.Forms
             p.MFirst = MUi.Box(); p.MMiddle = MUi.Box(); p.MLast = MUi.Box(); p.MRes = MUi.Box(); p.MCit = MUi.Combo(true, _nationalities);
             p.CFirst = MUi.Box(); p.CMiddle = MUi.Box(); p.CLast = MUi.Box(); p.CRes = MUi.Box(); p.CCit = MUi.Combo(true, _nationalities);
             p.CRel = MUi.Combo(true, MarriageRules.ConsentRelationships);
+            AutoCaps.Attach(p.First, p.Middle, p.Last,
+                p.FFirst, p.FMiddle, p.FLast, p.MFirst, p.MMiddle, p.MLast,
+                p.CFirst, p.CMiddle, p.CLast);
             p.PrevHow = MUi.Combo(true, MarriageRules.Dissolutions);
             p.PrevProvince = MUi.Combo(true); p.PrevMunicipality = MUi.Combo(true);
             p.PrevDate = MUi.Date(true);

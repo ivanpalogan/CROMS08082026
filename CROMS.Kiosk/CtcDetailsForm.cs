@@ -35,6 +35,8 @@ namespace CROMS.Kiosk
             _session = session;
             InitializeComponent();
             OthersBox.AttachInline(_purpose, 80);
+            AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast,
+                _spouseFirst, _spouseMiddle, _spouseLast, _father, _mother);
 
             _idle = new Timer { Interval = 1000 };
             int ticks = 0;

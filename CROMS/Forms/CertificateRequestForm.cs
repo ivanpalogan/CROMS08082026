@@ -171,6 +171,7 @@ namespace CROMS.Forms
             LoadRequests();
             LearningLibrary.Attach(txtFirst, LearningLibrary.GivenName);
             LearningLibrary.Attach(txtLast, LearningLibrary.Surname);
+            AutoCaps.Attach(txtFirst, txtMiddle, txtLast);
 
             // Request summary panel — mirrors every field live so the officer can check the
             // request before creating it, rather than only after.

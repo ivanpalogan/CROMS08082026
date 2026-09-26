@@ -78,6 +78,9 @@ namespace CROMS.Forms
             LearningLibrary.Attach(txtFirstName, LearningLibrary.GivenName);
             LearningLibrary.Attach(txtDispPlace, LearningLibrary.Cemetery);
             LearningLibrary.Attach(txtCertifier, LearningLibrary.Officer);
+            CROMS.Modules.AutoCaps.Attach(
+                txtFirstName, txtMiddleName, txtLastName,
+                txtCertifier, txtCInfName, txtCPrepBy, txtCRecvBy, txtCRegBy);
             CenterContent();
             ShowListView();
         }

@@ -783,6 +783,13 @@ namespace CROMS.Forms
             CROMS.Data.LearningLibrary.Attach(txtFLast, CROMS.Data.LearningLibrary.Surname);
             CROMS.Data.LearningLibrary.Attach(txtMFirst, CROMS.Data.LearningLibrary.GivenName);
             CROMS.Data.LearningLibrary.Attach(txtMLast, CROMS.Data.LearningLibrary.Surname);
+
+            CROMS.Modules.AutoCaps.Attach(
+                txtFirstName, txtMiddleName, txtLastName,
+                txtMFirst, txtMMiddle, txtMLast,
+                txtFFirst, txtFMiddle, txtFLast,
+                txtAttName, txtInfName,
+                txtPreparedBy, txtReceivedBy, txtRegisteredBy);
         }
 
         /// <summary>
