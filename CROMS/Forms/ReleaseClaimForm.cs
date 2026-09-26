@@ -1247,11 +1247,7 @@ namespace CROMS.Forms
                 " AND id_image IS NOT NULL ORDER BY id DESC LIMIT 1");
             if (dt.Rows.Count > 0 && dt.Rows[0]["id_image"] != DBNull.Value)
             {
-                try
-                {
-                    using (var ms = new MemoryStream((byte[])dt.Rows[0]["id_image"]))
-                        picClient.Image = Image.FromStream(ms);
-                }
+                try { picClient.Image = BytesToImage((byte[])dt.Rows[0]["id_image"]); }
                 catch { /* stored value wasn't a readable image */ }
             }
             // States the FACT, not a verdict: CROMS does not match faces, the officer does.
@@ -1286,11 +1282,7 @@ namespace CROMS.Forms
 
             DataRow r = dt.Rows[0];
             string idName = JoinName(r["id_first_name"], r["id_middle_name"], r["id_last_name"]);
-            try
-            {
-                using (var ms = new MemoryStream((byte[])r["id_image"]))
-                    picUploadedId.Image = Image.FromStream(ms);
-            }
+            try { picUploadedId.Image = BytesToImage((byte[])r["id_image"]); }
             catch { /* stored value wasn't a readable image */ }
             // The name the claimant's ID was read as — the officer checks it against
             // the claimant name on the left. Shown, never auto-matched.
@@ -1307,6 +1299,20 @@ namespace CROMS.Forms
             if (lbl == null) return;
             lbl.Text = present ? (yes ?? "On file") : (no ?? "—");
             lbl.ForeColor = present ? UiTheme.Ink : UiTheme.Faint;
+        }
+
+        /// <summary>
+        /// Decodes stored image bytes into a standalone Bitmap that owns its own pixel data —
+        /// NOT an Image.FromStream(ms) result still backed by a disposed MemoryStream. GDI+ can
+        /// lazily re-read an Image's source stream on a later repaint; a "using (ms)" disposed
+        /// right after the assignment left the control fine on first paint and blank on the
+        /// next one (e.g. after navigating to another record and back).
+        /// </summary>
+        private static Bitmap BytesToImage(byte[] bytes)
+        {
+            using (var ms = new MemoryStream(bytes))
+            using (var raw = Image.FromStream(ms))
+                return new Bitmap(raw);
         }
 
         private static string JoinName(object f, object m, object l)
@@ -1353,12 +1359,12 @@ namespace CROMS.Forms
             string st = stt.Rows.Count > 0 ? stt.Rows[0]["status"].ToString() : "";
 
             lblSelected.Text = string.IsNullOrWhiteSpace(client) ? code : client;
-            _wMeta.Text = Join(" · ", code, Cell(row, "Type"), Cell(row, "Queue Ticket"));
+            _wMeta.Text = Join(" · ", code, Cell(row, "Type"), Cell(row, "Queue No"));
             SetSummary(
                 "Transaction", code,
                 "Client", client,
                 "Document", Cell(row, "Type"),
-                "Queue ticket", Cell(row, "Queue Ticket"),
+                "Queue ticket", Cell(row, "Queue No"),
                 "Requested", Cell(row, "Requested"));
             SetStateNote(st);
             ShowPhotoFor(_selectedTxnId.Value);
@@ -1434,6 +1440,13 @@ namespace CROMS.Forms
                 "ORDER BY id DESC LIMIT 1",
                 new MySqlParameter("@tid", ticketId));
 
+            DataTable qt = Db.Pull(
+                "SELECT ticket_code, DATE_FORMAT(created_at,'%b %d, %Y') AS requested " +
+                "FROM queue_tickets WHERE id = @tid LIMIT 1",
+                new MySqlParameter("@tid", ticketId));
+            string queueCode = qt.Rows.Count > 0 ? Convert.ToString(qt.Rows[0]["ticket_code"]) : null;
+            string requestedOn = qt.Rows.Count > 0 ? Convert.ToString(qt.Rows[0]["requested"]) : null;
+
             if (c.Rows.Count == 0)
             {
                 // No claim row — just show the kiosk face photo so staff can still verify.
@@ -1469,9 +1482,11 @@ namespace CROMS.Forms
             _selectedTxnId = null;
             if (!string.IsNullOrWhiteSpace(name)) txtClaimant.Text = name;
             lblSelected.Text = string.IsNullOrWhiteSpace(name) ? claimNo : name;
-            _wMeta.Text = Join(" · ", "Kiosk pickup claim", claimNo);
+            _wMeta.Text = Join(" · ", "Kiosk pickup claim", claimNo, queueCode);
             SetSummary(
                 "Claim ticket", claimNo,
+                "Queue No", queueCode,
+                "Requested", requestedOn,
                 "Claimant on file", name,
                 "Claim status", Convert.ToString(r["status"]));
             SetNote("Kiosk pickup claim — releasing here closes the claim directly. Compare the "
@@ -1492,7 +1507,7 @@ namespace CROMS.Forms
                 new MySqlParameter("@id", ticketId));
             if (pt.Rows.Count > 0 && pt.Rows[0]["id_image"] != DBNull.Value)
             {
-                try { using (var ms = new MemoryStream((byte[])pt.Rows[0]["id_image"])) picClient.Image = Image.FromStream(ms); }
+                try { picClient.Image = BytesToImage((byte[])pt.Rows[0]["id_image"]); }
                 catch { }
             }
 
@@ -1506,7 +1521,7 @@ namespace CROMS.Forms
             if (ct.Rows.Count == 0) { lblUploadedIdCap.Text = "Uploaded ID — none"; return; }
             DataRow cr = ct.Rows[0];
             if (cr["id_image"] == DBNull.Value) { lblUploadedIdCap.Text = "Uploaded ID — not yet uploaded"; return; }
-            try { using (var ms = new MemoryStream((byte[])cr["id_image"])) picUploadedId.Image = Image.FromStream(ms); }
+            try { picUploadedId.Image = BytesToImage((byte[])cr["id_image"]); }
             catch { }
             string idName = JoinName(cr["id_first_name"], cr["id_middle_name"], cr["id_last_name"]);
             lblUploadedIdCap.Text = idName.Length > 0 ? "Uploaded ID — name on ID: " + idName
@@ -2079,7 +2094,7 @@ namespace CROMS.Forms
             {
                 idName = JoinName(c.Rows[0]["id_first_name"], c.Rows[0]["id_middle_name"], c.Rows[0]["id_last_name"]);
                 if (c.Rows[0]["id_image"] != DBNull.Value)
-                    try { using (var ms = new MemoryStream((byte[])c.Rows[0]["id_image"])) uploadedId = Image.FromStream(ms); }
+                    try { uploadedId = BytesToImage((byte[])c.Rows[0]["id_image"]); }
                     catch { }
             }
 
@@ -2178,13 +2193,27 @@ namespace CROMS.Forms
             return host;
         }
 
+        /// <summary>
+        /// Decodes stored image bytes into a standalone Bitmap that owns its own pixel data —
+        /// NOT an Image.FromStream(ms) result still backed by a disposed MemoryStream. GDI+ can
+        /// lazily re-read an Image's source stream on a later repaint; a "using (ms)" disposed
+        /// right after the assignment left the control fine on first paint and blank on the
+        /// next one (e.g. after navigating to another record and back).
+        /// </summary>
+        private static Bitmap BytesToImage(byte[] bytes)
+        {
+            using (var ms = new MemoryStream(bytes))
+            using (var raw = Image.FromStream(ms))
+                return new Bitmap(raw);
+        }
+
         private static Image LoadImage(string sql, long txnId)
         {
             try
             {
                 DataTable dt = Db.Pull(sql, new MySqlParameter("@t", txnId));
                 if (dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value)
-                    using (var ms = new MemoryStream((byte[])dt.Rows[0][0])) return Image.FromStream(ms);
+                    return BytesToImage((byte[])dt.Rows[0][0]);
             }
             catch { }
             return null;

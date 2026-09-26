@@ -291,7 +291,7 @@ namespace CROMS.Modules
             _picClient.Image = null;
             if (t.Table.Columns.Contains("id_image") && t["id_image"] != DBNull.Value)
             {
-                try { using (var ms = new MemoryStream((byte[])t["id_image"])) _picClient.Image = Image.FromStream(ms); }
+                try { _picClient.Image = BytesToImage((byte[])t["id_image"]); }
                 catch { /* stored value wasn't a readable image */ }
             }
             _lblClientState.Text = _picClient.Image != null ? "On file" : "No kiosk photo";
@@ -303,10 +303,23 @@ namespace CROMS.Modules
                 new MySqlParameter("@id", ticketId));
             if (dt.Rows.Count > 0 && dt.Rows[0]["id_image"] != DBNull.Value)
             {
-                try { using (var ms = new MemoryStream((byte[])dt.Rows[0]["id_image"])) _picId.Image = Image.FromStream(ms); }
+                try { _picId.Image = BytesToImage((byte[])dt.Rows[0]["id_image"]); }
                 catch { /* stored value wasn't a readable image */ }
             }
             _lblIdState.Text = _picId.Image != null ? "On file" : "Not yet uploaded";
+        }
+
+        /// <summary>
+        /// Decodes stored image bytes into a standalone Bitmap that owns its own pixel data —
+        /// NOT an Image.FromStream(ms) result still backed by a disposed MemoryStream. GDI+ can
+        /// lazily re-read an Image's source stream on a later repaint (e.g. this panel's own 3s
+        /// refresh timer), which left the photo fine on first paint and blank on a later one.
+        /// </summary>
+        private static Bitmap BytesToImage(byte[] bytes)
+        {
+            using (var ms = new MemoryStream(bytes))
+            using (var raw = Image.FromStream(ms))
+                return new Bitmap(raw);
         }
 
         private void ClearPhotos()
@@ -1083,6 +1096,28 @@ namespace CROMS.Modules
                 MessageBox.Show("Every client task must be finished before the visit can be completed. " +
                     "If one of them cannot be served today, use Abandon This Task and record why.",
                     "Client tasks", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Reload();
+                return;
+            }
+
+            // A task being marked "Completed" here is only an operator self-report that they
+            // finished working it (see FinishTask) — it says nothing about whether the document
+            // was actually handed to the client. If this ticket's request produced a real
+            // transaction, that transaction must have actually gone through Release & Claim
+            // (status Released) — or been Cancelled — before the visit is allowed to close;
+            // otherwise the counter is freed while the client's document is still sitting
+            // un-released at ForPrint/ForPayment/ForRelease/WaitingToRelease.
+            DataTable pending = Db.Pull(
+                "SELECT t.status FROM queue_tickets qt JOIN transactions t ON t.id = qt.transaction_id " +
+                "WHERE qt.id = @id AND t.status NOT IN ('Released','Cancelled') LIMIT 1",
+                new MySqlParameter("@id", _ticketId));
+            string pendingStatus = pending.Rows.Count > 0 ? Convert.ToString(pending.Rows[0]["status"]) : null;
+            if (!string.IsNullOrEmpty(pendingStatus))
+            {
+                MessageBox.Show("This client's request has not actually been released yet " +
+                    "(currently: " + pendingStatus + "). Complete the release in Release & Claim " +
+                    "before closing this visit.",
+                    "Not yet released", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 Reload();
                 return;
             }

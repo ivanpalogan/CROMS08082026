@@ -306,24 +306,50 @@ namespace CROMS.Kiosk
         /// <summary>
         /// Resolves a queue number the client typed (e.g. "Q-006", "006", "6") to the id of
         /// the PARKED transaction it belongs to (status WaitingToRelease / ForPrint). 0 if none.
+        /// Requires the name typed at THIS kiosk visit to plausibly match the parked
+        /// transaction's own client_name — a bare number match is not ownership, and without
+        /// this a guessed/leftover queue number could silently reclaim a stranger's parked
+        /// request and jump them to Priority.
         /// </summary>
-        public static long ResolveParkedByQueue(string entered)
+        public static long ResolveParkedByQueue(string entered, string clientName)
         {
             try
             {
                 int n = 0;
                 int.TryParse(new string(entered.Where(char.IsDigit).ToArray()), out n);
                 DataTable dt = Db.Pull(
-                    "SELECT t.id FROM queue_tickets qt " +
+                    "SELECT t.id, t.client_name FROM queue_tickets qt " +
                     "JOIN transactions t ON t.id = qt.transaction_id " +
                     "WHERE ( qt.ticket_code = @raw OR (@n > 0 AND qt.number_queue = @n) ) " +
                     "AND t.status IN ('WaitingToRelease','ForPrint') " +
                     "ORDER BY qt.id DESC LIMIT 1",
                     new MySqlParameter("@raw", entered),
                     new MySqlParameter("@n", n));
-                return dt.Rows.Count > 0 ? Convert.ToInt64(dt.Rows[0]["id"]) : 0;
+                if (dt.Rows.Count == 0) return 0;
+                if (!NamesPlausiblyMatch(clientName, Convert.ToString(dt.Rows[0]["client_name"])))
+                    return 0;
+                return Convert.ToInt64(dt.Rows[0]["id"]);
             }
             catch { return 0; }
+        }
+
+        /// <summary>
+        /// Loose ownership check: every significant (3+ letter) word the client typed today
+        /// must appear somewhere in the parked transaction's stored name, case/diacritic-
+        /// insensitive. Deliberately loose (order-independent, no exact match required) so a
+        /// genuine returning client isn't refused over "Dela Cruz" vs "dela cruz, Jose" — but a
+        /// name typed with no real relation to the parked record's name is refused.
+        /// </summary>
+        private static bool NamesPlausiblyMatch(string typed, string onFile)
+        {
+            if (string.IsNullOrWhiteSpace(typed) || string.IsNullOrWhiteSpace(onFile)) return false;
+            Func<string, string[]> words = s => s.ToUpperInvariant()
+                .Split(new[] { ' ', ',', '.', '-' }, StringSplitOptions.RemoveEmptyEntries)
+                .Where(w => w.Length >= 3).ToArray();
+            string[] a = words(typed);
+            string onFileUpper = onFile.ToUpperInvariant();
+            if (a.Length == 0) return false;
+            return a.All(w => onFileUpper.Contains(w));
         }
 
         /// <summary>Next queue number — CONTINUOUS across all days (never resets).</summary>
@@ -369,7 +395,7 @@ namespace CROMS.Kiosk
             // a reclaim — link the new ticket to that transaction and jump the queue.
             long returnTxnId = 0;
             if (s.HasClaim && !string.IsNullOrWhiteSpace(s.ClaimTicketEntry))
-                returnTxnId = ResolveParkedByQueue(s.ClaimTicketEntry.Trim());
+                returnTxnId = ResolveParkedByQueue(s.ClaimTicketEntry.Trim(), FullName(s));
 
             string priority = returnTxnId != 0 ? "Priority" : PriorityValue(s);
             string joined = TicketSummary(s.Selected.Select(c => Find(c).Label).ToList());
@@ -458,11 +484,12 @@ namespace CROMS.Kiosk
             long returnTxnId = 0;
             if (s.HasClaim && !string.IsNullOrWhiteSpace(s.ClaimTicketEntry))
             {
-                returnTxnId = ResolveParkedByQueue(s.ClaimTicketEntry.Trim());
+                returnTxnId = ResolveParkedByQueue(s.ClaimTicketEntry.Trim(), FullName(s));
                 if (returnTxnId == 0)
                 {
-                    error = "That queue number was not found among held requests. Check the Q-number " +
-                            "on your ticket, or leave it blank to start a new claim.";
+                    error = "That queue number was not found among your held requests. Check the Q-number " +
+                            "on your ticket and that your name matches the earlier visit, or leave it blank " +
+                            "to start a new claim.";
                     return false;
                 }
             }
