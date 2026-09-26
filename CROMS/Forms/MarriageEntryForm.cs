@@ -555,7 +555,8 @@ namespace CROMS.Forms
             MarriageService.SaveRegistrationInfo(_id.Value, MUi.Val(_dateRegistered), _registeredByName.Text.Trim());
             if (_status != "Registered") _currentStep = "Final Scan";
             RefreshAll();
-            MessageBox.Show(this, "Registration information saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // STEP 10: the record now needs a picture of the FINAL, signed/stamped Form 97.
+            ShowFinalScanRequiredPopup();
         }
 
         private static Control Spacer(int w) { return new Panel { Width = w, Height = 1, BackColor = Color.Transparent }; }
@@ -823,6 +824,145 @@ namespace CROMS.Forms
             _captureClosed = st.Expired;
             if (st.PageCount > _captureAppliedPages) ApplyCaptureScans(false);
             else RefreshRail();
+        }
+
+        // ===================================================================== STEP 10: final registered Form 97
+        /// <summary>
+        /// Once registration information is saved, the record needs a picture of the FINAL,
+        /// physically signed/stamped Form 97 - a different image from the pre-registration
+        /// scan_image that OCR already read. Offers the same two capture paths as the rest of
+        /// this dialog: the mobile QR flow, or picking a file already on this PC (a flatbed
+        /// scanner's own output). Neither generates or recreates a signature - the paper is
+        /// signed at the LCRO, outside CROMS.
+        /// </summary>
+        private void ShowFinalScanRequiredPopup()
+        {
+            using (var dlg = new Form
+            {
+                Text = "Final Form 97 Required",
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false,
+                ClientSize = new Size(420, 210),
+            })
+            {
+                var lblHead = MUi.Txt("FINAL FORM 97 REQUIRED", 12F, FontStyle.Bold, UiTheme.Danger);
+                lblHead.AutoSize = false; lblHead.Size = new Size(380, 26); lblHead.Location = new Point(20, 18);
+
+                var lblBody = MUi.Txt("Capture or upload the completed registered Form 97 before completing this transaction.",
+                    9.5F, FontStyle.Regular, UiTheme.Muted);
+                lblBody.AutoSize = false; lblBody.Size = new Size(380, 54); lblBody.Location = new Point(20, 50);
+
+                var bMobile = MUi.Btn("Mobile Capture", MUi.Kind.Primary, 380);
+                bMobile.Location = new Point(20, 114);
+                var bScan = MUi.Btn("Scan / Upload", MUi.Kind.Secondary, 380);
+                bScan.Location = new Point(20, 156);
+
+                dlg.Controls.Add(lblHead); dlg.Controls.Add(lblBody); dlg.Controls.Add(bMobile); dlg.Controls.Add(bScan);
+                bMobile.Click += (s, e) => { ShowFinalMobileCapture(); dlg.Close(); };
+                bScan.Click += (s, e) => { if (PickFinalScanFile()) dlg.Close(); };
+                dlg.ShowDialog(this);
+            }
+        }
+
+        /// <summary>
+        /// The SAME mobile-capture QR mechanism as <see cref="ShowMobileCapture"/>, opened for
+        /// a NEW token carrying <see cref="Form97Capture.PurposeFinalRegistered"/> - so the
+        /// phone page and the audit label both read as the final copy, never mixed with the
+        /// pre-registration capture. Polls only while this dialog is open (this is a one-shot,
+        /// required step, not the background watcher the earlier capture keeps for the whole
+        /// life of the window).
+        /// </summary>
+        private void ShowFinalMobileCapture()
+        {
+            string husband = (_h.First.Text + " " + _h.Last.Text).Trim();
+            string wife = (_w.First.Text + " " + _w.Last.Text).Trim();
+            string token = Form97Capture.CreateToken(_id, _txnId,
+                husband.Length == 0 ? null : husband, wife.Length == 0 ? null : wife, _txnCode,
+                20, Form97Capture.PurposeFinalRegistered);
+            string url = Form97Capture.BuildMobileUrl(token);
+
+            using (var dlg = new Form
+            {
+                Text = "Mobile Capture - Final Registered Form 97",
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false,
+                ClientSize = new Size(360, 420),
+            })
+            {
+                var lblHead = MUi.Txt("Scan this QR on the client's phone to capture the FINAL, signed and stamped Form 97.",
+                    9F, FontStyle.Regular, UiTheme.Muted);
+                lblHead.AutoSize = false; lblHead.Size = new Size(320, 44); lblHead.Location = new Point(20, 16);
+
+                var pic = new PictureBox { Location = new Point(80, 68), Size = new Size(200, 200), SizeMode = PictureBoxSizeMode.Zoom };
+                Bitmap bmp = QrHelper.TryCreate(url, 6);
+                pic.Image = bmp;
+                var lblNoQr = MUi.Txt("(QRCoder not installed - open this address on the phone instead:)", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                lblNoQr.AutoSize = false; lblNoQr.Size = new Size(320, 30); lblNoQr.Location = new Point(20, 74);
+                lblNoQr.Visible = bmp == null; pic.Visible = bmp != null;
+
+                var txtUrl = new TextBox { ReadOnly = true, Location = new Point(20, 278), Width = 320, Text = url };
+                var lblStatus = MUi.Txt("Waiting for the phone to upload...", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                lblStatus.AutoSize = false; lblStatus.Size = new Size(320, 20); lblStatus.Location = new Point(20, 306);
+
+                var btnClose = MUi.Btn("Cancel", MUi.Kind.Secondary, 320);
+                btnClose.Location = new Point(20, 336);
+
+                dlg.Controls.Add(lblHead); dlg.Controls.Add(pic); dlg.Controls.Add(lblNoQr);
+                dlg.Controls.Add(txtUrl); dlg.Controls.Add(lblStatus); dlg.Controls.Add(btnClose);
+
+                var poll = new Timer { Interval = 2500 };
+                bool applied = false;
+                poll.Tick += (s, e) =>
+                {
+                    Form97Capture.Status st = Form97Capture.GetStatus(token);
+                    if (st.Expired) { lblStatus.Text = "This code expired. Close and try again."; return; }
+                    if (st.PageCount > 0 && !applied)
+                    {
+                        applied = true;
+                        poll.Stop();
+                        List<byte[]> pages = Form97Capture.FetchImages(token);
+                        byte[] final = pages[pages.Count - 1];
+                        try
+                        {
+                            MarriageService.SaveFinalScanImage(_id.Value, final);
+                            Form97Capture.Complete(token);
+                            Form97Capture.AttachMarriageId(token, _id.Value);
+                            lblStatus.Text = "Received - saved to the record.";
+                            RefreshRail();
+                            dlg.DialogResult = DialogResult.OK;
+                        }
+                        catch (Exception ex) { lblStatus.Text = "Could not save: " + ex.Message; applied = false; poll.Start(); }
+                    }
+                };
+                poll.Start();
+                btnClose.Click += (s, e) => dlg.DialogResult = DialogResult.Cancel;
+                dlg.FormClosed += (s, e) => { poll.Stop(); poll.Dispose(); if (pic.Image != null) pic.Image.Dispose(); };
+                dlg.ShowDialog(this);
+            }
+        }
+
+        /// <summary>Scan/attach the final Form 97 straight from a file already on this PC (a flatbed scanner's own output).</summary>
+        private bool PickFinalScanFile()
+        {
+            using (var ofd = new OpenFileDialog { Title = "Scan / upload the final registered Form 97", Filter = "Images|*.jpg;*.jpeg;*.png;*.bmp;*.tif;*.tiff" })
+            {
+                if (ofd.ShowDialog(this) != DialogResult.OK) return false;
+                try
+                {
+                    byte[] bytes = File.ReadAllBytes(ofd.FileName);
+                    MarriageService.SaveFinalScanImage(_id.Value, bytes);
+                    RefreshRail();
+                    MessageBox.Show(this, "Final registered Form 97 saved to the record.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, "Could not save the file: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+            }
         }
 
         private void CaptureReplace()

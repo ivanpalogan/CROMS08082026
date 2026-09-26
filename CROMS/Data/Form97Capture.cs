@@ -15,6 +15,15 @@ namespace CROMS.Data
     /// </summary>
     public static class Form97Capture
     {
+        /// <summary>The routine pre-registration capture (Steps 7-8) - photograph the paper
+        /// certificate before OCR runs. Written into marriages.scan_image.</summary>
+        public const string PurposeIncoming = "INCOMING_FORM_97";
+
+        /// <summary>STEP 10 - the FINAL, physically signed/stamped copy, captured only after
+        /// registration information is saved. Written into marriages.final_scan_image, never
+        /// scan_image - the two are different images with different meanings.</summary>
+        public const string PurposeFinalRegistered = "FINAL_REGISTERED_FORM_97";
+
         public sealed class Status
         {
             public string State = "Pending";     // Pending / Uploaded / Completed / Expired
@@ -26,24 +35,44 @@ namespace CROMS.Data
         /// <summary>
         /// Opens a fresh token for the couple/transaction currently on screen. husband/wife/
         /// txnCode are a SNAPSHOT (the record may not be saved yet), so the mobile page has
-        /// something to show even before marriages.id exists.
+        /// something to show even before marriages.id exists. `purpose` decides what the phone
+        /// page shows and how the uploaded image is labelled (migration 63) - the token/QR
+        /// mechanism is shared, the purpose it serves is not.
         /// </summary>
         public static string CreateToken(int? marriageId, int? txnId, string husband, string wife,
-            string txnCode, int minutesValid = 20)
+            string txnCode, int minutesValid = 20, string purpose = PurposeIncoming)
         {
             string token = Guid.NewGuid().ToString("N"); // 32 hex chars, matches token CHAR(32)
-            Db.Insert(
-                "INSERT INTO form97_capture_tokens " +
-                "(token, marriage_id, transaction_id, husband_name, wife_name, txn_code, status, expires_at, created_by) " +
-                "VALUES (@t, @mid, @tid, @h, @w, @c, 'Pending', DATE_ADD(NOW(), INTERVAL @m MINUTE), @by)",
+            var ps = new[]
+            {
                 new MySqlParameter("@t", token),
                 new MySqlParameter("@mid", (object)marriageId ?? DBNull.Value),
                 new MySqlParameter("@tid", (object)txnId ?? DBNull.Value),
                 new MySqlParameter("@h", (object)husband ?? DBNull.Value),
                 new MySqlParameter("@w", (object)wife ?? DBNull.Value),
                 new MySqlParameter("@c", (object)txnCode ?? DBNull.Value),
+                new MySqlParameter("@p", purpose),
                 new MySqlParameter("@m", minutesValid),
-                new MySqlParameter("@by", Session.UserIdParam));
+                new MySqlParameter("@by", Session.UserIdParam)
+            };
+            try
+            {
+                Db.Insert(
+                    "INSERT INTO form97_capture_tokens " +
+                    "(token, marriage_id, transaction_id, husband_name, wife_name, txn_code, purpose, status, expires_at, created_by) " +
+                    "VALUES (@t, @mid, @tid, @h, @w, @c, @p, 'Pending', DATE_ADD(NOW(), INTERVAL @m MINUTE), @by)", ps);
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)
+            {
+                // migration 63 (purpose column) not applied yet - fall back to the original
+                // columns so the ordinary pre-registration capture keeps working; a caller that
+                // asked for PurposeFinalRegistered on an unmigrated database gets the token but
+                // the phone page/label will read as the default until 63 is applied.
+                Db.Insert(
+                    "INSERT INTO form97_capture_tokens " +
+                    "(token, marriage_id, transaction_id, husband_name, wife_name, txn_code, status, expires_at, created_by) " +
+                    "VALUES (@t, @mid, @tid, @h, @w, @c, 'Pending', DATE_ADD(NOW(), INTERVAL @m MINUTE), @by)", ps);
+            }
             return token;
         }
 

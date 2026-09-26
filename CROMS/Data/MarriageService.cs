@@ -992,6 +992,18 @@ namespace CROMS.Data
                 (string.IsNullOrWhiteSpace(registeredByName) ? "" : " - recorded by " + registeredByName));
         }
 
+        /// <summary>
+        /// STEP 10 - the final, physically signed/stamped Form 97 (a different image from
+        /// scan_image, which is the pre-registration certificate OCR already read). Recorded
+        /// only, never generated or altered - no signature is drawn or synthesised here.
+        /// </summary>
+        public static void SaveFinalScanImage(int id, byte[] image)
+        {
+            Db.Push("UPDATE marriages SET final_scan_image=@img WHERE id=@id",
+                new MySqlParameter("@img", image) { MySqlDbType = MySqlDbType.LongBlob }, P("@id", id));
+            History("Marriage", id, "Final registered Form 97 attached", null, null, "Image recorded - " + image.Length + " bytes");
+        }
+
         public static void StartCasePosting(int id, DateTime start)
         {
             Db.Push("UPDATE marriages SET case_posting_start=@s, current_step='Awaiting Registrar Review' WHERE id=@id AND status <> 'Registered'",

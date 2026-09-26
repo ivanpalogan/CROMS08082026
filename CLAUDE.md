@@ -5850,3 +5850,57 @@ run it before using the Registered By field, or the UPDATE will fail on the new 
 side already guards with `dt.Columns.Contains`, so loading a record is safe either way). GUI not
 clicked (no interactive desktop) — rebuild in VS to see the new section and confirm the Pending
 tab now shows Verify/Register correctly instead of defaulting to Capture.
+
+### 2026-09-27 (later still) — Step 10, Require Final Registered Form 97
+
+Reused the existing mobile-capture QR mechanism (`Form97Capture`, migration 61, built for
+capturing the certificate BEFORE OCR) for a second, distinct purpose rather than building a
+parallel system: `form97_capture_tokens.purpose` (new column, migration 63) lets the same
+token/QR/phone-page carry either `INCOMING_FORM_97` (the existing pre-registration capture) or
+the new `FINAL_REGISTERED_FORM_97`. The phone page and the save-API both read it back to decide
+what to show/label - one mechanism, two purposes, never conflated.
+
+**Why a separate image column, not `scan_image`.** `marriages.scan_image` is the certificate
+photographed BEFORE registration, the one OCR already read (Steps 7-8) - overwriting it with the
+post-signature copy would destroy that evidence trail and blur two different meanings into one
+column, the same reasoning behind every other paired-column decision in this project (e.g. Step
+9's `registered_by_name` kept separate from the existing INT `registered_by`). Migration
+`63_marriage_final_scan.sql` (NOT yet applied to the live database) adds
+`marriages.final_scan_image` LONGBLOB and `form97_capture_tokens.purpose` VARCHAR(40) DEFAULT
+'INCOMING_FORM_97' (guarded, existing rows unaffected).
+
+**Desktop (`MarriageEntryForm.cs`).** `SaveRegistrationInfo()` (Step 9's button) now ends by
+calling `ShowFinalScanRequiredPopup()` — the exact popup from the spec: heading "FINAL FORM 97
+REQUIRED", the given body text, two buttons [Mobile Capture] / [Scan / Upload]. Mobile Capture
+opens `ShowFinalMobileCapture()`, a NEW token created with `Form97Capture.PurposeFinalRegistered`
+(kept separate from `_captureToken`, the pre-registration flow's own token/background-watcher
+field, so the two can never cross-apply into the wrong column) and its own short-lived poll
+(runs only while this one dialog is open — a required one-shot step, not the whole-window
+background watcher the earlier capture keeps running). The moment a page arrives it is saved via
+new `MarriageService.SaveFinalScanImage(id, bytes)` (no OCR run on it - the record's fields are
+already registered and verified by this point) and the dialog closes itself. Scan / Upload is a
+plain `OpenFileDialog` reading a file already on the PC (a flatbed scanner's own output) straight
+into the same method. Neither path generates, alters, or recreates a signature - both doc
+comments and the popup body say so, matching the spec's own instruction that the physical form
+is signed/stamped at the LCRO outside CROMS.
+
+**`Form97Capture.CreateToken`** gained an optional `purpose` parameter (default
+`PurposeIncoming`, so every existing call site is unaffected) and falls back to the pre-migration
+INSERT on a 1054 "unknown column" - without that fallback, adding `purpose` to the INSERT
+unconditionally would have broken the ALREADY-WORKING pre-registration capture on any database
+that hadn't yet applied 63, which would have been a real regression introduced by this change.
+
+**Save-API (`ORCMobile_Application/server/index.js`)** — both `GET /api/form97/:token` and
+`POST /api/form97/:token/image` try the `purpose`/`image_label`-aware query first and retry
+without those columns on an "Unknown column" error, matching this file's own existing pattern
+(the same regex-retry style already used for `client_name`/`requested_type`/`source` elsewhere
+in this file). The phone page (`form97-capture.html`) reads `purpose` from the GET response and,
+only for `FINAL_REGISTERED_FORM_97`, swaps its subtitle to "Final Registered Form 97" and shows
+the exact instruction line from the spec; the routine capture page is visually unchanged.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+`node --check index.js` clean (syntax only - no live save-API process or phone in this session).
+Migration 63 not yet applied to the live database — the C# side degrades to the pre-migration
+INSERT automatically; the Node side degrades the same way via the Unknown-column retry. GUI/phone
+not exercised (no interactive desktop, no device) — rebuild CROMS in VS and restart the save-API
+process to pick this up.
