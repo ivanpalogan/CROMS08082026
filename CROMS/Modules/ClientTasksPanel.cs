@@ -70,6 +70,7 @@ namespace CROMS.Modules
         private readonly Label _lblClientState = new Label();
         private readonly Label _lblIdState = new Label();
         private int _photosForTicket = -1;
+        private bool _birthAlreadySubmitted;
         private readonly Panel _currentHost = new Panel { Dock = DockStyle.Top, AutoSize = false, Height = 0 };
         private readonly FlowLayoutPanel _tasks = new FlowLayoutPanel();
         private readonly Panel _footer = new Panel { Dock = DockStyle.Bottom, Height = 132, BackColor = UiTheme.Surface, Padding = new Padding(10, 8, 10, 10) };
@@ -480,7 +481,7 @@ namespace CROMS.Modules
 
             DataTable ticket = Db.Pull(
                 "SELECT id, ticket_code, full_name, spouse_full_name, contact_no, priority, " +
-                "document_type, purpose, type_label, valid_id_type, id_image, " +
+                "document_type, purpose, type_label, valid_id_type, id_image, birth_id, " +
                 "TIME_FORMAT(TIME(created_at), '%h:%i %p') AS issued " +
                 "FROM queue_tickets " +
                 "WHERE window_no = @w AND status IN ('Accepted','Serving') " +
@@ -501,6 +502,10 @@ namespace CROMS.Modules
             DataRow t = ticket.Rows[0];
             _ticketId = Convert.ToInt32(t["id"]);
             _ticketCode = t["ticket_code"].ToString();
+            // Birth Registration parks the ticket here (queue_tickets.birth_id) the moment the
+            // record is submitted for approval — the registration process is done at that point,
+            // so re-opening the form has nothing left to do. Continue is disabled once this is set.
+            _birthAlreadySubmitted = t["birth_id"] != DBNull.Value;
             _queue.Text = _ticketCode;
             _client.Text = Cell(t, "full_name", "(name not given)");
             _meta.Text = ClientMeta(t);
@@ -810,10 +815,28 @@ namespace CROMS.Modules
             };
             Control detail = DetailBlock(lines, detailH);
 
+            string serviceCode = current["service_code"].ToString();
+            bool isBirthTask = serviceCode.Equals("BIRTHREG", StringComparison.OrdinalIgnoreCase) ||
+                                serviceCode.Equals("NEWREG", StringComparison.OrdinalIgnoreCase);
+            bool continueDisabled = isBirthTask && _birthAlreadySubmitted;
+
             var buttonRow = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = Color.Transparent };
             var open = MiniButton("Continue", UiTheme.Accent, Color.White);
             open.Location = new Point(0, 0);
-            open.Click += (s, e) => _shell.OpenQueueTask(_ticketId, taskId, _ticketCode, current["service_code"].ToString());
+            if (continueDisabled)
+            {
+                // The birth record was already submitted for approval — the registration
+                // process is done, so there is nothing left for the form to continue.
+                open.Enabled = false;
+                open.BackColor = UiTheme.Faint;
+                open.ForeColor = UiTheme.Muted;
+                var tip = new ToolTip();
+                tip.SetToolTip(open, "Already submitted for approval — click Finish to close this task.");
+            }
+            else
+            {
+                open.Click += (s, e) => _shell.OpenQueueTask(_ticketId, taskId, _ticketCode, serviceCode);
+            }
 
             var done = MiniButton("Finish", UiTheme.Success, Color.White);
             done.Location = new Point(154, 0);

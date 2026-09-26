@@ -156,7 +156,7 @@ namespace CROMS.Forms
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.root.Size = new System.Drawing.Size(1449, 950);
+            this.root.Size = new System.Drawing.Size(1466, 950);
             this.root.TabIndex = 0;
             // 
             // tblHeader
@@ -177,7 +177,7 @@ namespace CROMS.Forms
             this.tblHeader.RowCount = 2;
             this.tblHeader.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblHeader.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tblHeader.Size = new System.Drawing.Size(1401, 56);
+            this.tblHeader.Size = new System.Drawing.Size(1418, 56);
             this.tblHeader.TabIndex = 0;
             // 
             // lblTitle
@@ -212,7 +212,7 @@ namespace CROMS.Forms
             this.pillQueueRef.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.pillQueueRef.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
             this.pillQueueRef.Inset = new System.Windows.Forms.Padding(11, 5, 11, 5);
-            this.pillQueueRef.Location = new System.Drawing.Point(1366, 23);
+            this.pillQueueRef.Location = new System.Drawing.Point(1383, 23);
             this.pillQueueRef.Margin = new System.Windows.Forms.Padding(20, 0, 0, 0);
             this.pillQueueRef.Name = "pillQueueRef";
             this.tblHeader.SetRowSpan(this.pillQueueRef, 2);
@@ -235,7 +235,7 @@ namespace CROMS.Forms
             this.tblBody.Name = "tblBody";
             this.tblBody.RowCount = 1;
             this.tblBody.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tblBody.Size = new System.Drawing.Size(1401, 552);
+            this.tblBody.Size = new System.Drawing.Size(1418, 552);
             this.tblBody.TabIndex = 1;
             // 
             // tblLeft
@@ -255,7 +255,7 @@ namespace CROMS.Forms
             this.tblLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 224F));
             this.tblLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 178F));
             this.tblLeft.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tblLeft.Size = new System.Drawing.Size(896, 552);
+            this.tblLeft.Size = new System.Drawing.Size(907, 552);
             this.tblLeft.TabIndex = 0;
             // 
             // cardClient
@@ -270,7 +270,7 @@ namespace CROMS.Forms
             this.cardClient.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
             this.cardClient.Name = "cardClient";
             this.cardClient.Radius = 10;
-            this.cardClient.Size = new System.Drawing.Size(896, 154);
+            this.cardClient.Size = new System.Drawing.Size(907, 154);
             this.cardClient.TabIndex = 0;
             // 
             // tblClient
@@ -297,7 +297,7 @@ namespace CROMS.Forms
             this.tblClient.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblClient.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblClient.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tblClient.Size = new System.Drawing.Size(896, 154);
+            this.tblClient.Size = new System.Drawing.Size(907, 154);
             this.tblClient.TabIndex = 0;
             // 
             // flowHead1
@@ -376,7 +376,7 @@ namespace CROMS.Forms
             this.lblMiddle.BackColor = System.Drawing.Color.Transparent;
             this.lblMiddle.Font = new System.Drawing.Font("Segoe UI", 8.75F);
             this.lblMiddle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblMiddle.Location = new System.Drawing.Point(305, 78);
+            this.lblMiddle.Location = new System.Drawing.Point(308, 78);
             this.lblMiddle.Margin = new System.Windows.Forms.Padding(0, 16, 16, 5);
             this.lblMiddle.Name = "lblMiddle";
             this.lblMiddle.Size = new System.Drawing.Size(77, 15);
@@ -389,7 +389,7 @@ namespace CROMS.Forms
             this.lblLast.BackColor = System.Drawing.Color.Transparent;
             this.lblLast.Font = new System.Drawing.Font("Segoe UI", 8.75F);
             this.lblLast.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblLast.Location = new System.Drawing.Point(590, 78);
+            this.lblLast.Location = new System.Drawing.Point(596, 78);
             this.lblLast.Margin = new System.Windows.Forms.Padding(0, 16, 0, 5);
             this.lblLast.Name = "lblLast";
             this.lblLast.Size = new System.Drawing.Size(69, 15);
@@ -403,27 +403,27 @@ namespace CROMS.Forms
             this.txtFirst.Location = new System.Drawing.Point(20, 104);
             this.txtFirst.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.txtFirst.Name = "txtFirst";
-            this.txtFirst.Size = new System.Drawing.Size(269, 25);
+            this.txtFirst.Size = new System.Drawing.Size(272, 25);
             this.txtFirst.TabIndex = 0;
             // 
             // txtMiddle
             // 
             this.txtMiddle.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.txtMiddle.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtMiddle.Location = new System.Drawing.Point(305, 104);
+            this.txtMiddle.Location = new System.Drawing.Point(308, 104);
             this.txtMiddle.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.txtMiddle.Name = "txtMiddle";
-            this.txtMiddle.Size = new System.Drawing.Size(269, 25);
+            this.txtMiddle.Size = new System.Drawing.Size(272, 25);
             this.txtMiddle.TabIndex = 1;
             // 
             // txtLast
             // 
             this.txtLast.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.txtLast.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtLast.Location = new System.Drawing.Point(590, 104);
+            this.txtLast.Location = new System.Drawing.Point(596, 104);
             this.txtLast.Margin = new System.Windows.Forms.Padding(0);
             this.txtLast.Name = "txtLast";
-            this.txtLast.Size = new System.Drawing.Size(286, 25);
+            this.txtLast.Size = new System.Drawing.Size(291, 25);
             this.txtLast.TabIndex = 2;
             // 
             // cardCertificate
@@ -438,7 +438,7 @@ namespace CROMS.Forms
             this.cardCertificate.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
             this.cardCertificate.Name = "cardCertificate";
             this.cardCertificate.Radius = 10;
-            this.cardCertificate.Size = new System.Drawing.Size(896, 210);
+            this.cardCertificate.Size = new System.Drawing.Size(907, 210);
             this.cardCertificate.TabIndex = 1;
             // 
             // tblCert
@@ -466,7 +466,7 @@ namespace CROMS.Forms
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblCert.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tblCert.Size = new System.Drawing.Size(896, 210);
+            this.tblCert.Size = new System.Drawing.Size(907, 210);
             this.tblCert.TabIndex = 0;
             // 
             // flowHead2
@@ -545,7 +545,7 @@ namespace CROMS.Forms
             this.lblRecordType.BackColor = System.Drawing.Color.Transparent;
             this.lblRecordType.Font = new System.Drawing.Font("Segoe UI", 8.75F);
             this.lblRecordType.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblRecordType.Location = new System.Drawing.Point(448, 78);
+            this.lblRecordType.Location = new System.Drawing.Point(453, 78);
             this.lblRecordType.Margin = new System.Windows.Forms.Padding(0, 16, 0, 5);
             this.lblRecordType.Name = "lblRecordType";
             this.lblRecordType.Size = new System.Drawing.Size(70, 15);
@@ -560,7 +560,7 @@ namespace CROMS.Forms
             this.cboCertType.Location = new System.Drawing.Point(20, 98);
             this.cboCertType.Margin = new System.Windows.Forms.Padding(0, 0, 16, 0);
             this.cboCertType.Name = "cboCertType";
-            this.cboCertType.Size = new System.Drawing.Size(412, 25);
+            this.cboCertType.Size = new System.Drawing.Size(417, 25);
             this.cboCertType.TabIndex = 3;
             // 
             // cboRecordType
@@ -568,10 +568,10 @@ namespace CROMS.Forms
             this.cboRecordType.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.cboRecordType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cboRecordType.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.cboRecordType.Location = new System.Drawing.Point(448, 98);
+            this.cboRecordType.Location = new System.Drawing.Point(453, 98);
             this.cboRecordType.Margin = new System.Windows.Forms.Padding(0);
             this.cboRecordType.Name = "cboRecordType";
-            this.cboRecordType.Size = new System.Drawing.Size(428, 25);
+            this.cboRecordType.Size = new System.Drawing.Size(434, 25);
             this.cboRecordType.TabIndex = 4;
             // 
             // lblSelRecord
@@ -598,7 +598,7 @@ namespace CROMS.Forms
             this.cboRecord.Location = new System.Drawing.Point(20, 162);
             this.cboRecord.Margin = new System.Windows.Forms.Padding(0);
             this.cboRecord.Name = "cboRecord";
-            this.cboRecord.Size = new System.Drawing.Size(856, 25);
+            this.cboRecord.Size = new System.Drawing.Size(867, 25);
             this.cboRecord.TabIndex = 5;
             // 
             // cardPurpose
@@ -613,7 +613,7 @@ namespace CROMS.Forms
             this.cardPurpose.Margin = new System.Windows.Forms.Padding(0);
             this.cardPurpose.Name = "cardPurpose";
             this.cardPurpose.Radius = 10;
-            this.cardPurpose.Size = new System.Drawing.Size(896, 178);
+            this.cardPurpose.Size = new System.Drawing.Size(907, 178);
             this.cardPurpose.TabIndex = 2;
             // 
             // tblPurpose
@@ -639,7 +639,7 @@ namespace CROMS.Forms
             this.tblPurpose.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblPurpose.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblPurpose.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tblPurpose.Size = new System.Drawing.Size(896, 178);
+            this.tblPurpose.Size = new System.Drawing.Size(907, 178);
             this.tblPurpose.TabIndex = 0;
             // 
             // flowHead3
@@ -743,7 +743,7 @@ namespace CROMS.Forms
             this.txtPurpose.Location = new System.Drawing.Point(170, 98);
             this.txtPurpose.Margin = new System.Windows.Forms.Padding(0);
             this.txtPurpose.Name = "txtPurpose";
-            this.txtPurpose.Size = new System.Drawing.Size(706, 25);
+            this.txtPurpose.Size = new System.Drawing.Size(717, 25);
             this.txtPurpose.TabIndex = 7;
             // 
             // lblPurposeHint
@@ -767,13 +767,13 @@ namespace CROMS.Forms
             this.tblRight.Controls.Add(this.cardSummary, 0, 0);
             this.tblRight.Controls.Add(this.cardPhoto, 0, 1);
             this.tblRight.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tblRight.Location = new System.Drawing.Point(916, 0);
+            this.tblRight.Location = new System.Drawing.Point(927, 0);
             this.tblRight.Margin = new System.Windows.Forms.Padding(20, 0, 0, 0);
             this.tblRight.Name = "tblRight";
             this.tblRight.RowCount = 2;
             this.tblRight.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 423F));
             this.tblRight.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tblRight.Size = new System.Drawing.Size(485, 552);
+            this.tblRight.Size = new System.Drawing.Size(491, 552);
             this.tblRight.TabIndex = 1;
             // 
             // cardSummary
@@ -788,7 +788,7 @@ namespace CROMS.Forms
             this.cardSummary.Margin = new System.Windows.Forms.Padding(0, 0, 0, 14);
             this.cardSummary.Name = "cardSummary";
             this.cardSummary.Radius = 10;
-            this.cardSummary.Size = new System.Drawing.Size(485, 409);
+            this.cardSummary.Size = new System.Drawing.Size(491, 409);
             this.cardSummary.TabIndex = 0;
             // 
             // tblSummary
@@ -828,7 +828,7 @@ namespace CROMS.Forms
             this.tblSummary.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblSummary.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblSummary.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tblSummary.Size = new System.Drawing.Size(485, 409);
+            this.tblSummary.Size = new System.Drawing.Size(491, 409);
             this.tblSummary.TabIndex = 0;
             // 
             // lblSummaryTitle
@@ -879,10 +879,10 @@ namespace CROMS.Forms
             this.lblSumClient.BackColor = System.Drawing.Color.Transparent;
             this.lblSumClient.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblSumClient.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(137)))), ((int)(((byte)(145)))), ((int)(((byte)(163)))));
-            this.lblSumClient.Location = new System.Drawing.Point(224, 76);
+            this.lblSumClient.Location = new System.Drawing.Point(227, 76);
             this.lblSumClient.Margin = new System.Windows.Forms.Padding(0, 15, 0, 5);
             this.lblSumClient.Name = "lblSumClient";
-            this.lblSumClient.Size = new System.Drawing.Size(241, 18);
+            this.lblSumClient.Size = new System.Drawing.Size(244, 18);
             this.lblSumClient.TabIndex = 3;
             this.lblSumClient.Text = "—";
             this.lblSumClient.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -907,10 +907,10 @@ namespace CROMS.Forms
             this.lblSumCertType.BackColor = System.Drawing.Color.Transparent;
             this.lblSumCertType.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblSumCertType.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(137)))), ((int)(((byte)(145)))), ((int)(((byte)(163)))));
-            this.lblSumCertType.Location = new System.Drawing.Point(224, 106);
+            this.lblSumCertType.Location = new System.Drawing.Point(227, 106);
             this.lblSumCertType.Margin = new System.Windows.Forms.Padding(0, 5, 0, 5);
             this.lblSumCertType.Name = "lblSumCertType";
-            this.lblSumCertType.Size = new System.Drawing.Size(241, 18);
+            this.lblSumCertType.Size = new System.Drawing.Size(244, 18);
             this.lblSumCertType.TabIndex = 5;
             this.lblSumCertType.Text = "—";
             this.lblSumCertType.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -935,10 +935,10 @@ namespace CROMS.Forms
             this.lblSumRecordType.BackColor = System.Drawing.Color.Transparent;
             this.lblSumRecordType.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblSumRecordType.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(137)))), ((int)(((byte)(145)))), ((int)(((byte)(163)))));
-            this.lblSumRecordType.Location = new System.Drawing.Point(224, 136);
+            this.lblSumRecordType.Location = new System.Drawing.Point(227, 136);
             this.lblSumRecordType.Margin = new System.Windows.Forms.Padding(0, 5, 0, 5);
             this.lblSumRecordType.Name = "lblSumRecordType";
-            this.lblSumRecordType.Size = new System.Drawing.Size(241, 18);
+            this.lblSumRecordType.Size = new System.Drawing.Size(244, 18);
             this.lblSumRecordType.TabIndex = 7;
             this.lblSumRecordType.Text = "—";
             this.lblSumRecordType.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -963,10 +963,10 @@ namespace CROMS.Forms
             this.lblSumRecord.BackColor = System.Drawing.Color.Transparent;
             this.lblSumRecord.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblSumRecord.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(137)))), ((int)(((byte)(145)))), ((int)(((byte)(163)))));
-            this.lblSumRecord.Location = new System.Drawing.Point(224, 166);
+            this.lblSumRecord.Location = new System.Drawing.Point(227, 166);
             this.lblSumRecord.Margin = new System.Windows.Forms.Padding(0, 5, 0, 5);
             this.lblSumRecord.Name = "lblSumRecord";
-            this.lblSumRecord.Size = new System.Drawing.Size(241, 18);
+            this.lblSumRecord.Size = new System.Drawing.Size(244, 18);
             this.lblSumRecord.TabIndex = 9;
             this.lblSumRecord.Text = "—";
             this.lblSumRecord.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -991,10 +991,10 @@ namespace CROMS.Forms
             this.lblSumCopies.BackColor = System.Drawing.Color.Transparent;
             this.lblSumCopies.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblSumCopies.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(137)))), ((int)(((byte)(145)))), ((int)(((byte)(163)))));
-            this.lblSumCopies.Location = new System.Drawing.Point(224, 196);
+            this.lblSumCopies.Location = new System.Drawing.Point(227, 196);
             this.lblSumCopies.Margin = new System.Windows.Forms.Padding(0, 5, 0, 5);
             this.lblSumCopies.Name = "lblSumCopies";
-            this.lblSumCopies.Size = new System.Drawing.Size(241, 18);
+            this.lblSumCopies.Size = new System.Drawing.Size(244, 18);
             this.lblSumCopies.TabIndex = 11;
             this.lblSumCopies.Text = "—";
             this.lblSumCopies.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1019,10 +1019,10 @@ namespace CROMS.Forms
             this.lblSumPurpose.BackColor = System.Drawing.Color.Transparent;
             this.lblSumPurpose.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblSumPurpose.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(137)))), ((int)(((byte)(145)))), ((int)(((byte)(163)))));
-            this.lblSumPurpose.Location = new System.Drawing.Point(224, 226);
+            this.lblSumPurpose.Location = new System.Drawing.Point(227, 226);
             this.lblSumPurpose.Margin = new System.Windows.Forms.Padding(0, 5, 0, 5);
             this.lblSumPurpose.Name = "lblSumPurpose";
-            this.lblSumPurpose.Size = new System.Drawing.Size(241, 18);
+            this.lblSumPurpose.Size = new System.Drawing.Size(244, 18);
             this.lblSumPurpose.TabIndex = 13;
             this.lblSumPurpose.Text = "—";
             this.lblSumPurpose.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -1035,7 +1035,7 @@ namespace CROMS.Forms
             this.pnlDivider.Location = new System.Drawing.Point(20, 266);
             this.pnlDivider.Margin = new System.Windows.Forms.Padding(0, 16, 0, 0);
             this.pnlDivider.Name = "pnlDivider";
-            this.pnlDivider.Size = new System.Drawing.Size(445, 1);
+            this.pnlDivider.Size = new System.Drawing.Size(451, 1);
             this.pnlDivider.TabIndex = 14;
             // 
             // pnlNextStep
@@ -1048,7 +1048,7 @@ namespace CROMS.Forms
             this.pnlNextStep.Location = new System.Drawing.Point(20, 306);
             this.pnlNextStep.Margin = new System.Windows.Forms.Padding(0, 16, 0, 0);
             this.pnlNextStep.Name = "pnlNextStep";
-            this.pnlNextStep.Size = new System.Drawing.Size(445, 62);
+            this.pnlNextStep.Size = new System.Drawing.Size(451, 62);
             this.pnlNextStep.TabIndex = 15;
             // 
             // pnlNextBody
@@ -1060,7 +1060,7 @@ namespace CROMS.Forms
             this.pnlNextBody.Location = new System.Drawing.Point(4, 0);
             this.pnlNextBody.Name = "pnlNextBody";
             this.pnlNextBody.Padding = new System.Windows.Forms.Padding(12, 9, 12, 9);
-            this.pnlNextBody.Size = new System.Drawing.Size(441, 62);
+            this.pnlNextBody.Size = new System.Drawing.Size(447, 62);
             this.pnlNextBody.TabIndex = 0;
             // 
             // lblNextStep
@@ -1070,7 +1070,7 @@ namespace CROMS.Forms
             this.lblNextStep.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(36)))));
             this.lblNextStep.Location = new System.Drawing.Point(12, 24);
             this.lblNextStep.Name = "lblNextStep";
-            this.lblNextStep.Size = new System.Drawing.Size(417, 29);
+            this.lblNextStep.Size = new System.Drawing.Size(423, 29);
             this.lblNextStep.TabIndex = 0;
             this.lblNextStep.Text = "Complete all required fields and click Create request.";
             // 
@@ -1081,7 +1081,7 @@ namespace CROMS.Forms
             this.lblNextCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
             this.lblNextCap.Location = new System.Drawing.Point(12, 9);
             this.lblNextCap.Name = "lblNextCap";
-            this.lblNextCap.Size = new System.Drawing.Size(417, 15);
+            this.lblNextCap.Size = new System.Drawing.Size(423, 15);
             this.lblNextCap.TabIndex = 1;
             this.lblNextCap.Text = "NEXT STEP";
             // 
@@ -1108,7 +1108,7 @@ namespace CROMS.Forms
             this.cardPhoto.Name = "cardPhoto";
             this.cardPhoto.Padding = new System.Windows.Forms.Padding(16, 14, 16, 16);
             this.cardPhoto.Radius = 10;
-            this.cardPhoto.Size = new System.Drawing.Size(485, 129);
+            this.cardPhoto.Size = new System.Drawing.Size(491, 129);
             this.cardPhoto.TabIndex = 1;
             this.cardPhoto.Visible = false;
             // 
@@ -1118,7 +1118,7 @@ namespace CROMS.Forms
             this.picClient.Dock = System.Windows.Forms.DockStyle.Fill;
             this.picClient.Location = new System.Drawing.Point(16, 36);
             this.picClient.Name = "picClient";
-            this.picClient.Size = new System.Drawing.Size(453, 77);
+            this.picClient.Size = new System.Drawing.Size(459, 77);
             this.picClient.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.picClient.TabIndex = 0;
             this.picClient.TabStop = false;
@@ -1131,7 +1131,7 @@ namespace CROMS.Forms
             this.lblPhotoCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(36)))));
             this.lblPhotoCap.Location = new System.Drawing.Point(16, 14);
             this.lblPhotoCap.Name = "lblPhotoCap";
-            this.lblPhotoCap.Size = new System.Drawing.Size(453, 22);
+            this.lblPhotoCap.Size = new System.Drawing.Size(459, 22);
             this.lblPhotoCap.TabIndex = 1;
             this.lblPhotoCap.Text = "Client photo (from kiosk)";
             // 
@@ -1144,7 +1144,7 @@ namespace CROMS.Forms
             this.pnlValidation.Location = new System.Drawing.Point(24, 664);
             this.pnlValidation.Margin = new System.Windows.Forms.Padding(0, 18, 0, 0);
             this.pnlValidation.Name = "pnlValidation";
-            this.pnlValidation.Size = new System.Drawing.Size(1401, 48);
+            this.pnlValidation.Size = new System.Drawing.Size(1418, 48);
             this.pnlValidation.TabIndex = 2;
             this.pnlValidation.Visible = false;
             // 
@@ -1156,7 +1156,7 @@ namespace CROMS.Forms
             this.lblValidation.Location = new System.Drawing.Point(4, 0);
             this.lblValidation.Name = "lblValidation";
             this.lblValidation.Padding = new System.Windows.Forms.Padding(14, 0, 14, 0);
-            this.lblValidation.Size = new System.Drawing.Size(1397, 48);
+            this.lblValidation.Size = new System.Drawing.Size(1414, 48);
             this.lblValidation.TabIndex = 0;
             this.lblValidation.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
@@ -1223,7 +1223,7 @@ namespace CROMS.Forms
             this.cardRecent.Margin = new System.Windows.Forms.Padding(0, 20, 0, 0);
             this.cardRecent.Name = "cardRecent";
             this.cardRecent.Radius = 10;
-            this.cardRecent.Size = new System.Drawing.Size(1401, 132);
+            this.cardRecent.Size = new System.Drawing.Size(1418, 132);
             this.cardRecent.TabIndex = 4;
             // 
             // tblRecent
@@ -1240,7 +1240,7 @@ namespace CROMS.Forms
             this.tblRecent.RowCount = 2;
             this.tblRecent.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblRecent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tblRecent.Size = new System.Drawing.Size(1401, 132);
+            this.tblRecent.Size = new System.Drawing.Size(1418, 132);
             this.tblRecent.TabIndex = 0;
             // 
             // tblRecentHead
@@ -1259,7 +1259,7 @@ namespace CROMS.Forms
             this.tblRecentHead.Name = "tblRecentHead";
             this.tblRecentHead.RowCount = 1;
             this.tblRecentHead.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tblRecentHead.Size = new System.Drawing.Size(1369, 34);
+            this.tblRecentHead.Size = new System.Drawing.Size(1386, 34);
             this.tblRecentHead.TabIndex = 0;
             // 
             // lblRecent
@@ -1280,7 +1280,7 @@ namespace CROMS.Forms
             // 
             this.btnRefresh.Anchor = System.Windows.Forms.AnchorStyles.Right;
             this.btnRefresh.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnRefresh.Location = new System.Drawing.Point(1335, 0);
+            this.btnRefresh.Location = new System.Drawing.Point(1352, 0);
             this.btnRefresh.Margin = new System.Windows.Forms.Padding(0);
             this.btnRefresh.Name = "btnRefresh";
             this.btnRefresh.Size = new System.Drawing.Size(34, 34);
@@ -1303,7 +1303,7 @@ namespace CROMS.Forms
             this.dgvReq.ReadOnly = true;
             this.dgvReq.RowHeadersVisible = false;
             this.dgvReq.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvReq.Size = new System.Drawing.Size(1369, 58);
+            this.dgvReq.Size = new System.Drawing.Size(1386, 58);
             this.dgvReq.TabIndex = 11;
             // 
             // CertificateRequestForm
@@ -1313,7 +1313,7 @@ namespace CROMS.Forms
             this.AutoScroll = true;
             this.AutoScrollMinSize = new System.Drawing.Size(1150, 950);
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.ClientSize = new System.Drawing.Size(1466, 837);
+            this.ClientSize = new System.Drawing.Size(1483, 837);
             this.Controls.Add(this.root);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "CertificateRequestForm";
