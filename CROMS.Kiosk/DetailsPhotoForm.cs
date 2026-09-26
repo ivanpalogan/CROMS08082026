@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Text;
 using System.Windows.Forms;
 using AForge.Video;
 using AForge.Video.DirectShow;
@@ -62,6 +63,9 @@ namespace CROMS.Kiosk
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
             OthersBox.AttachInline(_cboIdType, 60);
             AutoCaps.Attach(_txtFirst, _txtMiddle, _txtLast, _txtFirst2, _txtMiddle2, _txtLast2);
+            _txtContact.MaxLength = 20;
+            _txtContact.KeyPress += ContactKeyPress;
+            _txtContact.TextChanged += (s, e) => FormatContact();
             // The camera-state line draws its own status dot (no emoji).
             AttachStateDot(_lblCamState);
 
@@ -86,7 +90,6 @@ namespace CROMS.Kiosk
                 _baselineReady = true;
                 StartCamera();
                 UpdateAvailability();
-                Cue(_txtContact, "09XX XXX XXXX");
                 Cue(_txtClaimTicket, "Example: Q-006");
             };
             Shown += (s, e) => { FitToScreen(); CenterDetailsStep(panelStep2); };
@@ -129,7 +132,8 @@ namespace CROMS.Kiosk
             _txtFirst.Text = _session.First ?? "";
             _txtMiddle.Text = _session.Middle ?? "";
             _txtLast.Text = _session.Last ?? "";
-            _txtContact.Text = _session.Contact ?? "";
+            _txtContact.Text = string.IsNullOrEmpty(_session.Contact) ? PhonePrefix : _session.Contact;
+            FormatContact();
             _priSenior.SetChecked(_session.Senior);
             _priPwd.SetChecked(_session.Pwd);
             _priPregnant.SetChecked(_session.Pregnant);
@@ -155,7 +159,7 @@ namespace CROMS.Kiosk
             _session.First2 = _txtFirst2.Text.Trim();
             _session.Middle2 = _txtMiddle2.Text.Trim();
             _session.Last2 = _txtLast2.Text.Trim();
-            _session.Contact = _txtContact.Text.Trim();
+            _session.Contact = ContactSubscriberDigits().Length == 0 ? "" : _txtContact.Text.Trim();
             _session.Senior = _priSenior.Checked;
             _session.Pwd = _priPwd.Checked;
             _session.Pregnant = _priPregnant.Checked;
@@ -582,6 +586,51 @@ namespace CROMS.Kiosk
 
         private void Warn(string m) =>
             MessageBox.Show(m, "Please check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+        // -------------------------------------------------- mobile number (+63, auto-spaced, capped)
+        // PH mobile: +63 fixed at the start, up to 10 subscriber digits after it (9XX XXX XXXX) —
+        // 12 digits total counting "63" itself, matching how the office states the number.
+        private const string PhonePrefix = "+63 ";
+        private const int PhoneSubscriberDigits = 10;
+        private bool _formattingContact;
+
+        private string ContactSubscriberDigits()
+        {
+            var digits = new StringBuilder();
+            foreach (char c in _txtContact.Text) if (char.IsDigit(c)) digits.Append(c);
+            string d = digits.ToString();
+            if (d.StartsWith("63")) d = d.Substring(2);
+            if (d.StartsWith("0")) d = d.Substring(1);
+            if (d.Length > PhoneSubscriberDigits) d = d.Substring(0, PhoneSubscriberDigits);
+            return d;
+        }
+
+        private void ContactKeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (char.IsControl(e.KeyChar)) return;
+            if (!char.IsDigit(e.KeyChar)) { e.Handled = true; return; }
+            // Already at the cap — extra digits are silently refused rather than pushed in and
+            // immediately trimmed back out by FormatContact, which would jitter the caret.
+            if (ContactSubscriberDigits().Length >= PhoneSubscriberDigits) e.Handled = true;
+        }
+
+        private void FormatContact()
+        {
+            if (_formattingContact) return;
+            _formattingContact = true;
+            try
+            {
+                string d = ContactSubscriberDigits();
+                string grouped = "";
+                if (d.Length > 0) grouped = d.Substring(0, Math.Min(3, d.Length));
+                if (d.Length > 3) grouped += " " + d.Substring(3, Math.Min(3, d.Length - 3));
+                if (d.Length > 6) grouped += " " + d.Substring(6, Math.Min(4, d.Length - 6));
+
+                _txtContact.Text = PhonePrefix + grouped;
+                _txtContact.SelectionStart = _txtContact.Text.Length;
+            }
+            finally { _formattingContact = false; }
+        }
 
         // Grey placeholder text shown inside an empty textbox (Win32 cue banner).
         [System.Runtime.InteropServices.DllImport("user32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
