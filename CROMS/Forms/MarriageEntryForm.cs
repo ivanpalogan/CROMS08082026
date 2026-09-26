@@ -71,6 +71,14 @@ namespace CROMS.Forms
         private string _oopScanImageName;
         private List<LicenseFacts> _allLicenses = new List<LicenseFacts>();
 
+        // Migration 60: transaction/queue linkage (new - marriages never had one) and the
+        // Current Step progress indicator, kept strictly separate from marriages.status.
+        private int? _txnId;
+        private int? _queueTicketId;
+        private string _txnCode;
+        private string _queueCode;
+        private string _currentStep = "Form 97 Capture";
+
         public MarriageEntryForm(int? marriageId)
         {
             InitializeComponent();
@@ -162,8 +170,28 @@ namespace CROMS.Forms
             var header = new Panel { Dock = DockStyle.Top, Height = 54, BackColor = UiTheme.Navy };
             var t = MUi.Txt(_id == null ? "Register Marriage  -  Municipal Form 97" : "Certificate of Marriage  -  Municipal Form 97", 12.5F, FontStyle.Bold, Color.White);
             t.Location = new Point(18, 15);
-            header.Controls.Add(t); header.Controls.Add(_formPill); header.Controls.Add(_statusPill);
-            header.Layout += (s, e) => { _formPill.Location = new Point(t.Right + 14, 16); _statusPill.Location = new Point(_formPill.Right + 8, 16); };
+            header.Controls.Add(t); header.Controls.Add(_formPill); header.Controls.Add(_statusPill); header.Controls.Add(_stepPill);
+            header.Layout += (s, e) =>
+            {
+                _formPill.Location = new Point(t.Right + 14, 16); _statusPill.Location = new Point(_formPill.Right + 8, 16);
+                _stepPill.Location = new Point(_statusPill.Right + 8, 16);
+            };
+
+            // Transaction/Queue linkage + Activity History - Current Step is shown as a pill
+            // above (progress only, never a substitute for Status).
+            var infoRow = new FlowLayoutPanel { Dock = DockStyle.Fill, BackColor = Color.Transparent, Padding = new Padding(18, 6, 14, 0) };
+            infoRow.Controls.Add(_txnLabel); infoRow.Controls.Add(_btnLinkTxn);
+            infoRow.Controls.Add(Spacer(18)); infoRow.Controls.Add(_queueLabel); infoRow.Controls.Add(_btnLinkQueue);
+            infoRow.Controls.Add(Spacer(18)); infoRow.Controls.Add(_btnHistory);
+            _infoStrip.Controls.Add(infoRow);
+            _infoStrip.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, _infoStrip.Height - 1, _infoStrip.Width, _infoStrip.Height - 1); };
+            _btnLinkTxn.Click += (s, e) => LinkTransaction();
+            _btnLinkQueue.Click += (s, e) => LinkQueueTicket();
+            _btnHistory.Click += (s, e) =>
+            {
+                if (!_id.HasValue) { MessageBox.Show(this, "Save the record first to view its activity history.", "Activity History", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+                MUi.HistoryDialog(this, "Marriage", _id.Value, "Activity History - marriage record");
+            };
 
             _tabs.AddStep("Contracting Parties", "items 1-8");
             _tabs.AddStep("Parents", "items 9-12");
@@ -208,7 +236,7 @@ namespace CROMS.Forms
             _rail.Dock = DockStyle.Fill; _rail.AutoScroll = true; _rail.Padding = new Padding(14, 12, 14, 12); _rail.BackColor = Color.FromArgb(250, 251, 253);
             _rail.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, 0, 0, _rail.Height); };
             body.Controls.Add(host, 0, 0); body.Controls.Add(_rail, 1, 0);
-            Controls.Add(body); Controls.Add(footer); Controls.Add(_tabs); Controls.Add(header);
+            Controls.Add(body); Controls.Add(footer); Controls.Add(_tabs); Controls.Add(_infoStrip); Controls.Add(header);
 
             _issues.FixRequested += where =>
             {
@@ -598,6 +626,35 @@ namespace CROMS.Forms
             RefreshAll();
         }
 
+        // ===================================================================== transaction / queue linkage
+        private void LinkTransaction()
+        {
+            string code = MUi.Ask(this, "Link Transaction", "Transaction Number (e.g. TXN-2026-000123):", _txnCode ?? "");
+            if (code == null) return;
+            code = code.Trim();
+            if (code.Length == 0) { _txnId = null; _txnCode = null; _dirty = true; RefreshRail(); return; }
+            DataTable dt = Db.Pull("SELECT id, txn_code FROM transactions WHERE txn_code=@c", new MySqlParameter("@c", code));
+            if (dt.Rows.Count == 0) { MessageBox.Show(this, "No transaction found with that number.", "Not found", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            _txnId = Convert.ToInt32(dt.Rows[0]["id"]); _txnCode = Str1(dt.Rows[0]["txn_code"]);
+            _dirty = true;
+            RefreshRail();
+        }
+
+        private void LinkQueueTicket()
+        {
+            string code = MUi.Ask(this, "Link Queue Ticket", "Queue Number (e.g. Q-045):", _queueCode ?? "");
+            if (code == null) return;
+            code = code.Trim();
+            if (code.Length == 0) { _queueTicketId = null; _queueCode = null; _dirty = true; RefreshRail(); return; }
+            DataTable dt = Db.Pull("SELECT id, ticket_code FROM queue_tickets WHERE ticket_code=@c", new MySqlParameter("@c", code));
+            if (dt.Rows.Count == 0) { MessageBox.Show(this, "No queue ticket found with that number.", "Not found", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            _queueTicketId = Convert.ToInt32(dt.Rows[0]["id"]); _queueCode = Str1(dt.Rows[0]["ticket_code"]);
+            _dirty = true;
+            RefreshRail();
+        }
+
+        private static string Str1(object v) { return v == null || v == DBNull.Value ? null : v.ToString(); }
+
         // ===================================================================== data
         private void LoadMarriage(int id)
         {
@@ -607,6 +664,11 @@ namespace CROMS.Forms
             Func<string, string> S = c => r[c] == DBNull.Value ? "" : r[c].ToString();
             Func<string, DateTime?> D = c => r[c] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r[c]);
             _status = S("status");
+            _currentStep = dt.Columns.Contains("current_step") && S("current_step") != "" ? S("current_step") : "Form 97 Capture";
+            _txnId = dt.Columns.Contains("transaction_id") && r["transaction_id"] != DBNull.Value ? (int?)Convert.ToInt32(r["transaction_id"]) : null;
+            _queueTicketId = dt.Columns.Contains("queue_ticket_id") && r["queue_ticket_id"] != DBNull.Value ? (int?)Convert.ToInt32(r["queue_ticket_id"]) : null;
+            _txnCode = _txnId.HasValue ? Col1("SELECT txn_code FROM transactions WHERE id=@id", _txnId.Value) : null;
+            _queueCode = _queueTicketId.HasValue ? Col1("SELECT ticket_code FROM queue_tickets WHERE id=@id", _queueTicketId.Value) : null;
             if (S("form_code") != "") _formCode = S("form_code");
             if (S("form_name") != "") _formName = S("form_name");
             _reg.Text = S("registry_no"); _book.Text = S("book_volume"); _page.Text = S("book_page");
@@ -697,6 +759,16 @@ namespace CROMS.Forms
         private static object Nz(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
         private static object FkVal(ComboBox c) { int n = Id(c); return n == 0 ? null : (object)n; }
 
+        private static string Col1(string sql, int id)
+        {
+            try
+            {
+                DataTable dt = Db.Pull(sql, new MySqlParameter("@id", id));
+                return dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value ? dt.Rows[0][0].ToString() : null;
+            }
+            catch { return null; }
+        }
+
         private Dictionary<string, object> Values(string status)
         {
             MarriageFacts m = UiFacts();
@@ -724,6 +796,7 @@ namespace CROMS.Forms
                 { "submitted_by", _rbSubHusband.Checked ? "Husband" : _rbSubWife.Checked ? "Wife" : _rbSubRep.Checked ? "Representative" : "Officer" },
                 { "submitted_by_rep_name", _rbSubRep.Checked ? Nz(_repName.Text) : null },
                 { "submitted_by_rep_org", _rbSubRep.Checked ? Nz(_repOrg.Text) : null },
+                { "transaction_id", _txnId }, { "queue_ticket_id", _queueTicketId },
             };
             foreach (var pair in new[] { Tuple.Create(_h, "husband"), Tuple.Create(_w, "wife") })
             {
@@ -905,7 +978,13 @@ namespace CROMS.Forms
             foreach (Panel p in _pages) foreach (Control c in p.Controls) c.Enabled = editable;
             _docs.ReadOnlyGrid = !editable;
             MUi.SetPill(_formPill, _formCode ?? "MF-97", "Draft");
-            MUi.SetPill(_statusPill, (_status ?? "Draft").ToUpperInvariant() + (_reg.Text.Length > 0 && registered ? "  " + _reg.Text : ""), _status);
+            // Spec: the screen shows only Pending/Registered ("Show-only mapping" - the real
+            // 4-value status underneath is unchanged; see MarriageService.StatusDisplay).
+            MUi.SetPill(_statusPill, MarriageService.StatusDisplay(_status).ToUpperInvariant() + (_reg.Text.Length > 0 && registered ? "  " + _reg.Text : ""), _status);
+            MUi.SetPill(_stepPill, _currentStep, registered ? "Registered" : "Draft");
+            _txnLabel.Text = "Transaction: " + (_txnCode ?? "not linked");
+            _queueLabel.Text = "Queue: " + (_queueCode ?? "not linked");
+            _btnHistory.Enabled = _id.HasValue;
             _licPanel.Visible = _rbLic.Checked; _exPanel.Visible = _rbEx.Checked;
             _localPanel.Visible = !_oop.Checked; _oopPanel.Visible = _oop.Checked;
             _repPanel.Visible = _rbSubRep.Checked;

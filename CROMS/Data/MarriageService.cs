@@ -791,10 +791,27 @@ namespace CROMS.Data
             "license_out_of_province",
             "license_basis", "exemption_basis", "exemption_notes", "delay_reason",
             "received_by", "received_by_title", "received_by_date", "remarks", "scan_image",
-            "submitted_by", "submitted_by_rep_name", "submitted_by_rep_org"
+            "submitted_by", "submitted_by_rep_name", "submitted_by_rep_org",
+            "current_step", "transaction_id", "queue_ticket_id"
         };
 
         private static readonly string[] NotNullNames = { "husband_first_name", "husband_last_name", "wife_first_name", "wife_last_name" };
+
+        /// <summary>
+        /// The fixed Current Step vocabulary (migration 60) - a progress indicator only,
+        /// separate from marriages.status. "Registered" is reached only through Register().
+        /// </summary>
+        public static readonly string[] CurrentSteps =
+        {
+            "Form 97 Capture", "Awaiting Registrar Review", "Returned - Awaiting Correction", "Registered"
+        };
+
+        /// <summary>
+        /// The screen's simplified 2-value label over the real 4-value status - "Show-only
+        /// mapping": Draft/For Review/Returned all read as Pending, only Registered reads as
+        /// Registered. The stored status is unchanged; this is display only.
+        /// </summary>
+        public static string StatusDisplay(string status) => status == "Registered" ? "Registered" : "Pending";
 
         /// <summary>
         /// Save Form 97 fields (whitelisted columns only). New rows start as Draft. A
@@ -807,6 +824,8 @@ namespace CROMS.Data
                 if (!MarriageColumns.Contains(k)) throw new ArgumentException("Not a Form 97 column: " + k);
             if (values.ContainsKey("status") && !(new[] { "Draft", "For Review", "Returned" }).Contains(values["status"] as string))
                 throw new ArgumentException("Status is set by the workflow, not by a save.");
+            if (values.ContainsKey("current_step") && (string)values["current_step"] == "Registered")
+                throw new ArgumentException("Current Step reaches Registered only through Register().");
 
             string oldStatus = null;
             if (id.HasValue)
@@ -942,7 +961,8 @@ namespace CROMS.Data
 
         public static void StartCasePosting(int id, DateTime start)
         {
-            Db.Push("UPDATE marriages SET case_posting_start=@s WHERE id=@id", P("@s", start.Date), P("@id", id));
+            Db.Push("UPDATE marriages SET case_posting_start=@s, current_step='Awaiting Registrar Review' WHERE id=@id AND status <> 'Registered'",
+                P("@s", start.Date), P("@id", id));
             History("Marriage", id, "Delayed-registration notice posted", null, null,
                 MarriageRules.D(start) + " - " + MarriageRules.D(start.AddDays(Settings.DelayedPostingDays - 1)));
         }
@@ -952,8 +972,13 @@ namespace CROMS.Data
             RequireRegistrar("approve or return a delayed / licence-exempt case");
             if (!approve && string.IsNullOrWhiteSpace(notes)) throw new ArgumentException("Say why the case is returned.");
             string st = approve ? "Approved" : "Returned";
+            // Current Step is a progress indicator only - it never substitutes for status. An
+            // Approved review still needs Register() to actually finish the record; a returned
+            // one goes back to capture for the clerk to fix.
+            string step = approve ? "Awaiting Registrar Review" : "Form 97 Capture";
             Db.Push("UPDATE marriages SET registrar_review_status=@s, registrar_review_by=@u, registrar_review_at=NOW(), " +
-                    "registrar_review_notes=@n WHERE id=@id", P("@s", st), P("@u", UserId), P("@n", notes), P("@id", id));
+                    "registrar_review_notes=@n, current_step=@step WHERE id=@id AND status <> 'Registered'",
+                P("@s", st), P("@u", UserId), P("@n", notes), P("@step", step), P("@id", id));
             History("Marriage", id, "Registrar review", null, st, notes);
         }
 
@@ -963,7 +988,7 @@ namespace CROMS.Data
             DataTable cur = Db.Pull("SELECT status FROM marriages WHERE id=@id", P("@id", id));
             string old = Str(cur.Rows[0]["status"]);
             if (old == "Registered") throw new InvalidOperationException("A registered marriage is corrected through Petitions, not returned.");
-            Db.Push("UPDATE marriages SET status='Returned', return_reason=@r WHERE id=@id", P("@r", reason), P("@id", id));
+            Db.Push("UPDATE marriages SET status='Returned', current_step='Returned - Awaiting Correction', return_reason=@r WHERE id=@id", P("@r", reason), P("@id", id));
             History("Marriage", id, "Returned for correction", old, "Returned", reason);
         }
 
@@ -996,7 +1021,7 @@ namespace CROMS.Data
                     Tx((c, t) =>
                     {
                         int n = Exec(c, t,
-                            "UPDATE marriages SET status='Registered', registry_no=@reg, registration_type=@rt, date_registered=CURDATE(), " +
+                            "UPDATE marriages SET status='Registered', current_step='Registered', registry_no=@reg, registration_type=@rt, date_registered=CURDATE(), " +
                             "registered_by=@u, registered_at=NOW(), return_reason=NULL WHERE id=@id AND status <> 'Registered'",
                             P("@reg", reg), P("@rt", delayed ? "Delayed" : "Timely"), P("@u", UserId), P("@id", id));
                         if (n != 1) throw new InvalidOperationException("The record changed while it was being registered - reload it.");

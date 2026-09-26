@@ -19,8 +19,15 @@ namespace CROMS.Forms
         private readonly StepStrip _tabs = new StepStrip(false);
         private readonly Panel[] _pages = new Panel[5];
         private readonly Panel _rail = new Panel();
-        private readonly StatusPill _formPill = new StatusPill(), _statusPill = new StatusPill();
+        private readonly StatusPill _formPill = new StatusPill(), _statusPill = new StatusPill(), _stepPill = new StatusPill();
         private readonly Label _footInfo = MUi.Txt("", 9F, FontStyle.Regular, UiTheme.Muted);
+        // migration 60: transaction/queue linkage + Current Step + activity history, shown in
+        // one strip under the header (spec: "Create Marriage Registration Record" record view)
+        private readonly Panel _infoStrip = new Panel { Dock = DockStyle.Top, Height = 34, BackColor = Color.FromArgb(250, 251, 253) };
+        private readonly Label _txnLabel = MUi.Txt("Transaction: -", 9F, FontStyle.Regular, UiTheme.Muted);
+        private readonly Label _queueLabel = MUi.Txt("Queue: -", 9F, FontStyle.Regular, UiTheme.Muted);
+        private readonly Button _btnLinkTxn = MUi.Btn("Link...", MUi.Kind.Ghost, 60), _btnLinkQueue = MUi.Btn("Link...", MUi.Kind.Ghost, 60),
+                                _btnHistory = MUi.Btn("Activity History", MUi.Kind.Ghost);
         private readonly Button _btnSoft = MUi.Btn("View softcopy", MUi.Kind.Ghost), _btnPreview = MUi.Btn("Preview on form", MUi.Kind.Ghost),
                                 _btnCase = MUi.Btn("Case workflow...", MUi.Kind.Ghost), _btnAckSlip = MUi.Btn("Print acknowledgment slip", MUi.Kind.Ghost),
                                 _btnDraft = MUi.Btn("Save as draft", MUi.Kind.Secondary),
