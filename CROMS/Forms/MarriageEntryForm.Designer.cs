@@ -28,6 +28,7 @@ namespace CROMS.Forms
         private readonly Label _queueLabel = MUi.Txt("Queue: -", 9F, FontStyle.Regular, UiTheme.Muted);
         private readonly Button _btnLinkTxn = MUi.Btn("Link...", MUi.Kind.Ghost, 60), _btnLinkQueue = MUi.Btn("Link...", MUi.Kind.Ghost, 60),
                                 _btnHistory = MUi.Btn("Activity History", MUi.Kind.Ghost);
+        private readonly Button _btnMobileCapture = MUi.Btn("Mobile Capture...", MUi.Kind.Primary, 140);
         private readonly Button _btnSoft = MUi.Btn("View softcopy", MUi.Kind.Ghost), _btnPreview = MUi.Btn("Preview on form", MUi.Kind.Ghost),
                                 _btnCase = MUi.Btn("Case workflow...", MUi.Kind.Ghost), _btnAckSlip = MUi.Btn("Print acknowledgment slip", MUi.Kind.Ghost),
                                 _btnDraft = MUi.Btn("Save as draft", MUi.Kind.Secondary),

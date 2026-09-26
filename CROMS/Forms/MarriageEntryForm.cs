@@ -183,10 +183,12 @@ namespace CROMS.Forms
             infoRow.Controls.Add(_txnLabel); infoRow.Controls.Add(_btnLinkTxn);
             infoRow.Controls.Add(Spacer(18)); infoRow.Controls.Add(_queueLabel); infoRow.Controls.Add(_btnLinkQueue);
             infoRow.Controls.Add(Spacer(18)); infoRow.Controls.Add(_btnHistory);
+            infoRow.Controls.Add(Spacer(18)); infoRow.Controls.Add(_btnMobileCapture);
             _infoStrip.Controls.Add(infoRow);
             _infoStrip.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, _infoStrip.Height - 1, _infoStrip.Width, _infoStrip.Height - 1); };
             _btnLinkTxn.Click += (s, e) => LinkTransaction();
             _btnLinkQueue.Click += (s, e) => LinkQueueTicket();
+            _btnMobileCapture.Click += (s, e) => ShowMobileCapture();
             _btnHistory.Click += (s, e) =>
             {
                 if (!_id.HasValue) { MessageBox.Show(this, "Save the record first to view its activity history.", "Activity History", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
@@ -654,6 +656,122 @@ namespace CROMS.Forms
         }
 
         private static string Str1(object v) { return v == null || v == DBNull.Value ? null : v.ToString(); }
+
+        // ===================================================================== mobile capture (Form 97, before OCR)
+        /// <summary>
+        /// Opens a temporary token linked to THIS transaction/couple, shows a QR (plus a
+        /// typeable code as a fallback) for a phone to open the lightweight capture page
+        /// hosted by the save-API, and polls until at least one page has been photographed.
+        /// "Use These Scans" attaches the first page as the record's softcopy and runs it
+        /// straight through the same Document AI pass Auto-Fill uses elsewhere, so a captured
+        /// Form 97 lands on this open form pre-filled rather than merely attached.
+        /// </summary>
+        private void ShowMobileCapture()
+        {
+            string husband = (_h.First.Text + " " + _h.Last.Text).Trim();
+            string wife = (_w.First.Text + " " + _w.Last.Text).Trim();
+            string token = Form97Capture.CreateToken(_id, _txnId,
+                husband.Length == 0 ? null : husband, wife.Length == 0 ? null : wife, _txnCode);
+            string url = Form97Capture.BuildMobileUrl(token);
+
+            using (var dlg = new Form
+            {
+                Text = "Mobile Capture - Form 97",
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false,
+                ClientSize = new Size(360, 560),
+            })
+            {
+                var lblTxn = MUi.Txt("Transaction: " + (_txnCode ?? "not yet linked"), 9F, FontStyle.Regular, UiTheme.Muted);
+                lblTxn.Location = new Point(20, 16);
+                var lblCouple = MUi.Txt("Husband: " + (husband.Length == 0 ? "-" : husband) +
+                                        "\nWife: " + (wife.Length == 0 ? "-" : wife), 9.5F, FontStyle.Bold, UiTheme.Ink);
+                lblCouple.AutoSize = true; lblCouple.Location = new Point(20, 38);
+
+                var pic = new PictureBox { Location = new Point(80, 90), Size = new Size(200, 200), SizeMode = PictureBoxSizeMode.Zoom };
+                var bmp = QrHelper.TryCreate(url, 6);
+                pic.Image = bmp;
+                var lblNoQr = MUi.Txt("(QRCoder not installed - open this address on the phone instead:)", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                lblNoQr.AutoSize = false; lblNoQr.Size = new Size(320, 30); lblNoQr.Location = new Point(20, 96);
+                lblNoQr.Visible = bmp == null; pic.Visible = bmp != null;
+
+                var txtUrl = new TextBox { ReadOnly = true, Location = new Point(20, 300), Width = 320, Text = url };
+                var lblHint = MUi.Txt("Scan with the phone's camera, or type this address into its browser.", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                lblHint.AutoSize = false; lblHint.Size = new Size(320, 32); lblHint.Location = new Point(20, 328);
+
+                var lblStatus = MUi.Txt("Waiting for a photo from the phone...", 9.5F, FontStyle.Bold, UiTheme.Muted);
+                lblStatus.AutoSize = false; lblStatus.Size = new Size(320, 22); lblStatus.Location = new Point(20, 368);
+
+                var btnUse = MUi.Btn("Use These Scans", MUi.Kind.Primary, 320);
+                btnUse.Location = new Point(20, 400); btnUse.Enabled = false;
+                var btnCancel = MUi.Btn("Close", MUi.Kind.Ghost, 320);
+                btnCancel.Location = new Point(20, 440);
+
+                dlg.Controls.Add(lblTxn); dlg.Controls.Add(lblCouple); dlg.Controls.Add(pic);
+                dlg.Controls.Add(lblNoQr); dlg.Controls.Add(txtUrl); dlg.Controls.Add(lblHint);
+                dlg.Controls.Add(lblStatus); dlg.Controls.Add(btnUse); dlg.Controls.Add(btnCancel);
+
+                Action refresh = () =>
+                {
+                    Form97Capture.Status st = Form97Capture.GetStatus(token);
+                    if (st.Expired)
+                    {
+                        lblStatus.Text = "This code has expired. Close and open Mobile Capture again.";
+                        lblStatus.ForeColor = UiTheme.Danger;
+                        btnUse.Enabled = false;
+                        return;
+                    }
+                    if (st.PageCount == 0)
+                    {
+                        lblStatus.Text = "Waiting for a photo from the phone...";
+                        lblStatus.ForeColor = UiTheme.Muted;
+                        btnUse.Enabled = false;
+                    }
+                    else
+                    {
+                        lblStatus.Text = st.PageCount + " page(s) received. The phone can add more, or you can use them now.";
+                        lblStatus.ForeColor = UiTheme.Success;
+                        btnUse.Enabled = true;
+                    }
+                };
+                refresh();
+                var poll = new Timer { Interval = 3000 };
+                poll.Tick += (s, e) => refresh();
+                poll.Start();
+
+                btnUse.Click += (s, e) =>
+                {
+                    List<byte[]> pages = Form97Capture.FetchImages(token);
+                    if (pages.Count == 0) { MessageBox.Show(dlg, "No pages have been photographed yet.", "Nothing to use", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+                    byte[] primary = pages[0];
+                    SetScanImage(primary);
+                    try
+                    {
+                        using (var ms = new MemoryStream(primary))
+                        using (var img = Image.FromStream(ms))
+                        {
+                            var r = DocumentAI.Analyze(new Bitmap(img));
+                            if (r.Kind == DocKind.Marriage)
+                            {
+                                PrimeFromExtraction(r.Map());
+                                SetScanImage(primary); // PrimeFromExtraction may clear the form; re-attach after
+                                SetOcrContext(token, r);
+                            }
+                        }
+                    }
+                    catch { /* OCR is a convenience here - the scan is already attached either way */ }
+                    Form97Capture.Complete(token);
+                    if (_id.HasValue) Form97Capture.AttachMarriageId(token, _id.Value);
+                    poll.Stop();
+                    dlg.DialogResult = DialogResult.OK;
+                };
+                btnCancel.Click += (s, e) => { dlg.DialogResult = DialogResult.Cancel; };
+
+                dlg.FormClosed += (s, e) => { poll.Stop(); poll.Dispose(); if (pic.Image != null) pic.Image.Dispose(); };
+                dlg.ShowDialog(this);
+            }
+        }
 
         // ===================================================================== data
         private void LoadMarriage(int id)
