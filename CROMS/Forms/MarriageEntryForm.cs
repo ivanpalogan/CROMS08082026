@@ -82,6 +82,7 @@ namespace CROMS.Forms
         private int? _queueTicketId;
         private string _txnCode;
         private string _queueCode;
+        private string _queueIntakeHint;  // "husband name  ·  wife name  ·  contact" read off the kiosk ticket - reference text only, never split into fields
         private string _currentStep = "Form 97 Capture";
 
         // Mobile Capture (Step 6): detection belongs to THIS WINDOW, not the transient QR
@@ -699,6 +700,39 @@ namespace CROMS.Forms
         }
 
         // ===================================================================== transaction / queue linkage
+        /// <summary>
+        /// Requester Information -> Queue Number -> Staff Opens Transaction. Called by
+        /// QueueManagementForm.OpenServiceForm when a MARRIAGE_REG ticket is opened from the
+        /// live queue, so the desk starts already linked instead of a blank, unlinked draft the
+        /// operator had to fix by hand with LinkQueueTicket/LinkTransaction. Names are shown as
+        /// a REFERENCE only (in the Queue label), never auto-split into First/Middle/Last - the
+        /// kiosk stores one joined string per party, and this project already measured that
+        /// guessing a split mangles a two-word surname (the same reasoning BREQS's own desk
+        /// applies to a kiosk-typed name, 2026-08-04).
+        /// </summary>
+        public void PrepareForQueueTicket(int ticketId, string ticketCode)
+        {
+            _queueTicketId = ticketId; _queueCode = ticketCode;
+            DataTable dt = Db.Pull(
+                "SELECT full_name, spouse_full_name, contact_no, transaction_id FROM queue_tickets WHERE id=@id",
+                new MySqlParameter("@id", ticketId));
+            if (dt.Rows.Count > 0)
+            {
+                DataRow r = dt.Rows[0];
+                string husband = Str1(r["full_name"]);
+                string wife = Str1(r["spouse_full_name"]);
+                string contact = Str1(r["contact_no"]);
+                _queueIntakeHint = string.Join("  ·  ", new[] { husband, wife, contact }.Where(s => !string.IsNullOrWhiteSpace(s)));
+                if (r["transaction_id"] != DBNull.Value)
+                {
+                    _txnId = Convert.ToInt32(r["transaction_id"]);
+                    _txnCode = Col1("SELECT txn_code FROM transactions WHERE id=@id", _txnId.Value);
+                }
+            }
+            _dirty = true;
+            RefreshAll();
+        }
+
         private void LinkTransaction()
         {
             string code = MUi.Ask(this, "Link Transaction", "Transaction Number (e.g. TXN-2026-000123):", _txnCode ?? "");
@@ -1404,7 +1438,8 @@ namespace CROMS.Forms
             MUi.SetPill(_statusPill, MarriageService.StatusDisplay(_status).ToUpperInvariant() + (_reg.Text.Length > 0 && registered ? "  " + _reg.Text : ""), _status);
             MUi.SetPill(_stepPill, _currentStep, registered ? "Registered" : "Draft");
             _txnLabel.Text = "Transaction: " + (_txnCode ?? "not linked");
-            _queueLabel.Text = "Queue: " + (_queueCode ?? "not linked");
+            _queueLabel.Text = "Queue: " + (_queueCode ?? "not linked") +
+                (string.IsNullOrEmpty(_queueIntakeHint) ? "" : "  (" + _queueIntakeHint + ")");
             _btnHistory.Enabled = _id.HasValue;
             _licPanel.Visible = _rbLic.Checked; _exPanel.Visible = _rbEx.Checked;
             _localPanel.Visible = !_oop.Checked; _oopPanel.Visible = _oop.Checked;

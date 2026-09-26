@@ -6044,3 +6044,45 @@ already written to constantly by this file, so no new migration is needed for th
 new call site was reasoned against the exact existing method it hooks into, not exercised live.
 GUI not clicked (no interactive desktop) - rebuild in VS and confirm each event appears in
 Activity History (`MUi.HistoryDialog`) at the point described.
+
+### 2026-09-27 (truly last) — Queue Number -> Staff Opens Transaction gap fixed for Marriage Registration
+
+Checked the full "Marriage Registration -> Requester Information -> Submitted By -> Queue Number
+-> Staff Opens Transaction -> Mobile Capture Form 97 -> ... -> Completed" flow against the code.
+Middle-to-end (Mobile Capture through Completed) matched exactly, built across Steps 7-12. The
+front did not: `QueueManagementForm.OpenServiceForm`'s MARRIAGE_REG branch opened
+`new MarriageEntryForm(null)` and called `ShowDialog` straight away - every OTHER service
+(birth/certrequest/release/breqs) calls a `Prepare...FromQueueTicket(ticketId)` first that pulls
+the kiosk's requester info and links the ticket/transaction; marriage had no such method at all,
+so opening a marriage ticket from the queue produced a blank, UNLINKED draft, and staff had to
+manually retype the queue/transaction code through `LinkQueueTicket`/`LinkTransaction` (`MUi.Ask`
+text prompts) to connect it back to the visit that generated it.
+
+New `MarriageEntryForm.PrepareForQueueTicket(ticketId, ticketCode)` (mirrors
+`CertificateRequestForm`'s own version): sets `_queueTicketId`/`_queueCode` directly, reads
+`queue_tickets.full_name` / `spouse_full_name` / `contact_no` / `transaction_id` for that ticket,
+and if a transaction is already attached links `_txnId`/`_txnCode` too (`Col1`, the same helper
+`LoadMarriage` already uses for the identical lookup). `QueueManagementForm.OpenServiceForm`'s
+MARRIAGE_REG branch now calls it before `ShowDialog`.
+
+**Names are shown as a REFERENCE, not auto-filled into the First/Middle/Last boxes.** The kiosk
+stores each party as ONE joined string (`full_name`/`spouse_full_name` - confirmed in
+`KioskCore.cs`, no separate first/middle/last columns), and this project already measured,
+building the BREQS desk on 2026-08-04, that guessing a split on a kiosk-typed name mangles a
+two-word surname - that entry deliberately shows the joined name as a hint rather than splitting
+it, and this fix follows the same precedent rather than reintroducing the risk. New
+`_queueIntakeHint` field carries "husband · wife · contact" (blank parts dropped) and is appended
+in parentheses to the existing `_queueLabel` text ("Queue: Q-045 (Juan Dela Cruz · Maria Santos ·
+0917...)"), which `RefreshAll` already redraws - no new control added.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+Not run against the live database or a real queue ticket (no interactive desktop) - the query and
+field-assignment pattern is copied directly from `CertificateRequestForm.PrepareForQueueTicket`
+and `LoadMarriage`'s own transaction-code lookup, both already proven working. GUI not clicked -
+rebuild in VS and confirm opening a MARRIAGE_REG ticket from Queue Management now shows the
+linked queue/transaction and the requester reference text instead of a blank draft.
+NOTE, found while reading this code and NOT fixed (pre-existing, out of scope for this fix):
+`LinkTransaction()`/`LinkQueueTicket()` (the manual "Link..." buttons) call `RefreshRail()` only,
+not `RefreshAll()` - `_txnLabel`/`_queueLabel` are redrawn in `RefreshAll`, so manually linking via
+those two buttons may not update the visible label text until something else triggers a full
+refresh. `PrepareForQueueTicket` calls `RefreshAll()` and is unaffected.

@@ -447,7 +447,11 @@ namespace CROMS.Forms
                 }
                 else if (serviceCode.Equals("MARRIAGE_REG", StringComparison.OrdinalIgnoreCase))
                 {
-                    using (var entry = new MarriageEntryForm(null)) entry.ShowDialog(shell);
+                    using (var entry = new MarriageEntryForm(null))
+                    {
+                        entry.PrepareForQueueTicket(ticketId, ticketCode);
+                        entry.ShowDialog(shell);
+                    }
                     marriage.RefreshData();
                 }
             }
