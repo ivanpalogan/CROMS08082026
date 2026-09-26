@@ -986,6 +986,7 @@ namespace CROMS.Forms
                     // never the upload id standing in for a registry number.
                     OcrAudit.MarkProcessed(_ocrScanId, "marriages", _id.Value, _reg.Text);
                     _ocrPending = false;
+                    if (_status != "Registered") _currentStep = "Verify";
                 }
                 // SaveMarriage already synced marriage_requirements (it runs SyncMarriageRequirements
                 // internally), so the OUT_OF_PROVINCE_LICENSE row now exists if this marriage needs
@@ -1331,7 +1332,9 @@ namespace CROMS.Forms
                 {
                     if (!_id.HasValue && !Save(null)) return;
                     if (!MUi.Confirm(this, "Review complete", "Have you compared every weak field against the source certificate?")) return;
-                    MarriageService.MarkOcrReviewed(_id.Value); _ocrPending = false; RefreshAll();
+                    MarriageService.MarkOcrReviewed(_id.Value); _ocrPending = false;
+                    if (_status != "Registered") _currentStep = "Register";
+                    RefreshAll();
                 };
                 var row = new FlowLayoutPanel { Height = 76, BackColor = Color.Transparent };
                 row.Controls.Add(b1); row.Controls.Add(b2);

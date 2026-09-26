@@ -946,7 +946,11 @@ namespace CROMS.Data
         public static void SetOcrContext(int id, string scanId, int confidence, int weakFields, bool needsReview)
         {
             string review = needsReview || weakFields > 0 ? "Required" : "Completed";
-            Db.Push("UPDATE marriages SET ocr_scan_id=@s, ocr_confidence=@c, ocr_weak_fields=@w, ocr_review_status=@r WHERE id=@id",
+            // Current Step advances to Verify the moment OCR has read the certificate - the
+            // record now needs a person to check it, not a machine. Guarded on status so a
+            // record already Registered can never be pulled back a step by a later re-scan.
+            Db.Push("UPDATE marriages SET ocr_scan_id=@s, ocr_confidence=@c, ocr_weak_fields=@w, ocr_review_status=@r, " +
+                    "current_step='Verify' WHERE id=@id AND status <> 'Registered'",
                 P("@s", scanId), P("@c", confidence), P("@w", weakFields), P("@r", review), P("@id", id));
             History("Marriage", id, "Linked to scan", null, null,
                 (scanId ?? "scan") + ": " + confidence + "% confidence, " + weakFields + " weak field(s); review " + review.ToLowerInvariant());
@@ -954,7 +958,12 @@ namespace CROMS.Data
 
         public static void MarkOcrReviewed(int id)
         {
-            Db.Push("UPDATE marriages SET ocr_review_status='Completed', ocr_reviewed_by=@u, ocr_reviewed_at=NOW() WHERE id=@id",
+            // Verification done -> Current Step becomes Register (the record is now ready for
+            // the registrar's Register action). Status is NOT touched here - it stays whatever
+            // it already was (Draft/For Review/Returned all read as "Pending" on the desk list)
+            // until the registrar actually registers it.
+            Db.Push("UPDATE marriages SET ocr_review_status='Completed', ocr_reviewed_by=@u, ocr_reviewed_at=NOW(), " +
+                    "current_step='Register' WHERE id=@id AND status <> 'Registered'",
                 P("@u", UserId), P("@id", id));
             History("Marriage", id, "OCR review completed", "Required", "Completed", "Fields compared against the source scan");
         }

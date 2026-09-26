@@ -5768,3 +5768,32 @@ VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools — no VS2019 msbuild.exe on
 clean, 0 errors, 0 warnings (temp OutDir). Not run against the live database — depends on
 migrations 59/60 for the richer columns, degrades gracefully without them per the 1054 fallback
 above. GUI not clicked (no interactive desktop) — rebuild in VS to see the new tab.
+
+### 2026-09-27 (later still) — Step 8, Verification: current_step now advances Verify -> Register
+
+Checked first: almost everything Step 8 asks for already existed on `MarriageEntryForm` (Form 97)
+— per-field OCR review grid, "Compare with scan" split view, editable H/W/parents/solemnizer/
+witness fields, and the license picker + "Copy applicants from licence" (Link + auto-fill, still
+editable) from the 2026-07/09 marriage-workflow passes. The one real gap: `current_step` never
+moved to Verify or Register — `MarriageService.SetOcrContext` (runs right after an OCR scan is
+attached) and `MarkOcrReviewed` (runs when staff click "Mark review complete") wrote every other
+OCR column but left `current_step` untouched, so the Pending Registrations list added minutes ago
+would have shown a stale step through the whole verify cycle.
+
+Both now set it: `SetOcrContext` -> `current_step='Verify'` (OCR just read the certificate, a
+person must check it now); `MarkOcrReviewed` -> `current_step='Register'` (verification done,
+ready for the registrar). Both guarded `WHERE status <> 'Registered'`, matching every other
+current_step write in this file, so a re-scan or re-review on an already-Registered record can
+never pull it back a step. Status is untouched by either call — it stays whatever it already was
+(Draft/For Review/Returned, all shown as "Pending" on the desk), exactly as the spec states.
+
+Fixed the same gap in the OPEN DIALOG: `MarriageEntryForm`'s step pill reads the in-memory
+`_currentStep` field, not a DB re-read, so the two DB writes above would have updated the row but
+left the pill showing the old step until the dialog was closed and reopened. Both call sites now
+also set `_currentStep` locally (Save()'s OCR-attach branch -> "Verify"; the Mark-review-complete
+handler -> "Register") before the next repaint.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+Not run against the live database (no connection here) — the guard clause and in-memory field
+follow the exact pattern already proven at every other `current_step` write site in this file.
+GUI not clicked — rebuild in VS to confirm the step pill updates live through Verify -> Register.
