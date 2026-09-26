@@ -5696,3 +5696,35 @@ Residence cells (mother + father) were House/St., Province, Municipality, Barang
 
 ### 2026-09-25 — Queue Management: Regular tickets can be forwarded from a Priority Window
 Reported from the running app: Forward to Window on a ticket whose priority reads "Regular" still demanded an administrator override because the operator's window is a Priority Window. The gate checked only the WINDOW (`IsPriorityWindow`), never the ticket. `ForwardCurrent` now reads the ticket's own `priority` (added to `CurrentTicket`'s SELECT) and requires the admin override only when the ticket is a priority-lane one (Senior/PWD/Priority) held at a Priority Window; a Regular (or blank) ticket forwards straight to the next window assigned to its pending service. No schema change. MSBuild clean, 0 errors (temp OutputPath). GUI not clicked — rebuild in VS and test Forward on a Regular ticket.
+
+### 2026-09-27 — Marriage Registration intake reworked: Marriage Basis + Submitted By
+Per request, updated ONLY the Marriage Registration (Form 97) intake — nothing else touched.
+
+Renamed the existing basis radio pair from "LICENSE REQUIRED"/"LICENSE EXEMPT" to "WITH MARRIAGE
+LICENSE"/"LICENSE EXEMPT" (spec wording); the underlying `Basis` values ("Licensed"/"Exempt")
+and all downstream logic are unchanged. The "search and link the previous Marriage License
+record and reuse available data" requirement was ALREADY BUILT (the licence search box + list +
+"Copy applicants from licence" button, present since the 2026-09-07/09-13 marriage workflow
+passes) — confirmed present rather than rebuilt. Relabeled "Licence issued at (place)" to
+"Issuing LCRO (place of issuance)" to match the spec's field name (same `license_place` column,
+label-only change); License Number and Date Issued are already distinct fields (from the linked
+licence record when searched/selected, or typed directly when the licence was obtained
+out-of-province).
+
+Added "Submitted By" to the Certification tab: Solemnizing Officer / Husband / Wife / Authorized
+Representative (radio group, defaults to Officer), with Name + Office/Organization fields that
+show only for Authorized Representative and clear themselves when another option is picked (same
+show/clear-on-toggle convention this form already uses for the previously-married block and the
+out-of-province licence fields). Migration `Database/59_marriage_submitted_by.sql` (NOT yet
+applied to the live database) adds `marriages.submitted_by` / `submitted_by_rep_name` /
+`submitted_by_rep_org`, all nullable, nothing backfilled. Added to `MarriageService.
+MarriageColumns` whitelist and wired through `LoadMarriage`/`Values()` the same way every other
+Form 97 field is.
+
+Queue/requester information flow (kiosk intake, Certificate Request, transaction ledger) is
+untouched — this only changes the Form 97 registration screen itself.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings (temp OutputPath). Migration
+59 not yet applied to the live `croms` database — run it before saving a record with a Submitted
+By value, or the INSERT/UPDATE will fail on the three new columns. GUI not clicked (no
+interactive desktop) — rebuild in VS to see it.

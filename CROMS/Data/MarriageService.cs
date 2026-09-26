@@ -790,7 +790,8 @@ namespace CROMS.Data
             "witness1_name", "witness2_name", "license_id", "license_no", "license_date", "license_place",
             "license_out_of_province",
             "license_basis", "exemption_basis", "exemption_notes", "delay_reason",
-            "received_by", "received_by_title", "received_by_date", "remarks", "scan_image"
+            "received_by", "received_by_title", "received_by_date", "remarks", "scan_image",
+            "submitted_by", "submitted_by_rep_name", "submitted_by_rep_org"
         };
 
         private static readonly string[] NotNullNames = { "husband_first_name", "husband_last_name", "wife_first_name", "wife_last_name" };

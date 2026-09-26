@@ -30,7 +30,7 @@ namespace CROMS.Forms
         // tab 1-2
         private readonly TextBox _reg = MUi.Box(), _book = MUi.Box(), _page = MUi.Box();
         // tab 3
-        private readonly RadioButton _rbLic = new RadioButton { Text = "LICENSE REQUIRED", AutoSize = true, Font = MUi.F(9.5F, FontStyle.Bold) },
+        private readonly RadioButton _rbLic = new RadioButton { Text = "WITH MARRIAGE LICENSE", AutoSize = true, Font = MUi.F(9.5F, FontStyle.Bold) },
                                      _rbEx = new RadioButton { Text = "LICENSE EXEMPT", AutoSize = true, Font = MUi.F(9.5F, FontStyle.Bold) };
         private readonly TextBox _licSearch = MUi.Box(), _licPlace = MUi.Box(), _exNotes = MUi.Box();
         private readonly CheckBox _licAll = new CheckBox { Text = "Show all licences", AutoSize = true };
@@ -54,6 +54,13 @@ namespace CROMS.Forms
         private readonly TextBox _recvBy = MUi.Box(), _recvTitle = MUi.Box(), _remarks = MUi.Box(), _delay = MUi.Box();
         private readonly DateTimePicker _recv = MUi.Date(true);
         private readonly Banner _regBanner = new Banner();
+        // "Submitted By" - who is filing this Form 97 registration with the office.
+        private readonly RadioButton _rbSubOfficer = new RadioButton { Text = "Solemnizing Officer", AutoSize = true },
+                                     _rbSubHusband = new RadioButton { Text = "Husband", AutoSize = true },
+                                     _rbSubWife = new RadioButton { Text = "Wife", AutoSize = true },
+                                     _rbSubRep = new RadioButton { Text = "Authorized Representative", AutoSize = true };
+        private readonly TextBox _repName = MUi.Box(), _repOrg = MUi.Box();
+        private readonly Panel _repPanel = new Panel();
 
         private void InitializeComponent()
         {

@@ -89,7 +89,7 @@ namespace CROMS.Forms
 
             _loading = true;
             if (_id.HasValue) LoadMarriage(_id.Value);
-            else { _rbLic.Checked = true; MUi.Put(_recv, DateTime.Today); }
+            else { _rbLic.Checked = true; _rbSubOfficer.Checked = true; MUi.Put(_recv, DateTime.Today); }
             _loading = false;
             _dirty = false;
             ReloadLicenses();
@@ -390,7 +390,7 @@ namespace CROMS.Forms
             _oopPanel.Height = 58 + 34 + 76;
 
             var placeRow = MUi.Grid(2, 1, 58);
-            placeRow.Controls.Add(MUi.Field("Licence issued at (place)", _licPlace), 0, 0);
+            placeRow.Controls.Add(MUi.Field("Issuing LCRO (place of issuance)", _licPlace), 0, 0);
             var cp = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 24, 0, 0), BackColor = Color.Transparent };
             cp.Controls.Add(copy); copy.Dock = DockStyle.Left;
             placeRow.Controls.Add(cp, 1, 0);
@@ -457,7 +457,32 @@ namespace CROMS.Forms
             foreach (Control c in new Control[] { _recvBy, _recvTitle, _delay, _remarks }) c.TextChanged += (s, e) => Changed(c);
             _recv.ValueChanged += (s, e) => Changed(_recv);
             AutoCaps.Attach(_recvBy);
-            Stack(pg, Section("Certification and receipt", "The date the certificate reached this office decides timely vs delayed registration."), r, _regBanner, dl, rm);
+
+            // Submitted By - who is filing this registration.
+            var subRow = new FlowLayoutPanel { Height = 34, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0) };
+            subRow.Controls.Add(_rbSubOfficer); subRow.Controls.Add(Spacer(20)); subRow.Controls.Add(_rbSubHusband);
+            subRow.Controls.Add(Spacer(20)); subRow.Controls.Add(_rbSubWife); subRow.Controls.Add(Spacer(20)); subRow.Controls.Add(_rbSubRep);
+            foreach (RadioButton rb in new[] { _rbSubOfficer, _rbSubHusband, _rbSubWife, _rbSubRep })
+                rb.CheckedChanged += (s, e) => { if (!_loading) { ApplySubmittedBy(); Changed(rb); } };
+            TableLayoutPanel repRow = MUi.Grid(2, 1, 58);
+            repRow.Controls.Add(MUi.Field("Name", _repName), 0, 0); repRow.Controls.Add(MUi.Field("Office / Organization", _repOrg), 1, 0);
+            _repName.TextChanged += (s, e) => Changed(_repName); _repOrg.TextChanged += (s, e) => Changed(_repOrg);
+            AutoCaps.Attach(_repName);
+            Stack(_repPanel, repRow);
+            _repPanel.Height = 58;
+            _repPanel.Visible = false;
+
+            Stack(pg, Section("Certification and receipt", "The date the certificate reached this office decides timely vs delayed registration."), r, _regBanner, dl, rm,
+                  Section("Submitted by", "Who is filing this registration with the office."), subRow, _repPanel);
+        }
+
+        private static Control Spacer(int w) { return new Panel { Width = w, Height = 1, BackColor = Color.Transparent }; }
+
+        private void ApplySubmittedBy()
+        {
+            bool rep = _rbSubRep.Checked;
+            _repPanel.Visible = rep;
+            if (!rep) { _repName.Text = ""; _repOrg.Text = ""; }
         }
 
         // ===================================================================== lookups
@@ -626,6 +651,14 @@ namespace CROMS.Forms
             else if (S("license_no") != "") _licSearch.Text = S("license_no");
             _scanImage = r["scan_image"] == DBNull.Value ? null : (byte[])r["scan_image"];
             _ocrScanId = S("ocr_scan_id") == "" ? null : S("ocr_scan_id");
+
+            string submittedBy = dt.Columns.Contains("submitted_by") ? S("submitted_by") : "";
+            _rbSubHusband.Checked = submittedBy == "Husband"; _rbSubWife.Checked = submittedBy == "Wife";
+            _rbSubRep.Checked = submittedBy == "Representative";
+            _rbSubOfficer.Checked = !_rbSubHusband.Checked && !_rbSubWife.Checked && !_rbSubRep.Checked;
+            _repName.Text = dt.Columns.Contains("submitted_by_rep_name") ? S("submitted_by_rep_name") : "";
+            _repOrg.Text = dt.Columns.Contains("submitted_by_rep_org") ? S("submitted_by_rep_org") : "";
+            _repPanel.Visible = _rbSubRep.Checked;
         }
 
         private MarriageFacts UiFacts()
@@ -688,6 +721,9 @@ namespace CROMS.Forms
                 { "license_no", m.Basis == "Licensed" ? (m.OutOfProvinceLicense ? m.ExternalLicenseNo : _lic != null ? _lic.LicenseNo : null) : null },
                 { "license_date", m.Basis == "Licensed" ? (m.OutOfProvinceLicense ? (object)m.ExternalLicenseDate : _lic != null ? (object)_lic.IssueDate : null) : null },
                 { "license_place", m.Basis == "Licensed" ? Nz(_licPlace.Text) : null },
+                { "submitted_by", _rbSubHusband.Checked ? "Husband" : _rbSubWife.Checked ? "Wife" : _rbSubRep.Checked ? "Representative" : "Officer" },
+                { "submitted_by_rep_name", _rbSubRep.Checked ? Nz(_repName.Text) : null },
+                { "submitted_by_rep_org", _rbSubRep.Checked ? Nz(_repOrg.Text) : null },
             };
             foreach (var pair in new[] { Tuple.Create(_h, "husband"), Tuple.Create(_w, "wife") })
             {
@@ -872,6 +908,7 @@ namespace CROMS.Forms
             MUi.SetPill(_statusPill, (_status ?? "Draft").ToUpperInvariant() + (_reg.Text.Length > 0 && registered ? "  " + _reg.Text : ""), _status);
             _licPanel.Visible = _rbLic.Checked; _exPanel.Visible = _rbEx.Checked;
             _localPanel.Visible = !_oop.Checked; _oopPanel.Visible = _oop.Checked;
+            _repPanel.Visible = _rbSubRep.Checked;
             _licPanel.Height = 30 + (_oop.Checked ? _oopPanel.Height : _localPanel.Height) + 58 + 6;
 
             MarriageFacts m = UiFacts();
