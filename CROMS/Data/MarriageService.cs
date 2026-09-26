@@ -992,16 +992,51 @@ namespace CROMS.Data
                 (string.IsNullOrWhiteSpace(registeredByName) ? "" : " - recorded by " + registeredByName));
         }
 
-        /// <summary>
-        /// STEP 10 - the final, physically signed/stamped Form 97 (a different image from
-        /// scan_image, which is the pre-registration certificate OCR already read). Recorded
-        /// only, never generated or altered - no signature is drawn or synthesised here.
-        /// </summary>
-        public static void SaveFinalScanImage(int id, byte[] image)
+        // ================================================================ STEP 10/11: final registered Form 97
+        // A dedicated table (marriage_final_documents, migration 64), not `scan_image` - that
+        // column is the pre-registration certificate OCR already read; the final, signed/
+        // stamped copy is a different document with a different meaning and must not overwrite
+        // it. A dedicated table rather than a single BLOB column because Step 11 needs View /
+        // Replace / Add Page - more than one page. Recorded only, never generated or altered -
+        // no signature is drawn or synthesised anywhere in this path.
+
+        public static List<byte[]> FinalDocumentPages(int marriageId)
         {
-            Db.Push("UPDATE marriages SET final_scan_image=@img WHERE id=@id",
-                new MySqlParameter("@img", image) { MySqlDbType = MySqlDbType.LongBlob }, P("@id", id));
-            History("Marriage", id, "Final registered Form 97 attached", null, null, "Image recorded - " + image.Length + " bytes");
+            var list = new List<byte[]>();
+            DataTable dt = Db.Pull("SELECT image FROM marriage_final_documents WHERE marriage_id=@id ORDER BY page_no", P("@id", marriageId));
+            foreach (DataRow r in dt.Rows) if (r["image"] != DBNull.Value) list.Add((byte[])r["image"]);
+            return list;
+        }
+
+        public static void AddFinalDocumentPage(int marriageId, byte[] image)
+        {
+            int nextPage = Convert.ToInt32(Db.Pull(
+                "SELECT COALESCE(MAX(page_no),0)+1 FROM marriage_final_documents WHERE marriage_id=@id", P("@id", marriageId)).Rows[0][0]);
+            Db.Push("INSERT INTO marriage_final_documents (marriage_id, page_no, image, uploaded_by) VALUES (@m,@p,@img,@u)",
+                P("@m", marriageId), P("@p", nextPage),
+                new MySqlParameter("@img", image) { MySqlDbType = MySqlDbType.LongBlob }, P("@u", UserId));
+            History("Marriage", marriageId, "Final registered Form 97 - page added", null, null, "Page " + nextPage + " (" + image.Length + " bytes)");
+        }
+
+        /// <summary>"Replace": discard every page captured so far, so a fresh capture starts clean rather than appending onto a wrong set.</summary>
+        public static void ClearFinalDocument(int marriageId)
+        {
+            Db.Push("DELETE FROM marriage_final_documents WHERE marriage_id=@id", P("@id", marriageId));
+            History("Marriage", marriageId, "Final registered Form 97 - existing pages cleared for replacement", null, null, null);
+        }
+
+        /// <summary>
+        /// STEP 11 - staff confirm the final document is complete and correct. Never flips
+        /// Status - the spec is explicit that Status stays Pending until this is confirmed, and
+        /// confirming it is not itself the legal Register() action.
+        /// </summary>
+        public static void ConfirmFinalDocument(int id)
+        {
+            int pages = Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM marriage_final_documents WHERE marriage_id=@id", P("@id", id)).Rows[0][0]);
+            if (pages == 0) throw new InvalidOperationException("Capture or upload the final registered Form 97 before confirming it.");
+            Db.Push("UPDATE marriages SET final_confirmed=1, final_confirmed_by=@u, final_confirmed_at=NOW() WHERE id=@id AND status <> 'Registered'",
+                P("@u", UserId), P("@id", id));
+            History("Marriage", id, "Final registered Form 97 confirmed", null, null, pages + " page(s)");
         }
 
         public static void StartCasePosting(int id, DateTime start)

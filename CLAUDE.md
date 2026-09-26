@@ -5904,3 +5904,46 @@ Migration 63 not yet applied to the live database — the C# side degrades to th
 INSERT automatically; the Node side degrades the same way via the Unknown-column retry. GUI/phone
 not exercised (no interactive desktop, no device) — rebuild CROMS in VS and restart the save-API
 process to pick this up.
+
+### 2026-09-27 (final) — Step 11, Final Document Handling; Step 10's single-column design
+### superseded before it ever shipped
+
+Step 11 asked for View/Replace/Add Page against the final document — "Add Page" means more than
+one page can exist, which the single `marriages.final_scan_image` LONGBLOB column built for Step
+10 cannot hold. Since migration 63 had never been applied anywhere, the single-column piece was
+removed from it outright rather than shipped and immediately superseded - `63_marriage_final_scan
+.sql` now only adds `form97_capture_tokens.purpose`. New migration `64_marriage_final_document.sql`
+(NOT yet applied) adds a dedicated `marriage_final_documents` table (marriage_id, page_no, image,
+uploaded_by, uploaded_at - permanent storage, separate from the EXPIRING form97_capture_tokens/
+images used for the capture session itself) plus `marriages.final_confirmed` /
+`final_confirmed_by` / `final_confirmed_at`.
+
+`MarriageService` gained `FinalDocumentPages`, `AddFinalDocumentPage`, `ClearFinalDocument` (used
+by Replace - discards every existing page so a fresh capture never appends onto a wrong or
+damaged set), and `ConfirmFinalDocument` (refuses with a clear message if zero pages exist yet;
+otherwise stamps who/when and leaves `marriages.status` completely untouched - the spec is
+explicit that Status stays Pending regardless of confirmation, and confirming is not the legal
+`Register()` action).
+
+**Desktop UI**: a new permanent rail section "Final registered Form 97" on `MarriageEntryForm`
+(shown for every record, not just right after Step 9) with a live preview of the newest page,
+a page count, a Confirmed/Not Confirmed pill, and the four buttons: **View** (opens the page
+directly when there is one, or a small page picker when there is more than one), **Replace**
+(confirms, then `ClearFinalDocument` + reopens the same capture chooser), **Add Page** (reopens
+the chooser WITHOUT clearing anything first), **Confirm Final Document** (disabled once already
+confirmed or when no page exists yet; re-labels itself "Final Document Confirmed"). Both Step 10's
+required popup and these two rail buttons now share one `ShowFinalCaptureChooser(heading, body)` —
+same two choices (Mobile Capture / Scan-Upload), different wording per entry point, instead of
+three near-identical dialogs.
+
+No OCR runs on any of this — `ShowFinalMobileCapture`'s poll handler and `PickFinalScanFile` both
+call `AddFinalDocumentPage` directly and stop there, unlike the pre-registration capture path
+(`ApplyCaptureScans`) which deliberately does feed `DocumentAI.Analyze`. Loading a record wraps
+`FinalDocumentPages` in a try/catch so a database that hasn't run migration 64 yet still opens
+every other marriage record instead of throwing out of `LoadMarriage`.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+Not run against the live database — migrations 63 (now purpose-only) and 64 not yet applied; the
+guarded read path means an unmigrated database still opens existing records, it just shows "Not
+yet captured" until 64 is applied. GUI not clicked (no interactive desktop) — rebuild in VS to
+see the new rail section and confirm View/Replace/Add Page/Confirm.

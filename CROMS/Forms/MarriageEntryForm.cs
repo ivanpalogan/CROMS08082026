@@ -50,6 +50,10 @@ namespace CROMS.Forms
         private string _ocrScanId;
         private DocAiResult _ocr;
         private bool _ocrPending, _loading, _dirty;
+        // STEP 11 - the FINAL, physically signed/stamped Form 97 (separate from _scanImage,
+        // the pre-registration certificate OCR already read). Loaded from marriage_final_documents.
+        private List<byte[]> _finalPages = new List<byte[]>();
+        private bool _finalConfirmed;
         private LicenseFacts _lic;
         private List<ReqType> _catalog;
         private readonly MarriageSettings _s = MarriageService.Settings;
@@ -826,7 +830,7 @@ namespace CROMS.Forms
             else RefreshRail();
         }
 
-        // ===================================================================== STEP 10: final registered Form 97
+        // ===================================================================== STEP 10/11: final registered Form 97
         /// <summary>
         /// Once registration information is saved, the record needs a picture of the FINAL,
         /// physically signed/stamped Form 97 - a different image from the pre-registration
@@ -837,20 +841,26 @@ namespace CROMS.Forms
         /// </summary>
         private void ShowFinalScanRequiredPopup()
         {
+            ShowFinalCaptureChooser("FINAL FORM 97 REQUIRED",
+                "Capture or upload the completed registered Form 97 before completing this transaction.");
+        }
+
+        /// <summary>Shared by the Step 10 required popup and the Step 11 rail's Add Page / Replace buttons - same two choices, different heading/body text.</summary>
+        private void ShowFinalCaptureChooser(string heading, string body)
+        {
             using (var dlg = new Form
             {
-                Text = "Final Form 97 Required",
+                Text = "Final Registered Form 97",
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false,
                 ClientSize = new Size(420, 210),
             })
             {
-                var lblHead = MUi.Txt("FINAL FORM 97 REQUIRED", 12F, FontStyle.Bold, UiTheme.Danger);
+                var lblHead = MUi.Txt(heading, 12F, FontStyle.Bold, UiTheme.Danger);
                 lblHead.AutoSize = false; lblHead.Size = new Size(380, 26); lblHead.Location = new Point(20, 18);
 
-                var lblBody = MUi.Txt("Capture or upload the completed registered Form 97 before completing this transaction.",
-                    9.5F, FontStyle.Regular, UiTheme.Muted);
+                var lblBody = MUi.Txt(body, 9.5F, FontStyle.Regular, UiTheme.Muted);
                 lblBody.AutoSize = false; lblBody.Size = new Size(380, 54); lblBody.Location = new Point(20, 50);
 
                 var bMobile = MUi.Btn("Mobile Capture", MUi.Kind.Primary, 380);
@@ -926,7 +936,8 @@ namespace CROMS.Forms
                         byte[] final = pages[pages.Count - 1];
                         try
                         {
-                            MarriageService.SaveFinalScanImage(_id.Value, final);
+                            MarriageService.AddFinalDocumentPage(_id.Value, final);
+                            _finalPages = MarriageService.FinalDocumentPages(_id.Value);
                             Form97Capture.Complete(token);
                             Form97Capture.AttachMarriageId(token, _id.Value);
                             lblStatus.Text = "Received - saved to the record.";
@@ -952,7 +963,8 @@ namespace CROMS.Forms
                 try
                 {
                     byte[] bytes = File.ReadAllBytes(ofd.FileName);
-                    MarriageService.SaveFinalScanImage(_id.Value, bytes);
+                    MarriageService.AddFinalDocumentPage(_id.Value, bytes);
+                    _finalPages = MarriageService.FinalDocumentPages(_id.Value);
                     RefreshRail();
                     MessageBox.Show(this, "Final registered Form 97 saved to the record.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                     return true;
@@ -963,6 +975,57 @@ namespace CROMS.Forms
                     return false;
                 }
             }
+        }
+
+        /// <summary>View: opens the newest page directly; with more than one page, lets the operator pick which to look at.</summary>
+        private void ViewFinalDocument()
+        {
+            if (_finalPages.Count == 0) { MessageBox.Show(this, "No final registered Form 97 has been captured yet.", "Nothing to view", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (_finalPages.Count == 1) { SoftcopyViewer.Show(_finalPages[0], "Final Registered Form 97", this); return; }
+            using (var pick = new Form { Text = "Final Registered Form 97 - pages", StartPosition = FormStartPosition.CenterParent, FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false, ClientSize = new Size(240, 220) })
+            {
+                var list = new ListBox { Location = new Point(12, 12), Size = new Size(216, 196), Font = MUi.F(9.5F) };
+                for (int i = 0; i < _finalPages.Count; i++) list.Items.Add("Page " + (i + 1));
+                list.DoubleClick += (s, e) => { if (list.SelectedIndex >= 0) SoftcopyViewer.Show(_finalPages[list.SelectedIndex], "Final Registered Form 97 - page " + (list.SelectedIndex + 1), this); };
+                pick.Controls.Add(list);
+                pick.ShowDialog(this);
+            }
+        }
+
+        /// <summary>Add Page: appends a page onto the existing final document without discarding what is already there.</summary>
+        private void AddFinalDocumentPageAction()
+        {
+            if (!_id.HasValue) { MessageBox.Show(this, "Save the record first.", "Nothing to attach to", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            ShowFinalCaptureChooser("Add a Page", "Capture or upload the next page of the final registered Form 97.");
+        }
+
+        /// <summary>Replace: discards every page captured so far, then starts a fresh capture - never appended onto a wrong or damaged set.</summary>
+        private void ReplaceFinalDocumentAction()
+        {
+            if (!_id.HasValue) { MessageBox.Show(this, "Save the record first.", "Nothing to replace", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            if (_finalPages.Count > 0 && !MUi.Confirm(this, "Replace final document",
+                    "This discards the " + _finalPages.Count + " page(s) already on file and lets you capture a fresh copy. Continue?")) return;
+            MarriageService.ClearFinalDocument(_id.Value);
+            _finalPages.Clear();
+            RefreshRail();
+            ShowFinalCaptureChooser("Replace Final Document", "Capture or upload the completed registered Form 97.");
+        }
+
+        /// <summary>
+        /// STEP 11 - staff confirm the final document is exactly what the LCRO finished. This
+        /// never changes Status - the spec is explicit that Status stays Pending regardless.
+        /// </summary>
+        private void ConfirmFinalDocumentAction()
+        {
+            if (!_id.HasValue) return;
+            if (!MUi.Confirm(this, "Confirm final document", "Confirm that the captured/uploaded page(s) are the completed, signed and stamped Form 97?")) return;
+            try
+            {
+                MarriageService.ConfirmFinalDocument(_id.Value);
+                _finalConfirmed = true;
+                RefreshRail();
+            }
+            catch (InvalidOperationException ex) { MessageBox.Show(this, ex.Message, "Cannot confirm", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         private void CaptureReplace()
@@ -1036,6 +1099,10 @@ namespace CROMS.Forms
             else if (S("license_no") != "") _licSearch.Text = S("license_no");
             _scanImage = r["scan_image"] == DBNull.Value ? null : (byte[])r["scan_image"];
             _ocrScanId = S("ocr_scan_id") == "" ? null : S("ocr_scan_id");
+            // STEP 11: final document pages + confirmation flag (migration 64). Guarded - a
+            // database that hasn't run 64 yet must still open every other marriage record.
+            try { _finalPages = MarriageService.FinalDocumentPages(id); } catch { _finalPages = new List<byte[]>(); }
+            _finalConfirmed = dt.Columns.Contains("final_confirmed") && S("final_confirmed") == "1";
 
             string submittedBy = dt.Columns.Contains("submitted_by") ? S("submitted_by") : "";
             _rbSubHusband.Checked = submittedBy == "Husband"; _rbSubWife.Checked = submittedBy == "Wife";
@@ -1518,6 +1585,38 @@ namespace CROMS.Forms
                 row.Controls.Add(b1); row.Controls.Add(b2);
                 items.Add(row);
             }
+
+            // STEP 11 - Final Document Handling: FINAL_REGISTERED_FORM_97, kept separate from
+            // the pre-registration scan_image above. No OCR runs on it here - its only job is
+            // preserving what the LCRO finished, signed and stamped.
+            items.Add(MUi.Cap("Final registered Form 97"));
+            if (_finalPages.Count == 0)
+            {
+                items.Add(MUi.Txt("Not yet captured or uploaded.", 9F, FontStyle.Regular, UiTheme.Muted));
+            }
+            else
+            {
+                var picFinal = new PictureBox { Height = 110, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(245, 247, 250), Cursor = Cursors.Hand };
+                try { using (var ms = new MemoryStream(_finalPages[_finalPages.Count - 1])) picFinal.Image = new Bitmap(Image.FromStream(ms)); } catch { }
+                picFinal.Click += (s, e) => ViewFinalDocument();
+                items.Add(picFinal);
+                items.Add(MUi.Kv("Pages", _finalPages.Count.ToString()));
+                var fp = new FlowLayoutPanel { Height = 32, BackColor = Color.Transparent };
+                fp.Controls.Add(MUi.Txt("Status", 9F, FontStyle.Regular, UiTheme.Muted));
+                fp.Controls.Add(MUi.Pill(_finalConfirmed ? "CONFIRMED" : "NOT CONFIRMED", _finalConfirmed ? "Completed" : "Required"));
+                items.Add(fp);
+            }
+            var finalRow1 = new FlowLayoutPanel { Height = 34, BackColor = Color.Transparent };
+            var bFView = MUi.Btn("View", MUi.Kind.Secondary, 76); bFView.Click += (s, e) => ViewFinalDocument();
+            var bFReplace = MUi.Btn("Replace", MUi.Kind.Secondary, 86); bFReplace.Click += (s, e) => ReplaceFinalDocumentAction();
+            var bFAdd = MUi.Btn("Add Page", MUi.Kind.Secondary, 90); bFAdd.Click += (s, e) => AddFinalDocumentPageAction();
+            finalRow1.Controls.Add(bFView); finalRow1.Controls.Add(bFReplace); finalRow1.Controls.Add(bFAdd);
+            items.Add(finalRow1);
+            var bFConfirm = MUi.Btn("Confirm Final Document", _finalConfirmed ? MUi.Kind.Secondary : MUi.Kind.Success, 250);
+            bFConfirm.Enabled = _id.HasValue && _finalPages.Count > 0 && !_finalConfirmed;
+            bFConfirm.Text = _finalConfirmed ? "Final Document Confirmed" : "Confirm Final Document";
+            bFConfirm.Click += (s, e) => ConfirmFinalDocumentAction();
+            items.Add(bFConfirm);
 
             items.Add(MUi.Cap("Checks"));
             _issues.Height = 300;
