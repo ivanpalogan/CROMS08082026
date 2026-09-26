@@ -5947,3 +5947,49 @@ Not run against the live database — migrations 63 (now purpose-only) and 64 no
 guarded read path means an unmigrated database still opens existing records, it just shows "Not
 yet captured" until 64 is applied. GUI not clicked (no interactive desktop) — rebuild in VS to
 see the new rail section and confirm View/Replace/Add Page/Confirm.
+
+### 2026-09-27 (last) — Step 12, Complete Registration: gated on the confirmed final document
+
+Checked first: the existing `Register()` action (button captioned "REGISTER MARRIAGE") already
+does everything Step 12 asks for on save - flips `status` Draft/For Review/Returned to
+Registered, assigns the registry number (`RegistryNumber.Next`, retried on a collision per the
+2026-09-08 UNIQUE-constraint work), and stamps `registered_by` (who) + `registered_at`
+(DATETIME - date and time together) + `date_registered` (date, used by the PSA reports). No new
+"Completion Date/Time/Completed By/Registry Number" columns were needed - they already exist
+under those names. The only genuinely missing piece was the GATE: nothing stopped registering a
+record whose final Form 97 (Step 11) was never captured or confirmed.
+
+Added in two places, matching this file's own defense-in-depth convention (UI disables the
+button, the service checks again independently):
+
+- **`MarriageEntryForm.RefreshChecks`**: `_btnRegister.Enabled` now also requires
+  `_finalConfirmed`; the footer message states the reason plainly ("Confirm the final registered
+  Form 97 (below, right) before completing registration.") instead of just leaving the button
+  gray with no explanation. `ConfirmFinalDocumentAction` (Step 11) now calls `RefreshAll()`
+  instead of just `RefreshRail()`, since re-enabling this button lives in `RefreshChecks`, a
+  sibling method the rail refresh alone never reaches.
+- **`MarriageService.Register`**: reads `marriages.final_confirmed` directly and, if not set,
+  adds a `RuleIssue` (Blocking, code `FINAL_DOCUMENT_NOT_CONFIRMED`) to the same issues list the
+  method already returns for every other blocking check - so a caller that somehow reached
+  `Register()` without going through the gated button (or on a migration 64 read failure,
+  treated as "not confirmed" rather than crashing) gets refused the same way, surfaced through
+  the SAME `_issues.SetIssues(issues)` path `Register()`'s caller already uses for every other
+  validation failure.
+
+**"Remove from Pending Registrations / show under Registered Marriages" needed no new UI.** The
+Pending Registrations tab (built earlier the same day, Step 7) already filters
+`status != 'Registered'`, so the record disappears from it the instant `Register()` flips the
+status - no separate removal step. The Marriages tab already lists every marriage with its Status
+column, so a freshly registered record is immediately visible there as Registered; and
+`MarriageEntryForm.Register()` already hands off to `MarriageRecordForm` (the read-only view for
+a Registered record) the moment registration succeeds, which is the same routing
+`MarriageRegistrationForm.OpenMarriage` already uses to distinguish Registered records from
+everything else. Nothing here needed building - it already existed and now works correctly with
+Step 11 wired in ahead of it.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+Not run against the live database - migration 64 not yet applied, so `final_confirmed` reads
+would currently fail and `Register()`'s try/catch treats that as "not confirmed" (refuses
+registration) rather than crashing; apply migration 64 before relying on this gate in practice.
+GUI not clicked (no interactive desktop) - rebuild in VS and confirm Register stays disabled
+until Confirm Final Document has been clicked.

@@ -1023,7 +1023,7 @@ namespace CROMS.Forms
             {
                 MarriageService.ConfirmFinalDocument(_id.Value);
                 _finalConfirmed = true;
-                RefreshRail();
+                RefreshAll(); // Register button is gated on _finalConfirmed - see RefreshChecks
             }
             catch (InvalidOperationException ex) { MessageBox.Show(this, ex.Message, "Cannot confirm", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
@@ -1465,15 +1465,20 @@ namespace CROMS.Forms
             }
             int blocks = issues.Count(x => x.Blocks);
             bool registered = _status == "Registered";
-            _btnRegister.Enabled = !registered && blocks == 0 && MarriageService.IsRegistrar;
+            // STEP 12 - Complete Registration is only allowed once the final registered Form 97
+            // exists AND staff have confirmed it (_finalConfirmed already requires >=1 page, per
+            // MarriageService.ConfirmFinalDocument's own guard).
+            bool finalDocOk = _finalConfirmed;
+            _btnRegister.Enabled = !registered && blocks == 0 && MarriageService.IsRegistrar && finalDocOk;
             _btnReview.Visible = !registered && _status != "For Review";
             _btnDraft.Text = registered ? "Save correction" : "Save as draft";
             _btnDraft.Enabled = !registered || MarriageService.IsRegistrar;
             _btnCase.Enabled = _id.HasValue && (m.Basis == "Exempt" || MarriageRules.WouldBeDelayed(m, _s));
             _btnSoft.Enabled = _scanImage != null;
             _btnAckSlip.Enabled = _id.HasValue && _status == "For Review";
-            _footInfo.ForeColor = blocks == 0 ? UiTheme.Success : UiTheme.Muted;
+            _footInfo.ForeColor = blocks == 0 && finalDocOk ? UiTheme.Success : UiTheme.Muted;
             _footInfo.Text = registered ? "Registered " + _reg.Text + " - corrections to a registered entry go through Petitions."
+                : !finalDocOk ? "Confirm the final registered Form 97 (below, right) before completing registration."
                 : !MarriageService.IsRegistrar && blocks == 0 ? "Checks pass - a Registrar registers the marriage."
                 : blocks == 0 ? (_dirty ? "Ready - unsaved changes will be saved on register." : "All checks pass.")
                 : blocks + " blocking check" + (blocks == 1 ? "" : "s") + (WeakCount() > 0 && _ocrPending ? " · " + WeakCount() + " weak OCR field(s)" : "") +

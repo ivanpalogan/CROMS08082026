@@ -1087,6 +1087,16 @@ namespace CROMS.Data
             LicenseFacts lic = m.LicenseId.HasValue ? LoadLicense(m.LicenseId.Value) : null;
             List<RuleIssue> issues = MarriageRules.ValidateMarriage(m, lic, Catalog(), DateTime.Today, Settings)
                                                   .Where(i => i.Blocks).ToList();
+            // STEP 12 - server-side gate matching the UI's own: Complete Registration is only
+            // allowed once the final registered Form 97 exists AND has been confirmed by staff.
+            // Checked here too (not just the button's Enabled state) so the rule holds even if
+            // a caller reaches Register() some other way.
+            bool finalConfirmed = false;
+            try { finalConfirmed = Convert.ToInt32(Db.Pull("SELECT final_confirmed FROM marriages WHERE id=@id", P("@id", id)).Rows[0][0]) == 1; }
+            catch { /* migration 64 not applied yet - treat as not confirmed rather than crash */ }
+            if (!finalConfirmed)
+                issues.Add(new RuleIssue(RuleSeverity.Blocking, "FINAL_DOCUMENT_NOT_CONFIRMED",
+                    "The final registered Form 97 must be captured/uploaded and confirmed before completing registration.", "Certification"));
             if (issues.Count > 0) return issues;
 
             bool delayed = MarriageRules.WouldBeDelayed(m, Settings);
