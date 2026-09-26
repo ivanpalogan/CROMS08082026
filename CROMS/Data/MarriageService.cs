@@ -798,12 +798,16 @@ namespace CROMS.Data
         private static readonly string[] NotNullNames = { "husband_first_name", "husband_last_name", "wife_first_name", "wife_last_name" };
 
         /// <summary>
-        /// The fixed Current Step vocabulary (migration 60) - a progress indicator only,
-        /// separate from marriages.status. "Registered" is reached only through Register().
+        /// The Current Step vocabulary (migration 60) - a progress indicator only, separate from
+        /// marriages.status. "Verify"/"Register"/"Final Scan" are the simple OCR-digitization
+        /// pipeline steps (SetOcrContext / MarkOcrReviewed / SaveRegistrationInfo); the older
+        /// phrases are written by the legal-registration workflow (StartCasePosting / Return /
+        /// Register) and predate that pipeline. "Registered" is reached only through Register().
         /// </summary>
         public static readonly string[] CurrentSteps =
         {
-            "Form 97 Capture", "Awaiting Registrar Review", "Returned - Awaiting Correction", "Registered"
+            "Form 97 Capture", "Verify", "Register", "Final Scan",
+            "Awaiting Registrar Review", "Returned - Awaiting Correction", "Registered"
         };
 
         /// <summary>
@@ -966,6 +970,26 @@ namespace CROMS.Data
                     "current_step='Register' WHERE id=@id AND status <> 'Registered'",
                 P("@u", UserId), P("@id", id));
             History("Marriage", id, "OCR review completed", "Required", "Completed", "Fields compared against the source scan");
+        }
+
+        /// <summary>
+        /// STEP 9 - Registration Information. Staff record the registration date and who
+        /// registered it, exactly as written on the PHYSICAL Form 97 (already signed/stamped by
+        /// the LCRO outside CROMS - no signature is generated or recreated here). This is a
+        /// plain data-entry save, distinct from <see cref="Register"/>: it never changes
+        /// marriages.status (spec: "Status = Pending" afterward), it only records the fact and
+        /// advances Current Step to Final Scan - guarded the same way every other current_step
+        /// write in this file is, so a record already Registered through the live workflow
+        /// cannot be pulled back a step by a later backlog data-entry edit.
+        /// </summary>
+        public static void SaveRegistrationInfo(int id, DateTime? dateRegistered, string registeredByName)
+        {
+            Db.Push("UPDATE marriages SET date_registered=@d, registered_by_name=@n, current_step='Final Scan' " +
+                    "WHERE id=@id AND status <> 'Registered'",
+                P("@d", dateRegistered), P("@n", registeredByName), P("@id", id));
+            History("Marriage", id, "Registration information recorded", null, null,
+                (dateRegistered.HasValue ? "Registered " + MarriageRules.D(dateRegistered.Value) : "Registration date not stated") +
+                (string.IsNullOrWhiteSpace(registeredByName) ? "" : " - recorded by " + registeredByName));
         }
 
         public static void StartCasePosting(int id, DateTime start)

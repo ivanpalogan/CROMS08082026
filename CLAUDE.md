@@ -5797,3 +5797,56 @@ VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings
 Not run against the live database (no connection here) — the guard clause and in-memory field
 follow the exact pattern already proven at every other `current_step` write site in this file.
 GUI not clicked — rebuild in VS to confirm the step pill updates live through Verify -> Register.
+
+### 2026-09-27 (later) — Step 9, Registration Information: registered_by field added, Final
+### Scan step wired; a real Pending-tab bug from Step 7/8 caught and fixed along the way
+
+Registry Number, Registration Date and Remarks all already existed as columns
+(`registry_no`/`date_registered`/`remarks`) and Registry No./Remarks were already editable on
+Form 97 — but Registration Date had no input control anywhere in the dialog (only ever written
+by the live `Register()` transaction), and there was no free-text "who registered it" field at
+all: `marriages.registered_by` (migration 33) is an INT auto-stamped by `Register()`, the
+system's own accountability column, not a place to type a name off the paper. Migration
+`62_marriage_registered_by.sql` (NOT yet applied to the live database) adds
+`marriages.registered_by_name` VARCHAR(120) as a separate column for exactly that, so the two
+meanings never collide.
+
+New Certification-tab section "Registration information (LCRO)": Registration Date
+(DateTimePicker with its checkbox, same "the sheet may state none" convention used everywhere
+else in this project) + Registered By (text) + a "Save Registration Information" button.
+Registry No. and Remarks are the SAME existing `_reg`/`_remarks` fields already on this
+dialog — nothing duplicated for those two.
+
+The button (`SaveRegistrationInfo()`) first calls the ordinary `Save(null)` (persists Registry
+No./Remarks/everything else exactly as Draft/Send-for-review already do, WITHOUT touching
+status), then a new focused `MarriageService.SaveRegistrationInfo(id, dateRegistered,
+registeredByName)` that writes only the two new/previously-unwritable fields and sets
+`current_step='Final Scan'` — guarded `WHERE status <> 'Registered'`, the same convention as
+every other current_step write in this file, so a live-registered record can't be pulled back a
+step by a later backlog edit. Status itself is never touched by either call, so it stays exactly
+what the spec asks ("Status = Pending" — this project's existing Pending/Registered show-only
+mapping already reads any non-Registered status as Pending). No signature is captured, generated,
+or implied anywhere in this — the comment on both the UI section and the service method says so
+explicitly, since the physical form is signed/stamped at the LCRO outside CROMS.
+
+**A REAL BUG FOUND WHILE WIRING THIS IN, from the Step 7/8 work earlier the same day.**
+`MarriageRegistrationForm.SimpleStep()` (built for the Pending Registrations tab) mapped
+`current_step` to the four simple words by substring — but `"verify".Contains("review")` is
+false and `"register".Contains("registered")` is also false (wrong substring direction), so the
+literal values `SetOcrContext`/`MarkOcrReviewed` now write ("Verify"/"Register") matched NONE of
+`SimpleStep`'s conditions and silently fell through to the default "Capture" — every record at
+Step 8's Verify or Register stage would have shown the WRONG step on the Pending list. Fixed by
+adding exact-match checks (`s == "verify"`, `s == "register"`, `s == "final scan"`) ahead of the
+legacy substring checks, which stay for the older phrase-based steps
+("Awaiting Registrar Review" etc.) still written by `StartCasePosting`/`Return`/`Register`.
+Also updated `MarriageService.CurrentSteps` (a documentation-only array, confirmed unused/
+unenforced anywhere) to list the new Verify/Register/Final Scan values alongside the older
+phrases, so it stops silently describing a vocabulary the code no longer only uses.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir) —
+caught and fixed one real compile error along the way (`Nz()` returns `object`, not `string`; the
+new call needed the trimmed text directly). Migration 62 not yet applied to the live database —
+run it before using the Registered By field, or the UPDATE will fail on the new column (the read
+side already guards with `dt.Columns.Contains`, so loading a record is safe either way). GUI not
+clicked (no interactive desktop) — rebuild in VS to see the new section and confirm the Pending
+tab now shows Verify/Register correctly instead of defaulting to Capture.

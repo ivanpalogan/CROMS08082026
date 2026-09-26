@@ -120,9 +120,9 @@ namespace CROMS.Forms
         private static string SimpleStep(string currentStep, string status)
         {
             string s = (currentStep ?? "").ToLowerInvariant();
-            if (s.Contains("final") || s.Contains("scan")) return "Final Scan";
-            if (s.Contains("registered")) return "Register";
-            if (s.Contains("review") || s.Contains("correction") || s.Contains("returned")) return "Verify";
+            if (s == "final scan" || s.Contains("final") || s.Contains("scan")) return "Final Scan";
+            if (s == "register" || s.Contains("registered")) return "Register";
+            if (s == "verify" || s.Contains("review") || s.Contains("correction") || s.Contains("returned")) return "Verify";
             if (status == "For Review" || status == "Returned") return "Verify";
             if (status == "Registered") return "Register";
             return "Capture";

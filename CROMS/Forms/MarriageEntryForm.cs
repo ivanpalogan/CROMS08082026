@@ -520,8 +520,42 @@ namespace CROMS.Forms
             _repPanel.Height = 58;
             _repPanel.Visible = false;
 
+            // STEP 9 - Registration Information: what the LCRO physically wrote on the already
+            // signed/stamped Form 97 - registry number, the date it was registered, who
+            // registered it, and any remarks. Saving this never generates or recreates a
+            // signature - the physical form is signed outside CROMS - and it never changes
+            // Status (spec: "Status = Pending"); it only records the fact and advances
+            // Current Step to Final Scan.
+            TableLayoutPanel regInfo = MUi.Grid(2, 1, 58);
+            regInfo.Controls.Add(MUi.Field("Registration date", _dateRegistered), 0, 0);
+            regInfo.Controls.Add(MUi.Field("Registered by", _registeredByName), 1, 0);
+            _dateRegistered.ValueChanged += (s, e) => Changed(_dateRegistered);
+            _registeredByName.TextChanged += (s, e) => Changed(_registeredByName);
+            AutoCaps.Attach(_registeredByName);
+            var regInfoRow = new FlowLayoutPanel { Height = 40, BackColor = Color.Transparent, Padding = new Padding(0, 4, 0, 0) };
+            regInfoRow.Controls.Add(_btnSaveRegInfo);
+            _btnSaveRegInfo.Click += (s, e) => SaveRegistrationInfo();
+
             Stack(pg, Section("Certification and receipt", "The date the certificate reached this office decides timely vs delayed registration."), r, _regBanner, dl, rm,
-                  Section("Submitted by", "Who is filing this registration with the office."), subRow, _repPanel);
+                  Section("Submitted by", "Who is filing this registration with the office."), subRow, _repPanel,
+                  Section("Registration information (LCRO)", "Record what is written on the physical, already signed/stamped Form 97 - no signature is captured here."),
+                  regInfo, regInfoRow);
+        }
+
+        /// <summary>
+        /// STEP 9. Registry No. and Remarks already save through the normal Draft/Review path
+        /// (they are ordinary Form 97 columns); this button additionally saves the record first
+        /// so an id exists, then writes the two fields that path does not cover - Registration
+        /// Date and Registered By - and advances Current Step to Final Scan. Status is left
+        /// exactly as it is.
+        /// </summary>
+        private void SaveRegistrationInfo()
+        {
+            if (!Save(null)) return;
+            MarriageService.SaveRegistrationInfo(_id.Value, MUi.Val(_dateRegistered), _registeredByName.Text.Trim());
+            if (_status != "Registered") _currentStep = "Final Scan";
+            RefreshAll();
+            MessageBox.Show(this, "Registration information saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private static Control Spacer(int w) { return new Panel { Width = w, Height = 1, BackColor = Color.Transparent }; }
@@ -847,6 +881,10 @@ namespace CROMS.Forms
             _sol.Text = S("solemnizer"); _solPos.Text = S("solemnizer_position"); _w1.Text = S("witness1_name"); _w2.Text = S("witness2_name");
             _recvBy.Text = S("received_by"); _recvTitle.Text = S("received_by_title"); MUi.Put(_recv, D("received_by_date"));
             _remarks.Text = S("remarks"); _delay.Text = S("delay_reason"); _licPlace.Text = S("license_place");
+            // STEP 9: date_registered exists since migration 33 (Register() writes it); guarded
+            // anyway - registered_by_name is new (migration 62) and may not exist yet.
+            if (dt.Columns.Contains("date_registered")) MUi.Put(_dateRegistered, D("date_registered"));
+            _registeredByName.Text = dt.Columns.Contains("registered_by_name") ? S("registered_by_name") : "";
             string basis = S("license_basis");
             _rbEx.Checked = basis == "Exempt"; _rbLic.Checked = basis != "Exempt";
             for (int i = 0; i < MarriageRules.ExemptionBases.GetLength(0); i++) if (MarriageRules.ExemptionBases[i, 0] == S("exemption_basis")) _exBasis.SelectedIndex = i;

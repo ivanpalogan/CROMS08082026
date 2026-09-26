@@ -62,6 +62,13 @@ namespace CROMS.Forms
         private readonly TextBox _recvBy = MUi.Box(), _recvTitle = MUi.Box(), _remarks = MUi.Box(), _delay = MUi.Box();
         private readonly DateTimePicker _recv = MUi.Date(true);
         private readonly Banner _regBanner = new Banner();
+        // STEP 9 - Registration Information: what the LCRO actually wrote on the physical,
+        // already-signed Form 97 - registry_no/date_registered/remarks are existing columns
+        // reused here; registered_by_name is new (migration 62, distinct from the INT
+        // registered_by system stamp Register() writes).
+        private readonly TextBox _registeredByName = MUi.Box();
+        private readonly DateTimePicker _dateRegistered = MUi.Date(true);
+        private readonly Button _btnSaveRegInfo = MUi.Btn("Save Registration Information", MUi.Kind.Secondary, 220);
         // "Submitted By" - who is filing this Form 97 registration with the office.
         private readonly RadioButton _rbSubOfficer = new RadioButton { Text = "Solemnizing Officer", AutoSize = true },
                                      _rbSubHusband = new RadioButton { Text = "Husband", AutoSize = true },
