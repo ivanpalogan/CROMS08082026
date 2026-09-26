@@ -5728,3 +5728,43 @@ VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings (temp Outp
 59 not yet applied to the live `croms` database — run it before saving a record with a Submitted
 By value, or the INSERT/UPDATE will fail on the three new columns. GUI not clicked (no
 interactive desktop) — rebuild in VS to see it.
+
+### 2026-09-27 (later) — Marriage Desk gains a "Pending Registrations" section
+
+Added the third tab the office asked for, per spec: **Pending Registrations**, listing every
+marriage NOT yet Registered (Draft / For Review / Returned), with Transaction No. / Husband /
+Wife / Date of Marriage / Date Received / Submitted By / Current Step / Action(Open) — searchable
+by Husband, Wife, Transaction Number, or Marriage License Number. Sits beside the existing
+Applications & Licenses and Marriages tabs on `MarriageRegistrationForm` (same tab-button/grid
+convention already there), not a new screen.
+
+**Current Step is deliberately collapsed to exactly four words** (Capture / Verify / Register /
+Final Scan), per the spec's own "do not create additional statuses" — `current_step` on the row
+carries longer internal phrases ("Awaiting Registrar Review", "Returned - Awaiting Correction")
+from the workflow engine (2026-09-13/16 marriage-workflow passes), so a new `SimpleStep()` maps
+those (and `status`) down to the simple vocabulary rather than showing the raw column.
+`SubmittedByText()` reads the `submitted_by` column added the same day (Officer/Husband/Wife/
+Representative, the rep's name shown parenthetically) — both fall back to "-" gracefully.
+
+**Transaction No.** comes from a new `LEFT JOIN transactions t ON t.id = m.transaction_id`
+(`transaction_id` is migration 60's link, added the same day for exactly this purpose — a
+marriage previously had no transaction/queue tie at all). **Date Received** is `marriages.
+created_at` (already existed since the table's first migration) — when the Form 97 record was
+first opened, not when it was registered.
+
+`LoadMarriages()` tries the full select (current_step/submitted_by/txn_code) first and falls back
+to the base columns on a 1054 "unknown column" (same `catch (MySqlException ex) when (ex.Number
+== 1054)` convention `ClientTasksPanel` already uses for its own migration-guarded column), adding
+the missing columns back as blank so every caller can read them unconditionally either way — the
+Pending tab still loads, just with "-" in Submitted By / Current Step / Transaction No., on a
+database that hasn't applied migrations 59/60 yet.
+
+Action is a real `DataGridViewButtonColumn` ("Open") wired through `CellContentClick`, in addition
+to the existing double-click-to-open convention every tab already has — both open the same
+`MarriageEntryForm` (Form 97) the Marriages tab opens for a non-Registered record, since Pending
+rows are by definition never Registered.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools — no VS2019 msbuild.exe on this machine)
+clean, 0 errors, 0 warnings (temp OutDir). Not run against the live database — depends on
+migrations 59/60 for the richer columns, degrades gracefully without them per the 1054 fallback
+above. GUI not clicked (no interactive desktop) — rebuild in VS to see the new tab.

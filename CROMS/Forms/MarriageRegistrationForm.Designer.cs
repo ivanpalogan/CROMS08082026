@@ -44,6 +44,7 @@ namespace CROMS.Forms
             this.pnlListBar = new System.Windows.Forms.FlowLayoutPanel();
             this.btnTabLicenses = new System.Windows.Forms.Button();
             this.btnTabMarriages = new System.Windows.Forms.Button();
+            this.btnTabPending = new System.Windows.Forms.Button();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.lblListCount = new System.Windows.Forms.Label();
             this.tlpRoot.SuspendLayout();
@@ -261,6 +262,7 @@ namespace CROMS.Forms
             this.pnlListBar.BackColor = System.Drawing.Color.Transparent;
             this.pnlListBar.Controls.Add(this.btnTabLicenses);
             this.pnlListBar.Controls.Add(this.btnTabMarriages);
+            this.pnlListBar.Controls.Add(this.btnTabPending);
             this.pnlListBar.Controls.Add(this.txtSearch);
             this.pnlListBar.Controls.Add(this.lblListCount);
             this.pnlListBar.Dock = System.Windows.Forms.DockStyle.Top;
@@ -291,6 +293,18 @@ namespace CROMS.Forms
             this.btnTabMarriages.Text = "MARRIAGES";
             this.btnTabMarriages.UseVisualStyleBackColor = false;
             this.btnTabMarriages.Click += new System.EventHandler(this.btnTabMarriages_Click);
+            //
+            // btnTabPending
+            //
+            this.btnTabPending.FlatAppearance.BorderSize = 0;
+            this.btnTabPending.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnTabPending.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnTabPending.Margin = new System.Windows.Forms.Padding(0, 4, 18, 0);
+            this.btnTabPending.Name = "btnTabPending";
+            this.btnTabPending.Size = new System.Drawing.Size(220, 34);
+            this.btnTabPending.Text = "PENDING REGISTRATIONS";
+            this.btnTabPending.UseVisualStyleBackColor = false;
+            this.btnTabPending.Click += new System.EventHandler(this.btnTabPending_Click);
             //
             // txtSearch
             //
@@ -377,6 +391,7 @@ namespace CROMS.Forms
         private System.Windows.Forms.FlowLayoutPanel pnlListBar;
         private System.Windows.Forms.Button btnTabLicenses;
         private System.Windows.Forms.Button btnTabMarriages;
+        private System.Windows.Forms.Button btnTabPending;
         private System.Windows.Forms.TextBox txtSearch;
         private System.Windows.Forms.Label lblListCount;
     }

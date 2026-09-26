@@ -6,6 +6,7 @@ using System.Linq;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Modules;
+using MySql.Data.MySqlClient;
 
 namespace CROMS.Forms
 {
@@ -44,6 +45,7 @@ namespace CROMS.Forms
             kpiPsa.Click += (s, e) => OpenPsa();
             board.ItemClicked += OnBoardItem;
             dgvList.CellFormatting += dgvList_CellFormatting;
+            dgvList.CellContentClick += dgvList_CellContentClick;
             // Hidden here, not right after DataSource is set: before the form is shown the grid
             // generates its columns late and the earlier hide was silently lost (the render
             // showed the internal id column).
@@ -85,13 +87,54 @@ namespace CROMS.Forms
 
         private static DataTable LoadMarriages()
         {
-            DataTable dt = Db.Pull(
-                "SELECT m.id, m.registry_no, m.husband_first_name, m.husband_last_name, m.wife_first_name, m.wife_last_name, m.date_of_marriage, " +
+            // current_step / submitted_by / transaction_id are migrations 60/59 — a database
+            // that hasn't had them applied yet must still load the desk, so the richer select
+            // is tried first and a 1054 (unknown column) falls back to the columns that have
+            // always existed, adding the new ones back as blank so callers never have to check.
+            const string cols =
+                "m.id, m.registry_no, m.husband_first_name, m.husband_last_name, m.wife_first_name, m.wife_last_name, m.date_of_marriage, " +
                 "m.license_basis, m.exemption_basis, COALESCE(ml.license_no, m.license_no) AS lic_no, m.license_id, m.registration_type, m.status, " +
-                "m.date_registered, m.ocr_review_status, m.return_reason, " +
-                "(SELECT i.status FROM psa_transmittal_items i WHERE i.record_table='marriages' AND i.record_id=m.id ORDER BY i.id DESC LIMIT 1) AS psa_item " +
-                "FROM marriages m LEFT JOIN marriage_licenses ml ON ml.id = m.license_id ORDER BY m.id DESC");
-            return dt;
+                "m.date_registered, m.ocr_review_status, m.return_reason, m.created_at, " +
+                "(SELECT i.status FROM psa_transmittal_items i WHERE i.record_table='marriages' AND i.record_id=m.id ORDER BY i.id DESC LIMIT 1) AS psa_item";
+            try
+            {
+                return Db.Pull(
+                    "SELECT " + cols + ", m.current_step, m.submitted_by, m.submitted_by_rep_name, t.txn_code " +
+                    "FROM marriages m LEFT JOIN marriage_licenses ml ON ml.id = m.license_id " +
+                    "LEFT JOIN transactions t ON t.id = m.transaction_id ORDER BY m.id DESC");
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)
+            {
+                DataTable dt = Db.Pull(
+                    "SELECT " + cols + " FROM marriages m LEFT JOIN marriage_licenses ml ON ml.id = m.license_id ORDER BY m.id DESC");
+                foreach (string c in new[] { "current_step", "submitted_by", "submitted_by_rep_name", "txn_code" })
+                    if (!dt.Columns.Contains(c)) dt.Columns.Add(c, typeof(string));
+                return dt;
+            }
+        }
+
+        // "Current Step" is deliberately collapsed to exactly these four words for the Pending
+        // Registrations list — the underlying current_step column carries longer internal phrases
+        // ("Awaiting Registrar Review", "Returned - Awaiting Correction") that are not the simple
+        // vocabulary the list is meant to show.
+        private static string SimpleStep(string currentStep, string status)
+        {
+            string s = (currentStep ?? "").ToLowerInvariant();
+            if (s.Contains("final") || s.Contains("scan")) return "Final Scan";
+            if (s.Contains("registered")) return "Register";
+            if (s.Contains("review") || s.Contains("correction") || s.Contains("returned")) return "Verify";
+            if (status == "For Review" || status == "Returned") return "Verify";
+            if (status == "Registered") return "Register";
+            return "Capture";
+        }
+
+        private static string SubmittedByText(DataRow r)
+        {
+            if (!r.Table.Columns.Contains("submitted_by") || r["submitted_by"] == DBNull.Value || Convert.ToString(r["submitted_by"]).Length == 0) return "-";
+            string sb = Convert.ToString(r["submitted_by"]);
+            if (sb == "Representative" && r.Table.Columns.Contains("submitted_by_rep_name") && r["submitted_by_rep_name"] != DBNull.Value)
+                return Convert.ToString(r["submitted_by_rep_name"]) + " (Rep.)";
+            return sb;
         }
 
         private void FillKpis()
@@ -183,17 +226,44 @@ namespace CROMS.Forms
 
         private void FillGrid()
         {
+            int pendingCount = _marriages.AsEnumerable().Count(r => Convert.ToString(r["status"]) != "Registered");
+
             btnTabLicenses.BackColor = _tab == "Licenses" ? UiTheme.Accent : UiTheme.Chrome;
             btnTabLicenses.ForeColor = _tab == "Licenses" ? Color.White : UiTheme.Ink;
             btnTabMarriages.BackColor = _tab == "Marriages" ? UiTheme.Accent : UiTheme.Chrome;
             btnTabMarriages.ForeColor = _tab == "Marriages" ? Color.White : UiTheme.Ink;
+            btnTabPending.BackColor = _tab == "Pending" ? UiTheme.Accent : UiTheme.Chrome;
+            btnTabPending.ForeColor = _tab == "Pending" ? Color.White : UiTheme.Ink;
             btnTabLicenses.Text = "APPLICATIONS & LICENSES · " + _licenses.Count;
             btnTabMarriages.Text = "MARRIAGES · " + _marriages.Rows.Count;
-            btnTabLicenses.Invalidate(); btnTabMarriages.Invalidate();
+            btnTabPending.Text = "PENDING REGISTRATIONS · " + pendingCount;
+            btnTabLicenses.Invalidate(); btnTabMarriages.Invalidate(); btnTabPending.Invalidate();
+
+            // The Action button column only belongs on the Pending tab; drop it before rebuilding
+            // so the other two tabs' plain DataTable columns don't collide with a stale one.
+            if (dgvList.Columns.Contains("Action")) dgvList.Columns.Remove("Action");
 
             var dt = new DataTable();
             dt.Columns.Add("id", typeof(int)); dt.Columns.Add("kind"); dt.Columns.Add("search");
-            if (_tab == "Licenses")
+            if (_tab == "Pending")
+            {
+                foreach (string c in new[] { "Transaction No.", "Husband", "Wife", "Date of Marriage", "Date Received", "Submitted By", "Current Step" })
+                    dt.Columns.Add(c);
+                foreach (DataRow r in _marriages.Rows)
+                {
+                    if (Convert.ToString(r["status"]) == "Registered") continue;
+                    string h = MarriageRules.Title(Convert.ToString(r["husband_first_name"])) + " " + MarriageRules.Title(Convert.ToString(r["husband_last_name"]));
+                    string w = MarriageRules.Title(Convert.ToString(r["wife_first_name"])) + " " + MarriageRules.Title(Convert.ToString(r["wife_last_name"]));
+                    string txn = r["txn_code"] == DBNull.Value || r["txn_code"] == null ? "-" : Convert.ToString(r["txn_code"]);
+                    string dom = r["date_of_marriage"] == DBNull.Value ? "-" : MUi.D(Convert.ToDateTime(r["date_of_marriage"]));
+                    string received = r["created_at"] == DBNull.Value ? "-" : MUi.D(Convert.ToDateTime(r["created_at"]));
+                    string submittedBy = SubmittedByText(r);
+                    string step = SimpleStep(r.Table.Columns.Contains("current_step") ? Convert.ToString(r["current_step"]) : null, Convert.ToString(r["status"]));
+                    dt.Rows.Add(r["id"], "M", LearningLibrary.Normalize(h + " " + w + " " + txn + " " + Convert.ToString(r["lic_no"])),
+                        txn, h, w, dom, received, submittedBy, step);
+                }
+            }
+            else if (_tab == "Licenses")
             {
                 foreach (string c in new[] { "Application No.", "License No.", "Applicants", "Filed", "Posting", "Issued", "Valid Until", "Days Left", "Status", "Certificate" })
                     dt.Columns.Add(c);
@@ -231,6 +301,18 @@ namespace CROMS.Forms
             dgvList.DataSource = dt;
             foreach (string c in new[] { "id", "kind", "search" }) if (dgvList.Columns.Contains(c)) dgvList.Columns[c].Visible = false;
             if (dgvList.Columns.Contains("Applicants")) dgvList.Columns["Applicants"].FillWeight = 240;
+            if (_tab == "Pending" && !dgvList.Columns.Contains("Action"))
+            {
+                var action = new DataGridViewButtonColumn
+                {
+                    Name = "Action",
+                    HeaderText = "Action",
+                    Text = "Open",
+                    UseColumnTextForButtonValue = true,
+                    FillWeight = 70
+                };
+                dgvList.Columns.Add(action);
+            }
             ApplySearch();
         }
 
@@ -272,6 +354,13 @@ namespace CROMS.Forms
             int id = Convert.ToInt32(r.Cells["id"].Value);
             if (r.Cells["kind"].Value.ToString() == "L") OpenLicense(id);
             else OpenMarriage(id);
+        }
+
+        private void dgvList_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || dgvList.Columns[e.ColumnIndex].Name != "Action") return;
+            DataGridViewRow r = dgvList.Rows[e.RowIndex];
+            OpenMarriage(Convert.ToInt32(r.Cells["id"].Value));
         }
 
         private void OnBoardItem(object tag)
@@ -332,6 +421,8 @@ namespace CROMS.Forms
         private void btnTabLicenses_Click(object sender, EventArgs e) { _tab = "Licenses"; _statusFilter = null; FillGrid(); }
 
         private void btnTabMarriages_Click(object sender, EventArgs e) { _tab = "Marriages"; _statusFilter = null; FillGrid(); }
+
+        private void btnTabPending_Click(object sender, EventArgs e) { _tab = "Pending"; _statusFilter = null; FillGrid(); }
 
         private void txtSearch_TextChanged(object sender, EventArgs e)
         {
