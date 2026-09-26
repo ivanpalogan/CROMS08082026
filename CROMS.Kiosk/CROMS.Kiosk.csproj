@@ -121,6 +121,12 @@
     <Compile Include="CtcDetailsForm.Designer.cs">
       <DependentUpon>CtcDetailsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="MarriageLicenseCheckForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MarriageLicenseCheckForm.Designer.cs">
+      <DependentUpon>MarriageLicenseCheckForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>

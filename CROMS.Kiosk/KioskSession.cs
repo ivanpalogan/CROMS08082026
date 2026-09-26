@@ -33,6 +33,11 @@ namespace CROMS.Kiosk
         // claimapp QR every visit now shows (scan with your own phone, upload from there).
         public string IdType;
 
+        // Marriage Registration only — answered by MarriageLicenseCheckForm before the ticket
+        // is issued. Null while unanswered / after the client said No and was routed to
+        // Marriage Application instead (see MarriageLicenseCheckForm.Continue_Click).
+        public string MarriageLicenseNo;
+
         // Lazily-created claimapp QR — created for EVERY visit's "Upload Your ID" step, not
         // only a Release & Claim pickup (see KioskCore.EnsureClaimRequest).
         public string ClaimQrToken;
@@ -66,9 +71,15 @@ namespace CROMS.Kiosk
         public bool HasMarriage => Selected.Contains("MARRIAGE_APP") || Selected.Contains("MARRIAGE_REG");
         public bool HasCtc => Selected.Contains("CTC");
 
+        // Marriage Registration presumes a licence already exists — this is unanswered until
+        // MarriageLicenseCheckForm resolves it. A "No" answer removes MARRIAGE_REG from
+        // Selected (routed to MARRIAGE_APP instead), which is what makes this false again.
+        public bool NeedsMarriageLicenseCheck => Selected.Contains("MARRIAGE_REG");
+
         public string[] StepLabels()
         {
             var steps = new List<string> { "Select Services" };
+            if (NeedsMarriageLicenseCheck) steps.Add("Marriage License");
             if (HasBreqs) steps.Add("PSA Document");
             if (HasCtc) steps.Add("CTC Details");
             steps.Add("Personal Info & Photo");
@@ -76,7 +87,8 @@ namespace CROMS.Kiosk
             return steps.ToArray();
         }
 
-        public int DetailsStepIndex() => 1 + (HasBreqs ? 1 : 0) + (HasCtc ? 1 : 0);
+        public int DetailsStepIndex() =>
+            1 + (NeedsMarriageLicenseCheck ? 1 : 0) + (HasBreqs ? 1 : 0) + (HasCtc ? 1 : 0);
 
         /// <summary>Fresh start for the next client.</summary>
         public void Reset()
@@ -87,6 +99,7 @@ namespace CROMS.Kiosk
             Photo = null;
             ClaimTicketEntry = null;
             IdType = null;
+            MarriageLicenseNo = null;
             First2 = Middle2 = Last2 = null;
             Photo2 = null;
             ClaimQrToken = null;

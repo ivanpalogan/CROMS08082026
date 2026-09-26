@@ -16,7 +16,7 @@ namespace CROMS.Kiosk
     /// </summary>
     internal static class Program
     {
-        private enum Step { Welcome, ChooseServices, Breqs, Ctc, Details, Review }
+        private enum Step { Welcome, ChooseServices, MarriageLicense, Breqs, Ctc, Details, Review }
 
         [STAThread]
         static void Main()
@@ -84,12 +84,24 @@ namespace CROMS.Kiosk
                         }
                         break;
 
+                    case Step.MarriageLicense:
+                        using (var f = new MarriageLicenseCheckForm(session))
+                        {
+                            DialogResult r = f.ShowDialog();
+                            if (r == DialogResult.OK)
+                                step = session.HasBreqs ? Step.Breqs : (session.HasCtc ? Step.Ctc : Step.Details);
+                            else if (r == DialogResult.Cancel) step = Step.ChooseServices; // Back, choices kept
+                            else { session.Reset(); step = Step.Welcome; }               // idle
+                        }
+                        break;
+
                     case Step.Breqs:
                         using (var f = new BreqsDetailsForm(session))
                         {
                             DialogResult r = f.ShowDialog();
                             if (r == DialogResult.OK) step = session.HasCtc ? Step.Ctc : Step.Details;
-                            else if (r == DialogResult.Cancel) step = Step.ChooseServices; // Back, choices kept
+                            else if (r == DialogResult.Cancel)
+                                step = session.NeedsMarriageLicenseCheck ? Step.MarriageLicense : Step.ChooseServices;
                             else { session.Reset(); step = Step.Welcome; }               // idle
                         }
                         break;
@@ -99,7 +111,10 @@ namespace CROMS.Kiosk
                         {
                             DialogResult r = f.ShowDialog();
                             if (r == DialogResult.OK) step = Step.Details;
-                            else if (r == DialogResult.Cancel) step = session.HasBreqs ? Step.Breqs : Step.ChooseServices;
+                            else if (r == DialogResult.Cancel)
+                                step = session.HasBreqs ? Step.Breqs
+                                     : session.NeedsMarriageLicenseCheck ? Step.MarriageLicense
+                                     : Step.ChooseServices;
                             else { session.Reset(); step = Step.Welcome; }
                         }
                         break;
@@ -111,7 +126,10 @@ namespace CROMS.Kiosk
                             if (r == DialogResult.Cancel)
                             {
                                 // Back — keep the session so the previous step re-shows the client's entries.
-                                step = session.HasCtc ? Step.Ctc : (session.HasBreqs ? Step.Breqs : Step.ChooseServices);
+                                step = session.HasCtc ? Step.Ctc
+                                     : session.HasBreqs ? Step.Breqs
+                                     : session.NeedsMarriageLicenseCheck ? Step.MarriageLicense
+                                     : Step.ChooseServices;
                             }
                             else
                             {
@@ -136,6 +154,7 @@ namespace CROMS.Kiosk
 
         private static Step NextAfterServices(KioskSession session)
         {
+            if (session.NeedsMarriageLicenseCheck) return Step.MarriageLicense;
             if (session.HasBreqs) return Step.Breqs;
             if (session.HasCtc) return Step.Ctc;
             return Step.Details;

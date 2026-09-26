@@ -428,7 +428,12 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@doc", s.HasCtc ? (object)s.CtcDocumentType : primary),
                 // One readable line for the screens that only have room for one (the live queue
                 // grid, the Now Serving card). The full structured request is in ctc_requests.
-                new MySqlParameter("@purpose", s.HasCtc ? NullIfBlank(CtcSummary(s)) : DBNull.Value),
+                // Marriage Registration carries its licence number the same way, since the desk
+                // needs it before it can pull the licence up (MarriageLicenseCheckForm).
+                new MySqlParameter("@purpose", NullIfBlank(
+                    s.HasCtc ? CtcSummary(s)
+                    : !string.IsNullOrWhiteSpace(s.MarriageLicenseNo) ? "Marriage License No. " + s.MarriageLicenseNo.Trim()
+                    : null)),
                 new MySqlParameter("@label", joined),
                 new MySqlParameter("@priority", priority));
 
