@@ -6086,3 +6086,22 @@ NOTE, found while reading this code and NOT fixed (pre-existing, out of scope fo
 not `RefreshAll()` - `_txnLabel`/`_queueLabel` are redrawn in `RefreshAll`, so manually linking via
 those two buttons may not update the visible label text until something else triggers a full
 refresh. `PrepareForQueueTicket` calls `RefreshAll()` and is unaffected.
+
+### 2026-09-27 (actually final) — RefreshRail bug fixed too
+
+`LinkTransaction()`/`LinkQueueTicket()` both called `RefreshRail()` where `_txnLabel`/`_queueLabel`
+are only redrawn inside `RefreshAll()` - manually linking via the "Link..." buttons updated the
+underlying `_txnId`/`_txnCode`/`_queueTicketId`/`_queueCode` fields correctly but left the visible
+label text stale until some unrelated action forced a full refresh. Both now call `RefreshAll()`
+(all four call sites: the two success paths and the two "cleared to blank" early returns).
+
+Also cleared `_queueIntakeHint` in `LinkQueueTicket()` (both branches) - a manually-typed link has
+no requester lookup behind it (unlike `PrepareForQueueTicket`, which reads the ticket's
+husband/wife/contact), so without this a stale hint from a PREVIOUSLY linked ticket would keep
+showing next to a since-relinked, unrelated one.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+Not run against the live database (no interactive desktop) - the fix is a same-behavior method
+swap (`RefreshRail`->`RefreshAll`, which itself calls `RefreshLight`->`RefreshChecks` and rebuilds
+the rail, so nothing that used to run stops running). Rebuild in VS and confirm the Transaction/
+Queue labels update immediately after using either "Link..." button.

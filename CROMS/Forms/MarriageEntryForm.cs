@@ -738,12 +738,12 @@ namespace CROMS.Forms
             string code = MUi.Ask(this, "Link Transaction", "Transaction Number (e.g. TXN-2026-000123):", _txnCode ?? "");
             if (code == null) return;
             code = code.Trim();
-            if (code.Length == 0) { _txnId = null; _txnCode = null; _dirty = true; RefreshRail(); return; }
+            if (code.Length == 0) { _txnId = null; _txnCode = null; _dirty = true; RefreshAll(); return; }
             DataTable dt = Db.Pull("SELECT id, txn_code FROM transactions WHERE txn_code=@c", new MySqlParameter("@c", code));
             if (dt.Rows.Count == 0) { MessageBox.Show(this, "No transaction found with that number.", "Not found", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             _txnId = Convert.ToInt32(dt.Rows[0]["id"]); _txnCode = Str1(dt.Rows[0]["txn_code"]);
             _dirty = true;
-            RefreshRail();
+            RefreshAll();
         }
 
         private void LinkQueueTicket()
@@ -751,12 +751,15 @@ namespace CROMS.Forms
             string code = MUi.Ask(this, "Link Queue Ticket", "Queue Number (e.g. Q-045):", _queueCode ?? "");
             if (code == null) return;
             code = code.Trim();
-            if (code.Length == 0) { _queueTicketId = null; _queueCode = null; _dirty = true; RefreshRail(); return; }
+            if (code.Length == 0) { _queueTicketId = null; _queueCode = null; _queueIntakeHint = null; _dirty = true; RefreshAll(); return; }
             DataTable dt = Db.Pull("SELECT id, ticket_code FROM queue_tickets WHERE ticket_code=@c", new MySqlParameter("@c", code));
             if (dt.Rows.Count == 0) { MessageBox.Show(this, "No queue ticket found with that number.", "Not found", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             _queueTicketId = Convert.ToInt32(dt.Rows[0]["id"]); _queueCode = Str1(dt.Rows[0]["ticket_code"]);
+            // A manually-typed link has no requester lookup behind it (unlike PrepareForQueueTicket),
+            // so any stale hint from a PREVIOUSLY linked ticket must not keep showing here.
+            _queueIntakeHint = null;
             _dirty = true;
-            RefreshRail();
+            RefreshAll();
         }
 
         private static string Str1(object v) { return v == null || v == DBNull.Value ? null : v.ToString(); }
