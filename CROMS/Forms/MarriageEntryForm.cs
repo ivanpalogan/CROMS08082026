@@ -146,7 +146,12 @@ namespace CROMS.Forms
             set(_sol, "Solemnizer"); set(_solPos, "SolemnizerPosition"); set(_w1, "Witness1"); set(_w2, "Witness2");
             set(_recvBy, "ReceivedByName"); set(_recvTitle, "ReceivedByTitle");
             date(_dom, "DateOfMarriage"); date(_recv, "ReceivedByDate");
+            date(_h.Dob, "HusbandDateOfBirth"); date(_w.Dob, "WifeDateOfBirth");
+            // Per-spouse citizenship when the scan carried one; a shared "Nationality" reading
+            // (the common case - one word, same for both, e.g. "Filipino") is the fallback.
             if (f.TryGetValue("Nationality", out v) && !string.IsNullOrWhiteSpace(v)) { SelectByName(_h.Cit, v); SelectByName(_w.Cit, v); }
+            if (f.TryGetValue("HusbandCitizenship", out v) && !string.IsNullOrWhiteSpace(v)) SelectByName(_h.Cit, v);
+            if (f.TryGetValue("WifeCitizenship", out v) && !string.IsNullOrWhiteSpace(v)) SelectByName(_w.Cit, v);
             if (f.TryGetValue("PlaceOfMarriage", out v) && !string.IsNullOrWhiteSpace(v)) SelectByName(_church, v);
             if (f.TryGetValue("LicenseNo", out v) && !string.IsNullOrWhiteSpace(v))
             {
@@ -706,14 +711,17 @@ namespace CROMS.Forms
                 var lblStatus = MUi.Txt("Waiting for a photo from the phone...", 9.5F, FontStyle.Bold, UiTheme.Muted);
                 lblStatus.AutoSize = false; lblStatus.Size = new Size(320, 22); lblStatus.Location = new Point(20, 368);
 
-                var btnUse = MUi.Btn("Re-run OCR from Photos", MUi.Kind.Primary, 320);
-                btnUse.Location = new Point(20, 400); btnUse.Enabled = false;
+                var lblSaved = MUi.Txt("", 8.25F, FontStyle.Regular, UiTheme.Muted);
+                lblSaved.AutoSize = false; lblSaved.Size = new Size(320, 16); lblSaved.Location = new Point(20, 388);
+
+                var btnUse = MUi.Btn("Scan with OCR", MUi.Kind.Primary, 320);
+                btnUse.Location = new Point(20, 410); btnUse.Enabled = false;
                 var btnCancel = MUi.Btn("Close", MUi.Kind.Ghost, 320);
-                btnCancel.Location = new Point(20, 440);
+                btnCancel.Location = new Point(20, 450);
 
                 dlg.Controls.Add(lblTxn); dlg.Controls.Add(lblCouple); dlg.Controls.Add(pic);
                 dlg.Controls.Add(lblNoQr); dlg.Controls.Add(txtUrl); dlg.Controls.Add(lblHint);
-                dlg.Controls.Add(lblStatus); dlg.Controls.Add(btnUse); dlg.Controls.Add(btnCancel);
+                dlg.Controls.Add(lblStatus); dlg.Controls.Add(lblSaved); dlg.Controls.Add(btnUse); dlg.Controls.Add(btnCancel);
 
                 int appliedPages = 0;
                 bool everProcessed = false;
@@ -754,6 +762,7 @@ namespace CROMS.Forms
                     if (_id.HasValue) Form97Capture.AttachMarriageId(token, _id.Value);
                     lblStatus.Text = "Page " + pages.Count + " read by OCR - result shown on this form.";
                     lblStatus.ForeColor = UiTheme.Success;
+                    lblSaved.Text = "Original image saved as: INCOMING_FORM_97 - verify every field before saving.";
                 };
 
                 Action refresh = () =>

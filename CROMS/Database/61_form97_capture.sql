@@ -43,6 +43,10 @@ CREATE TABLE IF NOT EXISTS `form97_capture_images` (
     `token_id`     INT NOT NULL,
     `page_no`      INT NOT NULL DEFAULT 1,
     `image`        LONGBLOB NOT NULL,
+    -- Every page arrives tagged with this fixed label - "the original image, before OCR" -
+    -- so the audit trail and the capture dialog can both name what they are looking at
+    -- without guessing from a filename (there is no filename; the bytes never touch disk).
+    `image_label`  VARCHAR(40) NOT NULL DEFAULT 'INCOMING_FORM_97',
     `uploaded_at`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`),
     KEY `ix_form97_capture_images_token` (`token_id`),
