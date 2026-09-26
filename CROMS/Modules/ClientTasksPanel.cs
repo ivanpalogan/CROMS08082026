@@ -980,10 +980,33 @@ namespace CROMS.Modules
             Reload();
         }
 
+        /// <summary>
+        /// Finishing a task used to be pure self-report: an operator clicked Yes on
+        /// "Mark X as finished?" with nothing behind it — the phrasing itself asked
+        /// permission to record a guess. Clicking Finish is now the deliberate act of
+        /// closing the task, so it does not ask again; instead, if this ticket's request
+        /// actually went through a transaction (Certificate Request / registration /
+        /// Release &amp; Claim), that transaction must ACTUALLY be Released or Cancelled
+        /// before Finish is allowed to succeed — the same real-world check
+        /// <see cref="CompleteVisit"/> already enforces for the whole visit. A task with no
+        /// linked transaction (e.g. a registration-only service that never routes through a
+        /// release step) has nothing to verify against, so it finishes on the click itself.
+        /// </summary>
         private void FinishTask(int taskId, string serviceLabel)
         {
-            if (MessageBox.Show("Mark \"" + serviceLabel + "\" as finished?",
-                "Finish task", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
+            DataTable pending = Db.Pull(
+                "SELECT t.status FROM queue_tickets qt JOIN transactions t ON t.id = qt.transaction_id " +
+                "WHERE qt.id = @id AND t.status NOT IN ('Released','Cancelled') LIMIT 1",
+                new MySqlParameter("@id", _ticketId));
+            if (pending.Rows.Count > 0)
+            {
+                string status = Convert.ToString(pending.Rows[0]["status"]);
+                MessageBox.Show("\"" + serviceLabel + "\" cannot be finished yet — the request has " +
+                    "not actually been released (currently: " + status + "). Complete it in Release " +
+                    "& Claim first, then Finish will succeed.",
+                    "Not yet released", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             Db.Push("UPDATE queue_ticket_services SET status = 'Completed' " +
                     "WHERE id = @id AND status = 'Serving'",

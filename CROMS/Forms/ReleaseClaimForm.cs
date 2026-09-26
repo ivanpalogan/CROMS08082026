@@ -1845,8 +1845,17 @@ namespace CROMS.Forms
                 Audit.Write(Audit.Update, "transactions", _selectedTxnId.Value,
                     "Released to " + txtClaimant.Text.Trim());
 
-                MessageBox.Show("Document released successfully.", "Done",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                // Name exactly what was released — an officer who selected the wrong row on a
+                // busy list needs this to be undeniable, not a generic "released successfully"
+                // that could describe any of them.
+                DataTable released = Db.Pull(
+                    "SELECT t.txn_code, t.client_name FROM transactions t WHERE t.id = @t LIMIT 1",
+                    new MySqlParameter("@t", _selectedTxnId.Value));
+                string releasedCode = released.Rows.Count > 0 ? Convert.ToString(released.Rows[0]["txn_code"]) : "?";
+                string releasedClient = released.Rows.Count > 0 ? Convert.ToString(released.Rows[0]["client_name"]) : "?";
+                MessageBox.Show(
+                    "Released " + releasedCode + " (" + releasedClient + ") to " + txtClaimant.Text.Trim() + ".",
+                    "Released", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 // Transaction is saved; wipe the form for the next client.
                 ClearClaimForm();
@@ -1895,7 +1904,9 @@ namespace CROMS.Forms
                 Audit.Write(Audit.Update, "claim_requests", _pickupClaimId.Value,
                     "Released claim " + _pickupClaimCode + " to " + txtClaimant.Text.Trim());
 
-                MessageBox.Show("Released.", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(
+                    "Released claim " + _pickupClaimCode + " to " + txtClaimant.Text.Trim() + ".",
+                    "Released", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearClaimForm();
                 LoadPending();
                 LoadReleased();
