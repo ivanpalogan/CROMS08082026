@@ -5993,3 +5993,54 @@ would currently fail and `Register()`'s try/catch treats that as "not confirmed"
 registration) rather than crashing; apply migration 64 before relying on this gate in practice.
 GUI not clicked (no interactive desktop) - rebuild in VS and confirm Register stays disabled
 until Confirm Final Document has been clicked.
+
+### 2026-09-27 (last of the day) — Step 13, Audit Trail: 9 of 14 events already existed; 5 gaps closed
+
+No new audit system built - per spec. Checked every one of the 14 listed events against what
+`MarriageService.History` (the existing per-record `marriage_history` timeline) and `Audit.Write`
+(the existing app-wide `audit_log`, also written by the save-API's own `audit()` helper into the
+SAME shared table) already log, before writing anything.
+
+**Already covered, no change:** Marriage Registration created (`SaveMarriage`'s insert path -
+"Form 97 received" + `Audit.Write(Audit.Create, ...)`), OCR completed (`SetOcrContext` - "Linked
+to scan"), Verification completed (`MarkOcrReviewed` - "OCR review completed", Step 8),
+Registry information entered (`SaveRegistrationInfo` - "Registration information recorded", Step
+9), Final Form 97 uploaded (`AddFinalDocumentPage` - "Final registered Form 97 - page added",
+Step 11), Final document confirmed (`ConfirmFinalDocument`, Step 11), Status changed to Registered
+(`Register` - "Registered" + `Audit.Write`, both already there). Incoming Form 97 uploaded was
+ALSO already logged into `audit_log` from the phone side (save-API's `audit('Create',
+'form97_capture_images', ...)`, migration 61) - kept, and now doubled onto the marriage's own
+timeline too (see below), the same belt-and-suspenders pattern `Register`/`BypassRequirement`
+already use for their own major events.
+
+**Five genuine gaps, each hooked at the exact point the event already happens in code - no new
+tables, no new mechanism:**
+- **Submitted By recorded** - the radio-button handler (Certification tab) now logs which option
+  was actually checked, reading the CheckedChanged event's OWN sender rather than re-deriving it,
+  since a radio group fires CheckedChanged for both the box turning off and the one turning on.
+- **Mobile Capture session generated / Final Capture session generated** - one shared hook in
+  `Form97Capture.CreateToken` (guarded on `marriageId.HasValue` - a brand-new unsaved draft has
+  no id to log against yet), branching its wording on `purpose` so the SAME code path produces
+  both distinct events depending which of the two capture flows called it.
+- **OCR started** - one line right before `DocumentAI.Analyze` runs inside `ApplyCaptureScans`,
+  the same method that already runs OCR on a freshly-arrived mobile page.
+- **Incoming Form 97 uploaded** (desktop-side echo) - logged the moment the page is fetched, in
+  the same method, before OCR is attempted - so the upload is on record even if OCR then fails.
+- **OCR fields edited** - the sharpest catch: `Changed(Control c)` ALREADY detects exactly this
+  moment (a control whose `BackColor == UiTheme.WarningTint` - the marker `HighlightWeak` paints
+  on every OCR-uncertain field) and clears the highlight; it just never logged it. Added the log
+  right there, gated by a new `_ocrEditLogged` flag so correcting five weak fields in a row logs
+  ONE event, not five - reset to false whenever a fresh OCR context attaches
+  (`SetOcrContext`), so the next scan's corrections are tracked as their own event again.
+- **Marriage License linked** - logged in `SelectLicense`, which is the one place `_lic` is ever
+  assigned to a genuinely picked (non-null) license - either the operator's own list selection or
+  an OCR-matched licence number auto-selected during `PrimeFromExtraction`. Deliberately NOT
+  logged from `LoadMarriage` (which sets `_lic` directly, bypassing `SelectLicense`, precisely so
+  reopening an already-linked record never re-logs the same link).
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings (temp OutDir).
+Not run against the live database - `marriage_history` and `audit_log` both already exist and are
+already written to constantly by this file, so no new migration is needed for this step; every
+new call site was reasoned against the exact existing method it hooks into, not exercised live.
+GUI not clicked (no interactive desktop) - rebuild in VS and confirm each event appears in
+Activity History (`MUi.HistoryDialog`) at the point described.

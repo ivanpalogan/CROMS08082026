@@ -73,6 +73,19 @@ namespace CROMS.Data
                     "(token, marriage_id, transaction_id, husband_name, wife_name, txn_code, status, expires_at, created_by) " +
                     "VALUES (@t, @mid, @tid, @h, @w, @c, 'Pending', DATE_ADD(NOW(), INTERVAL @m MINUTE), @by)", ps);
             }
+            // STEP 13 audit trail: "Mobile Capture session generated" / "Final Capture session
+            // generated" - only when the record already exists (a brand new, unsaved draft has
+            // no id yet); best-effort so a logging hiccup can never block the capture itself.
+            if (marriageId.HasValue)
+            {
+                try
+                {
+                    MarriageService.History("Marriage", marriageId.Value,
+                        purpose == PurposeFinalRegistered ? "Final Capture session generated" : "Mobile Capture session generated",
+                        null, null, "token " + token.Substring(0, 8));
+                }
+                catch { }
+            }
             return token;
         }
 

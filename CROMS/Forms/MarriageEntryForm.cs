@@ -50,6 +50,7 @@ namespace CROMS.Forms
         private string _ocrScanId;
         private DocAiResult _ocr;
         private bool _ocrPending, _loading, _dirty;
+        private bool _ocrEditLogged;  // STEP 13: "OCR fields edited" logged once per OCR context, reset when a fresh one attaches
         // STEP 11 - the FINAL, physically signed/stamped Form 97 (separate from _scanImage,
         // the pre-registration certificate OCR already read). Loaded from marriage_final_documents.
         private List<byte[]> _finalPages = new List<byte[]>();
@@ -136,7 +137,7 @@ namespace CROMS.Forms
         /// <summary>The OCR run this certificate came from. Weak fields are highlighted and hold registration until reviewed.</summary>
         public void SetOcrContext(string scanId, DocAiResult result)
         {
-            _ocrScanId = scanId; _ocr = result; _ocrPending = true;
+            _ocrScanId = scanId; _ocr = result; _ocrPending = true; _ocrEditLogged = false;
             HighlightWeak();
             RefreshAll();
         }
@@ -515,7 +516,16 @@ namespace CROMS.Forms
             subRow.Controls.Add(_rbSubOfficer); subRow.Controls.Add(Spacer(20)); subRow.Controls.Add(_rbSubHusband);
             subRow.Controls.Add(Spacer(20)); subRow.Controls.Add(_rbSubWife); subRow.Controls.Add(Spacer(20)); subRow.Controls.Add(_rbSubRep);
             foreach (RadioButton rb in new[] { _rbSubOfficer, _rbSubHusband, _rbSubWife, _rbSubRep })
-                rb.CheckedChanged += (s, e) => { if (!_loading) { ApplySubmittedBy(); Changed(rb); } };
+                rb.CheckedChanged += (s, e) =>
+                {
+                    if (_loading) return;
+                    ApplySubmittedBy(); Changed(rb);
+                    // STEP 13 audit trail: "Submitted By recorded" - only for the box that just
+                    // became checked (radio buttons fire CheckedChanged for both the one turning
+                    // off and the one turning on).
+                    if (((RadioButton)s).Checked && _id.HasValue)
+                        MarriageService.History("Marriage", _id.Value, "Submitted By recorded", null, null, ((RadioButton)s).Text);
+                };
             TableLayoutPanel repRow = MUi.Grid(2, 1, 58);
             repRow.Controls.Add(MUi.Field("Name", _repName), 0, 0); repRow.Controls.Add(MUi.Field("Office / Organization", _repOrg), 1, 0);
             _repName.TextChanged += (s, e) => Changed(_repName); _repOrg.TextChanged += (s, e) => Changed(_repOrg);
@@ -663,6 +673,9 @@ namespace CROMS.Forms
         private void SelectLicense(LicenseFacts l)
         {
             _lic = l == null ? null : MarriageService.LoadLicense(l.Id);
+            // STEP 13 audit trail: "Marriage License linked" - only when the operator actually
+            // picks one, not on every rail rebuild (which re-runs this with the same selection).
+            if (_lic != null && _id.HasValue) MarriageService.History("Marriage", _id.Value, "Marriage License linked", null, null, _lic.LicenseNo);
             RefreshAll();
         }
 
@@ -793,11 +806,15 @@ namespace CROMS.Forms
             }
             byte[] primary = pages[pages.Count - 1]; // most recent page (a retake/back page supersedes the first)
             SetScanImage(primary);
+            // STEP 13 audit trail: "Incoming Form 97 uploaded" - the page arrived from the phone.
+            if (_id.HasValue) MarriageService.History("Marriage", _id.Value, "Incoming Form 97 uploaded", null, null, "Page " + pages.Count);
             try
             {
                 using (var ms = new MemoryStream(primary))
                 using (var img = Image.FromStream(ms))
                 {
+                    // STEP 13 audit trail: "OCR started".
+                    if (_id.HasValue) MarriageService.History("Marriage", _id.Value, "OCR started", null, null, null);
                     DocAiResult r = DocumentAI.Analyze(new Bitmap(img));
                     if (r.Kind == DocKind.Marriage)
                     {
@@ -1357,7 +1374,20 @@ namespace CROMS.Forms
         {
             if (_loading) return;
             _dirty = true;
-            if (c != null && c.BackColor == UiTheme.WarningTint) { c.BackColor = c is ComboBox || c is TextBox ? Color.White : c.BackColor; _tip.SetToolTip(c, null); }
+            if (c != null && c.BackColor == UiTheme.WarningTint)
+            {
+                c.BackColor = c is ComboBox || c is TextBox ? Color.White : c.BackColor;
+                _tip.SetToolTip(c, null);
+                // STEP 13 audit trail: "OCR fields edited" - a WarningTint background is exactly
+                // how a weak/uncertain OCR value is flagged (set where the OCR review grid/tab
+                // primes a field), so clearing it here IS the operator correcting an OCR value.
+                // Logged once per OCR context, not per keystroke.
+                if (_id.HasValue && !_ocrEditLogged)
+                {
+                    _ocrEditLogged = true;
+                    MarriageService.History("Marriage", _id.Value, "OCR fields edited", null, null, null);
+                }
+            }
             RefreshLight();
         }
 
