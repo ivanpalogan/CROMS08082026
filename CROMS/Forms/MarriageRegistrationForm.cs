@@ -307,7 +307,23 @@ namespace CROMS.Forms
 
         private void btnRegister_Click(object sender, EventArgs e)
         {
-            using (var f = new MarriageEntryForm(null)) f.ShowDialog(this);
+            // A registration (Form 97) needs an existing licence to link to. Ask first so the
+            // client is routed to the right screen instead of the registrar opening the
+            // registration form and only then discovering there is no licence to attach.
+            DialogResult r = MessageBox.Show(this,
+                "Has the client already applied for and been issued a marriage license (Form 90)?\n\n" +
+                "Yes — they already have a license number. Open Marriage Registration (Form 97).\n" +
+                "No — they have not applied yet. Open the License Application (Form 90) instead.",
+                "Marriage License Status",
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (r == DialogResult.Yes)
+                using (var f = new MarriageEntryForm(null)) f.ShowDialog(this);
+            else if (r == DialogResult.No)
+                using (var f = new MarriageLicenseForm(null)) f.ShowDialog(this);
+            else
+                return; // Cancel — nothing opened.
+
             RefreshData();
         }
 
