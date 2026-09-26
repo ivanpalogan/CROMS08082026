@@ -79,6 +79,16 @@ namespace CROMS.Forms
         private string _queueCode;
         private string _currentStep = "Form 97 Capture";
 
+        // Mobile Capture (Step 6): detection belongs to THIS WINDOW, not the transient QR
+        // dialog - the timer keeps polling and the rail keeps showing the live "Form 97
+        // Received" card whether or not that dialog is open, so nothing needs reopening.
+        private string _captureToken;
+        private int _capturePages;
+        private int _captureAppliedPages;
+        private DateTime? _captureAt;
+        private bool _captureClosed;
+        private readonly Timer _captureTimer = new Timer { Interval = 3000 };
+
         public MarriageEntryForm(int? marriageId)
         {
             InitializeComponent();
@@ -111,6 +121,9 @@ namespace CROMS.Forms
                 if (r == DialogResult.Cancel) e.Cancel = true;
                 else if (r == DialogResult.Yes && !Save(null)) e.Cancel = true;
             };
+            _captureTimer.Tick += (s, e) => CapturePoll();
+            _captureTimer.Start();
+            FormClosed += (s, e) => { _captureTimer.Stop(); _captureTimer.Dispose(); };
         }
 
         // ===================================================================== public API (OCR hand-off)
@@ -664,145 +677,127 @@ namespace CROMS.Forms
 
         // ===================================================================== mobile capture (Form 97, before OCR)
         /// <summary>
-        /// Opens a temporary token linked to THIS transaction/couple, shows a QR (plus a
-        /// typeable code as a fallback) for a phone to open the lightweight capture page
-        /// hosted by the save-API. The phone's ONLY job is capture + upload - the moment this
-        /// desk (still polling every 3s) sees a new page land in the database, it pulls the
-        /// bytes itself and feeds them straight into the SAME Document AI engine every other
-        /// OCR path in this app already uses (DocumentAI.Analyze / PrimeFromExtraction /
-        /// SetOcrContext) - no second OCR engine, no manual download or re-upload step. The
-        /// operator never has to click anything for the result to appear on this form; the
-        /// button here is only a manual re-run in case a second/back page arrives later.
+        /// Opens (or reuses) a token linked to THIS transaction/couple and shows a QR (plus a
+        /// typeable code) so a phone can open the lightweight capture page hosted by the
+        /// save-API. Detection lives on the FORM, not this dialog: the form's own
+        /// <see cref="_captureTimer"/> keeps polling and auto-running OCR whether this dialog
+        /// is open or already closed - the operator can dismiss it the moment the QR is shown
+        /// and the "Form 97 Received" card on the rail keeps updating on its own.
         /// </summary>
         private void ShowMobileCapture()
         {
-            string husband = (_h.First.Text + " " + _h.Last.Text).Trim();
-            string wife = (_w.First.Text + " " + _w.Last.Text).Trim();
-            string token = Form97Capture.CreateToken(_id, _txnId,
-                husband.Length == 0 ? null : husband, wife.Length == 0 ? null : wife, _txnCode);
-            string url = Form97Capture.BuildMobileUrl(token);
+            // Reuse a still-open token (so "Add Page" accumulates under the same "Pages: N"
+            // count) rather than starting a brand new capture set every time.
+            Form97Capture.Status existing = _captureToken != null ? Form97Capture.GetStatus(_captureToken) : null;
+            if (existing == null || existing.Expired)
+            {
+                string husband = (_h.First.Text + " " + _h.Last.Text).Trim();
+                string wife = (_w.First.Text + " " + _w.Last.Text).Trim();
+                _captureToken = Form97Capture.CreateToken(_id, _txnId,
+                    husband.Length == 0 ? null : husband, wife.Length == 0 ? null : wife, _txnCode);
+                _capturePages = 0; _captureAppliedPages = 0; _captureAt = null; _captureClosed = false;
+            }
+            else Form97Capture.Touch(_captureToken);
+            RefreshRail();
 
+            string url = Form97Capture.BuildMobileUrl(_captureToken);
             using (var dlg = new Form
             {
                 Text = "Mobile Capture - Form 97",
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false,
-                ClientSize = new Size(360, 560),
+                ClientSize = new Size(360, 400),
             })
             {
-                var lblTxn = MUi.Txt("Transaction: " + (_txnCode ?? "not yet linked"), 9F, FontStyle.Regular, UiTheme.Muted);
-                lblTxn.Location = new Point(20, 16);
-                var lblCouple = MUi.Txt("Husband: " + (husband.Length == 0 ? "-" : husband) +
-                                        "\nWife: " + (wife.Length == 0 ? "-" : wife), 9.5F, FontStyle.Bold, UiTheme.Ink);
-                lblCouple.AutoSize = true; lblCouple.Location = new Point(20, 38);
+                var lblHead = MUi.Txt("Scan this QR on the client's phone.\nYou can close this window right away - CROMS keeps watching for the photo.",
+                    9F, FontStyle.Regular, UiTheme.Muted);
+                lblHead.AutoSize = false; lblHead.Size = new Size(320, 40); lblHead.Location = new Point(20, 16);
 
-                var pic = new PictureBox { Location = new Point(80, 90), Size = new Size(200, 200), SizeMode = PictureBoxSizeMode.Zoom };
+                var pic = new PictureBox { Location = new Point(80, 64), Size = new Size(200, 200), SizeMode = PictureBoxSizeMode.Zoom };
                 var bmp = QrHelper.TryCreate(url, 6);
                 pic.Image = bmp;
                 var lblNoQr = MUi.Txt("(QRCoder not installed - open this address on the phone instead:)", 8.5F, FontStyle.Regular, UiTheme.Muted);
-                lblNoQr.AutoSize = false; lblNoQr.Size = new Size(320, 30); lblNoQr.Location = new Point(20, 96);
+                lblNoQr.AutoSize = false; lblNoQr.Size = new Size(320, 30); lblNoQr.Location = new Point(20, 70);
                 lblNoQr.Visible = bmp == null; pic.Visible = bmp != null;
 
-                var txtUrl = new TextBox { ReadOnly = true, Location = new Point(20, 300), Width = 320, Text = url };
+                var txtUrl = new TextBox { ReadOnly = true, Location = new Point(20, 274), Width = 320, Text = url };
                 var lblHint = MUi.Txt("Scan with the phone's camera, or type this address into its browser.", 8.5F, FontStyle.Regular, UiTheme.Muted);
-                lblHint.AutoSize = false; lblHint.Size = new Size(320, 32); lblHint.Location = new Point(20, 328);
+                lblHint.AutoSize = false; lblHint.Size = new Size(320, 32); lblHint.Location = new Point(20, 302);
 
-                var lblStatus = MUi.Txt("Waiting for a photo from the phone...", 9.5F, FontStyle.Bold, UiTheme.Muted);
-                lblStatus.AutoSize = false; lblStatus.Size = new Size(320, 22); lblStatus.Location = new Point(20, 368);
+                var btnClose = MUi.Btn("Close", MUi.Kind.Primary, 320);
+                btnClose.Location = new Point(20, 340);
 
-                var lblSaved = MUi.Txt("", 8.25F, FontStyle.Regular, UiTheme.Muted);
-                lblSaved.AutoSize = false; lblSaved.Size = new Size(320, 16); lblSaved.Location = new Point(20, 388);
-
-                var btnUse = MUi.Btn("Scan with OCR", MUi.Kind.Primary, 320);
-                btnUse.Location = new Point(20, 410); btnUse.Enabled = false;
-                var btnCancel = MUi.Btn("Close", MUi.Kind.Ghost, 320);
-                btnCancel.Location = new Point(20, 450);
-
-                dlg.Controls.Add(lblTxn); dlg.Controls.Add(lblCouple); dlg.Controls.Add(pic);
-                dlg.Controls.Add(lblNoQr); dlg.Controls.Add(txtUrl); dlg.Controls.Add(lblHint);
-                dlg.Controls.Add(lblStatus); dlg.Controls.Add(lblSaved); dlg.Controls.Add(btnUse); dlg.Controls.Add(btnCancel);
-
-                int appliedPages = 0;
-                bool everProcessed = false;
-
-                // ---- CROMS Main receives the image + runs the EXISTING OCR engine ----
-                // Reads whatever pages are in the database right now (no file path handed
-                // around - the bytes live in form97_capture_images and are pulled straight
-                // into memory), analyzes the newest one with DocumentAI.Analyze (the SAME
-                // engine OcrDigitizationForm/DocumentAiForm/Auto-Fill already use), and shows
-                // the result on THIS open Marriage Registration form.
-                Action<bool> applyScans = (manual) =>
-                {
-                    List<byte[]> pages = Form97Capture.FetchImages(token);
-                    if (pages.Count == 0)
-                    {
-                        if (manual) MessageBox.Show(dlg, "No pages have been photographed yet.", "Nothing to use", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
-                    }
-                    byte[] primary = pages[pages.Count - 1]; // most recent page (a retake/back page supersedes the first)
-                    SetScanImage(primary);
-                    try
-                    {
-                        using (var ms = new MemoryStream(primary))
-                        using (var img = Image.FromStream(ms))
-                        {
-                            DocAiResult r = DocumentAI.Analyze(new Bitmap(img));
-                            if (r.Kind == DocKind.Marriage)
-                            {
-                                PrimeFromExtraction(r.Map());
-                                SetScanImage(primary); // PrimeFromExtraction may clear the form; re-attach after
-                                SetOcrContext(token, r);
-                            }
-                        }
-                    }
-                    catch { /* the scan is already attached to the form even if this OCR pass fails */ }
-                    appliedPages = pages.Count;
-                    everProcessed = true;
-                    if (_id.HasValue) Form97Capture.AttachMarriageId(token, _id.Value);
-                    lblStatus.Text = "Page " + pages.Count + " read by OCR - result shown on this form.";
-                    lblStatus.ForeColor = UiTheme.Success;
-                    lblSaved.Text = "Original image saved as: INCOMING_FORM_97 - verify every field before saving.";
-                };
-
-                Action refresh = () =>
-                {
-                    Form97Capture.Status st = Form97Capture.GetStatus(token);
-                    if (st.Expired)
-                    {
-                        lblStatus.Text = everProcessed ? "Code closed. Everything captured is already on this form."
-                                                        : "This code has expired. Close and open Mobile Capture again.";
-                        lblStatus.ForeColor = everProcessed ? UiTheme.Muted : UiTheme.Danger;
-                        btnUse.Enabled = false;
-                        return;
-                    }
-                    if (st.PageCount == 0)
-                    {
-                        lblStatus.Text = "Waiting for a photo from the phone...";
-                        lblStatus.ForeColor = UiTheme.Muted;
-                        btnUse.Enabled = false;
-                        return;
-                    }
-                    btnUse.Enabled = true;
-                    if (st.PageCount > appliedPages)
-                    {
-                        // A new page just landed - run it through OCR automatically, no click needed.
-                        lblStatus.Text = "New photo received - running OCR...";
-                        lblStatus.ForeColor = UiTheme.Muted;
-                        applyScans(false);
-                    }
-                };
-                refresh();
-                var poll = new Timer { Interval = 3000 };
-                poll.Tick += (s, e) => refresh();
-                poll.Start();
-
-                btnUse.Click += (s, e) => applyScans(true);
-                btnCancel.Click += (s, e) => { if (everProcessed) Form97Capture.Complete(token); dlg.DialogResult = DialogResult.Cancel; };
-
-                dlg.FormClosed += (s, e) => { poll.Stop(); poll.Dispose(); if (pic.Image != null) pic.Image.Dispose(); };
+                dlg.Controls.Add(lblHead); dlg.Controls.Add(pic); dlg.Controls.Add(lblNoQr);
+                dlg.Controls.Add(txtUrl); dlg.Controls.Add(lblHint); dlg.Controls.Add(btnClose);
+                btnClose.Click += (s, e) => dlg.DialogResult = DialogResult.OK;
+                dlg.AcceptButton = btnClose;
+                dlg.FormClosed += (s, e) => { if (pic.Image != null) pic.Image.Dispose(); };
                 dlg.ShowDialog(this);
             }
+        }
+
+        /// <summary>
+        /// CROMS Main receives whatever page(s) the phone has uploaded and feeds the newest
+        /// one straight into the SAME Document AI engine every other OCR path in this app
+        /// already uses (DocumentAI.Analyze / PrimeFromExtraction / SetOcrContext) - no second
+        /// OCR engine, no file on disk, no manual download or re-upload step.
+        /// </summary>
+        private void ApplyCaptureScans(bool manual)
+        {
+            if (_captureToken == null) return;
+            List<byte[]> pages = Form97Capture.FetchImages(_captureToken);
+            if (pages.Count == 0)
+            {
+                if (manual) MessageBox.Show(this, "No pages have been photographed yet.", "Nothing to use", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            byte[] primary = pages[pages.Count - 1]; // most recent page (a retake/back page supersedes the first)
+            SetScanImage(primary);
+            try
+            {
+                using (var ms = new MemoryStream(primary))
+                using (var img = Image.FromStream(ms))
+                {
+                    DocAiResult r = DocumentAI.Analyze(new Bitmap(img));
+                    if (r.Kind == DocKind.Marriage)
+                    {
+                        PrimeFromExtraction(r.Map());
+                        SetScanImage(primary); // PrimeFromExtraction may clear the form; re-attach after
+                        SetOcrContext(_captureToken, r);
+                    }
+                }
+            }
+            catch { /* the scan is already attached to the form even if this OCR pass fails */ }
+            _captureAppliedPages = pages.Count;
+            if (_id.HasValue) Form97Capture.AttachMarriageId(_captureToken, _id.Value);
+            RefreshRail();
+        }
+
+        /// <summary>
+        /// Ticks every 3s for the life of this window (lightweight polling - the project has
+        /// no WebSocket/SignalR/SSE plumbing to prefer, per Step 6). Runs whether or not the
+        /// QR dialog is open, so a photo taken after the operator closed it is still detected
+        /// with no restart or reopen of Marriage Registration.
+        /// </summary>
+        private void CapturePoll()
+        {
+            if (_captureToken == null || IsDisposed) return;
+            Form97Capture.Status st = Form97Capture.GetStatus(_captureToken);
+            _capturePages = st.PageCount;
+            _captureAt = st.LastUploadAt;
+            _captureClosed = st.Expired;
+            if (st.PageCount > _captureAppliedPages) ApplyCaptureScans(false);
+            else RefreshRail();
+        }
+
+        private void CaptureReplace()
+        {
+            if (!MUi.Confirm(this, "Replace capture", "Start a new mobile capture? The client will need to photograph Form 97 again.")) return;
+            if (_captureToken != null) Form97Capture.Complete(_captureToken);
+            _captureToken = null; _capturePages = 0; _captureAppliedPages = 0; _captureAt = null; _captureClosed = false;
+            RefreshRail();
+            ShowMobileCapture();
         }
 
         // ===================================================================== data
@@ -1271,6 +1266,36 @@ namespace CROMS.Forms
                     bool ok = day >= 0 && m.DateOfMarriage.Value <= _lic.ExpiryDate;
                     items.Add(MUi.Kv("Marriage date", ok ? "day " + day + " of " + _s.ValidityDays + " ✓" : "outside validity ✕", ok ? UiTheme.Success : UiTheme.Danger));
                 }
+            }
+
+            if (_captureToken != null)
+            {
+                items.Add(MUi.Cap("Form 97 Received"));
+                if (_scanImage != null)
+                {
+                    var capPic = new PictureBox { Height = 90, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(245, 247, 250), Cursor = Cursors.Hand };
+                    try { using (var ms = new MemoryStream(_scanImage)) capPic.Image = new Bitmap(Image.FromStream(ms)); } catch { }
+                    capPic.Click += (s, e) => CompareWithScan();
+                    items.Add(capPic);
+                }
+                items.Add(MUi.Kv("Status", _captureClosed ? "Closed" : _capturePages > 0 ? "Form 97 received" : "Waiting for phone..."));
+                items.Add(MUi.Kv("Uploaded From", "Mobile Capture"));
+                items.Add(MUi.Kv("Date / Time", _captureAt.HasValue ? _captureAt.Value.ToString("MMM d, yyyy h:mm tt") : "-"));
+                items.Add(MUi.Kv("Pages", _capturePages.ToString()));
+
+                var capRow1 = new FlowLayoutPanel { Height = 34, BackColor = Color.Transparent };
+                var bView = MUi.Btn("View", MUi.Kind.Secondary, 76);
+                bView.Click += (s, e) => { if (_scanImage != null) SoftcopyViewer.Show(_scanImage, "Certificate of Marriage - original softcopy", this); else MessageBox.Show(this, "No page has been received yet.", "Nothing to view", MessageBoxButtons.OK, MessageBoxIcon.Information); };
+                var bReplace = MUi.Btn("Replace", MUi.Kind.Secondary, 76);
+                bReplace.Click += (s, e) => CaptureReplace();
+                var bAdd = MUi.Btn("Add Page", MUi.Kind.Secondary, 90);
+                bAdd.Click += (s, e) => ShowMobileCapture();
+                capRow1.Controls.Add(bView); capRow1.Controls.Add(bReplace); capRow1.Controls.Add(bAdd);
+                items.Add(capRow1);
+
+                var bOcr = MUi.Btn("Scan with OCR", MUi.Kind.Primary, 250);
+                bOcr.Click += (s, e) => ApplyCaptureScans(true);
+                items.Add(bOcr);
             }
 
             items.Add(MUi.Cap("Source document"));

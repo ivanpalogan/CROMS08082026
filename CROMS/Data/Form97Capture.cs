@@ -20,6 +20,7 @@ namespace CROMS.Data
             public string State = "Pending";     // Pending / Uploaded / Completed / Expired
             public int PageCount;
             public bool Expired;
+            public DateTime? LastUploadAt;
         }
 
         /// <summary>
@@ -54,7 +55,8 @@ namespace CROMS.Data
             {
                 DataTable dt = Db.Pull(
                     "SELECT status, (expires_at < NOW()) AS is_expired, " +
-                    "(SELECT COUNT(*) FROM form97_capture_images i WHERE i.token_id = t.id) AS pages " +
+                    "(SELECT COUNT(*) FROM form97_capture_images i WHERE i.token_id = t.id) AS pages, " +
+                    "(SELECT MAX(i.uploaded_at) FROM form97_capture_images i WHERE i.token_id = t.id) AS last_upload " +
                     "FROM form97_capture_tokens t WHERE token=@t",
                     new MySqlParameter("@t", token));
                 if (dt.Rows.Count == 0) { s.Expired = true; return s; }
@@ -62,6 +64,7 @@ namespace CROMS.Data
                 s.State = Convert.ToString(r["status"]);
                 s.Expired = Convert.ToBoolean(r["is_expired"]) || s.State == "Expired";
                 s.PageCount = Convert.ToInt32(r["pages"]);
+                s.LastUploadAt = r["last_upload"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["last_upload"]);
             }
             catch { /* transient DB blip - dialog just polls again */ }
             return s;
@@ -90,6 +93,21 @@ namespace CROMS.Data
                     new MySqlParameter("@m", marriageId), new MySqlParameter("@t", token));
             }
             catch { /* best-effort - the scan is already attached to the form either way */ }
+        }
+
+        /// <summary>
+        /// Keeps a still-in-use token alive (Add Page reopens the SAME token rather than
+        /// starting a fresh capture set, so pages accumulate under one "Pages: N" count).
+        /// </summary>
+        public static void Touch(string token, int minutesValid = 20)
+        {
+            try
+            {
+                Db.Push("UPDATE form97_capture_tokens SET expires_at=DATE_ADD(NOW(), INTERVAL @m MINUTE) " +
+                        "WHERE token=@t AND status <> 'Completed'",
+                        new MySqlParameter("@m", minutesValid), new MySqlParameter("@t", token));
+            }
+            catch { }
         }
 
         /// <summary>Desktop-side close-out: a token the operator is done with can't be scanned again.</summary>
