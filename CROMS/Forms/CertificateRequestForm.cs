@@ -1,7 +1,6 @@
 using System;
 using System.Data;
 using System.Drawing;
-using System.Drawing.Printing;
 using System.Linq;
 using System.Windows.Forms;
 using CROMS.Data;
@@ -480,7 +479,6 @@ namespace CROMS.Forms
         private readonly long _txnId;
         private readonly string _txnCode, _client, _recordType, _certType, _queueCode;
         private readonly int _recordId, _copies;
-        private DataRow _record;     // the located record row (null until Find runs)
         private int _recalls;        // how many times the client's number has been called
 
         public CertNextStep Result { get; private set; } = CertNextStep.None;
@@ -539,13 +537,13 @@ namespace CROMS.Forms
                     : "⚠ No record was picked on the request. Skip to Step 3 and park it — you can locate the record later."
             };
 
-            // ---- Step 1: Print --------------------------------------------------
-            var lblStep1 = StepLabel(1, "Print the certificate");
+            // ---- Step 1: Preview + Print --------------------------------------------------
+            var lblStep1 = StepLabel(1, "Preview and print the certificate");
             lblStep1.Location = new Point(26, 202);
 
             _btnPrint = new Button
             {
-                Text = "🖨  Print Certificate",
+                Text = "🖨  Preview & Print Certificate",
                 Location = new Point(26, 226), Size = new Size(508, 46),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(13, 110, 253),
                 ForeColor = Color.White, Font = new Font("Segoe UI", 11F, FontStyle.Bold),
@@ -557,7 +555,7 @@ namespace CROMS.Forms
 
             var lblStep1Hint = new Label
             {
-                Text = "Finds the record and sends it to your printer.",
+                Text = "Opens the same certificate print preview used everywhere else — check it, then print.",
                 Location = new Point(26, 274), Size = new Size(508, 18),
                 Font = new Font("Segoe UI", 8.5F), ForeColor = Color.FromArgb(134, 142, 150)
             };
@@ -753,183 +751,48 @@ namespace CROMS.Forms
             }
         }
 
-        // ---------------------------------------------------------- find + print
+        // ---------------------------------------------------------- find + preview + print
+        /// <summary>
+        /// Finds the linked record and opens the SAME certificate print preview used by
+        /// Birth / Marriage / Death Registration (<see cref="CertificateReport.ShowFor"/>) —
+        /// the operator sees the certificate before it goes to paper, exactly like printing
+        /// it from the registration screen, instead of a separate ad-hoc printout built just
+        /// for this dialog.
+        /// </summary>
         private void FindAndPrint()
         {
             if (_recordId <= 0 || string.IsNullOrEmpty(_recordType))
             {
                 MessageBox.Show(
-                    "No record is linked to this request, so there is nothing to print yet.\n\n" +
+                    "No record is linked to this request, so there is nothing to preview yet.\n\n" +
                     "Park it to Waiting-to-Release, locate the record, then finish it from Release & Claim.",
                     "No record", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (_record == null && !LoadRecord())
+
+            DocKind kind;
+            if (!Enum.TryParse(_recordType, out kind) || kind == DocKind.Unknown)
             {
-                _lblFound.Text = "❌ Record not found in the registry. Park it and verify the record.";
-                _lblFound.ForeColor = Color.FromArgb(200, 35, 51);
+                MessageBox.Show("Unknown record type: " + _recordType, "Print",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             try
             {
-                var doc = new PrintDocument { DocumentName = "CTC " + _txnCode };
-                doc.PrintPage += DrawCertificate;
-                using (var dlg = new PrintDialog { Document = doc })
-                {
-                    if (dlg.ShowDialog() == DialogResult.OK)
-                    {
-                        doc.Print();
-                        _lblFound.Text = "✔ Step 1 done — certificate printed. Now do Step 3: Proceed to Payment.";
-                        _lblFound.ForeColor = Color.FromArgb(25, 135, 84);
-                        _btnPay.Enabled = true;
-                        Audit.Write(Audit.Update, "transactions", _txnId, "Certificate printed (CTC)");
-                    }
-                }
+                ReportEngine? engine = CertificateReport.ShowFor(kind, _recordId, this);
+                if (engine == null) return;   // CertificateReport already explained why (not found / unknown form)
+
+                _lblFound.Text = "✔ Step 1 done — certificate previewed. Now do Step 3: Proceed to Payment.";
+                _lblFound.ForeColor = Color.FromArgb(25, 135, 84);
+                _btnPay.Enabled = true;
+                Audit.Write(Audit.Update, "transactions", _txnId, "Certificate previewed/printed (CTC)");
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not print: " + ex.Message, "Print",
+                MessageBox.Show("Could not open the certificate preview: " + ex.Message, "Print",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-        }
-
-        /// <summary>Loads the linked record row from births/deaths/marriages.</summary>
-        private bool LoadRecord()
-        {
-            string table = _recordType == "Birth" ? "births"
-                         : _recordType == "Death" ? "deaths"
-                         : _recordType == "Marriage" ? "marriages" : null;
-            if (table == null) return false;
-            DataTable dt = Db.Pull("SELECT * FROM " + table + " WHERE id = @id",
-                new MySqlParameter("@id", _recordId));
-            if (dt.Rows.Count == 0) return false;
-            _record = dt.Rows[0];
-            return true;
-        }
-
-        private void DrawCertificate(object sender, PrintPageEventArgs e)
-        {
-            Graphics g = e.Graphics;
-            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-            float left = e.MarginBounds.Left, right = e.MarginBounds.Right;
-            float w = e.MarginBounds.Width;
-            float y = e.MarginBounds.Top;
-
-            using (var fHead = new Font("Times New Roman", 13F, FontStyle.Bold))
-            using (var fSub = new Font("Times New Roman", 10F))
-            using (var fTitle = new Font("Times New Roman", 16F, FontStyle.Bold))
-            using (var fLbl = new Font("Segoe UI", 9F, FontStyle.Bold))
-            using (var fVal = new Font("Segoe UI", 10F))
-            using (var fBody = new Font("Times New Roman", 11F))
-            using (var center = new StringFormat { Alignment = StringAlignment.Center })
-            {
-                Action<string, Font> mid = (t, f) =>
-                {
-                    var sz = g.MeasureString(t, f, (int)w);
-                    g.DrawString(t, f, Brushes.Black, new RectangleF(left, y, w, sz.Height), center);
-                    y += sz.Height + 2;
-                };
-                Action rule = () => { y += 4; g.DrawLine(Pens.Black, left, y, right, y); y += 8; };
-                Action<string, string> row = (lbl, val) =>
-                {
-                    g.DrawString(lbl, fLbl, Brushes.Black, left, y);
-                    g.DrawString(val ?? "—", fVal, Brushes.Black, left + 190, y);
-                    y += 22;
-                };
-
-                mid("Republic of the Philippines", fSub);
-                mid("Municipality of Peñablanca, Cagayan", fHead);
-                mid("LOCAL CIVIL REGISTRY OFFICE", fSub);
-                y += 8;
-                mid(_certType == "Negative" ? "CERTIFICATION" : "CERTIFIED TRUE COPY", fTitle);
-                mid("(" + (_recordType ?? "") + " Record)", fSub);
-                rule();
-
-                foreach (var kv in RecordLines()) row(kv.Key, kv.Value);
-                rule();
-
-                string stmt = _certType == "Negative"
-                    ? "This is to certify that after a diligent search of the registry of this office, " +
-                      "no record of the above-stated event was found registered."
-                    : "This is to certify that the foregoing is a true and faithful reproduction of the " +
-                      "entry appearing in the Register of this office.";
-                var box = new RectangleF(left, y, w, 60);
-                g.DrawString(stmt, fBody, Brushes.Black, box);
-                y += 66;
-
-                row("Transaction No.", _txnCode);
-                row("Requested by", _client);
-                row("Copies", _copies.ToString());
-                row("Date issued", DateTime.Now.ToString("dd MMMM yyyy"));
-                y += 40;
-
-                float sx = right - 240;
-                g.DrawLine(Pens.Black, sx, y, right, y);
-                y += 4;
-                g.DrawString("Municipal Civil Registrar", fVal, Brushes.Black, sx, y);
-
-                y = e.MarginBounds.Bottom - 20;
-                g.DrawString("CROMS — printed " + DateTime.Now.ToString("g"),
-                    new Font("Segoe UI", 7.5F), Brushes.Gray, left, y);
-            }
-        }
-
-        /// <summary>Picks a readable set of label:value lines from the located record row.</summary>
-        private System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>> RecordLines()
-        {
-            var list = new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>>();
-            void Add(string label, params string[] cols)
-            {
-                foreach (string c in cols)
-                    if (_record.Table.Columns.Contains(c) && _record[c] != DBNull.Value)
-                    {
-                        string v = _record[c].ToString().Trim();
-                        if (v.Length > 0) { list.Add(new System.Collections.Generic.KeyValuePair<string, string>(label, v)); return; }
-                    }
-            }
-
-            if (_recordType == "Birth")
-            {
-                Add("Registry No.", "registry_no");
-                string name = Join("first_name", "middle_name", "last_name");
-                list.Add(new System.Collections.Generic.KeyValuePair<string, string>("Name", name));
-                Add("Sex", "sex");
-                Add("Date of Birth", "date_of_birth");
-                Add("Place of Birth", "place_of_birth");
-                Add("Mother", "mother_maiden_name", "mother_name");
-                Add("Father", "father_name");
-            }
-            else if (_recordType == "Death")
-            {
-                Add("Registry No.", "registry_no");
-                Add("Name", "full_name");
-                Add("Sex", "sex");
-                Add("Date of Death", "date_of_death");
-                Add("Place of Death", "place_of_death");
-            }
-            else if (_recordType == "Marriage")
-            {
-                Add("Registry No.", "registry_no");
-                Add("Husband", "husband_first_name", "husband_name");
-                Add("Wife", "wife_first_name", "wife_name");
-                Add("Date of Marriage", "date_of_marriage", "marriage_date");
-            }
-            if (list.Count == 0)
-                list.Add(new System.Collections.Generic.KeyValuePair<string, string>("Record ID", _recordId.ToString()));
-            return list;
-        }
-
-        private string Join(params string[] cols)
-        {
-            var parts = new System.Collections.Generic.List<string>();
-            foreach (string c in cols)
-                if (_record.Table.Columns.Contains(c) && _record[c] != DBNull.Value)
-                {
-                    string v = _record[c].ToString().Trim();
-                    if (v.Length > 0) parts.Add(v);
-                }
-            return parts.Count > 0 ? string.Join(" ", parts) : "—";
         }
     }
 }
