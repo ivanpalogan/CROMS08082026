@@ -129,7 +129,7 @@
             this.grpScan.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.grpScan.Location = new System.Drawing.Point(24, 130);
             this.grpScan.Name = "grpScan";
-            this.grpScan.Size = new System.Drawing.Size(820, 570);
+            this.grpScan.Size = new System.Drawing.Size(440, 620);
             this.grpScan.TabIndex = 7;
             this.grpScan.TabStop = false;
             this.grpScan.Text = "SCANNED DOCUMENT";
@@ -142,14 +142,14 @@
             this.pnlScanHost.Controls.Add(this.pbScan);
             this.pnlScanHost.Location = new System.Drawing.Point(20, 60);
             this.pnlScanHost.Name = "pnlScanHost";
-            this.pnlScanHost.Size = new System.Drawing.Size(780, 490);
+            this.pnlScanHost.Size = new System.Drawing.Size(400, 540);
             this.pnlScanHost.TabIndex = 3;
             //
             // pbScan
             //
             this.pbScan.Location = new System.Drawing.Point(0, 0);
             this.pbScan.Name = "pbScan";
-            this.pbScan.Size = new System.Drawing.Size(776, 486);
+            this.pbScan.Size = new System.Drawing.Size(396, 536);
             this.pbScan.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pbScan.TabIndex = 0;
             this.pbScan.TabStop = false;
@@ -157,9 +157,9 @@
             // btnZoomOut
             //
             this.btnZoomOut.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnZoomOut.Location = new System.Drawing.Point(560, 22);
+            this.btnZoomOut.Location = new System.Drawing.Point(168, 22);
             this.btnZoomOut.Name = "btnZoomOut";
-            this.btnZoomOut.Size = new System.Drawing.Size(70, 30);
+            this.btnZoomOut.Size = new System.Drawing.Size(60, 30);
             this.btnZoomOut.TabIndex = 0;
             this.btnZoomOut.Text = "Zoom −";
             this.btnZoomOut.UseVisualStyleBackColor = true;
@@ -170,9 +170,9 @@
             this.btnSeal.Enabled = false;
             this.btnSeal.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSeal.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnSeal.Location = new System.Drawing.Point(380, 22);
+            this.btnSeal.Location = new System.Drawing.Point(20, 22);
             this.btnSeal.Name = "btnSeal";
-            this.btnSeal.Size = new System.Drawing.Size(200, 30);
+            this.btnSeal.Size = new System.Drawing.Size(140, 30);
             this.btnSeal.TabIndex = 35;
             this.btnSeal.Text = "Seal / Stamp";
             this.btnSeal.UseVisualStyleBackColor = true;
@@ -181,9 +181,9 @@
             // btnZoomIn
             //
             this.btnZoomIn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnZoomIn.Location = new System.Drawing.Point(636, 22);
+            this.btnZoomIn.Location = new System.Drawing.Point(236, 22);
             this.btnZoomIn.Name = "btnZoomIn";
-            this.btnZoomIn.Size = new System.Drawing.Size(70, 30);
+            this.btnZoomIn.Size = new System.Drawing.Size(60, 30);
             this.btnZoomIn.TabIndex = 1;
             this.btnZoomIn.Text = "Zoom +";
             this.btnZoomIn.UseVisualStyleBackColor = true;
@@ -192,9 +192,9 @@
             // btnDeskew
             //
             this.btnDeskew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnDeskew.Location = new System.Drawing.Point(712, 22);
+            this.btnDeskew.Location = new System.Drawing.Point(304, 22);
             this.btnDeskew.Name = "btnDeskew";
-            this.btnDeskew.Size = new System.Drawing.Size(88, 30);
+            this.btnDeskew.Size = new System.Drawing.Size(90, 30);
             this.btnDeskew.TabIndex = 2;
             this.btnDeskew.Text = "Deskew";
             this.btnDeskew.UseVisualStyleBackColor = true;
@@ -221,9 +221,9 @@
             this.grpFields.Controls.Add(this.btnDraft);
             this.grpFields.Controls.Add(this.btnCommit);
             this.grpFields.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.grpFields.Location = new System.Drawing.Point(860, 130);
+            this.grpFields.Location = new System.Drawing.Point(484, 130);
             this.grpFields.Name = "grpFields";
-            this.grpFields.Size = new System.Drawing.Size(806, 570);
+            this.grpFields.Size = new System.Drawing.Size(1182, 570);
             this.grpFields.TabIndex = 8;
             this.grpFields.TabStop = false;
             this.grpFields.Text = "EXTRACTED FIELDS — REVIEW REQUIRED";
@@ -425,7 +425,7 @@
             this.lblBatch.AutoSize = true;
             this.lblBatch.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.lblBatch.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblBatch.Location = new System.Drawing.Point(24, 712);
+            this.lblBatch.Location = new System.Drawing.Point(24, 762);
             this.lblBatch.Name = "lblBatch";
             this.lblBatch.Size = new System.Drawing.Size(126, 17);
             this.lblBatch.TabIndex = 9;
@@ -435,7 +435,7 @@
             //
             this.btnBatchPending.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnBatchPending.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnBatchPending.Location = new System.Drawing.Point(1416, 706);
+            this.btnBatchPending.Location = new System.Drawing.Point(1416, 756);
             this.btnBatchPending.Name = "btnBatchPending";
             this.btnBatchPending.Size = new System.Drawing.Size(110, 26);
             this.btnBatchPending.TabIndex = 11;
@@ -447,7 +447,7 @@
             //
             this.btnBatchProcessed.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnBatchProcessed.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnBatchProcessed.Location = new System.Drawing.Point(1536, 706);
+            this.btnBatchProcessed.Location = new System.Drawing.Point(1536, 756);
             this.btnBatchProcessed.Name = "btnBatchProcessed";
             this.btnBatchProcessed.Size = new System.Drawing.Size(130, 26);
             this.btnBatchProcessed.TabIndex = 12;
@@ -463,7 +463,7 @@
                         | System.Windows.Forms.AnchorStyles.Right)));
             this.dgvBatch.BackgroundColor = System.Drawing.Color.White;
             this.dgvBatch.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dgvBatch.Location = new System.Drawing.Point(24, 734);
+            this.dgvBatch.Location = new System.Drawing.Point(24, 784);
             this.dgvBatch.Name = "dgvBatch";
             this.dgvBatch.ReadOnly = true;
             this.dgvBatch.RowHeadersVisible = false;
@@ -476,7 +476,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(248)))), ((int)(((byte)(249)))), ((int)(((byte)(250)))));
-            this.ClientSize = new System.Drawing.Size(1690, 966);
+            this.ClientSize = new System.Drawing.Size(1690, 1016);
             this.Controls.Add(this.lblTitle);
             this.Controls.Add(this.lblSubtitle);
             this.Controls.Add(this.btnLoad);
