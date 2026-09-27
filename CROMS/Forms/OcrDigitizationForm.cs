@@ -1094,41 +1094,107 @@ namespace CROMS.Forms
         {
             if (_image == null || _result == null || dgvFields.CurrentRow == null) return;
             if (!(dgvFields.CurrentRow.Tag is DocField f)) return;
-            RectangleF? box = FieldRectOnPicture(f);
+            RectangleF? box = FieldRectOnPicture(f, out bool estimated);
             if (box == null) return;
             RectangleF rect = box.Value;
             rect.Inflate(4f, 4f);
 
-            using (var pen = new Pen(Color.FromArgb(220, 13, 110, 253), 2f))
-            using (var wash = new SolidBrush(Color.FromArgb(40, 13, 110, 253)))
+            if (estimated)
             {
-                e.Graphics.FillRectangle(wash, rect);
-                e.Graphics.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
+                // No measured region (blank field, or the layout did not fit this page) —
+                // this is the TEMPLATE's own position for the field, drawn as a guess, not
+                // a confirmed read. Dashed amber rather than solid blue so the operator
+                // never mistakes "roughly here" for "this is where it was read".
+                using (var pen = new Pen(Color.FromArgb(230, 217, 119, 6), 2f) { DashStyle = System.Drawing.Drawing2D.DashStyle.Dash })
+                using (var wash = new SolidBrush(Color.FromArgb(28, 217, 119, 6)))
+                using (var font = new Font(Font.FontFamily, 8f, FontStyle.Bold))
+                using (var textBrush = new SolidBrush(Color.FromArgb(230, 180, 90, 0)))
+                {
+                    e.Graphics.FillRectangle(wash, rect);
+                    e.Graphics.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
+                    e.Graphics.DrawString("not found — estimated position, type it in",
+                        font, textBrush, rect.X, Math.Max(0, rect.Y - 16));
+                }
+            }
+            else
+            {
+                using (var pen = new Pen(Color.FromArgb(220, 13, 110, 253), 2f))
+                using (var wash = new SolidBrush(Color.FromArgb(40, 13, 110, 253)))
+                {
+                    e.Graphics.FillRectangle(wash, rect);
+                    e.Graphics.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
+                }
             }
         }
 
         /// <summary>
-        /// Where the field's region lands inside pbScan at its CURRENT size, or null when
-        /// the field has no measured region. Page pixels -> source image pixels -> the
-        /// box, honouring PictureBoxSizeMode.Zoom letterboxing.
+        /// Where the field's region lands inside pbScan at its CURRENT size. Page pixels
+        /// -> source image pixels -> the box, honouring PictureBoxSizeMode.Zoom
+        /// letterboxing.
+        /// <para/>
+        /// When the field was never measured (blank, or the page's layout was rejected so
+        /// nothing was region-read at all), <paramref name="estimated"/> comes back true
+        /// and the box is the TEMPLATE's own field rectangle for this document's
+        /// candidate form — read by <see cref="TemplateRect"/> — under the assumption that
+        /// this page has roughly the template's proportions. That is a guess, not a
+        /// measurement: there is no page-fit to correct it, so it is only ever offered so
+        /// the operator has somewhere to look while typing the value in by hand, never
+        /// treated as a real region elsewhere (audit, printing, scoring all still see the
+        /// field as blank).
         /// </summary>
-        private RectangleF? FieldRectOnPicture(DocField f)
+        private RectangleF? FieldRectOnPicture(DocField f, out bool estimated)
         {
+            estimated = false;
             if (_image == null || _result == null) return null;
-            if (f.Region.Width <= 0 || f.Region.Height <= 0) return null;
             if (_result.PageWidth <= 0 || _result.PageHeight <= 0) return null;
 
             double toImage = (double)_image.Width / _result.PageWidth;
+            double normX, normY, normW, normH;
+
+            if (f.Region.Width > 0 && f.Region.Height > 0)
+            {
+                normX = f.Region.X * toImage;
+                normY = f.Region.Y * toImage;
+                normW = f.Region.Width * toImage;
+                normH = f.Region.Height * toImage;
+            }
+            else
+            {
+                RectangleF? tmpl = TemplateRect(f.Key);
+                if (tmpl == null) return null;
+                estimated = true;
+                normX = tmpl.Value.X * _image.Width;
+                normY = tmpl.Value.Y * _image.Height;
+                normW = tmpl.Value.Width * _image.Width;
+                normH = tmpl.Value.Height * _image.Height;
+            }
+
             double fit = Math.Min((double)pbScan.ClientSize.Width / _image.Width,
                                   (double)pbScan.ClientSize.Height / _image.Height);
             double offsetX = (pbScan.ClientSize.Width - _image.Width * fit) / 2.0;
             double offsetY = (pbScan.ClientSize.Height - _image.Height * fit) / 2.0;
 
             return new RectangleF(
-                (float)(f.Region.X * toImage * fit + offsetX),
-                (float)(f.Region.Y * toImage * fit + offsetY),
-                (float)(f.Region.Width * toImage * fit),
-                (float)(f.Region.Height * toImage * fit));
+                (float)(normX * fit + offsetX),
+                (float)(normY * fit + offsetY),
+                (float)(normW * fit),
+                (float)(normH * fit));
+        }
+
+        /// <summary>
+        /// The candidate form's own template rectangle (0-1 page space) for a field key,
+        /// used only as a fallback when nothing was actually region-read for it. Matched
+        /// against <see cref="DocAiResult.CandidateLayoutCode"/> — the form the page was
+        /// classified as, even when its layout did not fit and was rejected — so a blank
+        /// field on an unfitted page can still point at roughly where it belongs.
+        /// </summary>
+        private RectangleF? TemplateRect(string key)
+        {
+            string code = _result?.CandidateLayoutCode;
+            if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(key)) return null;
+            FormLayout layout = DocLayouts.All.FirstOrDefault(l => l.Code == code);
+            FieldSpec spec = layout?.Fields.FirstOrDefault(s => s.Key == key);
+            return spec?.Rect;
         }
 
         /// <summary>
@@ -1144,7 +1210,7 @@ namespace CROMS.Forms
             // measure at the base (fit-page) size so the target zoom is independent of
             // whatever zoom the operator is currently at
             pbScan.Size = pnlScanHost.ClientSize;
-            RectangleF? baseBox = FieldRectOnPicture(f);
+            RectangleF? baseBox = FieldRectOnPicture(f, out _);
             if (baseBox == null) { _zoom = 1f; pbScan.Invalidate(); return; }
 
             float target = pnlScanHost.ClientSize.Width * 0.45f / Math.Max(1f, baseBox.Value.Width);
@@ -1154,7 +1220,7 @@ namespace CROMS.Forms
                 (int)(pnlScanHost.ClientSize.Width * _zoom),
                 (int)(pnlScanHost.ClientSize.Height * _zoom));
 
-            RectangleF box = FieldRectOnPicture(f).Value;
+            RectangleF box = FieldRectOnPicture(f, out _).Value;
             int x = (int)(box.X + box.Width / 2f - pnlScanHost.ClientSize.Width / 2f);
             int y = (int)(box.Y + box.Height / 2f - pnlScanHost.ClientSize.Height / 2f);
             pnlScanHost.AutoScrollPosition = new Point(Math.Max(0, x), Math.Max(0, y));
