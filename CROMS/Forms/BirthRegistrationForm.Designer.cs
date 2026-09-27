@@ -182,7 +182,6 @@ namespace CROMS.Forms
             this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
             this.btnNewRegistration = new System.Windows.Forms.Button();
             this.btnOpenRecord = new System.Windows.Forms.Button();
-            this.button1 = new System.Windows.Forms.Button();
             this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnClearSearch = new System.Windows.Forms.Button();
@@ -2158,7 +2157,6 @@ namespace CROMS.Forms
             this.pnlListActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlListActions.Controls.Add(this.btnNewRegistration);
             this.pnlListActions.Controls.Add(this.btnOpenRecord);
-            this.pnlListActions.Controls.Add(this.button1);
             this.pnlListActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlListActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlListActions.Location = new System.Drawing.Point(606, 0);
@@ -2195,20 +2193,7 @@ namespace CROMS.Forms
             this.btnOpenRecord.Text = "Open Record";
             this.btnOpenRecord.UseVisualStyleBackColor = true;
             this.btnOpenRecord.Click += new System.EventHandler(this.btnOpenRecord_Click);
-            // 
-            // button1
-            // 
-            this.button1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.button1.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.button1.Location = new System.Drawing.Point(6, 6);
-            this.button1.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(190, 30);
-            this.button1.TabIndex = 2;
-            this.button1.Text = "+ Digitize Old Record";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
-            // 
+            //
             // pnlSearch
             // 
             this.pnlSearch.ColumnCount = 2;
@@ -2491,6 +2476,5 @@ namespace CROMS.Forms
         private System.Windows.Forms.FlowLayoutPanel pnlListActions;
         private System.Windows.Forms.Button btnOpenRecord;
         private System.Windows.Forms.Button btnNewRegistration;
-        private Button button1;
     }
 }
