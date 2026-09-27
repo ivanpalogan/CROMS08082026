@@ -6273,3 +6273,57 @@ GUI not clicked (no interactive desktop) — the row-visibility filter and step 
 reasoned from the exact existing `AddSectionRow`/`AddFieldRow`/`ApplyResultToUi` code paths, not
 run against a live scan; rebuild in VS and step through a real birth scan to confirm the six
 steps land on the right fields and Commit/Draft only enable on Review and Save.
+
+### 2026-09-28 (later) — Step 7, Registry Information: fixed a real fabrication in the
+### backlog Commit path (a guessed book year), added Date of Registration + Page Number
+
+Checked the Commit path (`OcrDigitizationForm.SaveBirth`, the wizard's "Review and Save" ->
+Commit action that writes straight into `births` for the office's own physical-ledger backlog)
+against the spec's own rule for this step: "Do not generate a new registry number, book number,
+or page number for an old record. Use the information from the existing physical civil registry
+record." It was not following that rule — `book_volume` was silently set from the YEAR PARSED
+OUT OF THE CHILD'S OWN DATE OF BIRTH, never from anything the operator typed off the ledger, and
+`book_page`/`date_registered` were not written at all (the INSERT's column list never named
+them). A record's archive location was being guessed from an unrelated field on the certificate
+itself — the exact class of fabrication this OCR pipeline has refused everywhere else since
+2026-09-04 (loose date parses, invented registry years, a name gazetteer that turned a father
+into his son).
+
+FIXED. New `OcrDigitizationForm.EnsureRegistryInfoFields` adds three plain, always-blank manual
+rows to the review grid for a Birth document — Date of Registration, Registry Book Number, Page
+Number — alongside the already-extracted Registry Number, all grouped under the existing "Form
+Identification" section (`FormCatalog.BirthSections()`, which Step 5/7 of the wizard already
+shows). None of the three is ever read off the page or derived from another field: they start
+empty and stay empty until the operator copies them from the physical book in front of them,
+exactly like every other manual-entry cell already on this grid. Wired into `Analyze()` right
+after the form is identified, followed by `DocIntelligence.Revalidate(r)` so the new rows get
+the normal Missing/Ok scoring — blank rows are excluded from `OverallConfidence`'s average, so
+adding them cannot itself hold a good scan for review.
+
+`SaveBirth` no longer derives `book_volume` from the date of birth at all; it now reads
+`BookVolume`/`BookPage` straight from the grid and adds `date_registered` to the INSERT via the
+existing `DateOrNull("DateOfRegistration")` helper — the same strict `yyyy-MM-dd`-only parser
+every other certification date on this grid already uses (deliberately refuses an ambiguous
+numeric date rather than guessing its order, per the 2026-09-04 CorrectDate fix). A blank field
+stays NULL; nothing here can invent a book, a page or a registration date.
+
+`BirthRegistrationForm.PrimeFromExtraction` (the Auto-Fill route, a separate path from Commit)
+now also carries `BookVolume`/`BookPage` across to the registration form's own `txtBook`/
+`txtBookPage` boxes, the same way `RegistryNo` already does — so a value the operator typed on
+the OCR grid is not lost when routing to the registration form instead of committing directly.
+Date of Registration was deliberately NOT added there: `BirthRegistrationForm` has no editable
+control for it at all today (only an internal `_dateRegistered` field set from a loaded record),
+and building that control is a separate, larger UI change than this step asked for.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp OutDir.
+GUI not clicked (no interactive desktop) — the new fields flow through the same
+Analyze/Enrich/Revalidate/PaintRow pipeline every other grid row already uses, and the INSERT
+change was checked against `SaveBirth`'s exact parameter list; rebuild in VS and confirm a
+Birth scan's Step 7 shows Date of Registration/Registry Book Number/Page Number blank, that
+typing a value there and Committing writes it to `births`, and that a book/page typed there
+survives Auto-Fill into Birth Registration.
+
+NOT DONE: Marriage and Death commit paths (`SaveDeath` and the marriage workflow) still derive
+their own `book_volume` from a parsed date the same way Birth used to — this pass was scoped to
+the pasted Step 7 spec, which is explicitly the Birth Record Digitization wizard; the identical
+fabrication in `SaveDeath` is a known, separate follow-up, not touched here.

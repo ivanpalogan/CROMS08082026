@@ -445,7 +445,8 @@ namespace CROMS.Data
         private static List<FormSection> BirthSections() => new List<FormSection>
         {
             new FormSection("Form Identification",
-                "RegistryNo", "Province", "CityMunicipality"),
+                "RegistryNo", "Province", "CityMunicipality",
+                "DateOfRegistration", "BookVolume", "BookPage"),
             new FormSection("1-5. Child",
                 "ChildFirst", "ChildMiddle", "ChildLast", "Sex",
                 "DateOfBirth", "DobDay", "DobMonth", "DobYear", "TimeOfBirth",

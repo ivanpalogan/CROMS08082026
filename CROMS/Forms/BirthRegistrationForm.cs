@@ -164,6 +164,11 @@ namespace CROMS.Forms
                 _ocrScanId = scanId.Trim();
 
             Set(txtRegNo, "RegistryNo");
+            // Registry Book Number / Page: only ever what the operator typed into the
+            // review grid off the physical ledger (see EnsureRegistryInfoFields in
+            // OcrDigitizationForm) — never invented here either.
+            Set(txtBook, "BookVolume");
+            Set(txtBookPage, "BookPage");
             Set(txtFirstName, "ChildFirst");
             Set(txtMiddleName, "ChildMiddle");
             Set(txtLastName, "ChildLast");

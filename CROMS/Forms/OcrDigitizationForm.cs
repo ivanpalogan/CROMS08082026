@@ -418,6 +418,18 @@ namespace CROMS.Forms
                 _seals = SealDetector.Detect(_image);
                 SuppressSealReadings(r);
 
+                // Registry Information (Step 7 of the Birth Record Digitization wizard):
+                // where this record belongs in the archive — never read off the page and
+                // never generated from it, so these start blank for the operator to copy
+                // from the physical ledger. Revalidate folds them into the normal Missing/
+                // Ok scoring without dragging down OverallConfidence (blanks are excluded
+                // from that average).
+                if (r.Kind == DocKind.Birth)
+                {
+                    EnsureRegistryInfoFields(r);
+                    DocIntelligence.Revalidate(r);
+                }
+
                 UpdateFormIdentity();
                 txtDocClass.Text = ClassLabel(r.Kind) +
                     (r.Kind == DocKind.Unknown ? "" : "   —   detected " + r.ClassifyConfidence + "% sure") +
@@ -963,6 +975,35 @@ namespace CROMS.Forms
             // After commit it prints the registry entry.
             btnReport.Enabled = _formDef != null && (_savedRecordId.HasValue || _result != null);
             btnReport.Text = _savedRecordId.HasValue ? "Print Certificate" : "Preview on Form";
+        }
+
+        /// <summary>
+        /// STEP 7 — REGISTRY INFORMATION. Adds Date of Registration, Registry Book Number
+        /// and Page Number to the review grid as plain manual-entry rows alongside the
+        /// already-extracted Registry Number — where this record belongs in the Birth
+        /// Records Archive.
+        /// <para/>
+        /// These three are NEVER auto-generated and NEVER read off the page: the office's
+        /// physical ledger is the only source, so every one of them starts blank and stays
+        /// blank until the operator copies it from the book in front of them. This is the
+        /// fix for a real defect this same commit path used to have — it silently derived
+        /// a "book" number from the child's parsed date of birth (a YEAR guess, not the
+        /// office's actual book/page), and never wrote a page number or a registration
+        /// date at all. A guessed archive location is exactly the kind of fabricated fact
+        /// this project's OCR pipeline has refused everywhere else since 2026-09-04.
+        /// </summary>
+        private void EnsureRegistryInfoFields(DocAiResult r)
+        {
+            void AddIfMissing(string key, string label)
+            {
+                if (r.Fields.Any(f => string.Equals(f.Key, key, StringComparison.OrdinalIgnoreCase)))
+                    return;
+                r.Fields.Add(new DocField(key, label, "", false));
+            }
+
+            AddIfMissing("DateOfRegistration", "Date of Registration");
+            AddIfMissing("BookVolume", "Registry Book Number");
+            AddIfMissing("BookPage", "Page Number");
         }
 
         /// <summary>
@@ -2014,11 +2055,6 @@ namespace CROMS.Forms
                        : sexText.StartsWith("M", StringComparison.OrdinalIgnoreCase) ? "Male"
                        : (object)DBNull.Value;
 
-            // This office identifies a registry book by its year.
-            string year = parsed ? d.Year.ToString()
-                        : (dobText.Length >= 4 && dobText.Substring(0, 4).All(char.IsDigit)
-                            ? dobText.Substring(0, 4) : "");
-
             object weight = int.TryParse(V("Weight"), out int g) ? (object)g : DBNull.Value;
             string religion = V("Religion");
             string citizenship = V("Nationality");
@@ -2030,7 +2066,8 @@ namespace CROMS.Forms
             string formName = _formDef?.FormName;
 
             return Db.Insert(
-                "INSERT INTO births (form_code, form_name, registry_no, book_volume, status, first_name, middle_name, " +
+                "INSERT INTO births (form_code, form_name, registry_no, book_volume, book_page, " +
+                "date_registered, status, first_name, middle_name, " +
                 "last_name, sex, date_of_birth, time_of_birth, place_of_birth, type_of_birth, weight_grams, " +
                 "mother_first_name, mother_middle_name, mother_last_name, mother_occupation, " +
                 "mother_religion, mother_citizenship, " +
@@ -2042,7 +2079,7 @@ namespace CROMS.Forms
                 "received_by, received_by_title, received_by_date, " +
                 "registered_by, registered_by_title, registered_by_date, " +
                 "birth_image, scan_image, record_source) " +
-                "VALUES (@fcode, @fname, @reg, @book, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, @btype, @weight, " +
+                "VALUES (@fcode, @fname, @reg, @book, @page, @dateReg, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, @btype, @weight, " +
                 "@mf, @mm, @ml, @mocc, @mrel, @mcit, " +
                 "@ff, @fm, @fl, @focc, @frel, @fcit, " +
                 "@atype, @aname, @atitle, @aaddr, @adate, " +
@@ -2054,7 +2091,13 @@ namespace CROMS.Forms
                 new MySqlParameter("@fcode", NullIfEmpty(formCode)),
                 new MySqlParameter("@fname", NullIfEmpty(formName)),
                 new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
-                new MySqlParameter("@book", NullIfEmpty(year)),
+                // STEP 7 — Registry Information. All three come only from what the operator
+                // copied off the physical ledger onto the grid (EnsureRegistryInfoFields
+                // seeds them blank; nothing here derives or guesses a book, page or
+                // registration date on the record's behalf).
+                new MySqlParameter("@book", NullIfEmpty(V("BookVolume"))),
+                new MySqlParameter("@page", NullIfEmpty(V("BookPage"))),
+                new MySqlParameter("@dateReg", DateOrNull("DateOfRegistration")),
                 new MySqlParameter("@status", status),
                 new MySqlParameter("@fn", V("ChildFirst")),
                 new MySqlParameter("@mn", NullIfEmpty(V("ChildMiddle"))),
