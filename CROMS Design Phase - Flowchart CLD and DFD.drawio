@@ -1,0 +1,439 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<mxfile host="app.diagrams.net" modified="2026-09-27T00:00:00.000Z" agent="CROMS project team" version="24.7.17">
+  <diagram id="flowchart" name="1 Combined Design Phase">
+    <mxGraphModel dx="2400" dy="2250" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="2250" math="0" shadow="0">
+      <root>
+        <mxCell id="fc0" />
+        <mxCell id="fc1" parent="fc0" />
+        <mxCell id="fctitle" value="CROMS Design Phase" style="text;html=1;align=center;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#111827;" vertex="1" parent="fc1">
+          <mxGeometry x="500" y="20" width="800" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="fcsub" value="Main System Flowchart" style="text;html=1;align=center;verticalAlign=middle;fontSize=13;fontColor=#4b5563;" vertex="1" parent="fc1">
+          <mxGeometry x="650" y="60" width="500" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="fcstart" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;strokeWidth=1.5;fontSize=12;" vertex="1" parent="fc1">
+          <mxGeometry x="825" y="100" width="150" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="fcmode" value="Select application" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=1.5;fontSize=12;" vertex="1" parent="fc1">
+          <mxGeometry x="800" y="185" width="200" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="fckioskHead" value="KIOSK" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="95" y="320" width="400" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="fck1" value="Show welcome page and available services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="145" y="390" width="300" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="fck2" value="Select one or more services" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="145" y="475" width="300" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="fck3" value="Enter personal or transaction details and take client photo" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="145" y="560" width="300" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fck4" value="Add another service?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="195" y="660" width="200" height="94" as="geometry" />
+        </mxCell>
+        <mxCell id="fck5" value="Create one queue ticket for all selected services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="145" y="790" width="300" height="64" as="geometry" />
+        </mxCell>
+        <mxCell id="fck6" value="Release or claim service?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="195" y="885" width="200" height="94" as="geometry" />
+        </mxCell>
+        <mxCell id="fck7" value="Show QR code for valid ID upload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="35" y="1010" width="220" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="fck8" value="Print ticket and wait for number to be called" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="295" y="1010" width="220" height="58" as="geometry" />
+        </mxCell>
+        <mxCell id="fcdisplayHead" value="PUBLIC DISPLAY" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="650" y="320" width="400" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="fcd1" value="Read active windows and serving tickets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="700" y="410" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fcd2" value="Show Now Serving board and play callout" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="700" y="515" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fcd3" value="Refresh display" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="750" y="620" width="200" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="fcmainHead" value="MAIN STAFF SYSTEM" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="1190" y="320" width="520" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm1" value="Login" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1360" y="390" width="180" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm2" value="Credentials valid?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1360" y="475" width="180" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm3" value="Open dashboard and assigned service window" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1320" y="600" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm4" value="Accept next ticket, locate record and call client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1320" y="690" width="260" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm5" value="Client present?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1355" y="790" width="190" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm6" value="Mark no-show and call the next ticket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1600" y="805" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm7" value="Open Client Tasks and process the current service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1320" y="915" width="260" height="66" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm8" value="Registration, certificate request, petition, OCR, payment, record search or release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e8f0fe;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1255" y="1015" width="390" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm9" value="More services on the same ticket?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1360" y="1110" width="180" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm10" value="Forward or open the next service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1600" y="1125" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fcm11" value="Complete ticket and release the result" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1120" y="1125" width="200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="fcend" value="End" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;strokeWidth=1.5;fontSize=12;" vertex="1" parent="fc1">
+          <mxGeometry x="1145" y="1215" width="150" height="54" as="geometry" />
+        </mxCell>
+        <mxCell id="fce1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.3;" edge="1" parent="fc1" source="fcstart" target="fcmode">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce2" value="Kiosk" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcmode" target="fck1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="600" y="237" />
+              <mxPoint x="295" y="237" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce3" value="Display" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcmode" target="fcd1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce4" value="Main" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcmode" target="fcm1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1120" y="237" />
+              <mxPoint x="1450" y="237" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fck1" target="fck2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fck2" target="fck3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fck3" target="fck4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce8" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fck4" target="fck2">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="80" y="707" />
+              <mxPoint x="80" y="504" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce9" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fck4" target="fck5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fck5" target="fck6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce11" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fck6" target="fck7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce12" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fck6" target="fck8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fck7" target="fck8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcd1" target="fcd2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcd2" target="fcd3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce16" value="Every 2 seconds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#9673a6;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcd3" target="fcd1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1080" y="647" />
+              <mxPoint x="1080" y="440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcm1" target="fcm2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce18" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#b85450;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcm2" target="fcm1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1630" y="520" />
+              <mxPoint x="1630" y="417" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce19" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcm2" target="fcm3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcm3" target="fcm4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcm4" target="fcm5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce22" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#b85450;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcm5" target="fcm6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#b85450;" edge="1" parent="fc1" source="fcm6" target="fcm4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1740" y="720" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce24" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcm5" target="fcm7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcm7" target="fcm8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcm8" target="fcm9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce27" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcm9" target="fcm10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce28" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=10;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="fcm9" target="fcm11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fce29" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;" edge="1" parent="fc1" source="fcm10" target="fcm7">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1740" y="950" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="fce30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;" edge="1" parent="fc1" source="fcm11" target="fcend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cdfdPanel" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#9ca3af;strokeWidth=1.3;" vertex="1" parent="fc1">
+          <mxGeometry x="40" y="1340" width="1500" height="850" as="geometry" />
+        </mxCell>
+        <mxCell id="cdfdTitle" value="DATA FLOW DIAGRAM (DFD)" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#111827;" vertex="1" parent="fc1">
+          <mxGeometry x="470" y="1360" width="640" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="cdfdClient" value="CLIENT" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=1.5;fontSize=12;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="70" y="1570" width="145" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="cdfdStaff" value="LCRO STAFF" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=1.5;fontSize=12;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="1360" y="1570" width="145" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="cp11" value="&lt;b&gt;1.1&lt;/b&gt;&lt;hr&gt;Client Transaction&lt;br&gt;and Queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="270" y="1430" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp12" value="&lt;b&gt;1.2&lt;/b&gt;&lt;hr&gt;Civil Registration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="530" y="1430" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp13" value="&lt;b&gt;1.3&lt;/b&gt;&lt;hr&gt;Certificate Request&lt;br&gt;and Release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="790" y="1430" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp14" value="&lt;b&gt;1.4&lt;/b&gt;&lt;hr&gt;Petitions and Cases" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="1050" y="1430" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp15" value="&lt;b&gt;1.5&lt;/b&gt;&lt;hr&gt;Documents and OCR" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="400" y="1660" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp16" value="&lt;b&gt;1.6&lt;/b&gt;&lt;hr&gt;Fees and Payments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="660" y="1660" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp17" value="&lt;b&gt;1.7&lt;/b&gt;&lt;hr&gt;Record Search" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="920" y="1660" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp18" value="&lt;b&gt;1.8&lt;/b&gt;&lt;hr&gt;Reports and Monitoring" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="530" y="1840" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cp19" value="&lt;b&gt;1.9&lt;/b&gt;&lt;hr&gt;System Administration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=10;verticalAlign=top;spacingTop=4;" vertex="1" parent="fc1">
+          <mxGeometry x="790" y="1840" width="190" height="78" as="geometry" />
+        </mxCell>
+        <mxCell id="cd1" value="D1  Queue and Transactions" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="130" y="2070" width="160" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd2" value="D2  Civil Registry" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="310" y="2070" width="145" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd3" value="D3  Requests and Releases" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="475" y="2070" width="165" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd4" value="D4  Petitions and Cases" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="660" y="2070" width="155" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd5" value="D5  OCR Documents" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="835" y="2070" width="145" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd6" value="D6  Fees and Payments" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="1000" y="2070" width="155" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd7" value="D7  Users and Audit" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="1175" y="2070" width="145" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cd8" value="D8  Configuration and Master Files" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=9;spacingLeft=12;" vertex="1" parent="fc1">
+          <mxGeometry x="1340" y="2070" width="175" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe1" value="service and requester data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cdfdClient" target="cp11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe2" value="queue and transaction information" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp11" target="cdfdClient">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="240" y="1530" />
+              <mxPoint x="140" y="1530" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe3" value="registration transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp11" target="cp12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe4" value="certificate or claim transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp11" target="cp13">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="625" y="1410" />
+              <mxPoint x="885" y="1410" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe5" value="petition transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp11" target="cp14">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="365" y="1398" />
+              <mxPoint x="1145" y="1398" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe6" value="verification and transaction updates" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cdfdStaff" target="cp13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe7" value="validated data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cdfdStaff" target="cp15">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1270" y="1700" />
+              <mxPoint x="495" y="1700" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe8" value="payment details" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cdfdStaff" target="cp16">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1270" y="1760" />
+              <mxPoint x="755" y="1760" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe9" value="search request" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cdfdStaff" target="cp17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe10" value="reports and records" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp18" target="cdfdStaff">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="625" y="1970" />
+              <mxPoint x="1430" y="1970" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe11" value="administrative information" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#374151;fontSize=9;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp19" target="cdfdStaff">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="885" y="1935" />
+              <mxPoint x="1430" y="1935" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="cfe12" value="queue data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp11" target="cd1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe13" value="civil record" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp12" target="cd2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe14" value="request and release record" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp13" target="cd3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe15" value="petition record" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp14" target="cd4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe16" value="OCR data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp15" target="cd5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe17" value="payment record" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp16" target="cd6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe18" value="user and configuration data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp19" target="cd7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cfe19" value="master file data" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#6b7280;fontSize=8;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cp19" target="cd8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ccldPanel" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fafafa;strokeColor=#9ca3af;strokeWidth=1.3;" vertex="1" parent="fc1">
+          <mxGeometry x="1570" y="1340" width="790" height="850" as="geometry" />
+        </mxCell>
+        <mxCell id="ccldTitle" value="CAUSAL LOOP DIAGRAM (CLD)" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#111827;" vertex="1" parent="fc1">
+          <mxGeometry x="1660" y="1360" width="610" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="cb1Title" value="B1 Queue balancing" style="text;html=1;align=center;fontSize=13;fontStyle=1;fontColor=#1e3a5f;" vertex="1" parent="fc1">
+          <mxGeometry x="1750" y="1430" width="430" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cq1" value="Waiting tickets" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1650" y="1510" width="155" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cq2" value="Client waiting time" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="2070" y="1480" width="165" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cq3" value="Ticket call rate" style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="2080" y="1640" width="155" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cb1" value="B1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;strokeWidth=2;fontSize=14;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="1905" y="1570" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cqe1" value="+" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cq1" target="cq2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cqe2" value="+" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cq2" target="cq3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cqe3" value="−" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cq3" target="cq1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cr1Title" value="R1 Digitization reinforcing" style="text;html=1;align=center;fontSize=13;fontStyle=1;fontColor=#14532d;" vertex="1" parent="fc1">
+          <mxGeometry x="1750" y="1780" width="430" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="cr1" value="Digitized records" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1625" y="1860" width="155" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cr2" value="Record hit rate" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="2070" y="1835" width="155" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cr3" value="Handling time" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="2100" y="2010" width="145" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="cr4" value="Digitization capacity" style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="fc1">
+          <mxGeometry x="1640" y="2040" width="170" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="crLabel" value="R1" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;strokeWidth=2;fontSize=14;fontStyle=1;" vertex="1" parent="fc1">
+          <mxGeometry x="1905" y="1940" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cre1" value="+" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#16a34a;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cr1" target="cr2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cre2" value="−" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#16a34a;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cr2" target="cr3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cre3" value="−" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#16a34a;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cr3" target="cr4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cre4" value="+" style="curved=1;html=1;endArrow=block;endFill=1;strokeColor=#16a34a;strokeWidth=1.5;fontSize=14;fontStyle=1;labelBackgroundColor=#ffffff;" edge="1" parent="fc1" source="cr4" target="cr1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
