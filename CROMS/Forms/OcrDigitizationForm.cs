@@ -82,6 +82,8 @@ namespace CROMS.Forms
             // Comparing the grid against the scan is the whole review step, so selecting a
             // field draws its box on the page.
             dgvFields.SelectionChanged += (s, e) => pbScan.Invalidate();
+            // Clicking a field name also zooms the scan onto where that value was read.
+            dgvFields.CurrentCellChanged += DgvFields_ZoomOnSelect;
             dgvFields.CellEndEdit += DgvFields_CellEndEdit;
             dgvFields.CurrentCellDirtyStateChanged += (s, e) =>
             {
@@ -1183,23 +1185,9 @@ namespace CROMS.Forms
         {
             if (_image == null || _result == null || dgvFields.CurrentRow == null) return;
             if (!(dgvFields.CurrentRow.Tag is DocField f)) return;
-            if (f.Region.Width <= 0 || f.Region.Height <= 0) return;
-            if (_result.PageWidth <= 0 || _result.PageHeight <= 0) return;
-
-            // page pixels → source image pixels
-            double toImage = (double)_image.Width / _result.PageWidth;
-
-            // source image pixels → the box, honouring PictureBoxSizeMode.Zoom
-            double fit = Math.Min((double)pbScan.ClientSize.Width / _image.Width,
-                                  (double)pbScan.ClientSize.Height / _image.Height);
-            double offsetX = (pbScan.ClientSize.Width - _image.Width * fit) / 2.0;
-            double offsetY = (pbScan.ClientSize.Height - _image.Height * fit) / 2.0;
-
-            var rect = new RectangleF(
-                (float)(f.Region.X * toImage * fit + offsetX),
-                (float)(f.Region.Y * toImage * fit + offsetY),
-                (float)(f.Region.Width * toImage * fit),
-                (float)(f.Region.Height * toImage * fit));
+            RectangleF? box = FieldRectOnPicture(f);
+            if (box == null) return;
+            RectangleF rect = box.Value;
             rect.Inflate(4f, 4f);
 
             using (var pen = new Pen(Color.FromArgb(220, 13, 110, 253), 2f))
@@ -1209,6 +1197,70 @@ namespace CROMS.Forms
                 e.Graphics.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
             }
         }
+
+        /// <summary>
+        /// Where the field's region lands inside pbScan at its CURRENT size, or null when
+        /// the field has no measured region. Page pixels -> source image pixels -> the
+        /// box, honouring PictureBoxSizeMode.Zoom letterboxing.
+        /// </summary>
+        private RectangleF? FieldRectOnPicture(DocField f)
+        {
+            if (_image == null || _result == null) return null;
+            if (f.Region.Width <= 0 || f.Region.Height <= 0) return null;
+            if (_result.PageWidth <= 0 || _result.PageHeight <= 0) return null;
+
+            double toImage = (double)_image.Width / _result.PageWidth;
+            double fit = Math.Min((double)pbScan.ClientSize.Width / _image.Width,
+                                  (double)pbScan.ClientSize.Height / _image.Height);
+            double offsetX = (pbScan.ClientSize.Width - _image.Width * fit) / 2.0;
+            double offsetY = (pbScan.ClientSize.Height - _image.Height * fit) / 2.0;
+
+            return new RectangleF(
+                (float)(f.Region.X * toImage * fit + offsetX),
+                (float)(f.Region.Y * toImage * fit + offsetY),
+                (float)(f.Region.Width * toImage * fit),
+                (float)(f.Region.Height * toImage * fit));
+        }
+
+        /// <summary>
+        /// Zoom the scan in on the selected field and scroll it to the middle of the
+        /// viewer, so clicking a field name shows exactly what was read. The zoom is
+        /// absolute (fits the field to ~45% of the viewer width, 1x-6x), so clicking
+        /// the next field re-frames instead of compounding.
+        /// </summary>
+        private void ZoomToField(DocField f)
+        {
+            if (_image == null || f == null) return;
+
+            // measure at the base (fit-page) size so the target zoom is independent of
+            // whatever zoom the operator is currently at
+            pbScan.Size = pnlScanHost.ClientSize;
+            RectangleF? baseBox = FieldRectOnPicture(f);
+            if (baseBox == null) { _zoom = 1f; pbScan.Invalidate(); return; }
+
+            float target = pnlScanHost.ClientSize.Width * 0.45f / Math.Max(1f, baseBox.Value.Width);
+            _zoom = Math.Max(1f, Math.Min(6f, target));
+
+            pbScan.Size = new Size(
+                (int)(pnlScanHost.ClientSize.Width * _zoom),
+                (int)(pnlScanHost.ClientSize.Height * _zoom));
+
+            RectangleF box = FieldRectOnPicture(f).Value;
+            int x = (int)(box.X + box.Width / 2f - pnlScanHost.ClientSize.Width / 2f);
+            int y = (int)(box.Y + box.Height / 2f - pnlScanHost.ClientSize.Height / 2f);
+            pnlScanHost.AutoScrollPosition = new Point(Math.Max(0, x), Math.Max(0, y));
+            pbScan.Invalidate();
+        }
+
+        private void DgvFields_ZoomOnSelect(object sender, EventArgs e)
+        {
+            if (_updatingFieldGrid) return;
+            if (!(dgvFields.CurrentRow?.Tag is DocField f)) return;
+            if (ReferenceEquals(f, _zoomedField)) return;   // same row, another column
+            _zoomedField = f;
+            ZoomToField(f);
+        }
+        private DocField _zoomedField;
 
         /// <summary>The reviewed values by canonical key — what actually gets written.</summary>
         private Dictionary<string, string> Values()

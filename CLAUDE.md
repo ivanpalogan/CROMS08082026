@@ -6105,3 +6105,14 @@ Not run against the live database (no interactive desktop) - the fix is a same-b
 swap (`RefreshRail`->`RefreshAll`, which itself calls `RefreshLight`->`RefreshChecks` and rebuilds
 the rail, so nothing that used to run stops running). Rebuild in VS and confirm the Transaction/
 Queue labels update immediately after using either "Link..." button.
+
+### 2026-09-27 (zoom to field) — Intelligent Document Processing: clicking a field now ZOOMS the scan onto where it was read
+Selecting a row already drew the field's box on the scan, but at fit-page size the box was tiny and
+the operator still had to zoom and scroll by hand to check the reading. `OcrDigitizationForm` now
+also zooms: on row change (`dgvFields.CurrentCellChanged` -> `ZoomToField`) the scan is scaled so the
+field fills ~45% of the viewer width (1x-6x, absolute, so the next field re-frames rather than
+compounding) and scrolled to centre it in `pnlScanHost`. The rect maths was pulled out of `PbScan_Paint`
+into `FieldRectOnPicture` so the highlight and the zoom cannot disagree. Same-row column moves and grid
+rebuilds (`_updatingFieldGrid`) do not re-zoom; a field with no measured region just resets to fit-page.
+Zoom +/- buttons still work afterwards. VERIFIED: MSBuild clean (temp OutDir). GUI not clicked (no
+interactive desktop) - rebuild in VS and click a few field rows on a scanned certificate to confirm framing.
