@@ -6363,3 +6363,73 @@ clean, 0 errors, 0 warnings, temp OutDir. GUI not clicked (no interactive deskto
 swap sits in the same `ApplyResultToUi` gate already proven correct for Commit/Draft/Auto-Fill
 enablement; rebuild in VS and confirm the button reads "Save Digitized Record" only on the
 wizard's Review and Save step.
+
+### 2026-09-28 (later) — "Old Birth/Death Records (OCR)" retired as sidebar modules; the same
+### workbench (plus a new Marriage version) now lives inside Records Archive
+
+Per request: the two sidebar items "Old Birth Records (OCR)" / "Old Death Records (OCR)" are
+gone, their exact Add/Edit/View/Delete workbench (`OldBirthRecordsForm`/`OldDeathRecordsForm`,
+built 2026-09-15/28 for backlog rows tagged `record_source='OCR-Backlog'`) now lives INSIDE
+Records Archive instead — renamed "Birth Record" / "Death Record" — under a new tree group
+"Legacy Digitized Records", and Marriage gets the same workbench for the first time,
+"Marriage Record".
+
+**Removed:** `btnOldBirth`/`btnOldDeath` (field decl, `InitializeComponent` block,
+`navFlow.Controls.Add`) from `MainForm.Designer.cs`; the `"oldbirth"`/`"olddeath"`
+`ModuleInfo` entries from `ModuleRegistry.cs`; both keys from `MainForm.OperationalKeys`. The
+two Form CLASSES (`OldBirthRecordsForm.cs`/`OldDeathRecordsForm.cs`) are untouched — same CRUD,
+same `record_source='OCR-Backlog'` filter, same tabs — only how they are REACHED changed.
+
+**`RecordsArchiveForm` gained a Workbench category type.** `ArchiveCategory.Workbench`
+(`Func<Form>`) marks the three new leaf nodes; `LoadCategory` routes a workbench category into
+new `EnterWorkbenchMode(cat)` instead of the generic read-only SQL grid — same embedding pattern
+`MainForm.ShowModule` already uses for a module (`TopLevel=false`, `FormBorderStyle=None`,
+`Dock=Fill`, `AutoScroll=true`, `UiTheme.PolishButtons`), cached per category in a new
+`_workbenches` dictionary so switching to another tree node and back preserves whatever the
+operator was doing (list position, an open entry). `HideWorkbench()` restores the
+grid/count/View-Record/Refresh controls when a different (read-only) category or Search Records
+is picked next. New Designer panel `pnlWorkbench` shares the exact bounds `grid` already uses
+(kept in sync by `ApplyBounds`), so it fills the same space the read-only grid does.
+
+**Cross-module hand-off preserved, not broken.** `OcrDigitizationForm`'s Commit/Draft handlers
+used to call `Shell()?.GoToModule("oldbirth")` to land on the freshly-committed backlog birth
+record (Step 11's "result after saving"). With the module key gone, both call sites now do
+`(Shell()?.GoToModule("archive") as RecordsArchiveForm)?.OpenBirthRecordWorkbench()` — a new
+public method that selects the "Birth Record" tree node (building/caching the workbench form
+the first time) and returns it so `.OpenToRecord(id)` still works exactly as before. The
+fallback message boxes were reworded to point at "Records Archive → Birth Record / Death Record
+(under Legacy Digitized Records)" instead of the retired module names.
+
+**New `OldMarriageRecordsForm`** (`Forms/OldMarriageRecordsForm.cs`), built to the same
+books-free list/entry pattern as the Death version (marriage has no registry-book gallery
+hierarchy either — that was Birth-only). Tabs: Registration (Registry No./Book-Volume/Book
+Page/Status + the read-only Step 10 digitization-metadata fields), Husband, Wife (first/middle/
+last, sex, age, date of birth, place of birth, civil status — all plain text/combo, matching how
+`marriages` already stores these for the husband/wife themselves; the live schema's FK-based
+citizenship/religion/place-of-marriage columns are deliberately NOT used here, same reasoning as
+births' own free-text place-of-birth field: a decades-old paper entry naming a lookup value that
+was never entered into `nationalities`/`religions`/`churches` should not force a lossy best-fit
+FK match), and Marriage Details (date/time of marriage, place of marriage, solemnizing officer,
+remarks).
+
+Migration `Database/71_old_marriage_records_source.sql` (NOT yet applied to the live database,
+idempotent guarded ADD COLUMN) adds to `marriages`: `record_source` (mirrors migration 68's
+births/deaths column — migration 68's own note that marriage didn't need it is unchanged and
+still correct for the LIVE OCR-into-Form-97 path; this is a separate, later request for a
+hand-transcription backlog screen), `place_of_marriage` (free text, new — the live screen's
+`church_id`/`place_municipality_id`/`place_province_id` stay untouched), `remarks` (marriages had
+none before), and the four Step 10 digitization-metadata columns (`digitized_by`,
+`date_digitized`, `encoding_method`, `source_reference`) mirroring migration 70's births/deaths
+columns. `husband_first_name`/`last_name`/`wife_first_name`/`last_name` are NOT NULL in the live
+schema, so `Save()` validates all four are present before inserting (same shape as Birth's own
+"enter at least the child's first and last name" guard).
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp OutDir.
+Migration 71 not yet applied to the live database — run it before opening "Marriage Record" for
+the first time on a real database, or its Save will fail on the four new columns (reads are
+guarded with `dt.Columns.Contains(...)`, so a database still on migration 70 can still open
+Records Archive and browse everything else; only Marriage Record's own Save needs 71 first). GUI
+not clicked (no interactive desktop) — the embedding follows `MainForm.ShowModule`'s
+already-proven pattern exactly; rebuild in VS and confirm the sidebar no longer shows the two old
+entries, and that Records Archive's "Legacy Digitized Records" group opens Birth Record /
+Marriage Record / Death Record as full working screens.

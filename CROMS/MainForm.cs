@@ -745,14 +745,13 @@ namespace CROMS
         private static readonly HashSet<string> OperationalKeys = new HashSet<string> {
             "dashboard", "queue", "transactions", "certrequest", "release", "breqs",
             "birth", "marriage", "death", "petitions", "archive", "ocr", "fees", "reports",
-            // Old, already-registered birth/death records digitized through OCR -- a full
-            // Add/Edit/View/Delete workbench over the backlog, separate from the live
-            // Birth/Death Registration screens above.
-            "oldbirth", "olddeath",
             // "books" has no sidebar button any more -- Registry Books is folded into Records
             // Archive -- but it stays permitted so a cross-module GoToModule("books") is not a
             // permission hole if anything still routes there. Record Search's own module key
             // ("search") is deleted outright below since its screen no longer exists.
+            // "oldbirth"/"olddeath" are gone the same way: the old-record workbenches they
+            // named now live INSIDE Records Archive ("Birth Record"/"Marriage Record"/
+            // "Death Record"), so there is no separate module key to permit any more.
             "books"
         };
 
@@ -935,8 +934,10 @@ namespace CROMS
         /// usable in the WinForms designer, so many of them still carry their own large title
         /// label; hide that label only when the form is embedded here. Standalone dialogs keep
         /// their titles because they never pass through this method.
+        /// Internal (not private) so RecordsArchiveForm can reuse it for the same reason when
+        /// it embeds a "Birth/Marriage/Death Record" workbench under its own category title.
         /// </summary>
-        private static void SuppressDuplicateModuleTitle(Form form, string moduleTitle)
+        internal static void SuppressDuplicateModuleTitle(Form form, string moduleTitle)
         {
             Label best = null;
             int bestScore = 0;

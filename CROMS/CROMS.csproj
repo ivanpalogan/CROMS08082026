@@ -321,6 +321,9 @@
     <Compile Include="Forms\OldDeathRecordsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\OldMarriageRecordsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\FeesPaymentsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -871,6 +874,7 @@
     <None Include="Database\68_old_records_source.sql" />
     <None Include="Database\69_soft_delete_reason.sql" />
     <None Include="Database\70_digitization_metadata.sql" />
+    <None Include="Database\71_old_marriage_records_source.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />

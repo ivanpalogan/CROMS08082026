@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 using MySql.Data.MySqlClient;
 using CROMS.Data;
@@ -11,19 +10,22 @@ using CROMS.Modules;
 namespace CROMS.Forms
 {
     /// <summary>
-    /// Old, already-registered death records digitized through Intelligent Document
-    /// Processing (OCR) — committed straight to <c>deaths</c> tagged
+    /// Old, already-registered marriage records digitized (or hand-transcribed) from the
+    /// paper registry books — committed straight to <c>marriages</c> tagged
     /// <c>record_source = 'OCR-Backlog'</c>, and managed here instead of on the live
-    /// Death Registration screen. That screen is for today's walk-in registrations; this one
-    /// is a full Add / View / Edit / Delete workbench over the backlog alone.
+    /// Marriage Registration (Form 97) screen. That screen is for a solemnization actually
+    /// being registered today; this one is a full Add / View / Edit / Delete workbench over
+    /// the backlog alone, so a decades-old registry-book entry never clutters — and never
+    /// needs — the live Form 97 workflow (licence linking, OCR review, PSA endorsement,
+    /// etc. all belong to a marriage being registered NOW, not one being typed in from a
+    /// 1980s ledger).
     ///
-    /// Layout mirrors Birth/Death Registration's own card/list <-> card/entry pattern: a
-    /// full-width list card with a search box and a grid, and — once a row is opened — a
-    /// full-width entry card with the record's fields grouped into tabs (Registration /
-    /// Deceased / Cause &amp; Disposal / Informant / Certification), the same grouping the
-    /// live forms use.
+    /// Layout mirrors Old Birth/Death Records' own card/list &lt;-&gt; card/entry pattern:
+    /// a full-width list card with a search box and a grid, and — once a row is opened —
+    /// a full-width entry card with the record's fields grouped into tabs (Registration /
+    /// Husband / Wife / Marriage Details).
     /// </summary>
-    public class OldDeathRecordsForm : Form, IRefreshable
+    public class OldMarriageRecordsForm : Form, IRefreshable
     {
         // ---- list view ----------------------------------------------------------
         private CardPanel cardList;
@@ -38,25 +40,22 @@ namespace CROMS.Forms
         private TabControl tabControl;
 
         private TextBox txtReg, txtBookVol, txtBookPage;
-        private ComboBox cboStatus, cboSex;
-        private TextBox txtFirst, txtMiddle, txtLast;
-        private TextBox txtCivil, txtAge, txtCitizenship;
-        private DateTimePicker dtpDod;
-        private TextBox txtPlace, txtReligion;
-        private TextBox txtImmediate, txtAntecedent, txtUnderlying;
-        private TextBox txtDisposal, txtDisposalPlace;
-        private DateTimePicker dtpDisposalDate;
-        private TextBox txtInfName, txtInfRel, txtInfAddr;
-        private DateTimePicker dtpInfDate;
-        private TextBox txtPrepName, txtPrepTitle;
-        private DateTimePicker dtpPrepDate;
-        private TextBox txtRecvName, txtRecvTitle;
-        private DateTimePicker dtpRecvDate;
-        private TextBox txtRegByName, txtRegByTitle;
+        private ComboBox cboStatus;
 
-        // Step 10 — read-only digitization metadata; never in _inputs.
+        private TextBox txtHFirst, txtHMiddle, txtHLast, txtHAge, txtHPlace, txtHCivil;
+        private ComboBox cboHSex;
+        private DateTimePicker dtpHDob;
+
+        private TextBox txtWFirst, txtWMiddle, txtWLast, txtWAge, txtWPlace, txtWCivil;
+        private ComboBox cboWSex;
+        private DateTimePicker dtpWDob;
+
+        private DateTimePicker dtpMarriage;
+        private TextBox txtMarriageTime, txtPlaceOfMarriage, txtSolemnizer, txtRemarks;
+
+        // Step 10 — read-only digitization metadata; never in _inputs, so it's never
+        // enabled by SetMode and can never be hand-edited.
         private TextBox txtDigitizedBy, txtDateDigitized, txtEncodingMethod, txtSourceRef;
-        private DateTimePicker dtpRegByDate;
 
         private List<Control> _inputs;
 
@@ -64,9 +63,9 @@ namespace CROMS.Forms
         private byte[] _scanImage;
         private bool _viewOnly;
 
-        public OldDeathRecordsForm()
+        public OldMarriageRecordsForm()
         {
-            Text = "Death Record";
+            Text = "Marriage Record";
             BuildUi();
             LoadGrid();
             ShowListView();
@@ -94,7 +93,7 @@ namespace CROMS.Forms
             var header = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(24, 12, 24, 6), BackColor = UiTheme.PageBg };
             var title = new Label
             {
-                Text = "Death Record",
+                Text = "Marriage Record",
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = UiTheme.Ink,
                 AutoSize = true,
@@ -102,8 +101,8 @@ namespace CROMS.Forms
             };
             var subtitle = new Label
             {
-                Text = "Backlog records digitized from old registry books — committed straight from " +
-                       "Intelligent Document Processing. Not shown on the live Death Registration screen.",
+                Text = "Backlog marriages digitized or hand-transcribed from old registry books. Not shown " +
+                       "on the live Marriage Registration screen.",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = UiTheme.Muted,
                 AutoSize = true,
@@ -253,52 +252,40 @@ namespace CROMS.Forms
             txtEncodingMethod = AddReadOnlyField(gReg, "Encoding Method");
             txtSourceRef = AddReadOnlyField(gReg, "Source Reference");
 
-            var tabDeceased = NewTab("Deceased");
-            var gDec = FieldGrid(tabDeceased);
-            txtFirst = AddField(gDec, "First Name");
-            txtMiddle = AddField(gDec, "Middle Name");
-            txtLast = AddField(gDec, "Last Name");
-            cboSex = AddCombo(gDec, "Sex", new[] { "Male", "Female" });
-            txtCivil = AddField(gDec, "Civil Status");
-            txtAge = AddField(gDec, "Age");
-            txtCitizenship = AddField(gDec, "Citizenship");
-            dtpDod = AddDate(gDec, "Date of Death");
-            txtPlace = AddField(gDec, "Place of Death");
-            txtReligion = AddField(gDec, "Religion");
+            var tabHusband = NewTab("Husband");
+            var gH = FieldGrid(tabHusband);
+            txtHFirst = AddField(gH, "First Name");
+            txtHMiddle = AddField(gH, "Middle Name");
+            txtHLast = AddField(gH, "Last Name");
+            cboHSex = AddCombo(gH, "Sex", new[] { "Male", "Female" });
+            txtHAge = AddField(gH, "Age");
+            dtpHDob = AddDate(gH, "Date of Birth");
+            txtHPlace = AddField(gH, "Place of Birth");
+            txtHCivil = AddField(gH, "Civil Status");
 
-            var tabCause = NewTab("Cause & Disposal");
-            var gCause = FieldGrid(tabCause);
-            txtImmediate = AddField(gCause, "Immediate Cause");
-            txtAntecedent = AddField(gCause, "Antecedent Cause");
-            txtUnderlying = AddField(gCause, "Underlying Cause");
-            txtDisposal = AddField(gCause, "Disposal Method");
-            txtDisposalPlace = AddField(gCause, "Place of Disposal");
-            dtpDisposalDate = AddDate(gCause, "Date of Disposal");
+            var tabWife = NewTab("Wife");
+            var gW = FieldGrid(tabWife);
+            txtWFirst = AddField(gW, "First Name");
+            txtWMiddle = AddField(gW, "Middle Name");
+            txtWLast = AddField(gW, "Last Name");
+            cboWSex = AddCombo(gW, "Sex", new[] { "Male", "Female" });
+            txtWAge = AddField(gW, "Age");
+            dtpWDob = AddDate(gW, "Date of Birth");
+            txtWPlace = AddField(gW, "Place of Birth");
+            txtWCivil = AddField(gW, "Civil Status");
 
-            var tabInformant = NewTab("Informant");
-            var gInf = FieldGrid(tabInformant);
-            txtInfName = AddField(gInf, "Name");
-            txtInfRel = AddField(gInf, "Relationship");
-            txtInfAddr = AddField(gInf, "Address");
-            dtpInfDate = AddDate(gInf, "Date Signed");
-
-            var tabCert = NewTab("Certification");
-            var gCert = FieldGrid(tabCert);
-            txtPrepName = AddField(gCert, "Prepared By");
-            txtPrepTitle = AddField(gCert, "Prepared By Title");
-            dtpPrepDate = AddDate(gCert, "Prepared By Date");
-            txtRecvName = AddField(gCert, "Received By");
-            txtRecvTitle = AddField(gCert, "Received By Title");
-            dtpRecvDate = AddDate(gCert, "Received By Date");
-            txtRegByName = AddField(gCert, "Registered By");
-            txtRegByTitle = AddField(gCert, "Registered By Title");
-            dtpRegByDate = AddDate(gCert, "Registered By Date");
+            var tabDetails = NewTab("Marriage Details");
+            var gDetails = FieldGrid(tabDetails);
+            dtpMarriage = AddDate(gDetails, "Date of Marriage");
+            txtMarriageTime = AddField(gDetails, "Time of Marriage");
+            txtPlaceOfMarriage = AddField(gDetails, "Place of Marriage");
+            txtSolemnizer = AddField(gDetails, "Solemnizing Officer");
+            txtRemarks = AddField(gDetails, "Remarks", multiline: true);
 
             tabControl.TabPages.Add(tabReg);
-            tabControl.TabPages.Add(tabDeceased);
-            tabControl.TabPages.Add(tabCause);
-            tabControl.TabPages.Add(tabInformant);
-            tabControl.TabPages.Add(tabCert);
+            tabControl.TabPages.Add(tabHusband);
+            tabControl.TabPages.Add(tabWife);
+            tabControl.TabPages.Add(tabDetails);
         }
 
         private static TabPage NewTab(string title) => new TabPage(title) { Padding = new Padding(12) };
@@ -332,7 +319,7 @@ namespace CROMS.Forms
             box.ReadOnly = true;
             box.TabStop = false;
             box.BackColor = UiTheme.PageBg;
-            _inputs.Remove(box);
+            _inputs.Remove(box); // Step 10 metadata is display-only, never editable
             return box;
         }
 
@@ -381,7 +368,7 @@ namespace CROMS.Forms
         {
             ClearForm();
             SetMode(view: false);
-            lblEntryTitle.Text = "New old death record";
+            lblEntryTitle.Text = "New old marriage record";
             lblEntrySub.Text = "Not yet saved";
             ShowEntryView();
         }
@@ -419,13 +406,16 @@ namespace CROMS.Forms
         {
             string term = (txtSearch?.Text ?? "").Trim();
             string sql =
-                "SELECT id, registry_no AS 'Registry No.', full_name AS 'Deceased', sex AS Sex, " +
-                "date_of_death AS 'Date of Death', book_volume AS 'Book/Vol', status AS Status " +
-                "FROM deaths WHERE record_source = 'OCR-Backlog'";
+                "SELECT id, registry_no AS 'Registry No.', " +
+                "TRIM(CONCAT(husband_last_name,', ',husband_first_name)) AS Husband, " +
+                "TRIM(CONCAT(wife_last_name,', ',wife_first_name)) AS Wife, " +
+                "date_of_marriage AS 'Date of Marriage', book_volume AS 'Book/Vol', status AS Status " +
+                "FROM marriages WHERE record_source = 'OCR-Backlog'";
             MySqlParameter[] ps;
             if (term.Length > 0)
             {
-                sql += " AND (registry_no LIKE @t OR full_name LIKE @t)";
+                sql += " AND (registry_no LIKE @t OR husband_first_name LIKE @t OR husband_last_name LIKE @t " +
+                       "OR wife_first_name LIKE @t OR wife_last_name LIKE @t)";
                 ps = new[] { new MySqlParameter("@t", "%" + term + "%") };
             }
             else ps = new MySqlParameter[0];
@@ -439,7 +429,7 @@ namespace CROMS.Forms
 
         private void LoadRecord(long id)
         {
-            DataTable dt = Db.Pull("SELECT * FROM deaths WHERE id = @id AND record_source = 'OCR-Backlog'",
+            DataTable dt = Db.Pull("SELECT * FROM marriages WHERE id = @id AND record_source = 'OCR-Backlog'",
                 new MySqlParameter("@id", id));
             if (dt.Rows.Count == 0) return;
             DataRow r = dt.Rows[0];
@@ -452,46 +442,38 @@ namespace CROMS.Forms
             txtBookPage.Text = Str(r, "book_page");
             SetCombo(cboStatus, Str(r, "status"));
 
-            SplitFullName(Str(r, "full_name"), out string first, out string middle, out string last);
-            txtFirst.Text = first;
-            txtMiddle.Text = middle;
-            txtLast.Text = last;
+            txtHFirst.Text = Str(r, "husband_first_name");
+            txtHMiddle.Text = Str(r, "husband_middle_name");
+            txtHLast.Text = Str(r, "husband_last_name");
+            SetCombo(cboHSex, dt.Columns.Contains("husband_sex") ? Str(r, "husband_sex") : "");
+            txtHAge.Text = Str(r, "husband_age");
+            SetDate(dtpHDob, r["husband_date_of_birth"]);
+            txtHPlace.Text = dt.Columns.Contains("husband_place_of_birth") ? Str(r, "husband_place_of_birth") : "";
+            txtHCivil.Text = Str(r, "husband_civil_status");
 
-            SetCombo(cboSex, Str(r, "sex"));
-            txtCivil.Text = Str(r, "civil_status");
-            txtAge.Text = Str(r, "age");
-            txtCitizenship.Text = Str(r, "citizenship");
-            SetDate(dtpDod, r["date_of_death"]);
-            txtPlace.Text = Str(r, "place_of_death");
-            txtReligion.Text = Str(r, "religion_name");
-            txtImmediate.Text = Str(r, "immediate_cause");
-            txtAntecedent.Text = Str(r, "antecedent_cause");
-            txtUnderlying.Text = Str(r, "underlying_cause");
-            txtDisposal.Text = Str(r, "disposal_method");
-            txtDisposalPlace.Text = Str(r, "place_of_disposal");
-            SetDate(dtpDisposalDate, r["date_of_disposal"]);
-            txtInfName.Text = Str(r, "informant_name");
-            txtInfRel.Text = Str(r, "informant_relationship");
-            txtInfAddr.Text = Str(r, "informant_address");
-            SetDate(dtpInfDate, r["informant_date"]);
-            txtPrepName.Text = Str(r, "prepared_by");
-            txtPrepTitle.Text = Str(r, "prepared_by_title");
-            SetDate(dtpPrepDate, r["prepared_by_date"]);
-            txtRecvName.Text = Str(r, "received_by");
-            txtRecvTitle.Text = Str(r, "received_by_title");
-            SetDate(dtpRecvDate, r["received_by_date"]);
-            txtRegByName.Text = Str(r, "registered_by");
-            txtRegByTitle.Text = Str(r, "registered_by_title");
-            SetDate(dtpRegByDate, r["registered_by_date"]);
+            txtWFirst.Text = Str(r, "wife_first_name");
+            txtWMiddle.Text = Str(r, "wife_middle_name");
+            txtWLast.Text = Str(r, "wife_last_name");
+            SetCombo(cboWSex, dt.Columns.Contains("wife_sex") ? Str(r, "wife_sex") : "");
+            txtWAge.Text = Str(r, "wife_age");
+            SetDate(dtpWDob, r["wife_date_of_birth"]);
+            txtWPlace.Text = dt.Columns.Contains("wife_place_of_birth") ? Str(r, "wife_place_of_birth") : "";
+            txtWCivil.Text = Str(r, "wife_civil_status");
 
-            // Guarded: migration 70 may not be applied yet on every database.
+            SetDate(dtpMarriage, r["date_of_marriage"]);
+            txtMarriageTime.Text = Str(r, "time_of_marriage");
+            txtPlaceOfMarriage.Text = dt.Columns.Contains("place_of_marriage") ? Str(r, "place_of_marriage") : "";
+            txtSolemnizer.Text = Str(r, "solemnizer");
+            txtRemarks.Text = dt.Columns.Contains("remarks") ? Str(r, "remarks") : "";
+
+            // Guarded: migration 71 may not be applied yet on every database.
             txtDigitizedBy.Text = dt.Columns.Contains("digitized_by") ? Str(r, "digitized_by") : "";
             txtDateDigitized.Text = dt.Columns.Contains("date_digitized") && r["date_digitized"] != DBNull.Value
                 ? Convert.ToDateTime(r["date_digitized"]).ToString("MMM d, yyyy h:mm tt") : "";
             txtEncodingMethod.Text = dt.Columns.Contains("encoding_method") ? Str(r, "encoding_method") : "";
             txtSourceRef.Text = dt.Columns.Contains("source_reference") ? Str(r, "source_reference") : "";
 
-            lblEntryTitle.Text = Str(r, "full_name");
+            lblEntryTitle.Text = (txtHLast.Text + " & " + txtWLast.Text).Trim(new[] { ' ', '&' });
             if (lblEntryTitle.Text.Length == 0) lblEntryTitle.Text = "#" + id;
             lblEntrySub.Text = "Registry No. " + (txtReg.Text.Length > 0 ? txtReg.Text : "(none)") +
                                 "  ·  Status: " + (cboStatus.SelectedItem?.ToString() ?? "—");
@@ -502,14 +484,15 @@ namespace CROMS.Forms
             _editingId = null;
             _scanImage = null;
             foreach (Control c in new Control[] {
-                txtReg, txtBookVol, txtBookPage, txtFirst, txtMiddle, txtLast, txtCivil, txtAge,
-                txtCitizenship, txtPlace, txtReligion, txtImmediate, txtAntecedent, txtUnderlying,
-                txtDisposal, txtDisposalPlace, txtInfName, txtInfRel, txtInfAddr,
-                txtPrepName, txtPrepTitle, txtRecvName, txtRecvTitle, txtRegByName, txtRegByTitle })
+                txtReg, txtBookVol, txtBookPage,
+                txtHFirst, txtHMiddle, txtHLast, txtHAge, txtHPlace, txtHCivil,
+                txtWFirst, txtWMiddle, txtWLast, txtWAge, txtWPlace, txtWCivil,
+                txtMarriageTime, txtPlaceOfMarriage, txtSolemnizer, txtRemarks })
                 if (c is TextBox tb) tb.Clear();
             cboStatus.SelectedIndex = -1;
-            cboSex.SelectedIndex = -1;
-            foreach (DateTimePicker dtp in new[] { dtpDod, dtpDisposalDate, dtpInfDate, dtpPrepDate, dtpRecvDate, dtpRegByDate })
+            cboHSex.SelectedIndex = -1;
+            cboWSex.SelectedIndex = -1;
+            foreach (DateTimePicker dtp in new[] { dtpHDob, dtpWDob, dtpMarriage })
                 dtp.Checked = false;
 
             var u = Session.User;
@@ -521,15 +504,13 @@ namespace CROMS.Forms
 
         private void Save()
         {
-            if (string.IsNullOrWhiteSpace(txtFirst.Text) && string.IsNullOrWhiteSpace(txtLast.Text))
+            if (string.IsNullOrWhiteSpace(txtHFirst.Text) || string.IsNullOrWhiteSpace(txtHLast.Text) ||
+                string.IsNullOrWhiteSpace(txtWFirst.Text) || string.IsNullOrWhiteSpace(txtWLast.Text))
             {
-                MessageBox.Show("Enter at least the deceased's first or last name.", "Missing data",
+                MessageBox.Show("Enter at least the husband's and wife's first and last names.", "Missing data",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
-            string fullName = string.Join(" ", new[] { txtFirst.Text, txtMiddle.Text, txtLast.Text }
-                .Where(s => !string.IsNullOrWhiteSpace(s)));
 
             var ps = new List<MySqlParameter>
             {
@@ -537,63 +518,58 @@ namespace CROMS.Forms
                 new MySqlParameter("@book", NullIfEmpty(txtBookVol.Text)),
                 new MySqlParameter("@bookpage", NullIfEmpty(txtBookPage.Text)),
                 new MySqlParameter("@status", cboStatus.SelectedItem?.ToString() ?? "Registered"),
-                new MySqlParameter("@name", NullIfEmpty(fullName)),
-                new MySqlParameter("@sex", (object)cboSex.SelectedItem ?? DBNull.Value),
-                new MySqlParameter("@civil", NullIfEmpty(txtCivil.Text)),
-                new MySqlParameter("@age", int.TryParse(txtAge.Text, out int a) ? (object)a : DBNull.Value),
-                new MySqlParameter("@cit", NullIfEmpty(txtCitizenship.Text)),
-                new MySqlParameter("@dod", dtpDod.Checked ? (object)dtpDod.Value.Date : DBNull.Value),
-                new MySqlParameter("@place", NullIfEmpty(txtPlace.Text)),
-                new MySqlParameter("@religion", NullIfEmpty(txtReligion.Text)),
-                new MySqlParameter("@imm", NullIfEmpty(txtImmediate.Text)),
-                new MySqlParameter("@ant", NullIfEmpty(txtAntecedent.Text)),
-                new MySqlParameter("@und", NullIfEmpty(txtUnderlying.Text)),
-                new MySqlParameter("@disp", NullIfEmpty(txtDisposal.Text)),
-                new MySqlParameter("@dplace", NullIfEmpty(txtDisposalPlace.Text)),
-                new MySqlParameter("@ddate", dtpDisposalDate.Checked ? (object)dtpDisposalDate.Value.Date : DBNull.Value),
-                new MySqlParameter("@iname", NullIfEmpty(txtInfName.Text)),
-                new MySqlParameter("@irel", NullIfEmpty(txtInfRel.Text)),
-                new MySqlParameter("@iaddr", NullIfEmpty(txtInfAddr.Text)),
-                new MySqlParameter("@idate", dtpInfDate.Checked ? (object)dtpInfDate.Value.Date : DBNull.Value),
-                new MySqlParameter("@prep", NullIfEmpty(txtPrepName.Text)),
-                new MySqlParameter("@preptitle", NullIfEmpty(txtPrepTitle.Text)),
-                new MySqlParameter("@prepdate", dtpPrepDate.Checked ? (object)dtpPrepDate.Value.Date : DBNull.Value),
-                new MySqlParameter("@recv", NullIfEmpty(txtRecvName.Text)),
-                new MySqlParameter("@recvtitle", NullIfEmpty(txtRecvTitle.Text)),
-                new MySqlParameter("@recvdate", dtpRecvDate.Checked ? (object)dtpRecvDate.Value.Date : DBNull.Value),
-                new MySqlParameter("@regby", NullIfEmpty(txtRegByName.Text)),
-                new MySqlParameter("@regbytitle", NullIfEmpty(txtRegByTitle.Text)),
-                new MySqlParameter("@regbydate", dtpRegByDate.Checked ? (object)dtpRegByDate.Value.Date : DBNull.Value),
+
+                new MySqlParameter("@hfn", txtHFirst.Text.Trim()),
+                new MySqlParameter("@hmn", NullIfEmpty(txtHMiddle.Text)),
+                new MySqlParameter("@hln", txtHLast.Text.Trim()),
+                new MySqlParameter("@hsex", (object)cboHSex.SelectedItem ?? DBNull.Value),
+                new MySqlParameter("@hage", int.TryParse(txtHAge.Text, out int ha) ? (object)ha : DBNull.Value),
+                new MySqlParameter("@hdob", dtpHDob.Checked ? (object)dtpHDob.Value.Date : DBNull.Value),
+                new MySqlParameter("@hplace", NullIfEmpty(txtHPlace.Text)),
+                new MySqlParameter("@hcivil", NullIfEmpty(txtHCivil.Text)),
+
+                new MySqlParameter("@wfn", txtWFirst.Text.Trim()),
+                new MySqlParameter("@wmn", NullIfEmpty(txtWMiddle.Text)),
+                new MySqlParameter("@wln", txtWLast.Text.Trim()),
+                new MySqlParameter("@wsex", (object)cboWSex.SelectedItem ?? DBNull.Value),
+                new MySqlParameter("@wage", int.TryParse(txtWAge.Text, out int wa) ? (object)wa : DBNull.Value),
+                new MySqlParameter("@wdob", dtpWDob.Checked ? (object)dtpWDob.Value.Date : DBNull.Value),
+                new MySqlParameter("@wplace", NullIfEmpty(txtWPlace.Text)),
+                new MySqlParameter("@wcivil", NullIfEmpty(txtWCivil.Text)),
+
+                new MySqlParameter("@mdate", dtpMarriage.Checked ? (object)dtpMarriage.Value.Date : DBNull.Value),
+                new MySqlParameter("@mtime", NullIfEmpty(txtMarriageTime.Text)),
+                new MySqlParameter("@mplace", NullIfEmpty(txtPlaceOfMarriage.Text)),
+                new MySqlParameter("@solemnizer", NullIfEmpty(txtSolemnizer.Text)),
+                new MySqlParameter("@remarks", NullIfEmpty(txtRemarks.Text)),
             };
 
             if (_editingId == null)
             {
                 ps.Add(new MySqlParameter("@scan", MySqlDbType.LongBlob)
                     { Value = _scanImage == null ? (object)DBNull.Value : _scanImage });
-                // Step 10: hand-transcription, no scan behind it — encoding_method says so.
+                // Step 10: this screen is hand-transcription with no scan behind it —
+                // encoding_method states that plainly, so it is never mistaken for an
+                // OCR-read record on a later audit.
                 ps.Add(new MySqlParameter("@digby", DigitizedBy()));
                 ps.Add(new MySqlParameter("@digdate", DateTime.Now));
                 ps.Add(new MySqlParameter("@encmethod", "Manual"));
                 long id = Db.Insert(
-                    "INSERT INTO deaths (registry_no, book_volume, book_page, status, full_name, sex, " +
-                    "civil_status, age, citizenship, date_of_death, place_of_death, religion_name, " +
-                    "immediate_cause, antecedent_cause, underlying_cause, disposal_method, place_of_disposal, date_of_disposal, " +
-                    "informant_name, informant_relationship, informant_address, informant_date, " +
-                    "prepared_by, prepared_by_title, prepared_by_date, " +
-                    "received_by, received_by_title, received_by_date, " +
-                    "registered_by, registered_by_title, registered_by_date, " +
+                    "INSERT INTO marriages (registry_no, book_volume, book_page, status, " +
+                    "husband_first_name, husband_middle_name, husband_last_name, husband_sex, husband_age, " +
+                    "husband_date_of_birth, husband_place_of_birth, husband_civil_status, " +
+                    "wife_first_name, wife_middle_name, wife_last_name, wife_sex, wife_age, " +
+                    "wife_date_of_birth, wife_place_of_birth, wife_civil_status, " +
+                    "date_of_marriage, time_of_marriage, place_of_marriage, solemnizer, remarks, " +
                     "scan_image, record_source, digitized_by, date_digitized, encoding_method) " +
-                    "VALUES (@reg, @book, @bookpage, @status, @name, @sex, " +
-                    "@civil, @age, @cit, @dod, @place, @religion, " +
-                    "@imm, @ant, @und, @disp, @dplace, @ddate, " +
-                    "@iname, @irel, @iaddr, @idate, " +
-                    "@prep, @preptitle, @prepdate, " +
-                    "@recv, @recvtitle, @recvdate, " +
-                    "@regby, @regbytitle, @regbydate, " +
+                    "VALUES (@reg, @book, @bookpage, @status, " +
+                    "@hfn, @hmn, @hln, @hsex, @hage, @hdob, @hplace, @hcivil, " +
+                    "@wfn, @wmn, @wln, @wsex, @wage, @wdob, @wplace, @wcivil, " +
+                    "@mdate, @mtime, @mplace, @solemnizer, @remarks, " +
                     "@scan, 'OCR-Backlog', @digby, @digdate, @encmethod)",
                     ps.ToArray());
-                Audit.Write(Audit.Create, "deaths", id, "Old death record added by hand (OCR-Backlog)");
-                MessageBox.Show("Old death record saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Audit.Write(Audit.Create, "marriages", id, "Old marriage record added by hand (OCR-Backlog)");
+                MessageBox.Show("Old marriage record saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadGrid();
                 LoadRecord(id);
                 SetMode(view: true);
@@ -602,19 +578,17 @@ namespace CROMS.Forms
             {
                 ps.Add(new MySqlParameter("@id", _editingId.Value));
                 Db.Push(
-                    "UPDATE deaths SET registry_no=@reg, book_volume=@book, book_page=@bookpage, status=@status, " +
-                    "full_name=@name, sex=@sex, civil_status=@civil, age=@age, citizenship=@cit, " +
-                    "date_of_death=@dod, place_of_death=@place, religion_name=@religion, " +
-                    "immediate_cause=@imm, antecedent_cause=@ant, underlying_cause=@und, " +
-                    "disposal_method=@disp, place_of_disposal=@dplace, date_of_disposal=@ddate, " +
-                    "informant_name=@iname, informant_relationship=@irel, informant_address=@iaddr, informant_date=@idate, " +
-                    "prepared_by=@prep, prepared_by_title=@preptitle, prepared_by_date=@prepdate, " +
-                    "received_by=@recv, received_by_title=@recvtitle, received_by_date=@recvdate, " +
-                    "registered_by=@regby, registered_by_title=@regbytitle, registered_by_date=@regbydate " +
+                    "UPDATE marriages SET registry_no=@reg, book_volume=@book, book_page=@bookpage, status=@status, " +
+                    "husband_first_name=@hfn, husband_middle_name=@hmn, husband_last_name=@hln, husband_sex=@hsex, " +
+                    "husband_age=@hage, husband_date_of_birth=@hdob, husband_place_of_birth=@hplace, husband_civil_status=@hcivil, " +
+                    "wife_first_name=@wfn, wife_middle_name=@wmn, wife_last_name=@wln, wife_sex=@wsex, " +
+                    "wife_age=@wage, wife_date_of_birth=@wdob, wife_place_of_birth=@wplace, wife_civil_status=@wcivil, " +
+                    "date_of_marriage=@mdate, time_of_marriage=@mtime, place_of_marriage=@mplace, " +
+                    "solemnizer=@solemnizer, remarks=@remarks " +
                     "WHERE id = @id AND record_source = 'OCR-Backlog'",
                     ps.ToArray());
-                Audit.Write(Audit.Update, "deaths", _editingId.Value, "Old death record updated (OCR-Backlog)");
-                MessageBox.Show("Old death record updated.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Audit.Write(Audit.Update, "marriages", _editingId.Value, "Old marriage record updated (OCR-Backlog)");
+                MessageBox.Show("Old marriage record updated.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadGrid();
                 LoadRecord(_editingId.Value);
                 SetMode(view: true);
@@ -636,12 +610,12 @@ namespace CROMS.Forms
 
         private bool DoDelete(long id)
         {
-            if (MessageBox.Show("Delete this old death record? This cannot be undone.", "Confirm delete",
+            if (MessageBox.Show("Delete this old marriage record? This cannot be undone.", "Confirm delete",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return false;
 
-            Db.Push("DELETE FROM deaths WHERE id = @id AND record_source = 'OCR-Backlog'",
+            Db.Push("DELETE FROM marriages WHERE id = @id AND record_source = 'OCR-Backlog'",
                 new MySqlParameter("@id", id));
-            Audit.Write(Audit.Delete, "deaths", id, "Old death record deleted (OCR-Backlog)");
+            Audit.Write(Audit.Delete, "marriages", id, "Old marriage record deleted (OCR-Backlog)");
             LoadGrid();
             return true;
         }
@@ -654,7 +628,7 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            SoftcopyViewer.Show(_scanImage, "Old Death Record — " + txtFirst.Text + " " + txtLast.Text, this);
+            SoftcopyViewer.Show(_scanImage, "Old Marriage Record — " + txtHLast.Text + " & " + txtWLast.Text, this);
         }
 
         // ---- helpers ---------------------------------------------------------
@@ -665,6 +639,7 @@ namespace CROMS.Forms
         private static void SetCombo(ComboBox cbo, string value)
         {
             cbo.SelectedIndex = -1;
+            if (string.IsNullOrEmpty(value)) return;
             for (int i = 0; i < cbo.Items.Count; i++)
                 if (string.Equals(cbo.Items[i].ToString(), value, StringComparison.OrdinalIgnoreCase))
                 { cbo.SelectedIndex = i; break; }
@@ -685,24 +660,6 @@ namespace CROMS.Forms
             if (u == null) return DBNull.Value;
             string name = !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.Username;
             return NullIfEmpty(name);
-        }
-
-        /// <summary>
-        /// `deaths` keeps one joined <c>full_name</c> column, so the screen splits it back
-        /// for editing (BR-2026-09-19 convention): two tokens = First/Last with no Middle,
-        /// three or more = first token First, last token Last, everything between is
-        /// Middle; a single unsplittable token is put whole in Last for the clerk to correct.
-        /// </summary>
-        private static void SplitFullName(string full, out string first, out string middle, out string last)
-        {
-            first = middle = last = "";
-            if (string.IsNullOrWhiteSpace(full)) return;
-            string[] parts = full.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 1) { last = parts[0]; return; }
-            if (parts.Length == 2) { first = parts[0]; last = parts[1]; return; }
-            first = parts[0];
-            last = parts[parts.Length - 1];
-            middle = string.Join(" ", parts.Skip(1).Take(parts.Length - 2));
         }
     }
 }

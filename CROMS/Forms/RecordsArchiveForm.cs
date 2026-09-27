@@ -18,12 +18,19 @@ namespace CROMS.Forms
     /// tree: births, marriages, deaths, marriage licenses, every petition type
     /// (RA9048/RA10172/Legitimation/SupplementalReport/LegalInstrument/CourtOrder),
     /// certificate requests, BREQS, claim requests, releases, and queue tickets.
-    /// Read-only throughout — this screen never writes to the database. Selecting a
-    /// category lists its rows; "View Full Record" (or double-click) shows every
-    /// column plus any stored scan/photo, opened through the existing SoftcopyViewer.
-    /// Selecting "Search Records" instead shows a name search bar and a registry-book
-    /// detail rail for the highlighted hit; double-click (or the button) jumps to that
-    /// record's own registration module.
+    /// Read-only throughout for every one of THOSE categories — this screen never
+    /// writes to the database on their behalf. Selecting a category lists its rows;
+    /// "View Full Record" (or double-click) shows every column plus any stored
+    /// scan/photo, opened through the existing SoftcopyViewer. Selecting "Search
+    /// Records" instead shows a name search bar and a registry-book detail rail for
+    /// the highlighted hit; double-click (or the button) jumps to that record's own
+    /// registration module.
+    ///
+    /// The "Legacy Digitized Records" group is the one exception: "Birth Record" /
+    /// "Marriage Record" / "Death Record" each embed a full Add/Edit/View/Delete
+    /// workbench (retired 2026-09-28 as standalone "Old Birth/Marriage/Death Records
+    /// (OCR)" sidebar modules) in place of the generic read-only grid — see
+    /// ArchiveCategory.Workbench / EnterWorkbenchMode.
     ///
     /// In MainForm.OperationalKeys, so every operational role sees this module — the
     /// search bar is now the system's only record-search screen and is used daily.
@@ -46,10 +53,21 @@ namespace CROMS.Forms
             /// <summary>True only for the synthetic "Search Records" node — routes LoadCategory
             /// into DoSearch() instead of the normal single-table SELECT.</summary>
             public bool IsSearch;
+            /// <summary>Non-null only for a "Birth Record" / "Marriage Record" / "Death Record"
+            /// workbench category — a full Add/Edit/View/Delete screen (the retired standalone
+            /// "Old Birth/Marriage/Death Records (OCR)" modules) embedded here instead of the
+            /// generic read-only grid. LoadCategory routes into EnterWorkbenchMode() instead of
+            /// running Sql.</summary>
+            public Func<Form> Workbench;
         }
 
         private readonly List<ArchiveCategory> _categories = new List<ArchiveCategory>();
         private readonly ArchiveCategory _searchCategory = new ArchiveCategory { Label = "Search Records", IsSearch = true };
+        private readonly Dictionary<ArchiveCategory, TreeNode> _categoryNodes = new Dictionary<ArchiveCategory, TreeNode>();
+        // Cached like MainForm._cache caches a module: a workbench form is built once per
+        // ArchiveCategory and reused, so New/Edit/Delete state and list position survive
+        // switching to another tree category and back.
+        private readonly Dictionary<ArchiveCategory, Form> _workbenches = new Dictionary<ArchiveCategory, Form>();
         private ArchiveCategory _current;
 
         // Suppresses DoSearch() while the designer-wired handlers fire during
@@ -111,7 +129,9 @@ namespace CROMS.Forms
                 int top = _gridFullBounds.Y;
                 int height = Math.Max(120, bottom - top);
                 int gridWidth = Math.Max(200, ClientSize.Width - _rightReserve - _gridFullBounds.X);
-                grid.Bounds = new Rectangle(_gridFullBounds.X, top, gridWidth, height);
+                var rect = new Rectangle(_gridFullBounds.X, top, gridWidth, height);
+                grid.Bounds = rect;
+                pnlWorkbench.Bounds = rect;
             }
         }
 
@@ -236,6 +256,16 @@ namespace CROMS.Forms
                       "created_at AS Issued FROM queue_tickets ORDER BY created_at DESC",
                 Images = new[] { ("id_image", "Face Photo (kiosk)"), ("spouse_image", "Spouse Photo (kiosk)") }
             });
+
+            // Legacy Digitized Records — old, already-registered paper records (record_source
+            // = 'OCR-Backlog') committed straight from Intelligent Document Processing, or
+            // hand-transcribed here when there is no scan at all. Full Add/Edit/View/Delete,
+            // kept off the live Birth/Marriage/Death Registration screens (those are for
+            // today's walk-in registrations/solemnizations) and off the sidebar (retired
+            // 2026-09-28 — these were the standalone "Old Birth/Death Records (OCR)" modules).
+            _categories.Add(new ArchiveCategory { Group = "Legacy Digitized Records", Label = "Birth Record", Workbench = () => new OldBirthRecordsForm() });
+            _categories.Add(new ArchiveCategory { Group = "Legacy Digitized Records", Label = "Marriage Record", Workbench = () => new OldMarriageRecordsForm() });
+            _categories.Add(new ArchiveCategory { Group = "Legacy Digitized Records", Label = "Death Record", Workbench = () => new OldDeathRecordsForm() });
         }
 
         private void AddPetitionCategory(string typeCode, string label)
@@ -263,6 +293,7 @@ namespace CROMS.Forms
         private void BuildTree()
         {
             treeCategories.Nodes.Clear();
+            _categoryNodes.Clear();
             var searchNode = new TreeNode("🔎  " + _searchCategory.Label)
             {
                 Tag = _searchCategory,
@@ -270,6 +301,7 @@ namespace CROMS.Forms
                 NodeFont = new Font(treeCategories.Font, FontStyle.Bold)
             };
             treeCategories.Nodes.Add(searchNode);
+            _categoryNodes[_searchCategory] = searchNode;
 
             var groups = new Dictionary<string, TreeNode>();
             foreach (var cat in _categories)
@@ -281,7 +313,9 @@ namespace CROMS.Forms
                     treeCategories.Nodes.Add(groupNode);
                     groups[cat.Group] = groupNode;
                 }
-                groupNode.Nodes.Add(new TreeNode(cat.Label) { Tag = cat });
+                var node = new TreeNode(cat.Label) { Tag = cat };
+                groupNode.Nodes.Add(node);
+                _categoryNodes[cat] = node;
             }
             treeCategories.ExpandAll();
             treeCategories.SelectedNode = searchNode;
@@ -298,12 +332,21 @@ namespace CROMS.Forms
             _current = cat;
             if (cat.IsSearch)
             {
+                HideWorkbench();
                 EnterSearchMode();
                 DoSearch();
                 return;
             }
 
             ExitSearchMode();
+
+            if (cat.Workbench != null)
+            {
+                EnterWorkbenchMode(cat);
+                return;
+            }
+            HideWorkbench();
+
             lblCategoryTitle.Text = cat.Label;
             try
             {
@@ -317,6 +360,63 @@ namespace CROMS.Forms
                 grid.DataSource = null;
                 lblCount.Text = "Load failed: " + ex.Message;
             }
+        }
+
+        /// <summary>Hides the grid/count/View-Record button and shows the cached (or
+        /// newly-built) workbench form embedded in `pnlWorkbench`, exactly the way MainForm
+        /// embeds a module form — TopLevel=false, Dock=Fill, refreshed via IRefreshable every
+        /// time it is shown again.</summary>
+        private void EnterWorkbenchMode(ArchiveCategory cat)
+        {
+            lblCategoryTitle.Text = cat.Label;
+            grid.Visible = false;
+            btnViewRecord.Visible = false;
+            lblCount.Visible = false;
+            btnRefresh.Visible = false;
+
+            if (!_workbenches.TryGetValue(cat, out Form form))
+            {
+                form = cat.Workbench();
+                form.TopLevel = false;
+                form.FormBorderStyle = FormBorderStyle.None;
+                form.Dock = DockStyle.Fill;
+                form.AutoScroll = true;
+                _workbenches[cat] = form;
+                pnlWorkbench.Controls.Add(form);
+                form.Show();
+                // lblCategoryTitle above already reads "Birth Record"/etc — hide the workbench's
+                // OWN duplicate title label the same way MainForm.ShowModule does for a module.
+                MainForm.SuppressDuplicateModuleTitle(form, cat.Label);
+                UiTheme.PolishButtons(form);
+            }
+            form.BringToFront();
+            if (form is IRefreshable refreshable) refreshable.RefreshData();
+
+            pnlWorkbench.Visible = true;
+            ApplyBounds();
+        }
+
+        private void HideWorkbench()
+        {
+            if (!pnlWorkbench.Visible) return;
+            pnlWorkbench.Visible = false;
+            grid.Visible = true;
+            btnViewRecord.Visible = true;
+            lblCount.Visible = true;
+            btnRefresh.Visible = true;
+        }
+
+        /// <summary>Cross-module hand-off for Intelligent Document Processing (the standalone
+        /// "oldbirth" module key this used to reach was retired 2026-09-28): selects the
+        /// "Birth Record" workbench in the tree, building it if this is the first visit, and
+        /// returns it so the caller can land on the committed record.</summary>
+        public OldBirthRecordsForm OpenBirthRecordWorkbench()
+        {
+            ArchiveCategory cat = _categories.Find(c => c.Workbench != null && c.Label == "Birth Record");
+            if (cat == null) return null;
+            if (_categoryNodes.TryGetValue(cat, out TreeNode node)) treeCategories.SelectedNode = node;
+            else LoadCategory(cat);
+            return _workbenches.TryGetValue(cat, out Form form) ? form as OldBirthRecordsForm : null;
         }
 
         private void btnRefresh_Click(object sender, EventArgs e) => RefreshData();

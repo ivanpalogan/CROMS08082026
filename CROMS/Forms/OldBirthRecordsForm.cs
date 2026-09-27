@@ -74,7 +74,7 @@ namespace CROMS.Forms
 
         public OldBirthRecordsForm()
         {
-            Text = "Old Birth Records (OCR)";
+            Text = "Birth Record";
             BuildUi();
             LoadBooks();
         }
@@ -123,7 +123,7 @@ namespace CROMS.Forms
             var header = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(24, 12, 24, 6), BackColor = UiTheme.PageBg };
             var title = new Label
             {
-                Text = "Old Birth Records (OCR)",
+                Text = "Birth Record",
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = UiTheme.Ink,
                 AutoSize = true,

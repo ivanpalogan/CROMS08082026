@@ -39,8 +39,6 @@
             this.btnPetitions = new System.Windows.Forms.Button();
             this.lblGrpRecords = new System.Windows.Forms.Label();
             this.btnOcr = new System.Windows.Forms.Button();
-            this.btnOldBirth = new System.Windows.Forms.Button();
-            this.btnOldDeath = new System.Windows.Forms.Button();
             this.lblGrpReports = new System.Windows.Forms.Label();
             this.btnFees = new System.Windows.Forms.Button();
             this.btnReports = new System.Windows.Forms.Button();
@@ -128,8 +126,6 @@
             this.navFlow.Controls.Add(this.lblGrpRecords);
             this.navFlow.Controls.Add(this.btnArchive);
             this.navFlow.Controls.Add(this.btnOcr);
-            this.navFlow.Controls.Add(this.btnOldBirth);
-            this.navFlow.Controls.Add(this.btnOldDeath);
             this.navFlow.Controls.Add(this.lblGrpReports);
             this.navFlow.Controls.Add(this.btnReports);
             this.navFlow.Controls.Add(this.btnTransactions);
@@ -401,42 +397,6 @@
             this.btnOcr.UseVisualStyleBackColor = false;
             this.btnOcr.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // btnOldBirth
-            //
-            this.btnOldBirth.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnOldBirth.FlatAppearance.BorderSize = 0;
-            this.btnOldBirth.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnOldBirth.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnOldBirth.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnOldBirth.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnOldBirth.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnOldBirth.Name = "btnOldBirth";
-            this.btnOldBirth.Size = new System.Drawing.Size(204, 38);
-            this.btnOldBirth.TabIndex = 16;
-            this.btnOldBirth.Tag = "oldbirth";
-            this.btnOldBirth.Text = "Old Birth Records (OCR)";
-            this.btnOldBirth.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnOldBirth.UseVisualStyleBackColor = false;
-            this.btnOldBirth.Click += new System.EventHandler(this.NavButton_Click);
-            //
-            // btnOldDeath
-            //
-            this.btnOldDeath.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnOldDeath.FlatAppearance.BorderSize = 0;
-            this.btnOldDeath.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnOldDeath.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnOldDeath.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnOldDeath.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnOldDeath.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnOldDeath.Name = "btnOldDeath";
-            this.btnOldDeath.Size = new System.Drawing.Size(204, 38);
-            this.btnOldDeath.TabIndex = 17;
-            this.btnOldDeath.Tag = "olddeath";
-            this.btnOldDeath.Text = "Old Death Records (OCR)";
-            this.btnOldDeath.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnOldDeath.UseVisualStyleBackColor = false;
-            this.btnOldDeath.Click += new System.EventHandler(this.NavButton_Click);
-            //
             // lblGrpReports
             //
             this.lblGrpReports.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
@@ -600,8 +560,6 @@
         private System.Windows.Forms.Button btnPetitions;
         private System.Windows.Forms.Label lblGrpRecords;
         private System.Windows.Forms.Button btnOcr;
-        private System.Windows.Forms.Button btnOldBirth;
-        private System.Windows.Forms.Button btnOldDeath;
         private System.Windows.Forms.Label lblGrpReports;
         private System.Windows.Forms.Button btnFees;
         private System.Windows.Forms.Button btnReports;

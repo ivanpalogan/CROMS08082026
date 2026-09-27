@@ -16,6 +16,7 @@ namespace CROMS.Forms
         private System.Windows.Forms.ComboBox cboSearchType;
         private System.Windows.Forms.CheckBox chkFuzzy;
         private System.Windows.Forms.Panel cardDetail;
+        private System.Windows.Forms.Panel pnlWorkbench;
 
         protected override void Dispose(bool disposing)
         {
@@ -38,6 +39,7 @@ namespace CROMS.Forms
             this.cboSearchType = new System.Windows.Forms.ComboBox();
             this.chkFuzzy = new System.Windows.Forms.CheckBox();
             this.cardDetail = new System.Windows.Forms.Panel();
+            this.pnlWorkbench = new System.Windows.Forms.Panel();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
             this.pnlSearchBar.SuspendLayout();
             this.SuspendLayout();
@@ -199,11 +201,25 @@ namespace CROMS.Forms
             this.cardDetail.TabIndex = 9;
             this.cardDetail.Visible = false;
             //
+            // pnlWorkbench
+            //
+            // Hosts a full Add/Edit/View/Delete workbench form (Old Birth/Marriage/Death
+            // Records) embedded exactly like MainForm embeds a module — same bounds as
+            // `grid`, kept in sync by ApplyBounds() and shown instead of it while a
+            // workbench category is selected in the tree.
+            this.pnlWorkbench.Anchor = (System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right);
+            this.pnlWorkbench.Location = new System.Drawing.Point(340, 115);
+            this.pnlWorkbench.Name = "pnlWorkbench";
+            this.pnlWorkbench.Size = new System.Drawing.Size(1085, 665);
+            this.pnlWorkbench.TabIndex = 10;
+            this.pnlWorkbench.Visible = false;
+            //
             // RecordsArchiveForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1449, 845);
+            this.Controls.Add(this.pnlWorkbench);
             this.Controls.Add(this.cardDetail);
             this.Controls.Add(this.grid);
             this.Controls.Add(this.pnlSearchBar);

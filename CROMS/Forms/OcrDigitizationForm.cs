@@ -1632,14 +1632,19 @@ namespace CROMS.Forms
             // Step 11 — result after saving: for a birth, land on the record's own
             // registry book (creating its card in the gallery the moment this re-queries,
             // if it's brand new) instead of leaving the operator to go find it by hand.
-            if (_kind == DocKind.Birth && Shell()?.GoToModule("oldbirth") is OldBirthRecordsForm obr)
+            // The old standalone "oldbirth" module key is gone (2026-09-28) — the workbench
+            // now lives inside Records Archive's "Legacy Digitized Records" group.
+            OldBirthRecordsForm obr = _kind == DocKind.Birth
+                ? (Shell()?.GoToModule("archive") as RecordsArchiveForm)?.OpenBirthRecordWorkbench()
+                : null;
+            if (obr != null)
                 obr.OpenToRecord(id);
             else
                 MessageBox.Show(
                     "Committed to the " + registry + " registry as " + FormLabel() + ".\n\n" +
-                    "Find, edit, view or delete it from \"Old " +
-                    (registry == "death" ? "Death" : "Birth") +
-                    " Records (OCR)\" — this old record does not appear on the live " +
+                    "Find, edit, view or delete it from Records Archive → \"" +
+                    (registry == "death" ? "Death Record" : "Birth Record") +
+                    "\" (under Legacy Digitized Records) — this old record does not appear on the live " +
                     (registry == "death" ? "Death" : "Birth") + " Registration screen.",
                     "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -1659,12 +1664,16 @@ namespace CROMS.Forms
             LoadBatch();
             UpdateFormIdentity();
 
-            if (_kind == DocKind.Birth && Shell()?.GoToModule("oldbirth") is OldBirthRecordsForm obr)
+            OldBirthRecordsForm obr = _kind == DocKind.Birth
+                ? (Shell()?.GoToModule("archive") as RecordsArchiveForm)?.OpenBirthRecordWorkbench()
+                : null;
+            if (obr != null)
                 obr.OpenToRecord(id);
             else
                 MessageBox.Show(
-                    "Saved as a draft old record in the " + registry + " registry. Find it from \"Old " +
-                    (registry == "death" ? "Death" : "Birth") + " Records (OCR)\".",
+                    "Saved as a draft old record in the " + registry + " registry. Find it from Records " +
+                    "Archive → \"" + (registry == "death" ? "Death Record" : "Birth Record") +
+                    "\" (under Legacy Digitized Records).",
                     "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 

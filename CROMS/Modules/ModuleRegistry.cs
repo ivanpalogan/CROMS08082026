@@ -70,19 +70,15 @@ namespace CROMS.Modules
             // every other saved record/form/image in the system. Record Search (its old,
             // separate module) was retired into it 2026-09-28. In OperationalKeys in
             // MainForm, so every operational role sees the button, not just Admin.
+            // Its "Legacy Digitized Records" group also hosts the "Birth Record" / "Marriage
+            // Record" / "Death Record" workbenches — full Add/Edit/View/Delete over old,
+            // already-registered paper records committed straight from the OCR screen below
+            // (record_source='OCR-Backlog'), embedded here instead of carrying their own
+            // sidebar buttons (retired 2026-09-28, were "Old Birth/Death Records (OCR)").
             new ModuleInfo("archive", "Records Archive", GroupRecords,
                 () => new RecordsArchiveForm()),
             new ModuleInfo("ocr", "Document Processing", GroupRecords,
                 () => new OcrDigitizationForm()),
-            // Old, already-registered records digitized through the OCR screen above land
-            // here — tagged record_source='OCR-Backlog' — instead of the live Birth/Death
-            // Registration screens, which are for today's walk-in registrations. Full
-            // Add/Edit/View/Delete over the backlog alone. Marriage's OCR path is unchanged:
-            // it still goes straight into the live Form 97 dialog.
-            new ModuleInfo("oldbirth", "Old Birth Records (OCR)", GroupRecords,
-                () => new OldBirthRecordsForm()),
-            new ModuleInfo("olddeath", "Old Death Records (OCR)", GroupRecords,
-                () => new OldDeathRecordsForm()),
 
             // Reports — reading what the office has done, never changing it.
             // Reports & Analytics: six tabbed domains. The PSA / statutory report is
