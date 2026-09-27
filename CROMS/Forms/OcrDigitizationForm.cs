@@ -126,32 +126,15 @@ namespace CROMS.Forms
         // ---- mobile scanner QR ----------------------------------------------
 
         /// <summary>
-        /// Adds a "Scan with Phone" button beside Load Image that opens the QR for the
-        /// CROMS Mobile Scanner (ORCMobile_Application) — the same phone app used to
-        /// capture a certificate in the field. Scanning it opens the app straight to its
-        /// camera, so a page can be captured on the phone and reviewed here without a
-        /// USB cable or emailing the photo.
+        /// Adds the "Mobile Capture" button beside Load Image: a QR that turns the office
+        /// phone into a camera for THIS window. The phone only takes the picture (and a
+        /// Marriage License photo, when there is one) - the desktop OCR reads it here, no
+        /// queue ticket or registration needs to be open first. The older "Phone Scanner
+        /// App" QR (a deep link into ORCMobile_Application's own scan screen) is retired -
+        /// this button covers the same job through one capture path.
         /// </summary>
         private void SetupScanQrButton()
         {
-            var btn = new Button
-            {
-                Text = "Phone Scanner App",
-                FlatStyle = FlatStyle.Flat,
-                Font = btnLoad.Font,
-                Size = new Size(190, 40),
-                Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(btnLoad.Left - 200, btnLoad.Top),
-                UseVisualStyleBackColor = true,
-            };
-            btn.Click += (s, e) => ShowScanQrDialog();
-            Controls.Add(btn);
-            btn.BringToFront();
-
-            // Mobile Capture: a QR that turns the office phone into a camera for THIS window.
-            // The phone photographs the certificate (and a Marriage License, when there is
-            // one) and the picture lands here, ready for the desktop OCR - no queue ticket or
-            // registration needs to be open first.
             var cap = new Button
             {
                 Text = "Mobile Capture",
@@ -161,7 +144,7 @@ namespace CROMS.Forms
                 ForeColor = Color.White,
                 Size = new Size(180, 40),
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
-                Location = new Point(btn.Left - 190, btnLoad.Top),
+                Location = new Point(btnLoad.Left - 190, btnLoad.Top),
                 UseVisualStyleBackColor = false,
             };
             cap.Click += async (s, e) => await StartMobileCapture();
@@ -242,204 +225,6 @@ namespace CROMS.Forms
                 UiTheme.Polish(ocr);
                 ocr.Shown += async (s, e) => await ocr.LoadCapture(certificate, license, sourceLabel);
                 return ocr.ShowDialog(owner) == DialogResult.OK;
-            }
-        }
-
-        /// <summary>
-        /// The URL this PC's phone-scanner QR should point at. On the machine actually
-        /// running the mobile server it is the live detected address; on a client PC (the
-        /// server runs elsewhere) it is built from the saved server IP instead, so every
-        /// station can show a working QR, not just the host.
-        /// </summary>
-        private static string ScanAppUrl()
-        {
-            var m = IonicServerManager.Instance;
-            if (m.Status == IonicStatus.Running) return m.QrPayload;
-
-            string host = ServerConfig.EffectiveHost;
-            if (string.IsNullOrWhiteSpace(host) ||
-                host == "localhost" || host == "127.0.0.1" || host == "::1")
-                return null;
-
-            string scheme = string.IsNullOrEmpty(m.Scheme) ? "https" : m.Scheme;
-            int port = m.Port > 0 ? m.Port : 4200;
-            return scheme + "://" + host + ":" + port;
-        }
-
-        /// <summary>
-        /// Shows the phone-scanner QR and keeps it LIVE while the dialog is open: if the
-        /// laptop switches network (hotspot to Wi-Fi, one Wi-Fi to another, or back), the
-        /// detected address changes underneath <see cref="IonicServerManager"/> within its
-        /// own ~10s poll, and this dialog re-renders the QR to match — no restart, no
-        /// closing/reopening the dialog needed. Subscribes to the manager's own
-        /// <c>Changed</c> event for an immediate update, plus a 3s poll as a fallback for
-        /// the client-PC path (which reads a saved config, not a live-detected address).
-        /// </summary>
-        private void ShowScanQrDialog()
-        {
-            string lastUrl = null;
-
-            using (var dlg = new Form
-            {
-                Text = "Scan with Phone",
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                StartPosition = FormStartPosition.CenterParent,
-                MaximizeBox = false,
-                MinimizeBox = false,
-                ClientSize = new Size(300, 420),
-            })
-            {
-                var title = new Label
-                {
-                    Text = "CROMS Mobile Scanner",
-                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                    AutoSize = true,
-                    Location = new Point(20, 16),
-                };
-                var lblNet = new Label
-                {
-                    Font = new Font("Segoe UI", 8.25F, FontStyle.Bold),
-                    ForeColor = Color.FromArgb(25, 135, 84),
-                    AutoSize = false,
-                    Size = new Size(260, 16),
-                    Location = new Point(20, 42),
-                    Text = "",
-                };
-                var pic = new PictureBox
-                {
-                    SizeMode = PictureBoxSizeMode.Zoom,
-                    Location = new Point(50, 62),
-                    Size = new Size(200, 200),
-                    Visible = false,
-                };
-                var lblMsg = new Label
-                {
-                    AutoSize = false,
-                    Size = new Size(260, 70),
-                    Location = new Point(20, 68),
-                };
-                var lblHint = new Label
-                {
-                    Text = "Scan with the phone camera to open the scanner and " +
-                           "capture a document, or type this address:",
-                    AutoSize = false,
-                    Size = new Size(260, 40),
-                    Location = new Point(20, 270),
-                    Visible = false,
-                };
-                var txt = new TextBox
-                {
-                    ReadOnly = true,
-                    Location = new Point(20, 314),
-                    Size = new Size(260, 22),
-                    Visible = false,
-                };
-                var lblFoot = new Label
-                {
-                    Text = "Connect the phone to the same Wi-Fi/hotspot as this PC — " +
-                           "switching networks here updates the QR automatically.",
-                    ForeColor = Color.FromArgb(108, 117, 125),
-                    AutoSize = false,
-                    Size = new Size(260, 46),
-                    Location = new Point(20, 344),
-                    Visible = false,
-                };
-                dlg.Controls.Add(title);
-                dlg.Controls.Add(lblNet);
-                dlg.Controls.Add(pic);
-                dlg.Controls.Add(lblMsg);
-                dlg.Controls.Add(lblHint);
-                dlg.Controls.Add(txt);
-                dlg.Controls.Add(lblFoot);
-
-                IonicStatus lastStatus = (IonicStatus)(-1);
-
-                Action refresh = () =>
-                {
-                    var m = IonicServerManager.Instance;
-                    lblNet.Text = m.Status == IonicStatus.Running && !string.IsNullOrEmpty(m.NetworkType)
-                        ? "Connected via " + m.NetworkType
-                        : "";
-
-                    string url = ScanAppUrl();
-
-                    // Show the server's own state (Starting/Error) even while the URL itself
-                    // hasn't changed (still null) — otherwise the dialog is stuck on a stale
-                    // "isn't running" message for the ~30-60s the first-time build takes.
-                    if (url == null && m.Status != lastStatus)
-                    {
-                        lastStatus = m.Status;
-                        pic.Visible = false; lblHint.Visible = false; txt.Visible = false; lblFoot.Visible = false;
-                        lblMsg.Visible = true;
-                        lblMsg.Text = m.Status == IonicStatus.Starting
-                            ? "Starting the mobile scanner server… this can take under a " +
-                              "minute the first time. The QR code will appear automatically."
-                            : m.Status == IonicStatus.Error
-                                ? "The mobile scanner failed to start: " + m.LastError
-                                : "The mobile scanner isn't running, and no server " +
-                                  "address is configured on this PC yet.";
-                    }
-
-                    if (url == lastUrl) return;   // no change — leave the QR as-is
-                    lastUrl = url;
-                    lastStatus = m.Status;
-
-                    if (url == null) return;   // message already set above
-
-                    var bmp = QrHelper.TryCreate(url, 6);
-                    var old = pic.Image;
-                    if (bmp != null)
-                    {
-                        pic.Image = bmp;
-                        pic.Visible = true;
-                        lblMsg.Visible = false;
-                    }
-                    else
-                    {
-                        pic.Visible = false;
-                        lblMsg.Visible = true;
-                        lblMsg.Text = "(QRCoder not installed — type the address below.)";
-                    }
-                    if (old != null) old.Dispose();
-
-                    txt.Text = url;
-                    lblHint.Visible = true;
-                    txt.Visible = true;
-                    lblFoot.Visible = true;
-                };
-
-                refresh();
-
-                Action changedHandler = () =>
-                {
-                    if (dlg.IsDisposed) return;
-                    if (dlg.InvokeRequired) dlg.BeginInvoke(refresh);
-                    else refresh();
-                };
-                IonicServerManager.Instance.Changed += changedHandler;
-
-                var poll = new Timer { Interval = 3000 };
-                poll.Tick += (s, e) => refresh();
-                poll.Start();
-
-                var close = new Button
-                {
-                    Text = "Close",
-                    DialogResult = DialogResult.OK,
-                    Location = new Point(dlg.ClientSize.Width - 100, dlg.ClientSize.Height - 40),
-                    Size = new Size(80, 28),
-                };
-                dlg.Controls.Add(close);
-                dlg.AcceptButton = close;
-
-                dlg.FormClosed += (s, e) =>
-                {
-                    poll.Stop(); poll.Dispose();
-                    IonicServerManager.Instance.Changed -= changedHandler;
-                    if (pic.Image != null) pic.Image.Dispose();
-                };
-
-                dlg.ShowDialog(this);
             }
         }
 
