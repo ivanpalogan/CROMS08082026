@@ -6327,3 +6327,39 @@ NOT DONE: Marriage and Death commit paths (`SaveDeath` and the marriage workflow
 their own `book_volume` from a parsed date the same way Birth used to — this pass was scoped to
 the pasted Step 7 spec, which is explicitly the Birth Record Digitization wizard; the identical
 fabrication in `SaveDeath` is a known, separate follow-up, not touched here.
+
+### 2026-09-28 (later) — Step 8, Final Verification: mostly already built; renamed the terminal
+### button and clarified the Year field rather than duplicating it
+
+Spec asked for a Review step before saving showing the scanned original, the extracted/entered
+info, Registry Number, Registry Book Number, Page Number and Year, with the ability to go back
+and correct, ending in a "Save Digitized Record" button. Checked the wizard (Steps 6-7, same
+day) against each requirement before writing anything, since most of it was already there:
+scanned original preview (`pbScan` sits beside the grid on every step, unchanged), the extracted
+info grid (Review and Save shows every row, unfiltered), Registry Number/Registry Book Number
+(labelled)/Page Number (Step 7's `EnsureRegistryInfoFields`), and Back (`_btnStepBack`, already
+enabled on every step past the first) were all already correct and needed no change.
+
+**No separate Year field added — it would just duplicate `BookVolume`.** This office's
+`book_volume` column already IS the registry book's year (established when Birth's own Year box
+was retired on 2026-09-02 in favour of this one column, and `RegistryBooksForm` groups records
+by it the same way today). A second "Year" box next to it would be the same fact typed in two
+places with nothing to stop them disagreeing — the exact shape of bug this project keeps
+refusing (the OthersBox category/detail split on 2026-09-10, the two out-of-sync registry-number
+regexes fixed on 2026-09-06). Relabelled the field "Registry Book Number (Year)" instead, so the
+Year the spec asks for is stated as part of the SAME field rather than invented as a second one.
+
+**Terminal button renamed, and only on the step it applies to.** `btnCommit`'s caption is now
+"Save Digitized Record" specifically when the Birth wizard is on its last step (Review and
+Save) with Commit actually live; everywhere else on this screen — a non-wizard scan, an earlier
+wizard step, Death, the return-to-Birth-Registration route — it stays "Commit to Registry" or
+whatever route already applies, unchanged. The distinction the spec draws (OCR verification
+checks whether OCR read it right; final verification checks whether the record is correct and
+complete) was already how the gate worked — `reviewStepOk` only allows Commit/Draft on this
+last step — so only the caption needed to say so.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools — no VS2019 msbuild.exe on this machine)
+clean, 0 errors, 0 warnings, temp OutDir. GUI not clicked (no interactive desktop) — the caption
+swap sits in the same `ApplyResultToUi` gate already proven correct for Commit/Draft/Auto-Fill
+enablement; rebuild in VS and confirm the button reads "Save Digitized Record" only on the
+wizard's Review and Save step.

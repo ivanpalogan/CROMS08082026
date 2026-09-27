@@ -514,6 +514,12 @@ namespace CROMS.Forms
             bool reviewStepOk = !_wizardActive || _stepIndex == BirthWizardStepTitles.Length - 1;
             btnCommit.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
             btnDraft.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
+            // Final Verification (the wizard's last step) is a distinct check from OCR
+            // verification — it asks whether the record is correct and complete, not whether
+            // OCR read it right — so its own commit button says so, rather than reusing the
+            // generic "Commit to Registry" caption used everywhere else on this screen.
+            btnCommit.Text = (_wizardActive && birth && reviewStepOk)
+                ? "Save Digitized Record" : "Commit to Registry";
             btnAutoFill.Enabled = have && !blocked && reviewStepOk &&
                 (_kind == DocKind.Marriage || (birthReturn && _kind == DocKind.Birth));
             btnReview.Enabled = _result != null;
@@ -1002,7 +1008,12 @@ namespace CROMS.Forms
             }
 
             AddIfMissing("DateOfRegistration", "Date of Registration");
-            AddIfMissing("BookVolume", "Registry Book Number");
+            // No separate Year field: this office's book_volume already IS the registry
+            // book's year (established when Birth's own Year box was retired on 2026-09-02
+            // in favour of this one column — Registry Books groups records by it the same
+            // way). A second Year box would just be the same fact typed twice, with nothing
+            // to stop the two disagreeing.
+            AddIfMissing("BookVolume", "Registry Book Number (Year)");
             AddIfMissing("BookPage", "Page Number");
         }
 
