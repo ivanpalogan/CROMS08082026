@@ -747,10 +747,24 @@ namespace CROMS.Forms
         public void PrepareForQueueTicket(int ticketId, string ticketCode)
         {
             _queueTicketId = ticketId; _queueCode = ticketCode;
-            DataTable dt = Db.Pull(
-                "SELECT full_name, spouse_full_name, contact_no, transaction_id, marriage_license_image " +
-                "FROM queue_tickets WHERE id=@id",
-                new MySqlParameter("@id", ticketId));
+            // marriage_license_image is migration 65, which may not be applied yet - fall back
+            // to the base column list on a 1054 "unknown column" so an unmigrated database can
+            // still open the ticket (same convention as ClientTasksPanel's own guarded reads).
+            DataTable dt;
+            try
+            {
+                dt = Db.Pull(
+                    "SELECT full_name, spouse_full_name, contact_no, transaction_id, marriage_license_image " +
+                    "FROM queue_tickets WHERE id=@id",
+                    new MySqlParameter("@id", ticketId));
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)
+            {
+                dt = Db.Pull(
+                    "SELECT full_name, spouse_full_name, contact_no, transaction_id " +
+                    "FROM queue_tickets WHERE id=@id",
+                    new MySqlParameter("@id", ticketId));
+            }
             if (dt.Rows.Count > 0)
             {
                 DataRow r = dt.Rows[0];

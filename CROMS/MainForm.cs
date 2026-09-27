@@ -899,6 +899,19 @@ namespace CROMS
                 release.PrepareFromQueueTicket(ticketId);
             else if (form is Forms.BreqsForm breqs)
                 breqs.PrepareFromQueueTicket(ticketId);
+            else if (key == "marriage" && form is Forms.MarriageRegistrationForm marriageDesk)
+            {
+                // A queue ticket for MARRIAGE/MARRIAGE_APP/MARRIAGE_REG opens the Marriage
+                // Registration DESK (list screen), not the Form 97 entry dialog directly - the
+                // desk is what "marriage" resolves to in ModuleRegistry, matching Birth/Cert/
+                // Release/BREQS which each open their OWN embedded module, not a child dialog.
+                // Open a fresh Form 97 entry dialog linked to this ticket, same as the desk's
+                // own "Register Marriage" button, then let the operator work from there.
+                var entry = new Forms.MarriageEntryForm(null);
+                entry.PrepareForQueueTicket(ticketId, ticketCode);
+                entry.ShowDialog(this);
+                marriageDesk.RefreshData();
+            }
             RefreshQueueHeader();
             // The processing window the operator asked for is now open — put the drawer body
             // off-screen immediately. Its arrow handle remains available at the right edge.
