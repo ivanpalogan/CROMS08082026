@@ -2,10 +2,13 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace CROMS.Data
 {
@@ -294,19 +297,54 @@ namespace CROMS.Data
             double sum = 0, sum2 = 0, edge = 0;
             int count = 0;
 
-            for (int y = step; y < image.Height - step; y += step)
-            for (int x = step; x < image.Width - step; x += step)
+            // GetPixel is a per-call, per-pixel-format marshaled lookup - the same slow
+            // pattern this project already had to fix once in OcrService.Preprocess
+            // (2026-09-02, GetPixel/SetPixel on the UI thread). This loop samples up to
+            // several hundred thousand points across the whole scan, three GetPixel
+            // calls each, purely to compute mean/contrast/edge - LockBits reads the
+            // identical bytes straight out of the pixel buffer: same formula, same
+            // numbers, no per-call overhead. GDI+ calls anywhere in this pipeline share
+            // one process-wide lock (OcrService.GdiLock) - proven necessary, not just
+            // for shared bitmaps: two DIFFERENT Bitmap instances, drawn/saved from two
+            // threads at once, still threw "Object is currently in use elsewhere". This
+            // call runs once, after every OCR thread for THIS document has already been
+            // joined, but a second document could be mid-OCR on another thread, so it
+            // takes the same lock rather than assume it is always alone.
+            lock (OcrService.GdiLock)
             {
-                Color p = image.GetPixel(x, y);
-                Color px = image.GetPixel(x + 1, y);
-                Color py = image.GetPixel(x, y + 1);
-                double l = 0.299 * p.R + 0.587 * p.G + 0.114 * p.B;
-                double lx = 0.299 * px.R + 0.587 * px.G + 0.114 * px.B;
-                double ly = 0.299 * py.R + 0.587 * py.G + 0.114 * py.B;
-                sum += l;
-                sum2 += l * l;
-                edge += Math.Abs(l - lx) + Math.Abs(l - ly);
-                count++;
+            int width = image.Width, height = image.Height;
+            using (Bitmap rgb = new Bitmap(width, height, PixelFormat.Format24bppRgb))
+            {
+                using (var g = Graphics.FromImage(rgb))
+                    g.DrawImage(image, 0, 0, width, height);
+
+                BitmapData d = rgb.LockBits(new Rectangle(0, 0, rgb.Width, rgb.Height),
+                    ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                try
+                {
+                    int stride = d.Stride;
+                    var buf = new byte[Math.Abs(stride) * rgb.Height];
+                    Marshal.Copy(d.Scan0, buf, 0, buf.Length);
+
+                    for (int y = step; y < rgb.Height - step; y += step)
+                    for (int x = step; x < rgb.Width - step; x += step)
+                    {
+                        int i = y * stride + x * 3;
+                        int ix = y * stride + (x + 1) * 3;
+                        int iy = (y + 1) * stride + x * 3;
+                        // buf order is B,G,R (24bppRgb) - same weights as before, just
+                        // indexed off the raw buffer instead of a Color struct.
+                        double l = 0.299 * buf[i + 2] + 0.587 * buf[i + 1] + 0.114 * buf[i];
+                        double lx = 0.299 * buf[ix + 2] + 0.587 * buf[ix + 1] + 0.114 * buf[ix];
+                        double ly = 0.299 * buf[iy + 2] + 0.587 * buf[iy + 1] + 0.114 * buf[iy];
+                        sum += l;
+                        sum2 += l * l;
+                        edge += Math.Abs(l - lx) + Math.Abs(l - ly);
+                        count++;
+                    }
+                }
+                finally { rgb.UnlockBits(d); }
+            }
             }
 
             if (count == 0) return;
@@ -356,7 +394,17 @@ namespace CROMS.Data
             var result = new DocAiResult();
             using (var session = new OcrSession(image, longSide))
             {
-                OcrResult ocr = session.Page();
+                // Page() and PageSparse() are two independent whole-page recognitions -
+                // neither reads what the other produces - and each is itself now two
+                // concurrent renderings (see OcrSession.PageIn). Running both passes at
+                // once instead of one after another is where most of this pipeline's
+                // real time was going (measured ~45s combined on a real sample).
+                var pageTask = Task.Run(() => session.Page());
+                var sparseTask = Task.Run(() => session.PageSparse());
+                Task.WaitAll(pageTask, sparseTask);
+                OcrResult ocr = pageTask.Result;
+                OcrResult sparse = sparseTask.Result;
+
                 result.RawText = ocr.Text ?? "";
                 result.OcrConfidence = ocr.Confidence;
                 result.PageWidth = ocr.PageWidth;
@@ -365,7 +413,7 @@ namespace CROMS.Data
                 // The sparse pass finds printed text the layout analyser skips on a
                 // bordered table. It is unusable as a reading ORDER, so it only ever adds
                 // evidence for deciding WHICH form this is.
-                string evidence = result.RawText + "\n" + (session.PageSparse().Text ?? "");
+                string evidence = result.RawText + "\n" + (sparse.Text ?? "");
 
                 int layoutConfidence;
                 FormLayout layout = DocLayouts.Detect(evidence, out layoutConfidence);

@@ -6,6 +6,8 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Tesseract;
 
 namespace CROMS.Data
@@ -70,6 +72,19 @@ namespace CROMS.Data
     /// </summary>
     public static class OcrService
     {
+        /// <summary>
+        /// GDI+ (System.Drawing) is not safe under concurrent access in this environment -
+        /// measured directly: two DIFFERENT Bitmap instances, each touched by its own
+        /// thread, still threw "Object is currently in use elsewhere" out of Image.Save,
+        /// and the same happened on a plain Width property read. That rules out "only
+        /// shared instances are unsafe" - every Graphics.DrawImage / Image.Save in this
+        /// pipeline (Scale, Render, ReadRegion's crop, Recognise's encode) now goes
+        /// through this ONE process-wide lock. The genuinely expensive, genuinely
+        /// parallel-safe part - the native Tesseract engine.Process() call - stays
+        /// outside every lock and is what field/page-level concurrency actually speeds up.
+        /// </summary>
+        internal static readonly object GdiLock = new object();
+
         /// <summary>True if the OCR engine's language data can be located.</summary>
         public static bool IsAvailable()
         {
@@ -325,19 +340,25 @@ namespace CROMS.Data
         /// <summary>Resize so the longest side is exactly the target (up or down).</summary>
         internal static Bitmap Scale(Bitmap src, int targetLongSide)
         {
-            int longest = Math.Max(src.Width, src.Height);
-            if (longest == targetLongSide || targetLongSide <= 0) return new Bitmap(src);
-
-            double s = (double)targetLongSide / longest;
-            int w = Math.Max(1, (int)(src.Width * s));
-            int h = Math.Max(1, (int)(src.Height * s));
-            var outBmp = new Bitmap(w, h, PixelFormat.Format24bppRgb);
-            using (var g = Graphics.FromImage(outBmp))
+            // Whole method under the GDI lock (see OcrService.GdiLock) - even the plain
+            // Width/Height reads on `src` are not safe to run alongside another thread's
+            // GDI+ work in this environment.
+            lock (GdiLock)
             {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.DrawImage(src, 0, 0, w, h);
+                int longest = Math.Max(src.Width, src.Height);
+                if (longest == targetLongSide || targetLongSide <= 0) return new Bitmap(src);
+
+                double s = (double)targetLongSide / longest;
+                int w = Math.Max(1, (int)(src.Width * s));
+                int h = Math.Max(1, (int)(src.Height * s));
+                var outBmp = new Bitmap(w, h, PixelFormat.Format24bppRgb);
+                using (var g = Graphics.FromImage(outBmp))
+                {
+                    g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    g.DrawImage(src, 0, 0, w, h);
+                }
+                return outBmp;
             }
-            return outBmp;
         }
 
         /// <summary>
@@ -361,11 +382,19 @@ namespace CROMS.Data
         /// </summary>
         internal static Bitmap Render(Bitmap src, bool binarize, double bias, int windowDiv, bool stretch)
         {
-            int w = src.Width, h = src.Height;
-
-            // Normalise to 24bpp first: the source may be indexed, CMYK or 32bpp.
-            using (var rgb = new Bitmap(w, h, PixelFormat.Format24bppRgb))
+            // Split into a locked GDI+ phase (normalise + LockBits out, and later
+            // UnlockBits + rewrap) and an UNLOCKED pure-managed-memory phase (the actual
+            // pixel processing, on a plain byte[] this thread owns exclusively). Only the
+            // first and third phases touch a Bitmap/Graphics object, which is what the
+            // GdiLock exists to serialise; the per-pixel math in the middle is what field-
+            // level parallelism is actually meant to speed up, so it runs unlocked.
+            int w, h, stride;
+            byte[] buffer;
+            Bitmap rgb;
+            lock (GdiLock)
             {
+                w = src.Width; h = src.Height;
+                rgb = new Bitmap(w, h, PixelFormat.Format24bppRgb);
                 using (var g = Graphics.FromImage(rgb))
                 {
                     g.InterpolationMode = InterpolationMode.HighQualityBicubic;
@@ -374,23 +403,29 @@ namespace CROMS.Data
 
                 BitmapData bd = rgb.LockBits(new Rectangle(0, 0, w, h),
                     ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-                try
+                stride = bd.Stride;
+                buffer = new byte[stride * h];
+                Marshal.Copy(bd.Scan0, buffer, 0, buffer.Length);
+                rgb.UnlockBits(bd);
+            }
+
+            byte[] gray = ToGray(buffer, stride, w, h);
+            if (stretch) StretchContrast(gray);
+            if (binarize) AdaptiveThreshold(gray, w, h, bias, windowDiv);
+            WriteGray(buffer, stride, w, h, gray);
+
+            lock (GdiLock)
+            {
+                using (rgb)
                 {
-                    int stride = bd.Stride;
-                    var buffer = new byte[stride * h];
-                    Marshal.Copy(bd.Scan0, buffer, 0, buffer.Length);
-
-                    byte[] gray = ToGray(buffer, stride, w, h);
-                    if (stretch) StretchContrast(gray);
-                    if (binarize) AdaptiveThreshold(gray, w, h, bias, windowDiv);
-                    WriteGray(buffer, stride, w, h, gray);
-
+                    BitmapData bd = rgb.LockBits(new Rectangle(0, 0, w, h),
+                        ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
                     Marshal.Copy(buffer, 0, bd.Scan0, buffer.Length);
-                }
-                finally { rgb.UnlockBits(bd); }
+                    rgb.UnlockBits(bd);
 
-                // Hand back a copy the caller owns; `rgb` is disposed with the using.
-                return new Bitmap(rgb);
+                    // Hand back a copy the caller owns.
+                    return new Bitmap(rgb);
+                }
             }
         }
 
@@ -539,12 +574,29 @@ namespace CROMS.Data
     public sealed class OcrSession : IDisposable
     {
         private readonly Bitmap _source;          // caller's bitmap, never disposed here
-        private readonly TesseractEngine _engine;
+        // Captured ONCE, in the constructor (single-threaded), instead of read live off
+        // `_source` from every parallel field thread - Denormalize used to call
+        // _source.Width/_source.Height directly, and that crashed exactly like every
+        // other unlocked GDI+ touch in this file ("Object is currently in use
+        // elsewhere", thrown from Image.get_Width() during a real parallel run).
+        private readonly int _sourceWidth, _sourceHeight;
         private readonly int _longSide;
         private Bitmap _pageBinary, _pageGray;
         private List<float> _rulings;
-        private readonly Dictionary<string, OcrResult> _pageCache =
-            new Dictionary<string, OcrResult>(StringComparer.Ordinal);
+        // Concurrent: Page() and PageSparse() now run on separate threads (see PageIn),
+        // so two different keys can be inserted at the same moment.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, OcrResult> _pageCache =
+            new System.Collections.Concurrent.ConcurrentDictionary<string, OcrResult>(StringComparer.Ordinal);
+
+        // ONE engine per THREAD, not one per session. RegionReader.Read fires dozens of
+        // field recognitions per page and a TesseractEngine cannot run two Process() calls
+        // at once, so a single shared engine forced every field to wait its turn even on an
+        // idle multi-core PC. Building an engine costs real time (loading the traineddata),
+        // which is exactly why it is still built ONCE per thread and reused, not once per
+        // call - this trades a few engine-construction costs (bounded by core count) for
+        // running the independent field reads across cores instead of stacked on one.
+        // trackAllValues:true is what lets Dispose() reach every engine any thread created.
+        private readonly ThreadLocal<TesseractEngine> _engineTls;
 
         public OcrSession(Bitmap source) : this(source, 2400) { }
 
@@ -552,21 +604,35 @@ namespace CROMS.Data
         {
             if (source == null) throw new ArgumentNullException("source");
             _source = source;
+            _sourceWidth = source.Width;
+            _sourceHeight = source.Height;
             _longSide = Math.Max(600, targetLongSide);
-            _engine = new TesseractEngine(OcrService.TessData(), "eng", EngineMode.Default);
-            _engine.SetVariable("user_defined_dpi", "300");
+            _engineTls = new ThreadLocal<TesseractEngine>(() =>
+            {
+                var e = new TesseractEngine(OcrService.TessData(), "eng", EngineMode.Default);
+                e.SetVariable("user_defined_dpi", "300");
+                return e;
+            }, trackAllValues: true);
         }
 
         /// <summary>The scan being analysed, at its original resolution.</summary>
         public Bitmap Source { get { return _source; } }
+
+        // Page(), PageSparse() and the per-field reads now run concurrently (see below),
+        // so the lazy build of these two page-level bitmaps needs its own lock - without
+        // it, two threads racing the first "_pageBinary == null" check could each build
+        // (and leak) a duplicate bitmap.
+        private readonly object _pageBuildGate = new object();
 
         private Bitmap PageBinary
         {
             get
             {
                 if (_pageBinary == null)
-                    using (Bitmap scaled = OcrService.Scale(_source, _longSide))
-                        _pageBinary = OcrService.Render(scaled, true, 0.15, 24, false);
+                    lock (_pageBuildGate)
+                        if (_pageBinary == null)
+                            using (Bitmap scaled = OcrService.Scale(_source, _longSide))
+                                _pageBinary = OcrService.Render(scaled, true, 0.15, 24, false);
                 return _pageBinary;
             }
         }
@@ -576,8 +642,10 @@ namespace CROMS.Data
             get
             {
                 if (_pageGray == null)
-                    using (Bitmap scaled = OcrService.Scale(_source, _longSide))
-                        _pageGray = OcrService.Render(scaled, false, 0, 0, true);
+                    lock (_pageBuildGate)
+                        if (_pageGray == null)
+                            using (Bitmap scaled = OcrService.Scale(_source, _longSide))
+                                _pageGray = OcrService.Render(scaled, false, 0, 0, true);
                 return _pageGray;
             }
         }
@@ -598,8 +666,19 @@ namespace CROMS.Data
         {
             OcrResult cached;
             if (_pageCache.TryGetValue(key, out cached)) return cached;
-            OcrResult binary = Recognise(PageBinary, mode);
-            OcrResult gray = Recognise(PageGray, mode);
+
+            // These two whole-page recognitions were the real cost this pipeline was
+            // paying (measured: ~23s each on a real sample, dwarfing every per-field
+            // read combined) - and they were run one after another for no reason, since
+            // neither reads or writes anything the other touches. Each thread gets its
+            // own Tesseract engine (OcrSession's ThreadLocal), so running them at once
+            // is the same two recognitions, same two bitmaps, same comparison - just not
+            // waited-for in sequence.
+            var binaryTask = Task.Run(() => Recognise(PageBinary, mode));
+            var grayTask = Task.Run(() => Recognise(PageGray, mode));
+            Task.WaitAll(binaryTask, grayTask);
+            OcrResult binary = binaryTask.Result, gray = grayTask.Result;
+
             OcrResult best = FormEvidence(gray) > FormEvidence(binary) ? gray : binary;
             _pageCache[key] = best;
             return best;
@@ -716,18 +795,29 @@ namespace CROMS.Data
             Rectangle box = Denormalize(norm);
             if (box.Width < 8 || box.Height < 6) return reads;
 
-            using (var crop = new Bitmap(box.Width, box.Height, PixelFormat.Format24bppRgb))
+            // Crop creation touches _source directly via DrawImage, so it goes through
+            // the same process-wide GDI lock every other GDI+ call in this pipeline
+            // uses (see OcrService.GdiLock). box.Width/box.Height are plain ints off the
+            // Rectangle struct already computed above - no further property reads on the
+            // Bitmap are needed once the crop exists (crop.Width/Height would be the
+            // same numbers as box.Width/Height, so box's own ints are used below
+            // instead of touching the Bitmap again from outside the lock).
+            Bitmap crop;
+            lock (OcrService.GdiLock)
             {
+                crop = new Bitmap(box.Width, box.Height, PixelFormat.Format24bppRgb);
                 using (var g = Graphics.FromImage(crop))
                     g.DrawImage(_source, new Rectangle(0, 0, box.Width, box.Height), box, GraphicsUnit.Pixel);
-
+            }
+            using (crop)
+            {
                 // Field text is about 2% of page height; the engine wants roughly 30px of
                 // cap height. Scale by the crop's own height, capped so a tall multi-line
                 // cell does not blow up into a huge bitmap.
                 int factor = Math.Max(2, Math.Min(8, (int)Math.Ceiling(140.0 / Math.Max(1, box.Height))));
                 if (box.Width * factor > 4000) factor = Math.Max(2, 4000 / Math.Max(1, box.Width));
 
-                using (Bitmap big = OcrService.Scale(crop, Math.Max(crop.Width, crop.Height) * factor))
+                using (Bitmap big = OcrService.Scale(crop, Math.Max(box.Width, box.Height) * factor))
                 // THREE renderings, and that count is itself a measured choice. Dropping
                 // the contrast stretch before thresholding was tried, because on the faded
                 // 1993 birth certificate the stretched rendering turns "Gilvan" into
@@ -779,8 +869,11 @@ namespace CROMS.Data
         {
             OcrResult r = Recognise(image, psm);
             // Report word boxes in the CROP's own pixel space, so a caller splitting a row
-            // into cells is unaffected by the upscale factor.
-            double sx = (double)box.Width / image.Width, sy = (double)box.Height / image.Height;
+            // into cells is unaffected by the upscale factor. Width/height come from the
+            // result Recognise already captured under the GDI lock, not a fresh read of
+            // `image` here - image.Width/.Height outside any lock hit the same "Object is
+            // currently in use elsewhere" fragility as Image.Save did.
+            double sx = (double)box.Width / r.PageWidth, sy = (double)box.Height / r.PageHeight;
             var read = new OcrRegionRead
             {
                 Variant = variant,
@@ -804,32 +897,53 @@ namespace CROMS.Data
 
         private Rectangle Denormalize(RectangleF norm)
         {
-            int x = (int)Math.Round(norm.X * _source.Width);
-            int y = (int)Math.Round(norm.Y * _source.Height);
-            int w = (int)Math.Round(norm.Width * _source.Width);
-            int h = (int)Math.Round(norm.Height * _source.Height);
+            int x = (int)Math.Round(norm.X * _sourceWidth);
+            int y = (int)Math.Round(norm.Y * _sourceHeight);
+            int w = (int)Math.Round(norm.Width * _sourceWidth);
+            int h = (int)Math.Round(norm.Height * _sourceHeight);
             if (x < 0) { w += x; x = 0; }
             if (y < 0) { h += y; y = 0; }
-            if (x + w > _source.Width) w = _source.Width - x;
-            if (y + h > _source.Height) h = _source.Height - y;
+            if (x + w > _sourceWidth) w = _sourceWidth - x;
+            if (y + h > _sourceHeight) h = _sourceHeight - y;
             return new Rectangle(x, y, Math.Max(0, w), Math.Max(0, h));
         }
 
+        // GDI+ (System.Drawing) is not safe to call from more than one thread at once -
+        // NOT because two threads touch the SAME Bitmap, but because Image.Save shares
+        // internal codec state process-wide. Measured directly: running Recognise() on
+        // two different Bitmaps from two Tasks threw "Object is currently in use
+        // elsewhere" out of Bitmap.Save. So the encode step (the only GDI+ call here)
+        // stays behind the SAME process-wide lock every other GDI+ call in this file
+        // uses (OcrService.GdiLock - must be the identical object, or two different
+        // locks give zero mutual exclusion between them); everything after it -
+        // Pix.LoadFromMemory (native Leptonica) and engine.Process (native Tesseract,
+        // one engine per thread) - has no such restriction and is what actually runs
+        // in parallel.
         private OcrResult Recognise(Bitmap image, PageSegMode psm)
         {
-            using (var ms = new MemoryStream())
+            byte[] png;
+            int width, height;
+            lock (OcrService.GdiLock)
             {
-                image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
-                using (var pix = Pix.LoadFromMemory(ms.ToArray()))
-                using (var page = _engine.Process(pix, psm))
+                width = image.Width;
+                height = image.Height;
+                using (var ms = new MemoryStream())
+                {
+                    image.Save(ms, System.Drawing.Imaging.ImageFormat.Png);
+                    png = ms.ToArray();
+                }
+            }
+            {
+                using (var pix = Pix.LoadFromMemory(png))
+                using (var page = _engineTls.Value.Process(pix, psm))
                 {
                     string text = page.GetText();
                     var result = new OcrResult
                     {
                         Text = string.IsNullOrEmpty(text) ? "" : text.Trim(),
                         Confidence = (int)Math.Round(page.GetMeanConfidence() * 100),
-                        PageWidth = image.Width,
-                        PageHeight = image.Height
+                        PageWidth = width,
+                        PageHeight = height
                     };
                     OcrService.CollectWords(page, result.Words);
                     return result;
@@ -841,7 +955,8 @@ namespace CROMS.Data
         {
             if (_pageBinary != null) _pageBinary.Dispose();
             if (_pageGray != null) _pageGray.Dispose();
-            if (_engine != null) _engine.Dispose();
+            foreach (var e in _engineTls.Values) e.Dispose();
+            _engineTls.Dispose();
         }
     }
 }

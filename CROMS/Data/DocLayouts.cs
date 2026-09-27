@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace CROMS.Data
 {
@@ -888,11 +889,22 @@ namespace CROMS.Data
         /// </summary>
         public static List<FieldRead> Read(OcrSession session, FormLayout layout, PageFit fit, OcrResult page)
         {
-            var results = new List<FieldRead>();
             Dictionary<string, List<OcrRegionRead>> rows = ReadRowGroups(session, layout, fit);
 
-            foreach (FieldSpec spec in layout.Fields)
+            // Every field's crop, recognition and scoring is independent of every other
+            // field's — none of them read or write shared state (rows/page are read-only
+            // by this point, and Judge/Repair are pure functions over one field's own
+            // data) — so they run across CPU cores instead of one after another. This is
+            // what makes a 30-60 field form fast: the ENGINE (Tesseract) now runs one
+            // instance per thread (see OcrSession's ThreadLocal engine), not one shared
+            // instance every field had to queue behind. Order in the RESULT is preserved
+            // (indexed write, not append) because callers zip it against layout.Fields.
+            var resultsArr = new FieldRead[layout.Fields.Count];
+            int degree = Math.Max(1, Environment.ProcessorCount - 1);
+            Parallel.For(0, layout.Fields.Count, new ParallelOptions { MaxDegreeOfParallelism = degree },
+                i =>
             {
+                FieldSpec spec = layout.Fields[i];
                 RectangleF rect = fit.Map(spec.Rect);
                 var read = new FieldRead
                 {
@@ -923,9 +935,9 @@ namespace CROMS.Data
                 }
 
                 Repair(spec, read);
-                results.Add(read);
-            }
-            return results;
+                resultsArr[i] = read;
+            });
+            return resultsArr.ToList();
         }
 
         /// <summary>
