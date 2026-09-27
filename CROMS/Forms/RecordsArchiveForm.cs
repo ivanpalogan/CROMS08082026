@@ -15,7 +15,7 @@ namespace CROMS.Forms
     /// SOUNDEX sound-alike matching, across births/marriages/deaths — this absorbed
     /// the standalone Record Search module on 2026-09-28) and browses every other
     /// record, form and image the system has ever saved, grouped by type in the left
-    /// tree: births, marriages, deaths, marriage licenses, every petition type
+    /// tree: marriage licenses, every petition type
     /// (RA9048/RA10172/Legitimation/SupplementalReport/LegalInstrument/CourtOrder),
     /// certificate requests, BREQS, claim requests, releases, and queue tickets.
     /// Read-only throughout for every one of THOSE categories — this screen never
@@ -26,11 +26,11 @@ namespace CROMS.Forms
     /// the highlighted hit; double-click (or the button) jumps to that record's own
     /// registration module.
     ///
-    /// The "Legacy Digitized Records" group is the one exception: "Birth Record" /
-    /// "Marriage Record" / "Death Record" each embed a full Add/Edit/View/Delete
-    /// workbench (retired 2026-09-28 as standalone "Old Birth/Marriage/Death Records
-    /// (OCR)" sidebar modules) in place of the generic read-only grid — see
-    /// ArchiveCategory.Workbench / EnterWorkbenchMode.
+    /// The "Civil Registry Records" group is the one exception: "Birth Record" /
+    /// "Marriage Record" / "Death Record" (renamed 2026-09-28 from the generic
+    /// read-only "Birth/Marriage/Death Registration" browse categories) each embed a
+    /// full Add/Edit/View/Delete digitization workbench in place of the generic
+    /// read-only grid — see ArchiveCategory.Workbench / EnterWorkbenchMode.
     ///
     /// In MainForm.OperationalKeys, so every operational role sees this module — the
     /// search bar is now the system's only record-search screen and is used daily.
@@ -143,44 +143,15 @@ namespace CROMS.Forms
         // ------------------------------------------------------------ categories
         private void BuildCategories()
         {
-            _categories.Add(new ArchiveCategory
-            {
-                Group = "Civil Registry Records",
-                Label = "Birth Registration",
-                DetailTable = "births",
-                Sql = "SELECT id, registry_no AS 'Registry No', " +
-                      "TRIM(CONCAT(last_name,', ',first_name,' ',COALESCE(middle_name,''))) AS Name, " +
-                      "sex AS Sex, date_of_birth AS 'Date of Birth', status AS Status, " +
-                      "COALESCE(form_code,'') AS Form, created_at AS Recorded FROM births ORDER BY created_at DESC",
-                Images = new[] { ("scan_image", "Scanned Certificate"), ("birth_image", "Birth Image (legacy)") },
-                CertKind = DocKind.Birth,
-                ReqOwnerType = "Birth"
-            });
-            _categories.Add(new ArchiveCategory
-            {
-                Group = "Civil Registry Records",
-                Label = "Marriage Registration",
-                DetailTable = "marriages",
-                Sql = "SELECT id, registry_no AS 'Registry No', " +
-                      "TRIM(CONCAT(husband_last_name,', ',husband_first_name)) AS Husband, " +
-                      "TRIM(CONCAT(wife_last_name,', ',wife_first_name)) AS Wife, " +
-                      "date_of_marriage AS 'Date of Marriage', status AS Status, " +
-                      "COALESCE(form_code,'') AS Form, created_at AS Recorded FROM marriages ORDER BY created_at DESC",
-                Images = new[] { ("scan_image", "Scanned Certificate") },
-                CertKind = DocKind.Marriage,
-                ReqOwnerType = "Marriage"
-            });
-            _categories.Add(new ArchiveCategory
-            {
-                Group = "Civil Registry Records",
-                Label = "Death Registration",
-                DetailTable = "deaths",
-                Sql = "SELECT id, registry_no AS 'Registry No', full_name AS Name, " +
-                      "date_of_death AS 'Date of Death', status AS Status, " +
-                      "COALESCE(form_code,'') AS Form, created_at AS Recorded FROM deaths ORDER BY created_at DESC",
-                Images = new[] { ("scan_image", "Scanned Certificate") },
-                CertKind = DocKind.Death
-            });
+            // Civil Registry Records — the office's own tree naming for these three (renamed
+            // 2026-09-28 from the generic read-only "Birth/Marriage/Death Registration" browse
+            // categories). Each is now the SAME full Add/Edit/View/Delete digitization workbench
+            // "Legacy Digitized Records" used to host under a duplicate label — merged here so
+            // there is one tree entry per record type, not two with the same name in different
+            // groups. See ArchiveCategory.Workbench / EnterWorkbenchMode.
+            _categories.Add(new ArchiveCategory { Group = "Civil Registry Records", Label = "Birth Record", Workbench = () => new OldBirthRecordsForm() });
+            _categories.Add(new ArchiveCategory { Group = "Civil Registry Records", Label = "Marriage Record", Workbench = () => new OldMarriageRecordsForm() });
+            _categories.Add(new ArchiveCategory { Group = "Civil Registry Records", Label = "Death Record", Workbench = () => new OldDeathRecordsForm() });
             _categories.Add(new ArchiveCategory
             {
                 Group = "Marriage Licensing",
@@ -257,15 +228,6 @@ namespace CROMS.Forms
                 Images = new[] { ("id_image", "Face Photo (kiosk)"), ("spouse_image", "Spouse Photo (kiosk)") }
             });
 
-            // Legacy Digitized Records — old, already-registered paper records (record_source
-            // = 'OCR-Backlog') committed straight from Intelligent Document Processing, or
-            // hand-transcribed here when there is no scan at all. Full Add/Edit/View/Delete,
-            // kept off the live Birth/Marriage/Death Registration screens (those are for
-            // today's walk-in registrations/solemnizations) and off the sidebar (retired
-            // 2026-09-28 — these were the standalone "Old Birth/Death Records (OCR)" modules).
-            _categories.Add(new ArchiveCategory { Group = "Legacy Digitized Records", Label = "Birth Record", Workbench = () => new OldBirthRecordsForm() });
-            _categories.Add(new ArchiveCategory { Group = "Legacy Digitized Records", Label = "Marriage Record", Workbench = () => new OldMarriageRecordsForm() });
-            _categories.Add(new ArchiveCategory { Group = "Legacy Digitized Records", Label = "Death Record", Workbench = () => new OldDeathRecordsForm() });
         }
 
         private void AddPetitionCategory(string typeCode, string label)
