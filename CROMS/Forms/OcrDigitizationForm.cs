@@ -112,6 +112,9 @@ namespace CROMS.Forms
             // double-clicking a still-unopened 'Mobile' row loads it into the engine the same
             // way Load Image does, then runs the full desktop pipeline on it.
             dgvBatch.CellDoubleClick += DgvBatch_CellDoubleClick;
+            // Single-click the Upload ID / Reg. No. cell (the record link) opens it too, so
+            // the operator doesn't have to know double-click is required.
+            dgvBatch.CellClick += DgvBatch_CellClick;
 
             ApplyResultToUi();
             UpdateBatchModeButtons();
@@ -2032,7 +2035,7 @@ namespace CROMS.Forms
                 "CASE WHEN needs_review = 1 THEN CONCAT(status, ' ⚠') ELSE status END AS 'Status' " +
                 "FROM ocr_batch WHERE record_id IS NULL AND status <> 'Opened on Desktop' " +
                 "ORDER BY created_at ASC");
-            lblBatch.Text = "PENDING OCR — " + dgvBatch.Rows.Count + " AWAITING REVIEW (double-click to open)";
+            lblBatch.Text = "PENDING OCR — " + dgvBatch.Rows.Count + " AWAITING REVIEW (click Upload ID to open)";
             HideLookupColumns();
         }
 
@@ -2044,7 +2047,7 @@ namespace CROMS.Forms
                 "COALESCE(client_name, '') AS 'Name', COALESCE(requested_type, doc_kind, '') AS 'Type', " +
                 "created_at AS 'Processed Date', status AS 'Status' " +
                 "FROM ocr_batch WHERE record_id IS NOT NULL ORDER BY created_at DESC");
-            lblBatch.Text = "PROCESSED — " + dgvBatch.Rows.Count + " (double-click to view)";
+            lblBatch.Text = "PROCESSED — " + dgvBatch.Rows.Count + " (click Reg. No. to view)";
             HideLookupColumns();
         }
 
@@ -2095,16 +2098,34 @@ namespace CROMS.Forms
         }
 
         /// <summary>
+        /// Single-click the link column (Upload ID on the Pending list, Reg. No. on
+        /// Processed) opens the same document a double-click would — the record name is the
+        /// obvious thing to click, so it shouldn't take two clicks to know that.
+        /// </summary>
+        private void DgvBatch_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            string colName = dgvBatch.Columns[e.ColumnIndex].Name;
+            if (colName != "Upload ID" && colName != "Reg. No." && colName != "Scan ID") return;
+            OpenBatchRow(e.RowIndex);
+        }
+
+        /// <summary>
         /// Double-click a row in either grid mode. Always re-reads the FULL row by its
         /// hidden id rather than trusting whatever columns happen to be bound on screen, so
         /// the same handler works for the Pending and the Processed layouts without either
         /// one needing to carry columns the other does not.
         /// </summary>
-        private async void DgvBatch_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        private void DgvBatch_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex < 0) return;
+            OpenBatchRow(e.RowIndex);
+        }
+
+        private async void OpenBatchRow(int rowIndex)
+        {
+            if (rowIndex < 0) return;
             if (!dgvBatch.Columns.Contains("_Id")) return;
-            object idVal = dgvBatch.Rows[e.RowIndex].Cells["_Id"].Value;
+            object idVal = dgvBatch.Rows[rowIndex].Cells["_Id"].Value;
             if (idVal == null || idVal == DBNull.Value) return;
             long batchId = Convert.ToInt64(idVal);
 
