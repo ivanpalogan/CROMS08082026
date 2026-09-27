@@ -1762,17 +1762,17 @@ namespace CROMS.Forms
             {
                 if (reuse)
                 {
-                    // source_image's only job was carrying the bytes here from the phone;
-                    // clear it now the scan has actually been read, per 54_mobile_scan_
-                    // upload.sql's own stated intent — everything else the mobile row
-                    // carried (source, client_name, requested_type, created_at) is left
-                    // untouched by this UPDATE.
+                    // source_image is KEPT here, re-analyze after re-analyze, so a pending
+                    // upload can be reopened (Upload ID click) any number of times before it
+                    // is actually committed to a record — clearing it is MarkBatch's job now,
+                    // once the scan has a real row to be reopened FROM instead
+                    // (births/deaths/marriages all keep their own scan_image copy).
                     Db.Push(
                         "UPDATE ocr_batch SET source_book=@book, doc_class=@class, doc_kind=@kind, " +
                         "form_code=@fcode, form_name=@fname, confidence=@conf, " +
                         "overall_confidence=@oconf, needs_review=@need, review_reason=@reason, " +
-                        "rotation_applied=@rot, username=@user, status=@status, raw_text=@raw, " +
-                        "source_image=NULL WHERE scan_id=@id",
+                        "rotation_applied=@rot, username=@user, status=@status, raw_text=@raw " +
+                        "WHERE scan_id=@id",
                         new MySqlParameter("@id", _scanId),
                         new MySqlParameter("@book", book),
                         new MySqlParameter("@class", ClassLabel(r.Kind)),
@@ -1851,17 +1851,39 @@ namespace CROMS.Forms
             return s.Length <= max ? s : s.Substring(0, max);
         }
 
-        /// <summary>Record what became of this scan: its status and the registry row it produced.</summary>
+        /// <summary>
+        /// Record what became of this scan: its status and the registry row it produced.
+        /// Only once a real record id lands (Committed/Draft, not the record_id-less
+        /// Auto-Filled/Manual-Review states) does source_image get cleared here — from
+        /// that point the record itself carries the softcopy (births/deaths/marriages all
+        /// keep their own scan_image), so keeping a second copy on ocr_batch is dead weight.
+        /// </summary>
         private void MarkBatch(string status, string table, long? recordId)
         {
             if (_scanId == null) return;
-            Db.Push(
-                "UPDATE ocr_batch SET status = @status, record_table = @table, record_id = @rid " +
-                "WHERE scan_id = @id",
-                new MySqlParameter("@status", status),
-                new MySqlParameter("@table", (object)table ?? DBNull.Value),
-                new MySqlParameter("@rid", recordId.HasValue ? (object)recordId.Value : DBNull.Value),
-                new MySqlParameter("@id", _scanId));
+            try
+            {
+                Db.Push(
+                    "UPDATE ocr_batch SET status = @status, record_table = @table, record_id = @rid" +
+                    (recordId.HasValue ? ", source_image = NULL" : "") +
+                    " WHERE scan_id = @id",
+                    new MySqlParameter("@status", status),
+                    new MySqlParameter("@table", (object)table ?? DBNull.Value),
+                    new MySqlParameter("@rid", recordId.HasValue ? (object)recordId.Value : DBNull.Value),
+                    new MySqlParameter("@id", _scanId));
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)
+            {
+                // Migration 54 (source_image) not applied — the status/table/id update still
+                // matters, just without the column that doesn't exist yet.
+                Db.Push(
+                    "UPDATE ocr_batch SET status = @status, record_table = @table, record_id = @rid " +
+                    "WHERE scan_id = @id",
+                    new MySqlParameter("@status", status),
+                    new MySqlParameter("@table", (object)table ?? DBNull.Value),
+                    new MySqlParameter("@rid", recordId.HasValue ? (object)recordId.Value : DBNull.Value),
+                    new MySqlParameter("@id", _scanId));
+            }
         }
 
         // ---- write the record --------------------------------------------------
@@ -2142,32 +2164,22 @@ namespace CROMS.Forms
                 return;
             }
 
-            string source = dr["source"] as string;
-            string status = dr["status"] as string;
-
-            if (!string.Equals(source, "Mobile", StringComparison.OrdinalIgnoreCase)
-                || !string.Equals(status, "Pending Review", StringComparison.OrdinalIgnoreCase))
-            {
-                // A desktop-loaded scan still under review, or a mobile scan already opened
-                // in a PRIOR run of Analyze() this session — there is no separately stored
-                // image to reopen; the scan is either already on screen above, or (if the
-                // app was closed mid-review) has nothing left here for this screen to load.
-                MessageBox.Show(
-                    "This document is still being reviewed and has no separate image stored " +
-                    "here to reopen. If it is not already showing in the panel above, load it " +
-                    "again from its original file.",
-                    "Still under review", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
             var img = Db.Pull(
                 "SELECT source_image FROM ocr_batch WHERE id = @id",
                 new MySqlParameter("@id", batchId));
             byte[] bytes = img.Rows.Count > 0 ? img.Rows[0]["source_image"] as byte[] : null;
             if (bytes == null || bytes.Length == 0)
             {
-                MessageBox.Show("This scan has no image attached.", "Document",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                // The stored bytes are gone — either this row was already opened once this
+                // session (LogBatch clears source_image the moment a scan is actually read,
+                // per migration 54's own intent) or it never had one. Either way there is
+                // nothing this screen can pull back; the scan is either still on screen
+                // above, or has to be loaded again from its original file.
+                MessageBox.Show(
+                    "The stored image for this upload is no longer kept here (it was cleared " +
+                    "once read). If it is not already showing in the panel above, load it " +
+                    "again from its original file.",
+                    "No stored image", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
