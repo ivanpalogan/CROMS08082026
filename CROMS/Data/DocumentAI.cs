@@ -1447,12 +1447,16 @@ namespace CROMS.Data
         /// The name value below a name-label line: scans the next few lines for the
         /// first that looks like a name (≥2 alphabetic tokens after prefix stripping).
         /// <para/>
-        /// A candidate line is rejected outright when EVERY one of its words is a
-        /// printed form caption ("(First) (Middle) NAME" — the row printed under the
-        /// anchor, not the handwritten/typed value). Without this a wrapped heading
-        /// line was returned as the value verbatim, e.g. Mother First Name coming
-        /// back as the literal word "NAME" — a caption that LOOKS like an answer is
-        /// worse than a blank, because nothing flags it for the operator to fix.
+        /// Every individual word that is itself a printed form caption ("(First)
+        /// (Middle) NAME" — the row printed under the anchor, not the handwritten/typed
+        /// value) is dropped from the candidate before it is returned — not only when
+        /// EVERY word on the line is a caption. A wrapped heading can land on the SAME
+        /// OCR line as a real value ("6 MAIDEN" / "NAME Callera" — the wrapped tail of
+        /// the caption fused with the mother's real surname), and rejecting only a
+        /// line that is ALL caption let "NAME Callera" through whole, so
+        /// SplitNameCells split it into First="NAME", Last="Callera" — a caption word
+        /// masquerading as half of somebody's name. Filtering per-word instead of
+        /// per-line catches that case while still returning "Callera" alone.
         /// </summary>
         private static string NameAfter(string[] lines, int idx)
         {
@@ -1462,8 +1466,9 @@ namespace CROMS.Data
                 string s = StripPrefix(lines[j]);
                 string[] tokens = s.Split(' ').Where(t => t.Length >= 2 && t.All(char.IsLetter)).ToArray();
                 if (tokens.Length < 2) continue;
-                if (tokens.All(t => DocLayouts.CommonLabelWords.Contains(t.ToLowerInvariant()))) continue;
-                return s;
+                string[] real = tokens.Where(t => !DocLayouts.CommonLabelWords.Contains(t.ToLowerInvariant())).ToArray();
+                if (real.Length == 0) continue;
+                return string.Join(" ", real);
             }
             return "";
         }

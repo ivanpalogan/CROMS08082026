@@ -28,6 +28,7 @@ namespace CROMS.DocTest
             int rotate = 0;
             bool diag = false;
             bool words = false;
+            bool rawText = false;
             float wordsFrom = 0f;
             string truthDir = null;
             var files = new System.Collections.Generic.List<string>();
@@ -41,6 +42,7 @@ namespace CROMS.DocTest
                     if (i + 1 < args.Length && float.TryParse(args[i + 1], out float from)) { i++; wordsFrom = from; }
                     continue;
                 }
+                if (args[i] == "--rawtext") { rawText = true; continue; }
                 if (args[i] == "--truth")
                 {
                     truthDir = i + 1 < args.Length && !args[i + 1].StartsWith("--")
@@ -67,6 +69,12 @@ namespace CROMS.DocTest
             if (words)
             {
                 foreach (string path in files) DumpWords(path, rotate, wordsFrom);
+                return 0;
+            }
+
+            if (rawText)
+            {
+                foreach (string path in files) DumpRawText(path, rotate);
                 return 0;
             }
 
@@ -115,6 +123,8 @@ namespace CROMS.DocTest
                 Console.WriteLine("  recognition   : " + r.OcrConfidence + "%   fields " + r.OverallConfidence + "%");
                 Console.WriteLine("  fields        : " + r.ExtractedCount + " read, " + r.MissingCount + " blank");
                 Console.WriteLine("  manual review : " + (r.NeedsManualReview ? "YES — " + r.ReviewReason : "no"));
+                Console.WriteLine("  layout        : " + (r.LayoutCode ?? "(none — label path)") +
+                                  (string.IsNullOrEmpty(r.FitNote) ? "" : "   " + r.FitNote));
                 Console.WriteLine("  elapsed       : " + (int)(DateTime.Now - started).TotalMilliseconds + " ms");
                 Console.WriteLine();
 
@@ -145,6 +155,25 @@ namespace CROMS.DocTest
         /// grouped into printed rows so a form's rows can be read off directly. Only the
         /// part of the page from <paramref name="from"/> downwards is printed.
         /// </summary>
+        private static void DumpRawText(string path, int rotate)
+        {
+            Console.WriteLine(new string('=', 78));
+            Console.WriteLine(Path.GetFileName(path) + "   raw text");
+            Console.WriteLine(new string('=', 78));
+            if (!File.Exists(path)) { Console.WriteLine("  missing file"); return; }
+            using (Bitmap raw = DocumentAI.LoadImage(path))
+            using (Bitmap image = rotate == 0 ? new Bitmap(raw) : OcrService.Rotate(raw, rotate))
+            using (var session = new OcrSession(image))
+            {
+                OcrResult page = session.Page();
+                string[] lines = (page.Text ?? "").Replace("\r", "")
+                    .Split('\n');
+                for (int i = 0; i < lines.Length; i++)
+                    Console.WriteLine("  [" + i.ToString().PadLeft(3) + "] " + lines[i]);
+            }
+            Console.WriteLine();
+        }
+
         private static void DumpWords(string path, int rotate, float from)
         {
             Console.WriteLine(new string('=', 78));
@@ -171,6 +200,8 @@ namespace CROMS.DocTest
                     foreach (OcrWord x in line)
                         Console.WriteLine("      x " + (x.X / w).ToString("0.0000") +
                                           "-" + ((x.X + x.Width) / w).ToString("0.0000") +
+                                          "  y " + (x.Y / h).ToString("0.0000") +
+                                          "-" + ((x.Y + x.Height) / h).ToString("0.0000") +
                                           "  c" + x.Confidence.ToString().PadLeft(3) + "  " + x.Text);
                 }
             }
