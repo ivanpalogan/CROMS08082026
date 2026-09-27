@@ -45,6 +45,10 @@ namespace CROMS.Forms
         private TextBox txtFFirst, txtFMiddle, txtFLast, txtFOcc, txtFRel, txtFCit;
         private TextBox txtRemarks;
 
+        // Step 10 — read-only digitization metadata; never in _inputs, so it's never
+        // enabled by SetMode and can never be hand-edited.
+        private TextBox txtDigitizedBy, txtDateDigitized, txtEncodingMethod, txtSourceRef;
+
         private List<Control> _inputs;
 
         private long? _editingId;
@@ -235,6 +239,10 @@ namespace CROMS.Forms
             txtBookVol = AddField(gReg, "Book / Volume (Year)");
             txtBookPage = AddField(gReg, "Book Page");
             cboStatus = AddCombo(gReg, "Status", new[] { "Draft", "Registered" });
+            txtDigitizedBy = AddReadOnlyField(gReg, "Digitized By");
+            txtDateDigitized = AddReadOnlyField(gReg, "Date Digitized");
+            txtEncodingMethod = AddReadOnlyField(gReg, "Encoding Method");
+            txtSourceRef = AddReadOnlyField(gReg, "Source Reference");
 
             var tabChild = NewTab("Child");
             var gChild = FieldGrid(tabChild);
@@ -299,6 +307,16 @@ namespace CROMS.Forms
             if (multiline) { box.Multiline = true; box.Height = 90; box.Dock = DockStyle.Fill; }
             g.Controls.Add(box, 1, row);
             _inputs.Add(box);
+            return box;
+        }
+
+        private TextBox AddReadOnlyField(TableLayoutPanel g, string label)
+        {
+            var box = AddField(g, label);
+            box.ReadOnly = true;
+            box.TabStop = false;
+            box.BackColor = UiTheme.PageBg;
+            _inputs.Remove(box); // Step 10 metadata is display-only, never editable
             return box;
         }
 
@@ -440,6 +458,13 @@ namespace CROMS.Forms
             txtFCit.Text = Str(r, "father_citizenship");
             txtRemarks.Text = Str(r, "remarks");
 
+            // Guarded: migration 70 may not be applied yet on every database.
+            txtDigitizedBy.Text = dt.Columns.Contains("digitized_by") ? Str(r, "digitized_by") : "";
+            txtDateDigitized.Text = dt.Columns.Contains("date_digitized") && r["date_digitized"] != DBNull.Value
+                ? Convert.ToDateTime(r["date_digitized"]).ToString("MMM d, yyyy h:mm tt") : "";
+            txtEncodingMethod.Text = dt.Columns.Contains("encoding_method") ? Str(r, "encoding_method") : "";
+            txtSourceRef.Text = dt.Columns.Contains("source_reference") ? Str(r, "source_reference") : "";
+
             lblEntryTitle.Text = (txtFirst.Text + " " + txtLast.Text).Trim();
             if (lblEntryTitle.Text.Length == 0) lblEntryTitle.Text = "#" + id;
             lblEntrySub.Text = "Registry No. " + (txtReg.Text.Length > 0 ? txtReg.Text : "(none)") +
@@ -458,6 +483,12 @@ namespace CROMS.Forms
             cboStatus.SelectedIndex = -1;
             cboSex.SelectedIndex = -1;
             dtpDob.Checked = false;
+
+            var u = Session.User;
+            txtDigitizedBy.Text = u != null ? (u.FullName ?? u.Username) : "";
+            txtDateDigitized.Text = "(on save)";
+            txtEncodingMethod.Text = "Manual";
+            txtSourceRef.Text = "";
         }
 
         private void Save()
@@ -503,14 +534,21 @@ namespace CROMS.Forms
             {
                 ps.Add(new MySqlParameter("@img", MySqlDbType.LongBlob)
                     { Value = _scanImage == null ? (object)DBNull.Value : _scanImage });
+                // Step 10: this screen is hand-transcription with no scan behind it —
+                // encoding_method states that plainly, so it is never mistaken for an
+                // OCR-read record on a later audit.
+                ps.Add(new MySqlParameter("@digby", DigitizedBy()));
+                ps.Add(new MySqlParameter("@digdate", DateTime.Now));
+                ps.Add(new MySqlParameter("@encmethod", "Manual"));
                 long id = Db.Insert(
                     "INSERT INTO births (registry_no, book_volume, book_page, status, first_name, middle_name, " +
                     "last_name, sex, date_of_birth, time_of_birth, place_of_birth, type_of_birth, weight_grams, " +
                     "mother_first_name, mother_middle_name, mother_last_name, mother_occupation, mother_religion, mother_citizenship, " +
                     "father_first_name, father_middle_name, father_last_name, father_occupation, father_religion, father_citizenship, " +
-                    "remarks, scan_image, record_source) " +
+                    "remarks, scan_image, record_source, digitized_by, date_digitized, encoding_method) " +
                     "VALUES (@reg, @book, @bookpage, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, @btype, @weight, " +
-                    "@mf, @mm, @ml, @mocc, @mrel, @mcit, @ff, @fm, @fl, @focc, @frel, @fcit, @remarks, @img, 'OCR-Backlog')",
+                    "@mf, @mm, @ml, @mocc, @mrel, @mcit, @ff, @fm, @fl, @focc, @frel, @fcit, @remarks, @img, 'OCR-Backlog', " +
+                    "@digby, @digdate, @encmethod)",
                     ps.ToArray());
                 Audit.Write(Audit.Create, "births", id, "Old birth record added by hand (OCR-Backlog)");
                 MessageBox.Show("Old birth record saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -595,5 +633,13 @@ namespace CROMS.Forms
         }
 
         private static object NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? (object)DBNull.Value : s.Trim();
+
+        private static object DigitizedBy()
+        {
+            var u = Session.User;
+            if (u == null) return DBNull.Value;
+            string name = !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.Username;
+            return NullIfEmpty(name);
+        }
     }
 }

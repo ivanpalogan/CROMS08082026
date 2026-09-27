@@ -38,6 +38,7 @@ namespace CROMS.Forms
     {
         private Bitmap _image;              // what is displayed (already straightened)
         private byte[] _scanBytes;          // original file, kept as the record's softcopy
+        private string _sourceLabel;        // Step 10 - where _scanBytes came from (filename / "Mobile Capture" / "Phone scan")
         private float _zoom = 1f;
         private string _scanId;
         private DocAiResult _result;
@@ -227,6 +228,7 @@ namespace CROMS.Forms
             _image?.Dispose();
             _image = loaded;
             _scanBytes = certificate;
+            _sourceLabel = sourceLabel ?? "Mobile Capture";
             _licenseBytes = license;
             _zoom = 1f;
             pbScan.SizeMode = PictureBoxSizeMode.Zoom;
@@ -337,6 +339,7 @@ namespace CROMS.Forms
                 _image = loaded;
                 try { _scanBytes = System.IO.File.ReadAllBytes(ofd.FileName); }
                 catch { _scanBytes = null; }
+                _sourceLabel = System.IO.Path.GetFileName(ofd.FileName);
                 _licenseBytes = null;   // a file has no licence photo with it
                 _zoom = 1f;
                 pbScan.SizeMode = PictureBoxSizeMode.Zoom;
@@ -2213,7 +2216,8 @@ namespace CROMS.Forms
                 "prepared_by, prepared_by_title, prepared_by_date, " +
                 "received_by, received_by_title, received_by_date, " +
                 "registered_by, registered_by_title, registered_by_date, " +
-                "birth_image, scan_image, record_source) " +
+                "birth_image, scan_image, record_source, " +
+                "digitized_by, date_digitized, encoding_method, source_reference) " +
                 "VALUES (@fcode, @fname, @reg, @book, @page, @dateReg, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, @btype, @weight, " +
                 "@mf, @mm, @ml, @mocc, @mrel, @mcit, " +
                 "@ff, @fm, @fl, @focc, @frel, @fcit, " +
@@ -2222,7 +2226,8 @@ namespace CROMS.Forms
                 "@prep, @preptitle, @prepdate, " +
                 "@recv, @recvtitle, @recvdate, " +
                 "@regby, @regbytitle, @regbydate, " +
-                "@img, @scan, 'OCR-Backlog')",
+                "@img, @scan, 'OCR-Backlog', " +
+                "@digby, @digdate, @encmethod, @srcref)",
                 new MySqlParameter("@fcode", NullIfEmpty(formCode)),
                 new MySqlParameter("@fname", NullIfEmpty(formName)),
                 new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
@@ -2281,7 +2286,23 @@ namespace CROMS.Forms
                 new MySqlParameter("@img", MySqlDbType.LongBlob)
                     { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
                 new MySqlParameter("@scan", MySqlDbType.LongBlob)
-                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes });
+                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
+                // STEP 10 — digitization metadata: who committed it, when, how (this path
+                // always goes through OCR + operator review before Commit is reachable), and
+                // where the image came from.
+                new MySqlParameter("@digby", DigitizedBy()),
+                new MySqlParameter("@digdate", DateTime.Now),
+                new MySqlParameter("@encmethod", "OCR + Manual Verification"),
+                new MySqlParameter("@srcref", NullIfEmpty(_sourceLabel)));
+        }
+
+        /// <summary>Step 10 — who to credit as having digitized/committed this record.</summary>
+        private static object DigitizedBy()
+        {
+            var u = Session.User;
+            if (u == null) return DBNull.Value;
+            string name = !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.Username;
+            return NullIfEmpty(name);
         }
 
         /// <summary>
@@ -2332,7 +2353,8 @@ namespace CROMS.Forms
                 "prepared_by, prepared_by_title, prepared_by_date, " +
                 "received_by, received_by_title, received_by_date, " +
                 "registered_by, registered_by_title, registered_by_date, " +
-                "death_image, scan_image, record_source) " +
+                "death_image, scan_image, record_source, " +
+                "digitized_by, date_digitized, encoding_method, source_reference) " +
                 "VALUES (@fcode, @fname, @reg, @book, @status, " +
                 "@name, @sex, @civil, @age, @cit, @dod, @place, " +
                 "@religion, @imm, @disp, @dplace, " +
@@ -2340,7 +2362,8 @@ namespace CROMS.Forms
                 "@prep, @preptitle, @prepdate, " +
                 "@recv, @recvtitle, @recvdate, " +
                 "@regby, @regbytitle, @regbydate, " +
-                "@img, @scan, 'OCR-Backlog')",
+                "@img, @scan, 'OCR-Backlog', " +
+                "@digby, @digdate, @encmethod, @srcref)",
                 new MySqlParameter("@fcode", NullIfEmpty(formCode)),
                 new MySqlParameter("@fname", NullIfEmpty(formName)),
                 new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
@@ -2373,7 +2396,11 @@ namespace CROMS.Forms
                 new MySqlParameter("@img", MySqlDbType.LongBlob)
                     { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
                 new MySqlParameter("@scan", MySqlDbType.LongBlob)
-                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes });
+                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
+                new MySqlParameter("@digby", DigitizedBy()),
+                new MySqlParameter("@digdate", DateTime.Now),
+                new MySqlParameter("@encmethod", "OCR + Manual Verification"),
+                new MySqlParameter("@srcref", NullIfEmpty(_sourceLabel)));
         }
 
         /// <summary>
@@ -2560,7 +2587,8 @@ namespace CROMS.Forms
                 return;
             }
 
-            if (!ShowScanImage(bytes, "SCANNED DOCUMENT — " + (dr["source_book"] as string ?? "Phone scan")))
+            _sourceLabel = dr["source_book"] as string ?? "Phone scan";
+            if (!ShowScanImage(bytes, "SCANNED DOCUMENT — " + _sourceLabel))
                 return;
 
             // Keep the SAME upload id rather than clearing it — LogBatch (inside Analyze,

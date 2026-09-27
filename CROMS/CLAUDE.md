@@ -1638,3 +1638,49 @@ clicked (no interactive desktop) — the existence check is a plain parameterize
 this file's own established query pattern, and the dialog's three-way result mirrors the
 `BookDecision` enum directly; rebuild in VS and confirm Commit prompts when a brand-new Book
 No./Year is typed, and proceeds silently when it matches an existing one.
+
+### 2026-09-28 (later) — Step 10, Save Both Image and Structured Data: the four fields the
+### existing architecture didn't already carry on the record itself
+
+Checked what already existed before adding anything. Most of Step 10 was already built by
+earlier passes: births/deaths keep the scanned image (`birth_image`/`death_image` +
+`scan_image`, 2026-09-02), the full read/audit trail lives in `ocr_batch` +
+`ocr_field_audit` with `record_table`/`record_id` linking back to the row (2026-09-02/09-04),
+and `record_source='OCR-Backlog'` already distinguishes a digitized backlog record from a live
+registration (migration 68) — functionally the same distinction the spec calls
+"Legacy Digitization"; not renamed, to avoid touching every existing query built on that string
+for no functional gain. "Year" is deliberately not a separate column — `book_volume` already IS
+the registry-book year (retired as its own field 2026-09-02), and duplicating it would be the
+same fact in two places, the exact shape of bug this project keeps refusing.
+
+What was genuinely missing, and the only thing this pass adds: **digitized_by**, **date_digitized**,
+**encoding_method** ('OCR + Manual Verification' vs 'Manual'), and **source_reference** (the
+original filename / "Mobile Capture" / "Phone scan"), stored directly on the `births`/`deaths`
+row rather than only reachable by joining `ocr_batch`. Migration
+`Database/70_digitization_metadata.sql` (NOT yet applied to the live database) adds all four,
+idempotent guarded ADD COLUMN, to both tables.
+
+`OcrDigitizationForm.SaveBirth`/`SaveDeath` (the wizard's own Commit path) now write
+`encoding_method = 'OCR + Manual Verification'` (this path always goes through OCR + operator
+review before Commit is reachable), `date_digitized = DateTime.Now`, `digitized_by` from
+`Session.User` (full name, falling back to username), and `source_reference` from a new
+`_sourceLabel` field set at each of the three places a scan is actually loaded — `btnLoad_Click`
+(the picked file's name), `LoadCapture` (the phone Mobile Capture's own label), and the
+pending-mobile-upload double-click path (`ocr_batch.source_book`, falling back to "Phone scan").
+
+`OldBirthRecordsForm`/`OldDeathRecordsForm` — the hand-transcription screens for a backlog
+record with no scan at all — write `encoding_method = 'Manual'` on their own INSERT instead,
+so a record typed straight off a physical ledger is never confused with one OCR actually read.
+Both screens gained four read-only fields on the Registration tab (Digitized By / Date
+Digitized / Encoding Method / Source Reference) — built via a new `AddReadOnlyField` helper that
+adds the box like any other field but removes it from `_inputs`, so `SetMode`'s edit/view toggle
+can never make it editable. A brand-new unsaved record previews "Manual" + the signed-in user's
+name + "(on save)" rather than sitting blank. Both `LoadRecord` reads are guarded with
+`dt.Columns.Contains(...)` (this file's own established convention for a migration that may not
+be applied yet), so opening a record on an unmigrated database still works, just blank.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, temp OutDir. Migration 70
+NOT yet applied to the live database — run it before relying on any of these four fields; the
+Commit/Save INSERTs will fail with an unknown-column error until it is. GUI not clicked (no
+interactive desktop) — rebuild in VS and confirm the Registration tab shows who/when/how a
+record was digitized on both the OCR-committed and hand-typed paths.

@@ -53,6 +53,9 @@ namespace CROMS.Forms
         private TextBox txtRecvName, txtRecvTitle;
         private DateTimePicker dtpRecvDate;
         private TextBox txtRegByName, txtRegByTitle;
+
+        // Step 10 — read-only digitization metadata; never in _inputs.
+        private TextBox txtDigitizedBy, txtDateDigitized, txtEncodingMethod, txtSourceRef;
         private DateTimePicker dtpRegByDate;
 
         private List<Control> _inputs;
@@ -245,6 +248,10 @@ namespace CROMS.Forms
             txtBookVol = AddField(gReg, "Book / Volume (Year)");
             txtBookPage = AddField(gReg, "Book Page");
             cboStatus = AddCombo(gReg, "Status", new[] { "Draft", "Registered" });
+            txtDigitizedBy = AddReadOnlyField(gReg, "Digitized By");
+            txtDateDigitized = AddReadOnlyField(gReg, "Date Digitized");
+            txtEncodingMethod = AddReadOnlyField(gReg, "Encoding Method");
+            txtSourceRef = AddReadOnlyField(gReg, "Source Reference");
 
             var tabDeceased = NewTab("Deceased");
             var gDec = FieldGrid(tabDeceased);
@@ -316,6 +323,16 @@ namespace CROMS.Forms
             if (multiline) { box.Multiline = true; box.Height = 90; box.Dock = DockStyle.Fill; }
             g.Controls.Add(box, 1, row);
             _inputs.Add(box);
+            return box;
+        }
+
+        private TextBox AddReadOnlyField(TableLayoutPanel g, string label)
+        {
+            var box = AddField(g, label);
+            box.ReadOnly = true;
+            box.TabStop = false;
+            box.BackColor = UiTheme.PageBg;
+            _inputs.Remove(box);
             return box;
         }
 
@@ -467,6 +484,13 @@ namespace CROMS.Forms
             txtRegByTitle.Text = Str(r, "registered_by_title");
             SetDate(dtpRegByDate, r["registered_by_date"]);
 
+            // Guarded: migration 70 may not be applied yet on every database.
+            txtDigitizedBy.Text = dt.Columns.Contains("digitized_by") ? Str(r, "digitized_by") : "";
+            txtDateDigitized.Text = dt.Columns.Contains("date_digitized") && r["date_digitized"] != DBNull.Value
+                ? Convert.ToDateTime(r["date_digitized"]).ToString("MMM d, yyyy h:mm tt") : "";
+            txtEncodingMethod.Text = dt.Columns.Contains("encoding_method") ? Str(r, "encoding_method") : "";
+            txtSourceRef.Text = dt.Columns.Contains("source_reference") ? Str(r, "source_reference") : "";
+
             lblEntryTitle.Text = Str(r, "full_name");
             if (lblEntryTitle.Text.Length == 0) lblEntryTitle.Text = "#" + id;
             lblEntrySub.Text = "Registry No. " + (txtReg.Text.Length > 0 ? txtReg.Text : "(none)") +
@@ -487,6 +511,12 @@ namespace CROMS.Forms
             cboSex.SelectedIndex = -1;
             foreach (DateTimePicker dtp in new[] { dtpDod, dtpDisposalDate, dtpInfDate, dtpPrepDate, dtpRecvDate, dtpRegByDate })
                 dtp.Checked = false;
+
+            var u = Session.User;
+            txtDigitizedBy.Text = u != null ? (u.FullName ?? u.Username) : "";
+            txtDateDigitized.Text = "(on save)";
+            txtEncodingMethod.Text = "Manual";
+            txtSourceRef.Text = "";
         }
 
         private void Save()
@@ -540,6 +570,10 @@ namespace CROMS.Forms
             {
                 ps.Add(new MySqlParameter("@scan", MySqlDbType.LongBlob)
                     { Value = _scanImage == null ? (object)DBNull.Value : _scanImage });
+                // Step 10: hand-transcription, no scan behind it — encoding_method says so.
+                ps.Add(new MySqlParameter("@digby", DigitizedBy()));
+                ps.Add(new MySqlParameter("@digdate", DateTime.Now));
+                ps.Add(new MySqlParameter("@encmethod", "Manual"));
                 long id = Db.Insert(
                     "INSERT INTO deaths (registry_no, book_volume, book_page, status, full_name, sex, " +
                     "civil_status, age, citizenship, date_of_death, place_of_death, religion_name, " +
@@ -548,7 +582,7 @@ namespace CROMS.Forms
                     "prepared_by, prepared_by_title, prepared_by_date, " +
                     "received_by, received_by_title, received_by_date, " +
                     "registered_by, registered_by_title, registered_by_date, " +
-                    "scan_image, record_source) " +
+                    "scan_image, record_source, digitized_by, date_digitized, encoding_method) " +
                     "VALUES (@reg, @book, @bookpage, @status, @name, @sex, " +
                     "@civil, @age, @cit, @dod, @place, @religion, " +
                     "@imm, @ant, @und, @disp, @dplace, @ddate, " +
@@ -556,7 +590,7 @@ namespace CROMS.Forms
                     "@prep, @preptitle, @prepdate, " +
                     "@recv, @recvtitle, @recvdate, " +
                     "@regby, @regbytitle, @regbydate, " +
-                    "@scan, 'OCR-Backlog')",
+                    "@scan, 'OCR-Backlog', @digby, @digdate, @encmethod)",
                     ps.ToArray());
                 Audit.Write(Audit.Create, "deaths", id, "Old death record added by hand (OCR-Backlog)");
                 MessageBox.Show("Old death record saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -644,6 +678,14 @@ namespace CROMS.Forms
         }
 
         private static object NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? (object)DBNull.Value : s.Trim();
+
+        private static object DigitizedBy()
+        {
+            var u = Session.User;
+            if (u == null) return DBNull.Value;
+            string name = !string.IsNullOrWhiteSpace(u.FullName) ? u.FullName : u.Username;
+            return NullIfEmpty(name);
+        }
 
         /// <summary>
         /// `deaths` keeps one joined <c>full_name</c> column, so the screen splits it back
