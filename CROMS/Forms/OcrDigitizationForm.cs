@@ -79,6 +79,15 @@ namespace CROMS.Forms
         /// </summary>
         private MarriageEntryForm _returnTo;
 
+        /// <summary>
+        /// Set when this window was opened FROM the Birth Record Digitization wizard
+        /// (Registry Books gallery -&gt; "+ Digitize Old Record" -&gt; Scan/Upload with OCR) to
+        /// review an already-registered physical record being converted into a digital one.
+        /// Auto-Fill fills THAT wizard's fields and closes this window - the record is never
+        /// committed straight from here, unlike the routine backlog batch flow below.
+        /// </summary>
+        private BirthRegistrationForm _returnToBirth;
+
         public OcrDigitizationForm()
         {
             InitializeComponent();
@@ -226,6 +235,34 @@ namespace CROMS.Forms
                     "Auto-Fill Marriage to send the values back to the Marriage Registration.";
                 UiTheme.Polish(ocr);
                 ocr.Shown += async (s, e) => await ocr.LoadCapture(certificate, license, sourceLabel);
+                return ocr.ShowDialog(owner) == DialogResult.OK;
+            }
+        }
+
+        /// <summary>
+        /// The Birth Record Digitization wizard's "Scan / Upload with OCR" step: opens this
+        /// window as a dialog over that wizard (Mode = Legacy Birth Digitization,
+        /// RecordType = Birth), reads the scanned physical record, and lets the operator check
+        /// the fields exactly as on the normal screen. Auto-Fill fills <paramref name="target"/>
+        /// and closes - the record is reviewed and saved through the wizard, never committed
+        /// straight from here. Returns true when the wizard was filled.
+        /// </summary>
+        public static bool ReviewForBirthDigitization(IWin32Window owner, BirthRegistrationForm target,
+            byte[] scan, string sourceLabel)
+        {
+            using (var ocr = new OcrDigitizationForm())
+            {
+                ocr._returnToBirth = target;
+                ocr.FormBorderStyle = FormBorderStyle.Sizable;
+                ocr.StartPosition = FormStartPosition.CenterParent;
+                ocr.WindowState = FormWindowState.Maximized;
+                ocr.ShowInTaskbar = false;
+                ocr.MinimizeBox = false;
+                ocr.Text = "OCR Review  -  Birth Record Digitization";
+                ocr.lblSubtitle.Text = "Legacy Birth Digitization - check every field against the photo, correct anything " +
+                    "flagged, then press Auto-Fill Birth to send the values back to the digitization wizard.";
+                UiTheme.Polish(ocr);
+                ocr.Shown += async (s, e) => await ocr.LoadCapture(scan, null, sourceLabel);
                 return ocr.ShowDialog(owner) == DialogResult.OK;
             }
         }
@@ -414,10 +451,15 @@ namespace CROMS.Forms
             // the whole point of digitizing an old registry book, and it must never pass
             // through the live Birth/Death Registration screens (those are for today's
             // walk-in registrations). Only Marriage still routes through Auto-Fill, into the
-            // Form 97 dialog — unchanged.
-            btnCommit.Enabled = (birth || death) && !blocked;
-            btnDraft.Enabled = (birth || death) && !blocked;
-            btnAutoFill.Enabled = have && !blocked && _kind == DocKind.Marriage;
+            // Form 97 dialog. The Birth Record Digitization wizard's OCR review step
+            // (_returnToBirth) is the third case: it also routes through Auto-Fill, into that
+            // wizard's own fields, so Commit/Draft — which would write a second, wizard-less
+            // row straight into `births` — are disabled while a wizard is waiting for this
+            // scan's values.
+            bool birthReturn = _returnToBirth != null;
+            btnCommit.Enabled = (birth || death) && !blocked && !birthReturn;
+            btnDraft.Enabled = (birth || death) && !blocked && !birthReturn;
+            btnAutoFill.Enabled = have && !blocked && (_kind == DocKind.Marriage || (birthReturn && _kind == DocKind.Birth));
             btnReview.Enabled = _result != null;
 
             btnAutoFill.Text = have ? "Auto-Fill " + ModuleName(_kind) : "Auto-Fill Form";
@@ -1321,9 +1363,10 @@ namespace CROMS.Forms
             MarkBatch("Auto-Filled", TableFor(_kind), null);
             LoadBatch();
 
-            if (_returnTo != null)
+            if (_returnTo != null || _returnToBirth != null)
             {
-                // Wizard review step done - back to the same Marriage Registration.
+                // Wizard review step done - back to the same Marriage Registration, or to the
+                // Birth Record Digitization wizard.
                 DialogResult = DialogResult.OK;
                 return;
             }
@@ -1483,6 +1526,24 @@ namespace CROMS.Forms
                 _returnTo.SetScanImage(_scanBytes);
                 if (_licenseBytes != null) _returnTo.SetLicenseImage(_licenseBytes);
                 _returnTo.SetOcrContext(_scanId, _result);
+                return true;
+            }
+
+            // Opened from the Birth Record Digitization wizard: fill THAT wizard's fields,
+            // not the live daily registration screen, and keep the scanned original with it.
+            if (_returnToBirth != null)
+            {
+                if (kind != DocKind.Birth)
+                {
+                    MessageBox.Show(this,
+                        "This photo was read as a " + ModuleName(kind) + " document, not a Certificate of Live Birth.\n\n" +
+                        "Close this window and scan the birth record again.",
+                        "Not a birth certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(_scanId)) vals["OcrScanId"] = _scanId;
+                _returnToBirth.PrimeFromExtraction(vals);
+                _returnToBirth.SetScanImage(_scanBytes);
                 return true;
             }
 

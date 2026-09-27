@@ -2622,33 +2622,114 @@ namespace CROMS.Forms
             RefreshRail();
         }
 
+        /// <summary>"+ Digitize Old Record" (Registry Books gallery and the flat list view
+        /// both wire to this). Opens the Birth Record Digitization wizard's first choice.</summary>
         private void button1_Click(object sender, EventArgs e)
         {
-            try
-            {
-                MainForm shell = null;
-                for (Control parent = Parent; parent != null; parent = parent.Parent)
-                {
-                    shell = parent as MainForm;
-                    if (shell != null) break;
-                }
-                if (shell == null) shell = Owner as MainForm;
+            try { ShowDigitizeOldRecordWizard(); }
+            catch (Exception ex) { Fail(ex); }
+        }
 
-                if (shell != null)
+        /// <summary>
+        /// STEP 3 of Birth Record Digitization: a plain choice instead of dropping straight
+        /// into a blank form. This is for an ALREADY-REGISTERED physical record being
+        /// converted into a digital one — not a new birth registration — so either choice
+        /// lands on a fresh Draft in this same wizard.
+        /// </summary>
+        private void ShowDigitizeOldRecordWizard()
+        {
+            string choice = null;
+            using (var dlg = new Form
+            {
+                Text = "Digitize Old Record",
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false,
+                ShowInTaskbar = false,
+                BackColor = Color.White,
+                ClientSize = new Size(520, 300),
+            })
+            {
+                var head = MUi.Txt("Birth Record Digitization", 12F, FontStyle.Bold, UiTheme.Ink);
+                head.AutoSize = false; head.Size = new Size(480, 26); head.Location = new Point(20, 18);
+                var sub = MUi.Txt(
+                    "For an already-registered physical record being converted into a digital record — " +
+                    "not a new birth registration.", 9F, FontStyle.Regular, UiTheme.Muted);
+                sub.AutoSize = false; sub.Size = new Size(480, 34); sub.Location = new Point(20, 46);
+                dlg.Controls.Add(head);
+                dlg.Controls.Add(sub);
+
+                int y = 96;
+                Action<string, string, string, MUi.Kind> option = (key, title, desc, kind) =>
                 {
-                    // The registered "ocr" module is OcrDigitizationForm. Reuse it so
-                    // extracted birth fields can return through the existing workflow.
-                    shell.GoToModule("ocr");
+                    var b = MUi.Btn(title, kind, 480);
+                    b.Height = 44; b.Location = new Point(20, y);
+                    b.Click += (s2, e2) => { choice = key; dlg.DialogResult = DialogResult.OK; };
+                    var d = MUi.Txt(desc, 9F, FontStyle.Regular, UiTheme.Muted);
+                    d.AutoSize = false; d.Size = new Size(480, 34); d.Location = new Point(22, y + 48);
+                    dlg.Controls.Add(b);
+                    dlg.Controls.Add(d);
+                    y += 92;
+                };
+                option("ocr", "Scan / Upload with OCR",
+                    "Load a scanned image of the old physical record. CROMS reads it and fills this " +
+                    "wizard for you to check.", MUi.Kind.Primary);
+                option("manual", "Manual Entry",
+                    "Fill in every field by hand from the physical record.", MUi.Kind.Secondary);
+                UiTheme.Polish(dlg);
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            }
+
+            if (choice == "ocr") StartDigitizeScanFlow();
+            else if (choice == "manual") { ClearForm(); ShowEntryView(); }
+        }
+
+        /// <summary>
+        /// STEP 4, Scan/Upload option: pick an image file, review + extract it in the shared
+        /// Document OCR window (Mode = Legacy Birth Digitization, RecordType = Birth), then
+        /// Auto-Fill returns here with the recognized values in the matching fields and the
+        /// scanned original attached to this digitization session.
+        /// See OcrDigitizationForm.ReviewForBirthDigitization.
+        /// </summary>
+        private void StartDigitizeScanFlow()
+        {
+            using (var ofd = new OpenFileDialog
+            {
+                Title = "Scanned Birth Record",
+                Filter = "Image files (*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp)|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp"
+            })
+            {
+                if (ofd.ShowDialog(this) != DialogResult.OK) return;
+                byte[] bytes;
+                try { bytes = System.IO.File.ReadAllBytes(ofd.FileName); }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, "Could not read the file: " + ex.Message, "Scan",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
 
-                // Also support opening Birth Registration as a standalone form.
-                using (OcrDigitizationForm ocr = CreateStandaloneOcrWindow())
-                    ocr.ShowDialog(this);
-            }
-            catch (Exception ex)
-            {
-                Fail(ex);
+                bool filled = OcrDigitizationForm.ReviewForBirthDigitization(
+                    this, this, bytes, System.IO.Path.GetFileName(ofd.FileName));
+                if (filled)
+                {
+                    MessageBox.Show(this,
+                        "The record has been filled from the OCR reading.\n\n" +
+                        "Check the highlighted fields, then Save as Draft or Submit.",
+                        "Birth Record Digitization", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                // Review closed without Auto-Fill: keep the scan attached to a fresh record
+                // rather than losing the image already in hand, and drop into manual entry.
+                ClearForm();
+                SetScanImage(bytes);
+                ShowEntryView();
+                MessageBox.Show(this,
+                    "The OCR review was closed without Auto-Fill, so the fields were not filled.\n\n" +
+                    "The scanned image is attached — type the fields from the physical record.",
+                    "Birth Record Digitization", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
