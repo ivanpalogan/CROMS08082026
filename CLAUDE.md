@@ -6189,3 +6189,41 @@ Reported: on the kiosk Personal Info screen the ID Type dropdown arrow sat in th
 
 ### 2026-09-27 (Mobile Capture thumbnails portrait + click to preview)
 `MobileCaptureDialog` thumbnails were 120x96 landscape and could not be opened. Now 100x128 portrait (dialog 688 -> 764 wide, step labels 346 wide, buttons moved right). New `Portrait()` applies the phone's EXIF orientation tag (GDI+ ignores it, so portrait shots showed sideways), then turns a still-landscape page a quarter. Display only: the bytes OCR reads are unchanged. Clicking a thumbnail (hand cursor + tooltip, "Click the photo to preview." under each Received line) opens it full size in `SoftcopyViewer` (zoom + print). VERIFIED: MSBuild clean (temp OutputPath); a 400x250 JPEG through the real `ShowPage` came out 250x400. Dialog not rendered shown (no interactive desktop). REBUILD IN VS.
+
+### 2026-09-28 — Record Search retired into Records Archive (one search screen, not two)
+User asked to remove Record Search's module entirely and put its function in Records Archive.
+Asked one real tradeoff first rather than guessing: `search` sat in `MainForm.OperationalKeys`
+(every operational role), `archive` did not (Admin-only) — moving the function as-is would have
+quietly removed daily search access for Registrar/Staff/Cashier/Releasing. User chose to keep it
+open to all staff, so `archive` joins `OperationalKeys` and `search` is deleted outright rather
+than kept as a dead permission.
+
+`Forms/RecordSearchForm.cs`/`.Designer.cs`/`.resx` deleted; csproj `Compile`/`EmbeddedResource`
+entries removed. `ModuleRegistry`'s `"search"` entry removed (the `"archive"` entry's comment
+updated to say why it's operational now). `MainForm.Designer.cs`'s `btnSearch` nav button (and
+its field declaration) removed; `NavIcons`'s now-dead `"search"` case dropped. `OperationalKeys`
+swapped `"search"` for `"archive"`, with `"books"` kept exactly as before (Registry Books stays
+folded into whichever screen does search — the comment now points at Records Archive).
+
+**Records Archive gained a synthetic first tree node, "🔎 Search Records"** (`ArchiveCategory.
+IsSearch`), selected by default on open. Selecting it (vs. a normal category) puts the screen
+into search mode: a search bar (`pnlSearchBar` — name query, All/Birth/Marriage/Death filter,
+SOUNDEX checkbox) appears above the grid, the grid narrows, and a 330px `cardDetail` rail
+appears on the right showing the selected hit's full registry-book identity (registry no/year,
+book/page, date registered, source form) — the exact rail the retired module had. All of
+`RecordSearchForm`'s query logic (the three per-table UNION sub-queries, the registry-year
+regex guard against fabricating a year from a bare legacy number, the Type badge via
+`MUi.RecordTone`, the em-dash for a blank Book/Page/Registry No, the jump-to-module + "find this
+row" message box) was carried over verbatim, renamed with a `Search` prefix to avoid clashing
+with the archive's own per-category `ViewSelected`/`ShowDetail` methods — the two modes share
+the same `grid`/`lblCount`/`btnViewRecord` controls but never their logic. `btnViewRecord_Click`
+and `grid_CellDoubleClick` now branch on `_current.IsSearch` to call either the search jump or
+the original per-category detail dialog. Non-search categories are completely unchanged —
+`ExitSearchMode()` restores the grid to its original full-width bounds (captured once in the
+constructor) the moment any other tree node is picked.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings, temp OutDir.
+GUI not clicked (no interactive desktop) — the search-mode query/rail logic is copied unchanged
+from the already-proven `RecordSearchForm`, only the hosting/layout is new; rebuild in VS and
+confirm the sidebar no longer shows "Record Search", Records Archive opens on Search Records by
+default, and a non-Admin sign-in still sees the "Records Archive" button.

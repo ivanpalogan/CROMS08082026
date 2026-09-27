@@ -65,14 +65,11 @@ namespace CROMS.Modules
                 () => new PetitionsForm()),
 
             // Records & Documents — finding and handling records that already exist.
-            // Record Search is the SINGLE place a record is found, whichever register it is
-            // in, and it now carries each hit's registry book identity (book volume, page,
-            // registry number/year, date of registration) beside the record itself -- which
-            // is what the separate Registry Books screen used to be opened for.
-            new ModuleInfo("search", "Record Search", GroupRecords,
-                () => new RecordSearchForm()),
-            // Admin-only browser over every saved record/form/image in the system.
-            // Not in OperationalKeys in MainForm, so only Admin sees the button.
+            // Records Archive is the SINGLE place a record is found (its own search bar,
+            // by name/SOUNDEX, across births/marriages/deaths) as well as the browser over
+            // every other saved record/form/image in the system. Record Search (its old,
+            // separate module) was retired into it 2026-09-28. In OperationalKeys in
+            // MainForm, so every operational role sees the button, not just Admin.
             new ModuleInfo("archive", "Records Archive", GroupRecords,
                 () => new RecordsArchiveForm()),
             new ModuleInfo("ocr", "Document Processing", GroupRecords,

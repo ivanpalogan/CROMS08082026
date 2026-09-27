@@ -27,7 +27,6 @@ namespace CROMS.Modules
                 case "death": return PlusCircle;
                 case "petitions": return Flag;
                 case "books": return Book;
-                case "search": return Search;
                 case "ocr": return Scan;
                 case "fees": return Wallet;
                 case "reports": return BarChart;

@@ -11,6 +11,11 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnRefresh;
         private System.Windows.Forms.Button btnViewRecord;
         private System.Windows.Forms.DataGridView grid;
+        private System.Windows.Forms.Panel pnlSearchBar;
+        private System.Windows.Forms.TextBox txtQuery;
+        private System.Windows.Forms.ComboBox cboSearchType;
+        private System.Windows.Forms.CheckBox chkFuzzy;
+        private System.Windows.Forms.Panel cardDetail;
 
         protected override void Dispose(bool disposing)
         {
@@ -28,7 +33,13 @@ namespace CROMS.Forms
             this.btnRefresh = new System.Windows.Forms.Button();
             this.btnViewRecord = new System.Windows.Forms.Button();
             this.grid = new System.Windows.Forms.DataGridView();
+            this.pnlSearchBar = new System.Windows.Forms.Panel();
+            this.txtQuery = new System.Windows.Forms.TextBox();
+            this.cboSearchType = new System.Windows.Forms.ComboBox();
+            this.chkFuzzy = new System.Windows.Forms.CheckBox();
+            this.cardDetail = new System.Windows.Forms.Panel();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
+            this.pnlSearchBar.SuspendLayout();
             this.SuspendLayout();
             //
             // lblTitle
@@ -49,8 +60,8 @@ namespace CROMS.Forms
             this.lblSubtitle.Name = "lblSubtitle";
             this.lblSubtitle.Size = new System.Drawing.Size(560, 15);
             this.lblSubtitle.TabIndex = 1;
-            this.lblSubtitle.Text = "Every saved record, form and image in the system, grouped by type. Admin only, " +
-    "read-only.";
+            this.lblSubtitle.Text = "Every saved record, form and image in the system, grouped by type, plus a name" +
+    "/SOUNDEX search across births, marriages and deaths. Read-only.";
             //
             // treeCategories
             //
@@ -128,13 +139,74 @@ namespace CROMS.Forms
             this.grid.Size = new System.Drawing.Size(1085, 665);
             this.grid.TabIndex = 7;
             this.grid.CellDoubleClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.grid_CellDoubleClick);
+            this.grid.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.grid_CellFormatting);
+            this.grid.SelectionChanged += new System.EventHandler(this.grid_SelectionChanged);
+            //
+            // pnlSearchBar
+            //
+            this.pnlSearchBar.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
+            this.pnlSearchBar.Controls.Add(this.txtQuery);
+            this.pnlSearchBar.Controls.Add(this.cboSearchType);
+            this.pnlSearchBar.Controls.Add(this.chkFuzzy);
+            this.pnlSearchBar.Location = new System.Drawing.Point(340, 114);
+            this.pnlSearchBar.Name = "pnlSearchBar";
+            this.pnlSearchBar.Size = new System.Drawing.Size(720, 32);
+            this.pnlSearchBar.TabIndex = 8;
+            this.pnlSearchBar.Visible = false;
+            //
+            // txtQuery
+            //
+            this.txtQuery.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.txtQuery.Location = new System.Drawing.Point(0, 3);
+            this.txtQuery.Name = "txtQuery";
+            this.txtQuery.Size = new System.Drawing.Size(300, 25);
+            this.txtQuery.TabIndex = 0;
+            this.txtQuery.TextChanged += new System.EventHandler(this.txtQuery_TextChanged);
+            //
+            // cboSearchType
+            //
+            this.cboSearchType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cboSearchType.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.cboSearchType.Items.AddRange(new object[] { "All Records", "Birth", "Marriage", "Death" });
+            this.cboSearchType.Location = new System.Drawing.Point(310, 2);
+            this.cboSearchType.Name = "cboSearchType";
+            this.cboSearchType.Size = new System.Drawing.Size(150, 25);
+            this.cboSearchType.TabIndex = 1;
+            this.cboSearchType.SelectedIndexChanged += new System.EventHandler(this.cboSearchType_SelectedIndexChanged);
+            //
+            // chkFuzzy
+            //
+            this.chkFuzzy.AutoSize = true;
+            this.chkFuzzy.Location = new System.Drawing.Point(474, 6);
+            this.chkFuzzy.Name = "chkFuzzy";
+            this.chkFuzzy.Size = new System.Drawing.Size(160, 19);
+            this.chkFuzzy.TabIndex = 2;
+            this.chkFuzzy.Text = "Sound-alike match (SOUNDEX)";
+            this.chkFuzzy.UseVisualStyleBackColor = true;
+            this.chkFuzzy.CheckedChanged += new System.EventHandler(this.chkFuzzy_CheckedChanged);
+            //
+            // cardDetail
+            //
+            this.cardDetail.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.cardDetail.AutoScroll = true;
+            this.cardDetail.BackColor = System.Drawing.Color.White;
+            this.cardDetail.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.cardDetail.Location = new System.Drawing.Point(1095, 150);
+            this.cardDetail.Name = "cardDetail";
+            this.cardDetail.Padding = new System.Windows.Forms.Padding(14);
+            this.cardDetail.Size = new System.Drawing.Size(330, 630);
+            this.cardDetail.TabIndex = 9;
+            this.cardDetail.Visible = false;
             //
             // RecordsArchiveForm
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1449, 845);
+            this.Controls.Add(this.cardDetail);
             this.Controls.Add(this.grid);
+            this.Controls.Add(this.pnlSearchBar);
             this.Controls.Add(this.btnViewRecord);
             this.Controls.Add(this.btnRefresh);
             this.Controls.Add(this.lblCount);
@@ -145,6 +217,8 @@ namespace CROMS.Forms
             this.Name = "RecordsArchiveForm";
             this.Text = "Records Archive";
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
+            this.pnlSearchBar.ResumeLayout(false);
+            this.pnlSearchBar.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
         }

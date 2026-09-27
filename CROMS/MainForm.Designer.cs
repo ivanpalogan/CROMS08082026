@@ -37,7 +37,6 @@
             this.btnMarriage = new System.Windows.Forms.Button();
             this.btnDeath = new System.Windows.Forms.Button();
             this.btnPetitions = new System.Windows.Forms.Button();
-            this.btnSearch = new System.Windows.Forms.Button();
             this.lblGrpRecords = new System.Windows.Forms.Label();
             this.btnOcr = new System.Windows.Forms.Button();
             this.btnOldBirth = new System.Windows.Forms.Button();
@@ -127,7 +126,6 @@
             this.navFlow.Controls.Add(this.lblGrpPetitions);
             this.navFlow.Controls.Add(this.btnPetitions);
             this.navFlow.Controls.Add(this.lblGrpRecords);
-            this.navFlow.Controls.Add(this.btnSearch);
             this.navFlow.Controls.Add(this.btnArchive);
             this.navFlow.Controls.Add(this.btnOcr);
             this.navFlow.Controls.Add(this.btnOldBirth);
@@ -373,24 +371,6 @@
             this.btnPetitions.UseVisualStyleBackColor = false;
             this.btnPetitions.Click += new System.EventHandler(this.NavButton_Click);
             //
-            // btnSearch
-            //
-            this.btnSearch.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(19)))), ((int)(((byte)(36)))), ((int)(((byte)(65)))));
-            this.btnSearch.FlatAppearance.BorderSize = 0;
-            this.btnSearch.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(48)))), ((int)(((byte)(82)))));
-            this.btnSearch.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnSearch.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnSearch.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(196)))), ((int)(((byte)(206)))), ((int)(((byte)(227)))));
-            this.btnSearch.Margin = new System.Windows.Forms.Padding(8, 1, 8, 1);
-            this.btnSearch.Name = "btnSearch";
-            this.btnSearch.Size = new System.Drawing.Size(204, 38);
-            this.btnSearch.TabIndex = 12;
-            this.btnSearch.Tag = "search";
-            this.btnSearch.Text = "Record Search";
-            this.btnSearch.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.btnSearch.UseVisualStyleBackColor = false;
-            this.btnSearch.Click += new System.EventHandler(this.NavButton_Click);
-            //
             // lblGrpRecords
             //
             this.lblGrpRecords.Font = new System.Drawing.Font("Segoe UI", 8F, System.Drawing.FontStyle.Bold);
@@ -618,7 +598,6 @@
         private System.Windows.Forms.Button btnMarriage;
         private System.Windows.Forms.Button btnDeath;
         private System.Windows.Forms.Button btnPetitions;
-        private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Label lblGrpRecords;
         private System.Windows.Forms.Button btnOcr;
         private System.Windows.Forms.Button btnOldBirth;

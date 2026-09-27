@@ -733,18 +733,26 @@ namespace CROMS
         /// where any staff member may cover any stage on a given day, rather than CROMS assuming
         /// one fixed person per stage. So every non-Admin role gets the SAME broad operational
         /// set ("semi-admin") — the distinction that matters is operational vs true admin
-        /// (Master Files / Settings / Users & Audit Trail / Records Archive stay Admin-only).
+        /// (Master Files / Settings / Users & Access stay Admin-only).
+        ///
+        /// "archive" (Records Archive) is included even though most of the screen is an
+        /// admin-only browser over every stored record/image: its search bar is now the
+        /// system's only record-search screen (Record Search was retired into it 2026-09-28),
+        /// and staff use that daily to find a record by name/SOUNDEX. Records Archive's own
+        /// per-category browsing (petitions, licenses, claims, etc.) is visible to everyone
+        /// who can open the module — there is no finer split than the whole screen.
         /// </summary>
         private static readonly HashSet<string> OperationalKeys = new HashSet<string> {
             "dashboard", "queue", "transactions", "certrequest", "release", "breqs",
-            "birth", "marriage", "death", "petitions", "search", "ocr", "fees", "reports",
+            "birth", "marriage", "death", "petitions", "archive", "ocr", "fees", "reports",
             // Old, already-registered birth/death records digitized through OCR -- a full
             // Add/Edit/View/Delete workbench over the backlog, separate from the live
             // Birth/Death Registration screens above.
             "oldbirth", "olddeath",
-            // "books" has no sidebar button any more -- Registry Books is folded into Record
-            // Search -- but it stays permitted so a cross-module GoToModule("books") is not a
-            // permission hole for an operational role if anything ever routes there again.
+            // "books" has no sidebar button any more -- Registry Books is folded into Records
+            // Archive -- but it stays permitted so a cross-module GoToModule("books") is not a
+            // permission hole if anything still routes there. Record Search's own module key
+            // ("search") is deleted outright below since its screen no longer exists.
             "books"
         };
 

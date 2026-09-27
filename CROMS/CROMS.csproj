@@ -303,12 +303,6 @@
     <Compile Include="Forms\PetitionsForm.Designer.cs">
       <DependentUpon>PetitionsForm.cs</DependentUpon>
     </Compile>
-    <Compile Include="Forms\RecordSearchForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\RecordSearchForm.Designer.cs">
-      <DependentUpon>RecordSearchForm.cs</DependentUpon>
-    </Compile>
     <Compile Include="Forms\IncomingOutgoingForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -724,9 +718,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\PetitionsForm.resx">
       <DependentUpon>PetitionsForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Forms\RecordSearchForm.resx">
-      <DependentUpon>RecordSearchForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\IncomingOutgoingForm.resx">
       <DependentUpon>IncomingOutgoingForm.cs</DependentUpon>
