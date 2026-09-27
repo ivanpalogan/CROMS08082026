@@ -10,13 +10,8 @@ namespace CROMS.Kiosk
         private Button _back, _next;
         private Button _btnNo, _btnYes;
         private readonly Label _lblHandOver = new Label();
-        private readonly Label _lblSubCap = new Label();
-        private Button _btnSubOfficer, _btnSubHusband, _btnSubWife, _btnSubRep;
-        private readonly Label _lblOrgCap = new Label();
-        private readonly TextBox _txtOrg = new TextBox();
-        private readonly Label _lblNameHint = new Label();
 
-        private const int CardW = 760, CardH = 800;
+        private const int CardW = 760, CardH = 560;
         private const int Pad = 44, FieldW = 672;
 
         private void InitializeComponent()
@@ -70,49 +65,6 @@ namespace CROMS.Kiosk
             _lblHandOver.ForeColor = KioskCore.Accent;
             _lblHandOver.Visible = false;
             _card.Controls.Add(_lblHandOver);
-            y += 70;
-
-            // Who is handing in the Certificate of Marriage - asked only after "Yes".
-            _lblSubCap.Text = "Who is submitting the Certificate of Marriage? *";
-            _lblSubCap.Location = new Point(Pad, y);
-            _lblSubCap.Size = new Size(FieldW, 26);
-            _lblSubCap.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-            _lblSubCap.ForeColor = KioskCore.Ink;
-            _card.Controls.Add(_lblSubCap);
-            y += 32;
-
-            int half = (FieldW - 12) / 2;
-            _btnSubOfficer = OptionButton("Solemnizing Officer", Pad, y, half, 60);
-            _btnSubHusband = OptionButton("Husband", Pad + half + 12, y, half, 60);
-            y += 70;
-            _btnSubWife = OptionButton("Wife", Pad, y, half, 60);
-            _btnSubRep = OptionButton("Authorized Representative", Pad + half + 12, y, half, 60);
-            y += 74;
-            foreach (Button b in new[] { _btnSubOfficer, _btnSubHusband, _btnSubWife, _btnSubRep })
-            {
-                b.Font = new Font("Segoe UI", 11.5F, FontStyle.Bold);
-                b.Click += new EventHandler(Submitter_Click);
-                _card.Controls.Add(b);
-            }
-
-            _lblOrgCap.Text = "Your office / organization (optional)";
-            _lblOrgCap.Location = new Point(Pad, y);
-            _lblOrgCap.Size = new Size(FieldW, 22);
-            _lblOrgCap.Font = new Font("Segoe UI", 9.5F);
-            _lblOrgCap.ForeColor = KioskCore.Muted;
-            _card.Controls.Add(_lblOrgCap);
-            _txtOrg.Location = new Point(Pad, y + 24);
-            _txtOrg.Size = new Size(FieldW, 32);
-            _txtOrg.Font = new Font("Segoe UI", 12F);
-            _card.Controls.Add(_txtOrg);
-            y += 66;
-
-            _lblNameHint.Text = "On the next screen, type YOUR own name - the person submitting.";
-            _lblNameHint.Location = new Point(Pad, y);
-            _lblNameHint.Size = new Size(FieldW, 24);
-            _lblNameHint.Font = new Font("Segoe UI", 10F, FontStyle.Italic);
-            _lblNameHint.ForeColor = KioskCore.Muted;
-            _card.Controls.Add(_lblNameHint);
 
             _back = ActionButton("Back", KioskCore.Line, KioskCore.Ink);
             _back.Location = new Point(Pad, CardH - 86);

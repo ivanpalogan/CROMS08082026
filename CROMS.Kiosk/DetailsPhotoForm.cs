@@ -41,10 +41,21 @@ namespace CROMS.Kiosk
         // Marriage services only: one camera, two people — which one Capture writes to next.
         private bool _capturingWife;
 
+        // Marriage Registration only: WHO is handing in the Certificate of Marriage. The person
+        // at the kiosk types their own name above, so that name is the submitter's.
+        private readonly Label _lblSubCap = new Label();
+        private readonly Button[] _subButtons = new Button[4];
+        private static readonly string[] SubValues = { "Officer", "Husband", "Wife", "Representative" };
+        private static readonly string[] SubLabels = { "Solemnizing Officer", "Husband", "Wife", "Authorized Representative" };
+        private readonly RoundPanel _hostSubOrg = new RoundPanel();
+        private readonly TextBox _txtSubOrg = new TextBox();
+        private string _submittedBy;
+
         public DetailsPhotoForm(KioskSession session)
         {
             _session = session;
             InitializeComponent();
+            BuildSubmitterSection();          // must run BEFORE _designSize is cached (it may grow the box)
             _designSize = _detailsBox.Size;   // cache BEFORE any Scale() call, ever
 
             _btnBack.BringToFront();
@@ -143,6 +154,9 @@ namespace CROMS.Kiosk
             _txtClaimTicket.Text = _session.ClaimTicketEntry ?? "";
             OthersBox.SetValue(_cboIdType, _session.IdType);
             _txtIdNo.Text = _session.IdNo ?? "";
+            _submittedBy = _session.SubmittedBy;
+            _txtSubOrg.Text = _session.SubmittedByOrg ?? "";
+            ApplySubmitterStyle();
 
             if (_session.HasMarriageApp)
             {
@@ -169,6 +183,89 @@ namespace CROMS.Kiosk
             _session.ClaimTicketEntry = _txtClaimTicket.Text.Trim();
             _session.IdType = OthersBox.Value(_cboIdType);
             _session.IdNo = _txtIdNo.Text.Trim();
+            bool reg = _session.Selected.Contains("MARRIAGE_REG");
+            _session.SubmittedBy = reg ? _submittedBy : null;
+            _session.SubmittedByOrg = reg && _submittedBy == "Representative" ? _txtSubOrg.Text.Trim() : null;
+        }
+
+        // ---------------------------------------- marriage registration: who is submitting
+        /// <summary>
+        /// Marriage Registration only: "Who is submitting the Certificate of Marriage?" -
+        /// Solemnizing Officer / Husband / Wife / Authorized Representative, on THIS screen right
+        /// under the name the submitter types. Built in code (not the Designer) and placed in the
+        /// free space below Valid ID; when a pickup claim panel also shows, the cards grow to fit.
+        /// </summary>
+        private void BuildSubmitterSection()
+        {
+            if (!_session.Selected.Contains("MARRIAGE_REG")) return;
+
+            int y = 762;
+            if (_session.HasClaim)
+            {
+                // The resume-pickup panel already uses the space below Valid ID - stack after it.
+                const int grow = 150;
+                _detailsBox.Height += grow; leftCard.Height += grow; rightCard.Height += grow;
+                y = 930;
+            }
+            lblPersonalInfo.Text = "Your Information  (the person submitting)";
+
+            _lblSubCap.AutoSize = true;
+            _lblSubCap.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+            _lblSubCap.ForeColor = KioskCore.Ink;
+            _lblSubCap.Text = "Who is submitting the Certificate of Marriage? *";
+            _lblSubCap.Location = new Point(30, y);
+            leftCard.Controls.Add(_lblSubCap);
+
+            for (int i = 0; i < 4; i++)
+            {
+                var b = new Button
+                {
+                    Text = SubLabels[i], Tag = SubValues[i],
+                    Location = new Point(30 + (i % 2) * 274, y + 32 + (i / 2) * 54),
+                    Size = new Size(262, 46),
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                    Cursor = Cursors.Hand,
+                    UseVisualStyleBackColor = false,
+                };
+                b.FlatAppearance.BorderSize = 2;
+                b.Click += (s, e) =>
+                {
+                    _submittedBy = (string)((Button)s).Tag;
+                    ApplySubmitterStyle();
+                    if (_submittedBy == "Representative") _txtSubOrg.Focus();
+                };
+                _subButtons[i] = b;
+                leftCard.Controls.Add(b);
+            }
+
+            _hostSubOrg.BorderColor = KioskCore.Line;
+            _hostSubOrg.BorderWidth = 1.5F;
+            _hostSubOrg.Fill = Color.White;
+            _hostSubOrg.Radius = 8;
+            _hostSubOrg.Location = new Point(30, y + 146);
+            _hostSubOrg.Size = new Size(536, 46);
+            _txtSubOrg.BorderStyle = BorderStyle.None;
+            _txtSubOrg.Font = new Font("Segoe UI", 12F);
+            _txtSubOrg.Location = new Point(14, 12);
+            _txtSubOrg.Size = new Size(508, 25);
+            _txtSubOrg.HandleCreated += (s, e) => Cue(_txtSubOrg, "Your office / organization (optional)");
+            _hostSubOrg.Controls.Add(_txtSubOrg);
+            leftCard.Controls.Add(_hostSubOrg);
+            ApplySubmitterStyle();
+        }
+
+        private void ApplySubmitterStyle()
+        {
+            if (_subButtons[0] == null) return;
+            for (int i = 0; i < 4; i++)
+            {
+                bool on = _submittedBy == SubValues[i];
+                _subButtons[i].BackColor = on ? KioskCore.Accent : KioskCore.CardBg;
+                _subButtons[i].ForeColor = on ? Color.White : KioskCore.Ink;
+                _subButtons[i].FlatAppearance.BorderColor = on ? KioskCore.Accent : KioskCore.Line;
+            }
+            _hostSubOrg.Visible = _submittedBy == "Representative";
         }
 
         // -------------------------------------------------- marriage (two people)
