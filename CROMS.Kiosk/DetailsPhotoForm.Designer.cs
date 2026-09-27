@@ -511,9 +511,9 @@ namespace CROMS.Kiosk
             this.hostIdType.Size = new Size(536, 46);
             this.hostIdType.Controls.Add(this._cboIdType);
             this._cboIdType.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            this._cboIdType.DropDownStyle = ComboBoxStyle.DropDown;
-            this._cboIdType.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            this._cboIdType.AutoCompleteSource = AutoCompleteSource.ListItems;
+            // Pick-only: the client chooses a listed ID type and cannot type in the box. "Others"
+            // still opens OthersBox's own specify box beside it.
+            this._cboIdType.DropDownStyle = ComboBoxStyle.DropDownList;
             this._cboIdType.FlatStyle = FlatStyle.Flat;
             this._cboIdType.Font = new Font("Segoe UI", 12F);
             this._cboIdType.Location = new Point(12, 9);

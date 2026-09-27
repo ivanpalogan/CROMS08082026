@@ -496,6 +496,7 @@ namespace CROMS.Kiosk
                 // left full-size captions clipping/overlapping inside the shrunk fields. Only
                 // on the shrink path: growth intentionally keeps fonts at design size.
                 if (f < 1f) FontScaler.Scale(_detailsBox, delta);
+                OthersBox.Relayout(_cboIdType);   // Scale() shrinks the combo twice - see Relayout
                 _appliedScale = f;
             }
             finally { _scaling = false; }

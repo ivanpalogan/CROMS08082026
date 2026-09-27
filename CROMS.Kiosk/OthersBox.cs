@@ -162,6 +162,17 @@ namespace CROMS.Kiosk
             return st.Box;
         }
 
+        /// <summary>
+        /// Re-applies the inline layout. Control.Scale() resizes the wrapper panel (which lays the
+        /// combo out to fill it) and THEN scales the combo again as its child, leaving the combo
+        /// narrower than its field with the arrow in the middle - call this after any Scale().
+        /// </summary>
+        public static void Relayout(ComboBox combo)
+        {
+            InlineState st;
+            if (combo != null && Inline.TryGetValue(combo, out st)) LayoutInline(st);
+        }
+
         /// <summary>The value to store for a combo: "Others - detail" when specified, else its text.</summary>
         public static string Value(ComboBox combo)
         {
