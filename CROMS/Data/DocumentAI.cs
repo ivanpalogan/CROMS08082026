@@ -1398,6 +1398,13 @@ namespace CROMS.Data
         /// <summary>
         /// The name value below a name-label line: scans the next few lines for the
         /// first that looks like a name (≥2 alphabetic tokens after prefix stripping).
+        /// <para/>
+        /// A candidate line is rejected outright when EVERY one of its words is a
+        /// printed form caption ("(First) (Middle) NAME" — the row printed under the
+        /// anchor, not the handwritten/typed value). Without this a wrapped heading
+        /// line was returned as the value verbatim, e.g. Mother First Name coming
+        /// back as the literal word "NAME" — a caption that LOOKS like an answer is
+        /// worse than a blank, because nothing flags it for the operator to fix.
         /// </summary>
         private static string NameAfter(string[] lines, int idx)
         {
@@ -1405,8 +1412,10 @@ namespace CROMS.Data
             for (int j = idx + 1; j <= idx + 3 && j < lines.Length; j++)
             {
                 string s = StripPrefix(lines[j]);
-                int words = s.Split(' ').Count(t => t.Length >= 2 && t.All(char.IsLetter));
-                if (words >= 2) return s;
+                string[] tokens = s.Split(' ').Where(t => t.Length >= 2 && t.All(char.IsLetter)).ToArray();
+                if (tokens.Length < 2) continue;
+                if (tokens.All(t => DocLayouts.CommonLabelWords.Contains(t.ToLowerInvariant()))) continue;
+                return s;
             }
             return "";
         }

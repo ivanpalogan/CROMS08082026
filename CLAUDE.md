@@ -6133,6 +6133,36 @@ Office flow: the client hands the Certificate of Marriage and the Marriage Licen
 - **VERIFIED by running**: the phone page was driven in the Browser pane at mobile size; the certificate and licence uploads were stored with the right `doc_role`, and the step UI and OCR_CAPTURE variant were checked. On the desktop, a PowerShell STA harness ran the built exe: the dialog went from Continue disabled to enabled when the pages arrived. Real OCR on `Downloads\Marriage Cert.jpg` gave Marriage 99% (overall 54%, held for review) in 129 s. `PrimeModule` in return mode filled the same Form 97 (RYAN | PANULIO | MACANANG / TOFTE FAE | CADAVA | QUILANG), with scan_image plus a pending licence photo and the OCR scan id carried over. The wizard, dialog, OCR review and filled Form 97 were rendered and looked at. Test rows were deleted afterwards (tokens 3-5 plus their images, ocr_batch 2, audit 376-377). MSBuild clean, 0 errors, built to a temp OutputPath (CROMS.exe running) — REBUILD IN VS.
 - **NOT DONE / known**: Auto-Fill stays disabled until the flagged fields are fixed, because the office's marriage scan reads at 54% (existing review hold, by design). The phone step for the licence is optional and nothing checks it. The CROMS.Kiosk licence gate is unchanged. The ORCMobile repo changes are NOT committed, because that repo has unrelated uncommitted work. Restart the save-API (restart CROMS) to pick up the server change.
 
+### 2026-09-27 (label text leaking as a field value) — Mother First Name showed literal "NAME"
+Reported from a real scan (1993 birth form, layout unrecognized -> label-anchored path):
+Mother First Name value was the literal word "NAME" at 91% with a green tick, i.e. the printed
+caption ("(First) (Middle) NAME" — a wrapped heading row) got returned as the ANSWER instead of
+being rejected as label text. Root cause: `DocumentAI.NameAfter` (the label-path name reader used
+when a form's LAYOUT is not recognised, so the per-field region reader never runs) only checked
+that a candidate line had >=2 alphabetic words — it never checked whether those words were
+themselves printed captions. The region-reader path already has this exact guard
+(`RegionReader.IsOnlyLabelText`, `DocLayouts.CommonLabelWords`); the label path did not.
+FIXED: `NameAfter` now also rejects a candidate line when EVERY one of its words is in the same
+`DocLayouts.CommonLabelWords` list ("first"/"middle"/"last"/"maiden"/"name"/... — the same list
+the region path already trusts), so a caption row is skipped and the scan moves on to the next
+line the way a blank/garbled value already was. A field that finds nothing now correctly reports
+"not found" instead of parroting the label back as data. Applies to child/mother/father name
+extraction alike (`NameAfter` is shared by all three).
+On OCR SPEED (also asked, ~10s target): not attempted this pass, and stated honestly rather than
+guessed at — this pipeline (documented at length earlier in this file: multi-resolution passes,
+per-field region rereads, seal detection, orientation probes) already trades speed for NOT
+fabricating values, and previous attempts to cut renderings/resolutions in this project were
+explicitly MEASURED to cost real accuracy (see 2026-09-04/09-06 entries: "extra renderings are
+not free accuracy," a dropped resolution pass "gained a marriage field and lost one on EACH birth
+certificate"). Getting to ~10s reliably would need profiling this specific run and probably
+trimming a real capability (e.g. skip the native-resolution second pass, which already only fires
+when the layout is unrecognised — exactly this case) — that is a real follow-up task, not a
+one-line fix, and shouldn't be done blind.
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp OutputPath
+(the running CROMS.exe holds `bin\Debug`). GUI not clicked (no interactive desktop) — rebuild in
+VS and re-scan the same 1993 form to confirm Mother First Name now reads blank/flagged instead of
+"NAME" when the actual handwritten value can't be recovered.
+
 ### 2026-09-27 (kiosk Marriage License photo removed)
 Reported from the running kiosk: the Marriage Registration gate still opened the webcam to photograph the Marriage License. It had never been removed. The previous entry changed only the staff side and said "CROMS.Kiosk licence gate is unchanged". Since staff now photograph the certificate and licence together with Mobile Capture at the window, a second kiosk photo is redundant and confuses the client.
 - `MarriageLicenseCheckForm` keeps only the Yes/No question. "No" still reroutes to Marriage Application. "Yes" now shows "Please bring your Marriage License and Certificate of Marriage to the window. The staff will take pictures of them for you." All webcam code (AForge start/frame/capture/retake) is removed and the card is 860 -> 560 tall.
