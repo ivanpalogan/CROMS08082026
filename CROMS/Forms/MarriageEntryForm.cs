@@ -431,7 +431,18 @@ namespace CROMS.Forms
             _keyControls["LicenseNo"] = _licSearch;
             _licList.Height = 128; _licList.DrawMode = DrawMode.OwnerDrawFixed; _licList.ItemHeight = 40;
             _licList.DrawItem += DrawLicenseItem;
-            _licList.SelectedIndexChanged += (s, e) => { if (!_loading && _licList.SelectedItem is LicenseFacts) { SelectLicense((LicenseFacts)_licList.SelectedItem); _dirty = true; } };
+            _licList.SelectedIndexChanged += (s, e) => {
+                if (_loading || !(_licList.SelectedItem is LicenseFacts)) return;
+                SelectLicense((LicenseFacts)_licList.SelectedItem);
+                _dirty = true;
+                // STEP 8: "auto-fill matching information but still allow staff verification" -
+                // picking a licence on a brand-new, still-blank record fills the couple's fields
+                // in the same click (no separate "Copy applicants" press needed), silently
+                // (nothing typed yet to lose). An EXISTING record with names already on screen
+                // is left untouched here - CopyFromLicense() stays available as a manual,
+                // confirmed action so a correction pass can never be silently overwritten.
+                if (_id == null && CoupleFieldsEmpty()) CopyFromLicense(confirm: false);
+            };
             _licSummary.Height = 120; _licSummary.BackColor = Color.Transparent;
             var copy = MUi.Btn("Copy applicants from licence", MUi.Kind.Secondary);
             copy.Click += (s, e) => CopyFromLicense();
@@ -714,10 +725,16 @@ namespace CROMS.Forms
             SoftcopyViewer.Show(img, "Marriage License - photo from kiosk intake", this);
         }
 
-        private void CopyFromLicense()
+        private bool CoupleFieldsEmpty()
+        {
+            return _h.First.Text.Trim().Length == 0 && _h.Last.Text.Trim().Length == 0 &&
+                   _w.First.Text.Trim().Length == 0 && _w.Last.Text.Trim().Length == 0;
+        }
+
+        private void CopyFromLicense(bool confirm = true)
         {
             if (_lic == null) { MessageBox.Show(this, "Select a licence first.", "Licence", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
-            if (!MUi.Confirm(this, "Copy", "Copy the applicants' names, dates of birth and civil status from licence " + _lic.LicenseNo + "?",
+            if (confirm && !MUi.Confirm(this, "Copy", "Copy the applicants' names, dates of birth and civil status from licence " + _lic.LicenseNo + "?",
                     "Husband|" + _lic.Husband.FullName, "Wife|" + _lic.Wife.FullName)) return;
             foreach (var pair in new[] { Tuple.Create(_h, _lic.Husband), Tuple.Create(_w, _lic.Wife) })
             {
@@ -841,34 +858,56 @@ namespace CROMS.Forms
             RefreshRail();
 
             string url = Form97Capture.BuildMobileUrl(_captureToken);
+            // STEP 3 - "shows Transaction#/Husband/Wife/QR/Capture Code". The phone page has
+            // always shown Txn#/Husband/Wife (form97-capture.html); this dialog previously
+            // showed only the QR and the full URL. The Capture Code is the token's own 8-hex
+            // prefix - short enough to read aloud or type by hand - resolved server-side by
+            // resolveCaptureToken() in the save-API as an alternative to scanning.
+            string husbandShown = (_h.First.Text + " " + _h.Last.Text).Trim();
+            string wifeShown = (_w.First.Text + " " + _w.Last.Text).Trim();
+            string captureCode = _captureToken.Length >= 8 ? _captureToken.Substring(0, 8).ToUpperInvariant() : _captureToken.ToUpperInvariant();
             using (var dlg = new Form
             {
                 Text = "Mobile Capture - Form 97",
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false,
-                ClientSize = new Size(360, 400),
+                ClientSize = new Size(360, 470),
             })
             {
                 var lblHead = MUi.Txt("Scan this QR on the client's phone.\nYou can close this window right away - CROMS keeps watching for the photo.",
                     9F, FontStyle.Regular, UiTheme.Muted);
                 lblHead.AutoSize = false; lblHead.Size = new Size(320, 40); lblHead.Location = new Point(20, 16);
 
-                var pic = new PictureBox { Location = new Point(80, 64), Size = new Size(200, 200), SizeMode = PictureBoxSizeMode.Zoom };
+                var lblTxn = MUi.Txt("Transaction: " + (_txnCode ?? "not yet linked"), 8.5F, FontStyle.Bold, UiTheme.Ink);
+                lblTxn.AutoSize = false; lblTxn.Size = new Size(320, 16); lblTxn.Location = new Point(20, 58);
+                var lblCouple = MUi.Txt("Husband: " + (husbandShown.Length == 0 ? "-" : husbandShown) +
+                    "   Wife: " + (wifeShown.Length == 0 ? "-" : wifeShown), 8.5F, FontStyle.Regular, UiTheme.Muted);
+                lblCouple.AutoSize = false; lblCouple.Size = new Size(320, 16); lblCouple.Location = new Point(20, 76);
+
+                var pic = new PictureBox { Location = new Point(80, 98), Size = new Size(200, 200), SizeMode = PictureBoxSizeMode.Zoom };
                 var bmp = QrHelper.TryCreate(url, 6);
                 pic.Image = bmp;
                 var lblNoQr = MUi.Txt("(QRCoder not installed - open this address on the phone instead:)", 8.5F, FontStyle.Regular, UiTheme.Muted);
-                lblNoQr.AutoSize = false; lblNoQr.Size = new Size(320, 30); lblNoQr.Location = new Point(20, 70);
+                lblNoQr.AutoSize = false; lblNoQr.Size = new Size(320, 30); lblNoQr.Location = new Point(20, 104);
                 lblNoQr.Visible = bmp == null; pic.Visible = bmp != null;
 
-                var txtUrl = new TextBox { ReadOnly = true, Location = new Point(20, 274), Width = 320, Text = url };
+                var lblCodeCap = MUi.Txt("Capture Code (no camera? type this on the phone):", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                lblCodeCap.AutoSize = false; lblCodeCap.Size = new Size(320, 16); lblCodeCap.Location = new Point(20, 304);
+                var lblCode = MUi.Txt(captureCode, 16F, FontStyle.Bold, UiTheme.Accent);
+                lblCode.AutoSize = false; lblCode.Size = new Size(320, 26); lblCode.TextAlign = ContentAlignment.MiddleCenter;
+                lblCode.Location = new Point(20, 320);
+
+                var txtUrl = new TextBox { ReadOnly = true, Location = new Point(20, 352), Width = 320, Text = url };
                 var lblHint = MUi.Txt("Scan with the phone's camera, or type this address into its browser.", 8.5F, FontStyle.Regular, UiTheme.Muted);
-                lblHint.AutoSize = false; lblHint.Size = new Size(320, 32); lblHint.Location = new Point(20, 302);
+                lblHint.AutoSize = false; lblHint.Size = new Size(320, 32); lblHint.Location = new Point(20, 380);
 
                 var btnClose = MUi.Btn("Close", MUi.Kind.Primary, 320);
-                btnClose.Location = new Point(20, 340);
+                btnClose.Location = new Point(20, 416);
 
-                dlg.Controls.Add(lblHead); dlg.Controls.Add(pic); dlg.Controls.Add(lblNoQr);
+                dlg.Controls.Add(lblHead); dlg.Controls.Add(lblTxn); dlg.Controls.Add(lblCouple);
+                dlg.Controls.Add(pic); dlg.Controls.Add(lblNoQr);
+                dlg.Controls.Add(lblCodeCap); dlg.Controls.Add(lblCode);
                 dlg.Controls.Add(txtUrl); dlg.Controls.Add(lblHint); dlg.Controls.Add(btnClose);
                 btnClose.Click += (s, e) => dlg.DialogResult = DialogResult.OK;
                 dlg.AcceptButton = btnClose;
