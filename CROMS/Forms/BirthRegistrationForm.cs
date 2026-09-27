@@ -1495,6 +1495,14 @@ namespace CROMS.Forms
             ShowEntryView();
         }
 
+        /// <summary>Public entry point for a caller outside this module (e.g. Records Archive
+        /// search) to open a specific birth record here for view/edit/delete.</summary>
+        public void OpenRecordForEdit(int id)
+        {
+            LoadBirth(id);
+            ShowEntryView();
+        }
+
         private void LoadBirth(int id)
         {
             DataTable dt = Db.Pull("SELECT * FROM births WHERE id = " + id);

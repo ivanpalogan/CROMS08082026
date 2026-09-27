@@ -184,6 +184,8 @@ namespace CROMS.Forms
             _licenseBytes = license;
             _zoom = 1f;
             pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+            pnlScanHost.AutoScrollPosition = Point.Empty;
+            pbScan.Location = Point.Empty;
             pbScan.Size = pnlScanHost.ClientSize;
             pbScan.Image = _image;
             grpScan.Text = "SCANNED DOCUMENT — " + (sourceLabel ?? "Mobile Capture") +
@@ -263,6 +265,8 @@ namespace CROMS.Forms
                 _licenseBytes = null;   // a file has no licence photo with it
                 _zoom = 1f;
                 pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+                pnlScanHost.AutoScrollPosition = Point.Empty;
+                pbScan.Location = Point.Empty;
                 pbScan.Size = pnlScanHost.ClientSize;
                 pbScan.Image = _image;
                 grpScan.Text = "SCANNED DOCUMENT — " + System.IO.Path.GetFileName(ofd.FileName);
@@ -2126,6 +2130,8 @@ namespace CROMS.Forms
             _licenseBytes = null;
             _zoom = 1f;
             pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+            pnlScanHost.AutoScrollPosition = Point.Empty;
+            pbScan.Location = Point.Empty;
             pbScan.Size = pnlScanHost.ClientSize;
             pbScan.Image = _image;
             grpScan.Text = caption;

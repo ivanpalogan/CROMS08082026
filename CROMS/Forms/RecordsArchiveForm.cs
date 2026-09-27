@@ -1047,18 +1047,18 @@ namespace CROMS.Forms
             return s.Length == 0 ? SearchNotRecorded : s;
         }
 
-        /// <summary>Opens the selected search hit's own registration module and names the row to find.</summary>
+        /// <summary>Opens the selected search hit directly, loaded into its own registration
+        /// module's edit form — view, edit or delete it there — instead of merely navigating
+        /// to the module and leaving the operator to find the row by hand.</summary>
         private void OpenSearchRecord()
         {
             DataGridViewRow row = SearchSelectedRow();
             if (row == null) return;
 
             string type = SearchCell(row, "Type");
-            string name = SearchCell(row, "Name");
-            string reg = SearchCell(row, "Registry No");
-            if (reg.Length == 0) reg = "(unnumbered)";
-            string book = SearchCell(row, "Book");
-            string page = SearchCell(row, "Page");
+            string idText = SearchCell(row, "id");
+            int id;
+            if (!int.TryParse(idText, out id)) return;
 
             string key;
             switch (type)
@@ -1071,13 +1071,14 @@ namespace CROMS.Forms
 
             MainForm shell = SearchShell();
             if (shell == null) return;
-            shell.GoToModule(key);
-            MessageBox.Show(
-                "Opened " + type + " Registration.\nFind this record in the list:\n\n" +
-                reg + "  —  " + name +
-                "\nBook " + (book.Length == 0 ? SearchNotRecorded : book) +
-                ", page " + (page.Length == 0 ? SearchNotRecorded : page),
-                "Go to record", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Form target = shell.GoToModule(key);
+
+            var birth = target as BirthRegistrationForm;
+            var marriage = target as MarriageRegistrationForm;
+            var death = target as DeathRegistrationForm;
+            if (birth != null) birth.OpenRecordForEdit(id);
+            else if (marriage != null) marriage.OpenRecordForEdit(id);
+            else if (death != null) death.OpenRecordForEdit(id);
         }
 
         /// <summary>Walks up the control tree to the application shell (MainForm).</summary>

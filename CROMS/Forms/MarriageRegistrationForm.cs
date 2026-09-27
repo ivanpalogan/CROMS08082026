@@ -376,6 +376,10 @@ namespace CROMS.Forms
             RefreshData();
         }
 
+        /// <summary>Public entry point for a caller outside this module (e.g. Records Archive
+        /// search) to open a specific marriage record here for view/edit/delete.</summary>
+        public void OpenRecordForEdit(int id) => OpenMarriage(id);
+
         private void OpenMarriage(int id)
         {
             DataRow r = _marriages.AsEnumerable().FirstOrDefault(x => Convert.ToInt32(x["id"]) == id);

@@ -728,6 +728,14 @@ namespace CROMS.Forms
             ShowEntryView();
         }
 
+        /// <summary>Public entry point for a caller outside this module (e.g. Records Archive
+        /// search) to open a specific death record here for view/edit/delete.</summary>
+        public void OpenRecordForEdit(int id)
+        {
+            LoadDeath(id);
+            ShowEntryView();
+        }
+
         /// <summary>Load one death record into the form for editing or printing.</summary>
         private void LoadDeath(int id)
         {
