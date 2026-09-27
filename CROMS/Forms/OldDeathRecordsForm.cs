@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Linq;
@@ -14,12 +15,28 @@ namespace CROMS.Forms
     /// Processing (OCR) — committed straight to <c>deaths</c> tagged
     /// <c>record_source = 'OCR-Backlog'</c>, and managed here instead of on the live
     /// Death Registration screen. That screen is for today's walk-in registrations; this one
-    /// is a full Add / Edit / View / Delete workbench over the backlog alone.
+    /// is a full Add / View / Edit / Delete workbench over the backlog alone.
+    ///
+    /// Layout mirrors Birth/Death Registration's own card/list <-> card/entry pattern: a
+    /// full-width list card with a search box and a grid, and — once a row is opened — a
+    /// full-width entry card with the record's fields grouped into tabs (Registration /
+    /// Deceased / Cause &amp; Disposal / Informant / Certification), the same grouping the
+    /// live forms use.
     /// </summary>
     public class OldDeathRecordsForm : Form, IRefreshable
     {
+        // ---- list view ----------------------------------------------------------
+        private CardPanel cardList;
         private DataGridView dgv;
         private TextBox txtSearch;
+        private Button btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
+
+        // ---- entry view ----------------------------------------------------------
+        private CardPanel cardEntry;
+        private Label lblEntryTitle, lblEntrySub;
+        private Button btnBack, btnEdit, btnSave, btnCancel, btnDeleteEntry, btnSoftcopy;
+        private TabControl tabControl;
+
         private TextBox txtReg, txtBookVol, txtBookPage;
         private ComboBox cboStatus, cboSex;
         private TextBox txtFirst, txtMiddle, txtLast;
@@ -37,43 +54,46 @@ namespace CROMS.Forms
         private DateTimePicker dtpRecvDate;
         private TextBox txtRegByName, txtRegByTitle;
         private DateTimePicker dtpRegByDate;
-        private Button btnNew, btnSave, btnUpdate, btnDelete, btnSoftcopy;
-        private Label lblSelected;
+
+        private List<Control> _inputs;
 
         private long? _editingId;
         private byte[] _scanImage;
+        private bool _viewOnly;
 
         public OldDeathRecordsForm()
         {
             Text = "Old Death Records (OCR)";
             BuildUi();
             LoadGrid();
-            ClearForm();
+            ShowListView();
         }
 
         public void RefreshData()
         {
             LoadGrid();
+            if (!cardEntry.Visible) ShowListView();
         }
 
-        // ---- UI ---------------------------------------------------------------
+        // ---- UI: shell ---------------------------------------------------------
 
         private void BuildUi()
         {
             Width = 1400;
             Height = 900;
-            BackColor = Color.White;
+            BackColor = UiTheme.PageBg;
 
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             Controls.Add(root);
 
-            var header = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(20, 10, 20, 6) };
+            var header = new Panel { Dock = DockStyle.Top, Height = 64, Padding = new Padding(24, 12, 24, 6), BackColor = UiTheme.PageBg };
             var title = new Label
             {
                 Text = "Old Death Records (OCR)",
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
                 AutoSize = true,
                 Location = new Point(0, 0)
             };
@@ -82,36 +102,63 @@ namespace CROMS.Forms
                 Text = "Backlog records digitized from old registry books — committed straight from " +
                        "Intelligent Document Processing. Not shown on the live Death Registration screen.",
                 Font = new Font("Segoe UI", 9F),
-                ForeColor = Color.FromArgb(91, 100, 114),
+                ForeColor = UiTheme.Muted,
                 AutoSize = true,
-                Location = new Point(0, 30)
+                Location = new Point(0, 28)
             };
             header.Controls.Add(title);
             header.Controls.Add(subtitle);
             root.Controls.Add(header, 0, 0);
 
-            var body = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 42));
-            body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 58));
+            var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 0, 24, 20) };
             root.Controls.Add(body, 0, 1);
 
-            // ---- Left: list -----------------------------------------------------
-            var left = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2,
-                Padding = new Padding(20, 0, 10, 20)
-            };
-            left.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            left.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            body.Controls.Add(left, 0, 0);
+            BuildListCard(body);
+            BuildEntryCard(body);
+        }
 
-            var searchRow = new Panel { Dock = DockStyle.Fill, Height = 32 };
-            txtSearch = new TextBox { Dock = DockStyle.Fill };
+        // ---- UI: list card ---------------------------------------------------------
+
+        private void BuildListCard(Panel host)
+        {
+            cardList = new CardPanel { Dock = DockStyle.Fill, Radius = 12 };
+            host.Controls.Add(cardList);
+
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(18) };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            cardList.Controls.Add(layout);
+
+            var toolbar = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            layout.Controls.Add(toolbar, 0, 0);
+
+            var searchRow = new TableLayoutPanel { Dock = DockStyle.Left, AutoSize = true, ColumnCount = 2 };
+            var lblSearch = new Label { Text = "Search:", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 8, 0) };
+            txtSearch = new TextBox { Width = 320 };
             txtSearch.TextChanged += (s, e) => LoadGrid();
-            var lblSearch = new Label { Text = "Search:", Dock = DockStyle.Left, Width = 60, TextAlign = ContentAlignment.MiddleLeft };
-            searchRow.Controls.Add(txtSearch);
-            searchRow.Controls.Add(lblSearch);
-            left.Controls.Add(searchRow, 0, 0);
+            searchRow.Controls.Add(lblSearch, 0, 0);
+            searchRow.Controls.Add(txtSearch, 1, 0);
+            toolbar.Controls.Add(searchRow, 0, 0);
+
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
+            btnNewFromList = new Button { Text = "+ New Record", Width = 120 };
+            btnViewFromList = new Button { Text = "View", Width = 90, Enabled = false };
+            btnEditFromList = new Button { Text = "Edit", Width = 90, Enabled = false };
+            btnDeleteFromList = new Button { Text = "Delete", Width = 90, Enabled = false };
+            btnRefresh = new Button { Text = "Refresh", Width = 90 };
+            btnNewFromList.Click += (s, e) => OpenNew();
+            btnViewFromList.Click += (s, e) => OpenSelected(view: true);
+            btnEditFromList.Click += (s, e) => OpenSelected(view: false);
+            btnDeleteFromList.Click += (s, e) => DeleteFromList();
+            btnRefresh.Click += (s, e) => LoadGrid();
+            actions.Controls.Add(btnNewFromList);
+            actions.Controls.Add(btnViewFromList);
+            actions.Controls.Add(btnEditFromList);
+            actions.Controls.Add(btnDeleteFromList);
+            actions.Controls.Add(btnRefresh);
+            toolbar.Controls.Add(actions, 1, 0);
 
             dgv = new DataGridView
             {
@@ -123,147 +170,230 @@ namespace CROMS.Forms
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
-            dgv.CellClick += Dgv_CellClick;
-            left.Controls.Add(dgv, 0, 1);
+            dgv.SelectionChanged += (s, e) => UpdateListButtons();
+            dgv.CellDoubleClick += (s, e) => { if (e.RowIndex >= 0) OpenSelected(view: true); };
+            layout.Controls.Add(dgv, 0, 1);
+        }
 
-            // ---- Right: edit panel -----------------------------------------------
-            var right = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(10, 0, 20, 20) };
-            body.Controls.Add(right, 1, 0);
+        private void UpdateListButtons()
+        {
+            bool has = dgv.CurrentRow != null;
+            btnViewFromList.Enabled = has;
+            btnEditFromList.Enabled = has;
+            btnDeleteFromList.Enabled = has;
+        }
 
-            var toolbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 40, FlowDirection = FlowDirection.LeftToRight };
-            btnNew = new Button { Text = "New", Width = 90 };
+        private long? SelectedId()
+        {
+            if (dgv.CurrentRow == null) return null;
+            return Convert.ToInt64(dgv.CurrentRow.Cells["id"].Value);
+        }
+
+        // ---- UI: entry card ---------------------------------------------------------
+
+        private void BuildEntryCard(Panel host)
+        {
+            cardEntry = new CardPanel { Dock = DockStyle.Fill, Radius = 12, Visible = false };
+            host.Controls.Add(cardEntry);
+
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(18) };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            cardEntry.Controls.Add(layout);
+
+            var top = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+            top.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+            layout.Controls.Add(top, 0, 0);
+
+            var titleBox = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.TopDown };
+            btnBack = new Button { Text = "← Back to List", Width = 130 };
+            btnBack.Click += (s, e) => ShowListView();
+            lblEntryTitle = new Label { Text = "New record", Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = UiTheme.Ink, AutoSize = true, Margin = new Padding(0, 8, 0, 0) };
+            lblEntrySub = new Label { Text = "", Font = new Font("Segoe UI", 9F), ForeColor = UiTheme.Muted, AutoSize = true };
+            titleBox.Controls.Add(btnBack);
+            titleBox.Controls.Add(lblEntryTitle);
+            titleBox.Controls.Add(lblEntrySub);
+            top.Controls.Add(titleBox, 0, 0);
+
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
+            btnEdit = new Button { Text = "Edit", Width = 90 };
             btnSave = new Button { Text = "Save", Width = 90 };
-            btnUpdate = new Button { Text = "Update", Width = 90 };
-            btnDelete = new Button { Text = "Delete", Width = 90 };
+            btnCancel = new Button { Text = "Cancel", Width = 90 };
+            btnDeleteEntry = new Button { Text = "Delete", Width = 90 };
             btnSoftcopy = new Button { Text = "View Softcopy", Width = 130 };
-            btnNew.Click += (s, e) => ClearForm();
-            btnSave.Click += (s, e) => Save(insert: true);
-            btnUpdate.Click += (s, e) => Save(insert: false);
-            btnDelete.Click += (s, e) => DeleteSelected();
+            btnEdit.Click += (s, e) => EnterEditMode();
+            btnSave.Click += (s, e) => Save();
+            btnCancel.Click += (s, e) => CancelEdit();
+            btnDeleteEntry.Click += (s, e) => DeleteFromEntry();
             btnSoftcopy.Click += (s, e) => ShowSoftcopy();
-            toolbar.Controls.Add(btnNew);
-            toolbar.Controls.Add(btnSave);
-            toolbar.Controls.Add(btnUpdate);
-            toolbar.Controls.Add(btnDelete);
-            toolbar.Controls.Add(btnSoftcopy);
-            right.Controls.Add(toolbar);
+            actions.Controls.Add(btnEdit);
+            actions.Controls.Add(btnSave);
+            actions.Controls.Add(btnCancel);
+            actions.Controls.Add(btnDeleteEntry);
+            actions.Controls.Add(btnSoftcopy);
+            top.Controls.Add(actions, 1, 0);
 
-            lblSelected = new Label { Dock = DockStyle.Top, Height = 24, Text = "New record", Font = new Font("Segoe UI", 9F, FontStyle.Bold) };
-            right.Controls.Add(lblSelected);
+            tabControl = new TabControl { Dock = DockStyle.Fill };
+            layout.Controls.Add(tabControl, 0, 1);
 
-            var form = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 4, AutoSize = true, Padding = new Padding(0, 8, 0, 0) };
-            for (int i = 0; i < 4; i++) form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
-            right.Controls.Add(form);
+            _inputs = new List<Control>();
 
-            int row = 0;
-            txtReg = FieldRow(form, ref row, "Registry No.");
-            txtBookVol = FieldRow(form, ref row, "Book / Volume (Year)");
-            txtBookPage = FieldRow(form, ref row, "Book Page");
-            cboStatus = ComboRow(form, ref row, "Status", new[] { "Draft", "Registered" });
+            var tabReg = NewTab("Registration");
+            var gReg = FieldGrid(tabReg);
+            txtReg = AddField(gReg, "Registry No.");
+            txtBookVol = AddField(gReg, "Book / Volume (Year)");
+            txtBookPage = AddField(gReg, "Book Page");
+            cboStatus = AddCombo(gReg, "Status", new[] { "Draft", "Registered" });
 
-            SectionHeader(form, ref row, "Deceased");
-            txtFirst = FieldRow(form, ref row, "First Name");
-            txtMiddle = FieldRow(form, ref row, "Middle Name");
-            txtLast = FieldRow(form, ref row, "Last Name");
-            cboSex = ComboRow(form, ref row, "Sex", new[] { "Male", "Female" });
-            txtCivil = FieldRow(form, ref row, "Civil Status");
-            txtAge = FieldRow(form, ref row, "Age");
-            txtCitizenship = FieldRow(form, ref row, "Citizenship");
-            dtpDod = DateRow(form, ref row, "Date of Death");
-            txtPlace = FieldRow(form, ref row, "Place of Death", span: 3);
-            txtReligion = FieldRow(form, ref row, "Religion");
+            var tabDeceased = NewTab("Deceased");
+            var gDec = FieldGrid(tabDeceased);
+            txtFirst = AddField(gDec, "First Name");
+            txtMiddle = AddField(gDec, "Middle Name");
+            txtLast = AddField(gDec, "Last Name");
+            cboSex = AddCombo(gDec, "Sex", new[] { "Male", "Female" });
+            txtCivil = AddField(gDec, "Civil Status");
+            txtAge = AddField(gDec, "Age");
+            txtCitizenship = AddField(gDec, "Citizenship");
+            dtpDod = AddDate(gDec, "Date of Death");
+            txtPlace = AddField(gDec, "Place of Death");
+            txtReligion = AddField(gDec, "Religion");
 
-            SectionHeader(form, ref row, "Cause of Death & Disposal");
-            txtImmediate = FieldRow(form, ref row, "Immediate Cause", span: 3);
-            txtAntecedent = FieldRow(form, ref row, "Antecedent Cause", span: 3);
-            txtUnderlying = FieldRow(form, ref row, "Underlying Cause", span: 3);
-            txtDisposal = FieldRow(form, ref row, "Disposal Method");
-            txtDisposalPlace = FieldRow(form, ref row, "Place of Disposal", span: 2);
-            dtpDisposalDate = DateRow(form, ref row, "Date of Disposal");
+            var tabCause = NewTab("Cause & Disposal");
+            var gCause = FieldGrid(tabCause);
+            txtImmediate = AddField(gCause, "Immediate Cause");
+            txtAntecedent = AddField(gCause, "Antecedent Cause");
+            txtUnderlying = AddField(gCause, "Underlying Cause");
+            txtDisposal = AddField(gCause, "Disposal Method");
+            txtDisposalPlace = AddField(gCause, "Place of Disposal");
+            dtpDisposalDate = AddDate(gCause, "Date of Disposal");
 
-            SectionHeader(form, ref row, "Informant");
-            txtInfName = FieldRow(form, ref row, "Name");
-            txtInfRel = FieldRow(form, ref row, "Relationship");
-            txtInfAddr = FieldRow(form, ref row, "Address", span: 2);
-            dtpInfDate = DateRow(form, ref row, "Date Signed");
+            var tabInformant = NewTab("Informant");
+            var gInf = FieldGrid(tabInformant);
+            txtInfName = AddField(gInf, "Name");
+            txtInfRel = AddField(gInf, "Relationship");
+            txtInfAddr = AddField(gInf, "Address");
+            dtpInfDate = AddDate(gInf, "Date Signed");
 
-            SectionHeader(form, ref row, "Certification");
-            txtPrepName = FieldRow(form, ref row, "Prepared By");
-            txtPrepTitle = FieldRow(form, ref row, "Prepared By Title");
-            dtpPrepDate = DateRow(form, ref row, "Prepared By Date");
-            txtRecvName = FieldRow(form, ref row, "Received By");
-            txtRecvTitle = FieldRow(form, ref row, "Received By Title");
-            dtpRecvDate = DateRow(form, ref row, "Received By Date");
-            txtRegByName = FieldRow(form, ref row, "Registered By");
-            txtRegByTitle = FieldRow(form, ref row, "Registered By Title");
-            dtpRegByDate = DateRow(form, ref row, "Registered By Date");
+            var tabCert = NewTab("Certification");
+            var gCert = FieldGrid(tabCert);
+            txtPrepName = AddField(gCert, "Prepared By");
+            txtPrepTitle = AddField(gCert, "Prepared By Title");
+            dtpPrepDate = AddDate(gCert, "Prepared By Date");
+            txtRecvName = AddField(gCert, "Received By");
+            txtRecvTitle = AddField(gCert, "Received By Title");
+            dtpRecvDate = AddDate(gCert, "Received By Date");
+            txtRegByName = AddField(gCert, "Registered By");
+            txtRegByTitle = AddField(gCert, "Registered By Title");
+            dtpRegByDate = AddDate(gCert, "Registered By Date");
+
+            tabControl.TabPages.Add(tabReg);
+            tabControl.TabPages.Add(tabDeceased);
+            tabControl.TabPages.Add(tabCause);
+            tabControl.TabPages.Add(tabInformant);
+            tabControl.TabPages.Add(tabCert);
         }
 
-        private static void EnsureRow(TableLayoutPanel form, int row)
+        private static TabPage NewTab(string title) => new TabPage(title) { Padding = new Padding(12) };
+
+        private TableLayoutPanel FieldGrid(TabPage page)
         {
-            if (form.RowCount <= row) form.RowCount = row + 1;
-            while (form.RowStyles.Count <= row) form.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var t = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Padding = new Padding(4, 6, 4, 6) };
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+            t.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            page.Controls.Add(t);
+            return t;
         }
 
-        private static void SectionHeader(TableLayoutPanel form, ref int row, string text)
+        private TextBox AddField(TableLayoutPanel g, string label, bool multiline = false)
         {
-            EnsureRow(form, row);
-            var lbl = new Label
-            {
-                Text = text.ToUpperInvariant(),
-                Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-                ForeColor = Color.FromArgb(29, 78, 216),
-                AutoSize = true,
-                Margin = new Padding(0, 14, 0, 2)
-            };
-            form.Controls.Add(lbl, 0, row);
-            form.SetColumnSpan(lbl, 4);
-            row++;
-        }
-
-        private static TextBox FieldRow(TableLayoutPanel form, ref int row, string label, int span = 1, bool multiline = false)
-        {
-            EnsureRow(form, row);
-            var cap = new Label { Text = label, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
-            form.Controls.Add(cap, 0, row);
-            row++;
-
-            EnsureRow(form, row);
-            var box = new TextBox { Width = 220 * span + 8 * (span - 1) };
-            if (multiline) { box.Multiline = true; box.Height = 60; }
-            form.Controls.Add(box, 0, row);
-            form.SetColumnSpan(box, Math.Min(span, 4));
-            row++;
+            int row = g.RowCount;
+            g.RowCount = row + 1;
+            g.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var cap = new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, multiline ? 8 : 6, 8, 6) };
+            g.Controls.Add(cap, 0, row);
+            var box = new TextBox { Dock = DockStyle.Top, Margin = new Padding(0, 4, 0, 4) };
+            if (multiline) { box.Multiline = true; box.Height = 90; box.Dock = DockStyle.Fill; }
+            g.Controls.Add(box, 1, row);
+            _inputs.Add(box);
             return box;
         }
 
-        private static ComboBox ComboRow(TableLayoutPanel form, ref int row, string label, string[] items)
+        private ComboBox AddCombo(TableLayoutPanel g, string label, string[] items)
         {
-            EnsureRow(form, row);
-            var cap = new Label { Text = label, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
-            form.Controls.Add(cap, 0, row);
-            row++;
-
-            EnsureRow(form, row);
-            var box = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 220 };
+            int row = g.RowCount;
+            g.RowCount = row + 1;
+            g.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var cap = new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 8, 6) };
+            g.Controls.Add(cap, 0, row);
+            var box = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 240, Margin = new Padding(0, 4, 0, 4) };
             box.Items.AddRange(items);
-            form.Controls.Add(box, 0, row);
-            row++;
+            g.Controls.Add(box, 1, row);
+            _inputs.Add(box);
             return box;
         }
 
-        private static DateTimePicker DateRow(TableLayoutPanel form, ref int row, string label)
+        private DateTimePicker AddDate(TableLayoutPanel g, string label)
         {
-            EnsureRow(form, row);
-            var cap = new Label { Text = label, AutoSize = true, Margin = new Padding(0, 6, 0, 0) };
-            form.Controls.Add(cap, 0, row);
-            row++;
-
-            EnsureRow(form, row);
-            var dtp = new DateTimePicker { Format = DateTimePickerFormat.Short, ShowCheckBox = true, Checked = false, Width = 220 };
-            form.Controls.Add(dtp, 0, row);
-            row++;
+            int row = g.RowCount;
+            g.RowCount = row + 1;
+            g.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            var cap = new Label { Text = label, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 8, 6) };
+            g.Controls.Add(cap, 0, row);
+            var dtp = new DateTimePicker { Format = DateTimePickerFormat.Short, ShowCheckBox = true, Checked = false, Width = 240, Margin = new Padding(0, 4, 0, 4) };
+            g.Controls.Add(dtp, 1, row);
+            _inputs.Add(dtp);
             return dtp;
+        }
+
+        // ---- view switching ---------------------------------------------------------
+
+        private void ShowListView()
+        {
+            cardEntry.Visible = false;
+            cardList.Visible = true;
+        }
+
+        private void ShowEntryView()
+        {
+            cardList.Visible = false;
+            cardEntry.Visible = true;
+        }
+
+        private void OpenNew()
+        {
+            ClearForm();
+            SetMode(view: false);
+            lblEntryTitle.Text = "New old death record";
+            lblEntrySub.Text = "Not yet saved";
+            ShowEntryView();
+        }
+
+        private void OpenSelected(bool view)
+        {
+            long? id = SelectedId();
+            if (id == null) return;
+            LoadRecord(id.Value);
+            SetMode(view);
+            ShowEntryView();
+        }
+
+        private void SetMode(bool view)
+        {
+            _viewOnly = view;
+            foreach (var c in _inputs) c.Enabled = !view;
+            btnEdit.Visible = view;
+            btnSave.Visible = !view;
+            btnCancel.Visible = !view && _editingId != null;
+            btnDeleteEntry.Visible = view;
+        }
+
+        private void EnterEditMode() => SetMode(view: false);
+
+        private void CancelEdit()
+        {
+            if (_editingId != null) { LoadRecord(_editingId.Value); SetMode(view: true); }
+            else ShowListView();
         }
 
         // ---- data ---------------------------------------------------------------
@@ -287,13 +417,7 @@ namespace CROMS.Forms
             DataTable dt = ps.Length > 0 ? Db.Pull(sql, ps) : Db.Pull(sql);
             dgv.DataSource = dt;
             if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
-        }
-
-        private void Dgv_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            if (e.RowIndex < 0) return;
-            long id = Convert.ToInt64(dgv.Rows[e.RowIndex].Cells["id"].Value);
-            LoadRecord(id);
+            UpdateListButtons();
         }
 
         private void LoadRecord(long id)
@@ -343,8 +467,10 @@ namespace CROMS.Forms
             txtRegByTitle.Text = Str(r, "registered_by_title");
             SetDate(dtpRegByDate, r["registered_by_date"]);
 
-            lblSelected.Text = "Editing: " + (txtReg.Text.Length > 0 ? txtReg.Text : "#" + id) +
-                                " — " + Str(r, "full_name");
+            lblEntryTitle.Text = Str(r, "full_name");
+            if (lblEntryTitle.Text.Length == 0) lblEntryTitle.Text = "#" + id;
+            lblEntrySub.Text = "Registry No. " + (txtReg.Text.Length > 0 ? txtReg.Text : "(none)") +
+                                "  ·  Status: " + (cboStatus.SelectedItem?.ToString() ?? "—");
         }
 
         private void ClearForm()
@@ -361,10 +487,9 @@ namespace CROMS.Forms
             cboSex.SelectedIndex = -1;
             foreach (DateTimePicker dtp in new[] { dtpDod, dtpDisposalDate, dtpInfDate, dtpPrepDate, dtpRecvDate, dtpRegByDate })
                 dtp.Checked = false;
-            lblSelected.Text = "New old death record";
         }
 
-        private void Save(bool insert)
+        private void Save()
         {
             if (string.IsNullOrWhiteSpace(txtFirst.Text) && string.IsNullOrWhiteSpace(txtLast.Text))
             {
@@ -372,17 +497,11 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (!insert && _editingId == null)
-            {
-                MessageBox.Show("Select a record in the list first, or use Save to add a new one.",
-                    "Nothing selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
 
             string fullName = string.Join(" ", new[] { txtFirst.Text, txtMiddle.Text, txtLast.Text }
                 .Where(s => !string.IsNullOrWhiteSpace(s)));
 
-            var ps = new System.Collections.Generic.List<MySqlParameter>
+            var ps = new List<MySqlParameter>
             {
                 new MySqlParameter("@reg", NullIfEmpty(txtReg.Text)),
                 new MySqlParameter("@book", NullIfEmpty(txtBookVol.Text)),
@@ -417,7 +536,7 @@ namespace CROMS.Forms
                 new MySqlParameter("@regbydate", dtpRegByDate.Checked ? (object)dtpRegByDate.Value.Date : DBNull.Value),
             };
 
-            if (insert)
+            if (_editingId == null)
             {
                 ps.Add(new MySqlParameter("@scan", MySqlDbType.LongBlob)
                     { Value = _scanImage == null ? (object)DBNull.Value : _scanImage });
@@ -443,6 +562,7 @@ namespace CROMS.Forms
                 MessageBox.Show("Old death record saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadGrid();
                 LoadRecord(id);
+                SetMode(view: true);
             }
             else
             {
@@ -462,25 +582,34 @@ namespace CROMS.Forms
                 Audit.Write(Audit.Update, "deaths", _editingId.Value, "Old death record updated (OCR-Backlog)");
                 MessageBox.Show("Old death record updated.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 LoadGrid();
+                LoadRecord(_editingId.Value);
+                SetMode(view: true);
             }
         }
 
-        private void DeleteSelected()
+        private void DeleteFromList()
         {
-            if (_editingId == null)
-            {
-                MessageBox.Show("Select a record in the list first.", "Nothing selected",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+            long? id = SelectedId();
+            if (id == null) return;
+            DoDelete(id.Value);
+        }
+
+        private void DeleteFromEntry()
+        {
+            if (_editingId == null) return;
+            if (DoDelete(_editingId.Value)) ShowListView();
+        }
+
+        private bool DoDelete(long id)
+        {
             if (MessageBox.Show("Delete this old death record? This cannot be undone.", "Confirm delete",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return false;
 
             Db.Push("DELETE FROM deaths WHERE id = @id AND record_source = 'OCR-Backlog'",
-                new MySqlParameter("@id", _editingId.Value));
-            Audit.Write(Audit.Delete, "deaths", _editingId.Value, "Old death record deleted (OCR-Backlog)");
-            ClearForm();
+                new MySqlParameter("@id", id));
+            Audit.Write(Audit.Delete, "deaths", id, "Old death record deleted (OCR-Backlog)");
             LoadGrid();
+            return true;
         }
 
         private void ShowSoftcopy()
