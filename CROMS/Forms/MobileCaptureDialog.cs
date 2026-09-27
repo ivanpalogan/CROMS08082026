@@ -48,6 +48,8 @@ namespace CROMS.Forms
 
             UiTheme.Polish(this);
             btnContinue.Enabled = false;
+            WirePreview(picCert, "Certificate");
+            WirePreview(picLic, "Marriage License");
             Load += (s, e) => StartSession();
             FormClosed += (s, e) =>
             {
@@ -104,10 +106,10 @@ namespace CROMS.Forms
             ShowPage(picCert, docs.PrimaryCertificate);
             ShowPage(picLic, docs.PrimaryLicense);
             lblStep1State.Text = docs.Certificate.Count == 0 ? "Waiting for the phone..."
-                : "Received  ✓  (" + docs.Certificate.Count + (docs.Certificate.Count == 1 ? " page)" : " pages - newest is used)");
+                : "Received  ✓  (" + docs.Certificate.Count + (docs.Certificate.Count == 1 ? " page)" : " pages - newest is used)") + "\nClick the photo to preview.";
             lblStep1State.ForeColor = docs.Certificate.Count == 0 ? UiTheme.Muted : UiTheme.Success;
             lblStep2State.Text = docs.License.Count == 0 ? "Not taken yet - you can skip this."
-                : "Received  ✓  (" + docs.License.Count + (docs.License.Count == 1 ? " page)" : " pages)");
+                : "Received  ✓  (" + docs.License.Count + (docs.License.Count == 1 ? " page)" : " pages)") + "\nClick the photo to preview.";
             lblStep2State.ForeColor = docs.License.Count == 0 ? UiTheme.Muted : UiTheme.Success;
 
             btnContinue.Enabled = docs.Certificate.Count > 0;
@@ -123,8 +125,46 @@ namespace CROMS.Forms
         {
             DisposeImage(pic);
             if (bytes == null) return;
-            try { using (var ms = new MemoryStream(bytes)) pic.Image = new Bitmap(Image.FromStream(ms)); }
+            try { using (var ms = new MemoryStream(bytes)) pic.Image = Portrait(Image.FromStream(ms)); }
             catch { /* a page that will not decode shows as blank; OCR will report it */ }
+        }
+
+        /// <summary>
+        /// A copy of the photo turned upright for display. Phones store the camera's rotation
+        /// as an EXIF tag instead of turning the pixels, and GDI+ ignores it, so a portrait
+        /// shot showed sideways. The tag is applied first; a page still wider than tall is
+        /// turned a quarter - a certificate is a portrait document. Display only: the bytes
+        /// OCR reads are untouched (it corrects orientation on its own).
+        /// </summary>
+        private static Bitmap Portrait(Image src)
+        {
+            var bmp = new Bitmap(src);
+            const int OrientationTag = 0x0112;
+            if (Array.IndexOf(src.PropertyIdList, OrientationTag) >= 0)
+            {
+                switch (src.GetPropertyItem(OrientationTag).Value[0])
+                {
+                    case 3: bmp.RotateFlip(RotateFlipType.Rotate180FlipNone); break;
+                    case 6: bmp.RotateFlip(RotateFlipType.Rotate90FlipNone); break;
+                    case 8: bmp.RotateFlip(RotateFlipType.Rotate270FlipNone); break;
+                }
+            }
+            if (bmp.Width > bmp.Height) bmp.RotateFlip(RotateFlipType.Rotate90FlipNone);
+            return bmp;
+        }
+
+        /// <summary>Clicking a thumbnail opens the photo full size so staff can check it.</summary>
+        private void WirePreview(PictureBox pic, string what)
+        {
+            pic.Cursor = Cursors.Hand;
+            new ToolTip().SetToolTip(pic, "Click to preview the " + what.ToLowerInvariant());
+            pic.Click += (s, e) =>
+            {
+                if (pic.Image == null) return;
+                byte[] bytes;
+                using (var ms = new MemoryStream()) { pic.Image.Save(ms, System.Drawing.Imaging.ImageFormat.Png); bytes = ms.ToArray(); }
+                SoftcopyViewer.Show(bytes, "Mobile Capture - " + what, this);
+            };
         }
 
         private static void DisposeImage(PictureBox pic)

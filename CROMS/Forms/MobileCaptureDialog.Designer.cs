@@ -42,7 +42,7 @@ namespace CROMS.Forms
             this.lblTitle.ForeColor = System.Drawing.Color.FromArgb(23, 27, 36);
             this.lblTitle.Location = new System.Drawing.Point(24, 18);
             this.lblTitle.Name = "lblTitle";
-            this.lblTitle.Size = new System.Drawing.Size(640, 30);
+            this.lblTitle.Size = new System.Drawing.Size(716, 30);
             this.lblTitle.Text = "Mobile Capture";
             //
             // lblSub
@@ -52,7 +52,7 @@ namespace CROMS.Forms
             this.lblSub.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
             this.lblSub.Location = new System.Drawing.Point(24, 50);
             this.lblSub.Name = "lblSub";
-            this.lblSub.Size = new System.Drawing.Size(640, 36);
+            this.lblSub.Size = new System.Drawing.Size(716, 36);
             this.lblSub.Text = "Scan this QR with the office phone. The phone only takes the pictures - CROMS reads them here.";
             //
             // picQr
@@ -109,7 +109,7 @@ namespace CROMS.Forms
             this.lblStep1.ForeColor = System.Drawing.Color.FromArgb(23, 27, 36);
             this.lblStep1.Location = new System.Drawing.Point(284, 96);
             this.lblStep1.Name = "lblStep1";
-            this.lblStep1.Size = new System.Drawing.Size(380, 22);
+            this.lblStep1.Size = new System.Drawing.Size(346, 22);
             this.lblStep1.Text = "1.  Certificate of Marriage (required)";
             //
             // lblStep1State
@@ -119,15 +119,15 @@ namespace CROMS.Forms
             this.lblStep1State.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
             this.lblStep1State.Location = new System.Drawing.Point(284, 118);
             this.lblStep1State.Name = "lblStep1State";
-            this.lblStep1State.Size = new System.Drawing.Size(250, 40);
+            this.lblStep1State.Size = new System.Drawing.Size(346, 40);
             this.lblStep1State.Text = "Waiting for the phone...";
             //
             // picCert
             //
             this.picCert.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
-            this.picCert.Location = new System.Drawing.Point(544, 118);
+            this.picCert.Location = new System.Drawing.Point(640, 96);
             this.picCert.Name = "picCert";
-            this.picCert.Size = new System.Drawing.Size(120, 96);
+            this.picCert.Size = new System.Drawing.Size(100, 128);
             this.picCert.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             //
             // lblStep2
@@ -137,7 +137,7 @@ namespace CROMS.Forms
             this.lblStep2.ForeColor = System.Drawing.Color.FromArgb(23, 27, 36);
             this.lblStep2.Location = new System.Drawing.Point(284, 230);
             this.lblStep2.Name = "lblStep2";
-            this.lblStep2.Size = new System.Drawing.Size(380, 22);
+            this.lblStep2.Size = new System.Drawing.Size(346, 22);
             this.lblStep2.Text = "2.  Marriage License (optional)";
             //
             // lblStep2State
@@ -147,15 +147,15 @@ namespace CROMS.Forms
             this.lblStep2State.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
             this.lblStep2State.Location = new System.Drawing.Point(284, 252);
             this.lblStep2State.Name = "lblStep2State";
-            this.lblStep2State.Size = new System.Drawing.Size(250, 40);
+            this.lblStep2State.Size = new System.Drawing.Size(346, 40);
             this.lblStep2State.Text = "Not taken yet.";
             //
             // picLic
             //
             this.picLic.BackColor = System.Drawing.Color.FromArgb(245, 247, 250);
-            this.picLic.Location = new System.Drawing.Point(544, 252);
+            this.picLic.Location = new System.Drawing.Point(640, 230);
             this.picLic.Name = "picLic";
-            this.picLic.Size = new System.Drawing.Size(120, 96);
+            this.picLic.Size = new System.Drawing.Size(100, 128);
             this.picLic.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             //
             // lblHint
@@ -165,14 +165,14 @@ namespace CROMS.Forms
             this.lblHint.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
             this.lblHint.Location = new System.Drawing.Point(284, 362);
             this.lblHint.Name = "lblHint";
-            this.lblHint.Size = new System.Drawing.Size(380, 50);
+            this.lblHint.Size = new System.Drawing.Size(346, 50);
             this.lblHint.Text = "Keep this window open. Each photo appears here the moment the phone uploads it.";
             //
             // btnCancel
             //
             this.btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnCancel.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.btnCancel.Location = new System.Drawing.Point(284, 432);
+            this.btnCancel.Location = new System.Drawing.Point(360, 432);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(120, 40);
             this.btnCancel.Text = "Cancel";
@@ -186,7 +186,7 @@ namespace CROMS.Forms
             this.btnContinue.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnContinue.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
             this.btnContinue.ForeColor = System.Drawing.Color.White;
-            this.btnContinue.Location = new System.Drawing.Point(414, 432);
+            this.btnContinue.Location = new System.Drawing.Point(490, 432);
             this.btnContinue.Name = "btnContinue";
             this.btnContinue.Size = new System.Drawing.Size(250, 40);
             this.btnContinue.Text = "Continue to OCR Review";
@@ -202,7 +202,7 @@ namespace CROMS.Forms
             //
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.BackColor = System.Drawing.Color.White;
-            this.ClientSize = new System.Drawing.Size(688, 492);
+            this.ClientSize = new System.Drawing.Size(764, 492);
             this.Controls.Add(this.lblTitle);
             this.Controls.Add(this.lblSub);
             this.Controls.Add(this.lblNoQr);
