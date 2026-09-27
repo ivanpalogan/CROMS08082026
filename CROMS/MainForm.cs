@@ -738,6 +738,10 @@ namespace CROMS
         private static readonly HashSet<string> OperationalKeys = new HashSet<string> {
             "dashboard", "queue", "transactions", "certrequest", "release", "breqs",
             "birth", "marriage", "death", "petitions", "search", "ocr", "fees", "reports",
+            // Old, already-registered birth/death records digitized through OCR -- a full
+            // Add/Edit/View/Delete workbench over the backlog, separate from the live
+            // Birth/Death Registration screens above.
+            "oldbirth", "olddeath",
             // "books" has no sidebar button any more -- Registry Books is folded into Record
             // Search -- but it stays permitted so a cross-module GoToModule("books") is not a
             // permission hole for an operational role if anything ever routes there again.

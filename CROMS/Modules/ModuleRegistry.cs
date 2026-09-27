@@ -77,6 +77,15 @@ namespace CROMS.Modules
                 () => new RecordsArchiveForm()),
             new ModuleInfo("ocr", "Document Processing", GroupRecords,
                 () => new OcrDigitizationForm()),
+            // Old, already-registered records digitized through the OCR screen above land
+            // here — tagged record_source='OCR-Backlog' — instead of the live Birth/Death
+            // Registration screens, which are for today's walk-in registrations. Full
+            // Add/Edit/View/Delete over the backlog alone. Marriage's OCR path is unchanged:
+            // it still goes straight into the live Form 97 dialog.
+            new ModuleInfo("oldbirth", "Old Birth Records (OCR)", GroupRecords,
+                () => new OldBirthRecordsForm()),
+            new ModuleInfo("olddeath", "Old Death Records (OCR)", GroupRecords,
+                () => new OldDeathRecordsForm()),
 
             // Reports — reading what the office has done, never changing it.
             // Reports & Analytics: six tabbed domains. The PSA / statutory report is

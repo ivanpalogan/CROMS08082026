@@ -619,10 +619,16 @@ namespace CROMS.Forms
             bool have = _result != null && _result.Kind != DocKind.Unknown;
             bool blocked = _result == null || _result.NeedsManualReview;
             bool birth = have && _kind == DocKind.Birth;
+            bool death = have && _kind == DocKind.Death;
 
-            btnCommit.Enabled = birth && !blocked;
-            btnDraft.Enabled = birth && !blocked;
-            btnAutoFill.Enabled = have && !blocked;
+            // Birth and Death commit straight into the database from this screen — that is
+            // the whole point of digitizing an old registry book, and it must never pass
+            // through the live Birth/Death Registration screens (those are for today's
+            // walk-in registrations). Only Marriage still routes through Auto-Fill, into the
+            // Form 97 dialog — unchanged.
+            btnCommit.Enabled = (birth || death) && !blocked;
+            btnDraft.Enabled = (birth || death) && !blocked;
+            btnAutoFill.Enabled = have && !blocked && _kind == DocKind.Marriage;
             btnReview.Enabled = _result != null;
 
             btnAutoFill.Text = have ? "Auto-Fill " + ModuleName(_kind) : "Auto-Fill Form";
@@ -1476,36 +1482,45 @@ namespace CROMS.Forms
         private void btnCommit_Click(object sender, EventArgs e)
         {
             if (!ReadyToSave()) return;
-            if (!Confirm("commit to the birth registry")) return;
+            string table = TableFor(_kind);
+            string registry = _kind == DocKind.Death ? "death" : "birth";
+            if (!Confirm("commit to the " + registry + " registry")) return;
 
-            long id = SaveBirth("Registered");
+            long id = _kind == DocKind.Death ? SaveDeath("Registered") : SaveBirth("Registered");
             _savedRecordId = id;
             WriteAudit(OcrAudit.Committed);
-            MarkBatch("Committed", "births", id);
-            Audit.Write(Audit.Create, "births", id,
-                "Committed from OCR scan " + _scanId + " as " + FormLabel());
+            MarkBatch("Committed", table, id);
+            Audit.Write(Audit.Create, table, id,
+                "Committed as an old record from OCR scan " + _scanId + " as " + FormLabel());
             LoadBatch();
             UpdateFormIdentity();
             MessageBox.Show(
-                "Committed to the birth registry as " + FormLabel() + ".\n\n" +
-                "Press Print Certificate to produce the document.",
+                "Committed to the " + registry + " registry as " + FormLabel() + ".\n\n" +
+                "Find, edit, view or delete it from \"Old " +
+                (registry == "death" ? "Death" : "Birth") +
+                " Records (OCR)\" — this old record does not appear on the live " +
+                (registry == "death" ? "Death" : "Birth") + " Registration screen.",
                 "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void btnDraft_Click(object sender, EventArgs e)
         {
             if (!ReadyToSave()) return;
+            string table = TableFor(_kind);
+            string registry = _kind == DocKind.Death ? "death" : "birth";
 
-            long id = SaveBirth("Draft");
+            long id = _kind == DocKind.Death ? SaveDeath("Draft") : SaveBirth("Draft");
             _savedRecordId = id;
             WriteAudit(OcrAudit.Draft);
-            MarkBatch("Draft", "births", id);
-            Audit.Write(Audit.Create, "births", id,
-                "Draft from OCR scan " + _scanId + " as " + FormLabel());
+            MarkBatch("Draft", table, id);
+            Audit.Write(Audit.Create, table, id,
+                "Draft old record from OCR scan " + _scanId + " as " + FormLabel());
             LoadBatch();
             UpdateFormIdentity();
-            MessageBox.Show("Saved as draft in the birth registry.", "Document",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(
+                "Saved as a draft old record in the " + registry + " registry. Find it from \"Old " +
+                (registry == "death" ? "Death" : "Birth") + " Records (OCR)\".",
+                "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -1534,15 +1549,15 @@ namespace CROMS.Forms
             {
                 MessageBox.Show(
                     "The document type has not been identified — run OCR first, and save only a scan " +
-                    "recognised as a Certificate of Live Birth.",
+                    "recognised as a Certificate of Live Birth or a Certificate of Death.",
                     "Not classified", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
-            if (_kind != DocKind.Birth)
+            if (_kind != DocKind.Birth && _kind != DocKind.Death)
             {
                 MessageBox.Show(
-                    "Only a birth certificate is written to the registry from this screen. Use \"" +
-                    btnAutoFill.Text + "\" for this document.",
+                    "Only a birth or death certificate is written straight to the database from " +
+                    "this screen. Use \"Auto-Fill Marriage\" for a Certificate of Marriage.",
                     "Wrong document type", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
@@ -1934,7 +1949,7 @@ namespace CROMS.Forms
                 "prepared_by, prepared_by_title, prepared_by_date, " +
                 "received_by, received_by_title, received_by_date, " +
                 "registered_by, registered_by_title, registered_by_date, " +
-                "birth_image, scan_image) " +
+                "birth_image, scan_image, record_source) " +
                 "VALUES (@fcode, @fname, @reg, @book, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, @btype, @weight, " +
                 "@mf, @mm, @ml, @mocc, @mrel, @mcit, " +
                 "@ff, @fm, @fl, @focc, @frel, @fcit, " +
@@ -1943,7 +1958,7 @@ namespace CROMS.Forms
                 "@prep, @preptitle, @prepdate, " +
                 "@recv, @recvtitle, @recvdate, " +
                 "@regby, @regbytitle, @regbydate, " +
-                "@img, @scan)",
+                "@img, @scan, 'OCR-Backlog')",
                 new MySqlParameter("@fcode", NullIfEmpty(formCode)),
                 new MySqlParameter("@fname", NullIfEmpty(formName)),
                 new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
@@ -1993,6 +2008,98 @@ namespace CROMS.Forms
                 new MySqlParameter("@regbydate", DateOrNull("RegisteredByDate")),
                 // birth_image is this module's own copy; scan_image is the softcopy the
                 // Birth Registration form and the softcopy viewer read back.
+                new MySqlParameter("@img", MySqlDbType.LongBlob)
+                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
+                new MySqlParameter("@scan", MySqlDbType.LongBlob)
+                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes });
+        }
+
+        /// <summary>
+        /// Writes an old, already-registered death certificate straight into <c>deaths</c>,
+        /// tagged <c>record_source = 'OCR-Backlog'</c> — the same direct-to-database path
+        /// <see cref="SaveBirth"/> uses, and it never opens the live Death Registration
+        /// screen. Reads the grid by the same canonical keys <c>FormCatalog</c>'s MF-103 map
+        /// already uses for printing (RegistryNo/DeceasedFirst.../PlaceOfDeath/...), so the
+        /// extraction, the print map and this insert cannot disagree about which field is
+        /// which.
+        /// </summary>
+        private long SaveDeath(string status)
+        {
+            string dodText = V("DateOfDeath");
+            bool parsed = DateTime.TryParse(dodText, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateTime d);
+            object dod = parsed ? (object)d.Date : DBNull.Value;
+
+            string sexText = V("Sex");
+            object sex = sexText.StartsWith("F", StringComparison.OrdinalIgnoreCase) ? "Female"
+                       : sexText.StartsWith("M", StringComparison.OrdinalIgnoreCase) ? "Male"
+                       : (object)DBNull.Value;
+
+            // Same "the book is identified by the year the event happened in" convention
+            // SaveBirth already uses.
+            string year = parsed ? d.Year.ToString()
+                        : (dodText.Length >= 4 && dodText.Substring(0, 4).All(char.IsDigit)
+                            ? dodText.Substring(0, 4) : "");
+
+            object age = int.TryParse(V("Age"), out int a) ? (object)a : DBNull.Value;
+
+            // `deaths` keeps one joined full_name column (BR-2026-09-19), not separate
+            // first/middle/last columns — join here rather than write dead columns.
+            string first = V("DeceasedFirst"), middle = V("DeceasedMiddle"), last = V("DeceasedLast");
+            string fullName = V("FullName");
+            if (string.IsNullOrWhiteSpace(fullName))
+                fullName = string.Join(" ", new[] { first, middle, last }
+                    .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+            string formCode = _formDef?.FormCode;
+            string formName = _formDef?.FormName;
+
+            return Db.Insert(
+                "INSERT INTO deaths (form_code, form_name, registry_no, book_volume, status, " +
+                "full_name, sex, civil_status, age, citizenship, date_of_death, place_of_death, " +
+                "religion_name, immediate_cause, disposal_method, place_of_disposal, " +
+                "informant_name, informant_relationship, informant_address, informant_date, " +
+                "prepared_by, prepared_by_title, prepared_by_date, " +
+                "received_by, received_by_title, received_by_date, " +
+                "registered_by, registered_by_title, registered_by_date, " +
+                "death_image, scan_image, record_source) " +
+                "VALUES (@fcode, @fname, @reg, @book, @status, " +
+                "@name, @sex, @civil, @age, @cit, @dod, @place, " +
+                "@religion, @imm, @disp, @dplace, " +
+                "@informant, @irel, @iaddr, @idate, " +
+                "@prep, @preptitle, @prepdate, " +
+                "@recv, @recvtitle, @recvdate, " +
+                "@regby, @regbytitle, @regbydate, " +
+                "@img, @scan, 'OCR-Backlog')",
+                new MySqlParameter("@fcode", NullIfEmpty(formCode)),
+                new MySqlParameter("@fname", NullIfEmpty(formName)),
+                new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
+                new MySqlParameter("@book", NullIfEmpty(year)),
+                new MySqlParameter("@status", status),
+                new MySqlParameter("@name", NullIfEmpty(fullName)),
+                new MySqlParameter("@sex", sex),
+                new MySqlParameter("@civil", NullIfEmpty(V("CivilStatus"))),
+                new MySqlParameter("@age", age),
+                new MySqlParameter("@cit", NullIfEmpty(V("Citizenship"))),
+                new MySqlParameter("@dod", dod),
+                new MySqlParameter("@place", NullIfEmpty(V("PlaceOfDeath"))),
+                new MySqlParameter("@religion", NullIfEmpty(V("Religion"))),
+                new MySqlParameter("@imm", NullIfEmpty(V("CauseOfDeath"))),
+                new MySqlParameter("@disp", NullIfEmpty(V("CorpseDisposal"))),
+                new MySqlParameter("@dplace", NullIfEmpty(V("PlaceOfDisposal"))),
+                new MySqlParameter("@informant", NullIfEmpty(V("Informant"))),
+                new MySqlParameter("@irel", NullIfEmpty(V("InformantRelationship"))),
+                new MySqlParameter("@iaddr", NullIfEmpty(V("InformantAddress"))),
+                new MySqlParameter("@idate", DateOrNull("InformantDate")),
+                new MySqlParameter("@prep", NullIfEmpty(V("PreparedByName"))),
+                new MySqlParameter("@preptitle", NullIfEmpty(V("PreparedByTitle"))),
+                new MySqlParameter("@prepdate", DateOrNull("PreparedByDate")),
+                new MySqlParameter("@recv", NullIfEmpty(V("ReceivedByName"))),
+                new MySqlParameter("@recvtitle", NullIfEmpty(V("ReceivedByTitle"))),
+                new MySqlParameter("@recvdate", DateOrNull("ReceivedByDate")),
+                new MySqlParameter("@regby", NullIfEmpty(V("RegisteredByName"))),
+                new MySqlParameter("@regbytitle", NullIfEmpty(V("RegisteredByTitle"))),
+                new MySqlParameter("@regbydate", DateOrNull("RegisteredByDate")),
                 new MySqlParameter("@img", MySqlDbType.LongBlob)
                     { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
                 new MySqlParameter("@scan", MySqlDbType.LongBlob)
