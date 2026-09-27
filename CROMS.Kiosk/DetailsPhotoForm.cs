@@ -46,7 +46,7 @@ namespace CROMS.Kiosk
         private readonly Label _lblSubCap = new Label();
         private readonly Button[] _subButtons = new Button[4];
         private static readonly string[] SubValues = { "Officer", "Husband", "Wife", "Representative" };
-        private static readonly string[] SubLabels = { "Solemnizing Officer", "Husband", "Wife", "Authorized Representative" };
+        private static readonly string[] SubLabels = { "Solemnizing Officer", "Husband", "Wife", "Others (please specify)" };
         private readonly RoundPanel _hostSubOrg = new RoundPanel();
         private readonly TextBox _txtSubOrg = new TextBox();
         private string _submittedBy;
@@ -249,7 +249,7 @@ namespace CROMS.Kiosk
             _txtSubOrg.Font = new Font("Segoe UI", 12F);
             _txtSubOrg.Location = new Point(14, 12);
             _txtSubOrg.Size = new Size(508, 25);
-            _txtSubOrg.HandleCreated += (s, e) => Cue(_txtSubOrg, "Your office / organization (optional)");
+            _txtSubOrg.HandleCreated += (s, e) => Cue(_txtSubOrg, "Please specify who you are (e.g. relative, wedding coordinator) *");
             _hostSubOrg.Controls.Add(_txtSubOrg);
             leftCard.Controls.Add(_hostSubOrg);
             ApplySubmitterStyle();

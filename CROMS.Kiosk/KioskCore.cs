@@ -485,7 +485,9 @@ namespace CROMS.Kiosk
             if (s.HasMarriageApp && (string.IsNullOrWhiteSpace(s.First2) || string.IsNullOrWhiteSpace(s.Last2)))
             { error = "Please enter the spouse's first and last name."; return false; }
             if (s.Selected.Contains("MARRIAGE_REG") && string.IsNullOrWhiteSpace(s.SubmittedBy))
-            { error = "Please tell us who is submitting the Certificate of Marriage (Solemnizing Officer, Husband, Wife or Authorized Representative)."; return false; }
+            { error = "Please tell us who is submitting the Certificate of Marriage (Solemnizing Officer, Husband, Wife or Others)."; return false; }
+            if (s.Selected.Contains("MARRIAGE_REG") && s.SubmittedBy == "Representative" && string.IsNullOrWhiteSpace(s.SubmittedByOrg))
+            { error = "You chose Others - please specify who you are (for example: relative, wedding coordinator)."; return false; }
             // Checked BEFORE the ticket exists, so a half-filled PSA request never leaves a
             // ticket behind with no request for staff to find.
             if (s.HasBreqs && (error = BreqsProblem(s)) != null) return false;

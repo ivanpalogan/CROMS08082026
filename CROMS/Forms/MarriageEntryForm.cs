@@ -578,7 +578,7 @@ namespace CROMS.Forms
                         MarriageService.History("Marriage", _id.Value, "Submitted By recorded", null, null, ((RadioButton)s).Text);
                 };
             TableLayoutPanel repRow = MUi.Grid(2, 1, 58);
-            repRow.Controls.Add(MUi.Field("Name", _repName), 0, 0); repRow.Controls.Add(MUi.Field("Office / Organization", _repOrg), 1, 0);
+            repRow.Controls.Add(MUi.Field("Name", _repName), 0, 0); repRow.Controls.Add(MUi.Field("Please specify (who they are)", _repOrg), 1, 0);
             _repName.TextChanged += (s, e) => Changed(_repName); _repOrg.TextChanged += (s, e) => Changed(_repOrg);
             AutoCaps.Attach(_repName);
             Stack(_repPanel, repRow);
@@ -917,12 +917,12 @@ namespace CROMS.Forms
                 var wOfficer = new RadioButton { Text = "Solemnizing Officer", AutoSize = true, Location = new Point(22, 108), Checked = _rbSubOfficer.Checked };
                 var wHusband = new RadioButton { Text = "Husband", AutoSize = true, Location = new Point(180, 108), Checked = _rbSubHusband.Checked };
                 var wWife = new RadioButton { Text = "Wife", AutoSize = true, Location = new Point(272, 108), Checked = _rbSubWife.Checked };
-                var wRep = new RadioButton { Text = "Authorized Representative", AutoSize = true, Location = new Point(346, 108), Checked = _rbSubRep.Checked };
+                var wRep = new RadioButton { Text = "Others (specify)", AutoSize = true, Location = new Point(346, 108), Checked = _rbSubRep.Checked };
                 if (!wHusband.Checked && !wWife.Checked && !wRep.Checked) wOfficer.Checked = true;
-                var repNameCap = MUi.Txt("Representative's name", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                var repNameCap = MUi.Txt("Name", 8.5F, FontStyle.Regular, UiTheme.Muted);
                 repNameCap.Location = new Point(22, 138);
                 var repName = new TextBox { Location = new Point(22, 156), Width = 250, Text = _repName.Text, CharacterCasing = CharacterCasing.Upper };
-                var repOrgCap = MUi.Txt("Office / Organization", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                var repOrgCap = MUi.Txt("Please specify (who they are)", 8.5F, FontStyle.Regular, UiTheme.Muted);
                 repOrgCap.Location = new Point(290, 138);
                 var repOrg = new TextBox { Location = new Point(290, 156), Width = 250, Text = _repOrg.Text };
                 Action repState = () => { repName.Enabled = repOrg.Enabled = repNameCap.Enabled = repOrgCap.Enabled = wRep.Checked; };
@@ -941,11 +941,11 @@ namespace CROMS.Forms
                     b.Height = 44; b.Location = new Point(20, y);
                     b.Click += (s, e) =>
                     {
-                        if (wRep.Checked && repName.Text.Trim().Length == 0)
+                        if (wRep.Checked && (repName.Text.Trim().Length == 0 || repOrg.Text.Trim().Length == 0))
                         {
-                            MessageBox.Show(dlg, "Type the name of the authorized representative.", "Submitted by",
+                            MessageBox.Show(dlg, "You chose Others - type the person's name and specify who they are.", "Submitted by",
                                 MessageBoxButtons.OK, MessageBoxIcon.Information);
-                            repName.Focus();
+                            (repName.Text.Trim().Length == 0 ? repName : repOrg).Focus();
                             return;
                         }
                         choice = key; dlg.DialogResult = DialogResult.OK;
@@ -1882,7 +1882,7 @@ namespace CROMS.Forms
             var items = new List<Control>();
             items.Add(MUi.Cap("Submitted by"));
             string subBy = _rbSubHusband.Checked ? "Husband" : _rbSubWife.Checked ? "Wife"
-                : _rbSubRep.Checked ? (_repName.Text.Trim().Length > 0 ? _repName.Text.Trim() + " (rep.)" : "Representative")
+                : _rbSubRep.Checked ? (_repName.Text.Trim().Length > 0 ? _repName.Text.Trim() + " (other)" : "Others")
                 : "Solemnizing Officer";
             items.Add(MUi.Kv("Filed by", subBy));
             items.Add(MUi.Cap(_rbEx.Checked ? "License exemption" : _oop.Checked ? "License (out of province)" : "License on file"));

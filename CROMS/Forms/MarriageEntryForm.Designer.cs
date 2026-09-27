@@ -73,7 +73,7 @@ namespace CROMS.Forms
         private readonly RadioButton _rbSubOfficer = new RadioButton { Text = "Solemnizing Officer", AutoSize = true },
                                      _rbSubHusband = new RadioButton { Text = "Husband", AutoSize = true },
                                      _rbSubWife = new RadioButton { Text = "Wife", AutoSize = true },
-                                     _rbSubRep = new RadioButton { Text = "Authorized Representative", AutoSize = true };
+                                     _rbSubRep = new RadioButton { Text = "Others (specify)", AutoSize = true };
         private readonly TextBox _repName = MUi.Box(), _repOrg = MUi.Box();
         private readonly Panel _repPanel = new Panel();
 
