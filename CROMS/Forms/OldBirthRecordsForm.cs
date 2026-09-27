@@ -26,14 +26,12 @@ namespace CROMS.Forms
     {
         // ---- books gallery (top level) -------------------------------------------
         // Hierarchy: Birth Records (this form) -> Registry Books -> Selected Book ->
-        // Individual Birth Records -> Record Details. The gallery groups the backlog
-        // by book_volume the same way RegistryBooksForm does (2026-09-15) so a book's
-        // record count and any brand-new book both just fall out of a live re-query —
-        // nothing here is tracked separately from what's already on the rows.
+        // Individual Birth Records -> Record Details. RegistryBookGallery groups the
+        // backlog by book_volume the same way RegistryBooksForm does (2026-09-15) so a
+        // book's record count and any brand-new book both just fall out of a live
+        // re-query — nothing here is tracked separately from what's already on the rows.
         private CardPanel cardBooks;
-        private DataGridView dgvBooks;
-        private Label lblBooksHeader;
-        private Button btnBooksRefresh;
+        private RegistryBookGallery _gallery;
 
         // ---- list view (records inside the opened book) --------------------------
         private CardPanel cardList;
@@ -157,78 +155,51 @@ namespace CROMS.Forms
             cardBooks = new CardPanel { Dock = DockStyle.Fill, Radius = 12 };
             host.Controls.Add(cardBooks);
 
-            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(18) };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            cardBooks.Controls.Add(layout);
+            var pad = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18) };
+            cardBooks.Controls.Add(pad);
 
-            var toolbar = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-            layout.Controls.Add(toolbar, 0, 0);
-
-            lblBooksHeader = new Label
-            {
-                Text = "BOOKS ON FILE",
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
-                ForeColor = UiTheme.Ink,
-                AutoSize = true,
-                Anchor = AnchorStyles.Left,
-                Margin = new Padding(0, 6, 0, 0)
-            };
-            toolbar.Controls.Add(lblBooksHeader, 0, 0);
-
-            var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-            btnBooksRefresh = new Button { Text = "Refresh", Width = 90 };
-            btnBooksRefresh.Click += (s, e) => LoadBooks();
-            actions.Controls.Add(btnBooksRefresh);
-            toolbar.Controls.Add(actions, 1, 0);
-
-            dgvBooks = new DataGridView
-            {
-                Dock = DockStyle.Fill,
-                ReadOnly = true,
-                AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
-            };
-            dgvBooks.CellClick += (s, e) => { if (e.RowIndex >= 0) OpenBookFromRow(e.RowIndex); };
-            dgvBooks.CellDoubleClick += (s, e) => { if (e.RowIndex >= 0) OpenBookFromRow(e.RowIndex); };
-            layout.Controls.Add(dgvBooks, 0, 1);
+            _gallery = new RegistryBookGallery("births", "Birth");
+            _gallery.BookOpened += b => OpenBook(b.VolRaw, b.VolDisplay);
+            _gallery.DigitizeRequested += () => StartDigitizeWizard();
+            pad.Controls.Add(_gallery);
         }
 
         private void LoadBooks()
         {
-            const string sql =
-                "SELECT COALESCE(book_volume,'(no volume recorded)') AS 'Book / Year', " +
-                "COUNT(*) AS 'Records', " +
-                "COUNT(DISTINCT CASE WHEN book_page IS NOT NULL AND book_page<>'' THEN book_page END) AS 'Pages', " +
-                "book_volume AS VolRaw " +
-                "FROM births WHERE record_source = 'OCR-Backlog' " +
-                "GROUP BY book_volume ORDER BY book_volume DESC";
-            try
-            {
-                DataTable dt = Db.Pull(sql);
-                dgvBooks.DataSource = dt;
-                if (dgvBooks.Columns.Contains("VolRaw")) dgvBooks.Columns["VolRaw"].Visible = false;
-                lblBooksHeader.Text = "BOOKS ON FILE  (" + dt.Rows.Count + ")";
-            }
-            catch (Exception ex)
-            {
-                lblBooksHeader.Text = "Could not load books: " + ex.Message;
-            }
+            _gallery.Reload();
             ShowBooksGallery();
         }
 
-        private void OpenBookFromRow(int rowIndex)
+        /// <summary>
+        /// Step 3 — "+ Digitize Old Record" on the Registry Books gallery. Offers Scan/Upload
+        /// with OCR (Step 4, reuses the existing Intelligent Document Processing screen,
+        /// which already writes straight into `births` tagged OCR-Backlog and asks before
+        /// creating a brand-new registry book) or Manual Entry (Step 5, the blank entry form
+        /// already on this screen). Neither path is a Birth Registration.
+        /// </summary>
+        private void StartDigitizeWizard()
         {
-            var row = dgvBooks.Rows[rowIndex];
-            object volRawObj = row.Cells["VolRaw"].Value;
-            string volRaw = volRawObj == null || volRawObj == DBNull.Value ? null : volRawObj.ToString();
-            string volDisplay = row.Cells["Book / Year"].Value?.ToString();
-            OpenBook(volRaw, volDisplay);
+            using (var dlg = new DigitizeChoiceForm("Birth"))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                if (dlg.UseOcr)
+                {
+                    OcrDigitizationForm.RunLegacyDigitization(this, DocKind.Birth);
+                    LoadBooks(); // Step 11 — refresh regardless, in case a record was committed
+                }
+                else
+                {
+                    _bookVolRaw = null;
+                    _bookVolDisplay = null;
+                    _bookIsNullGroup = true;
+                    ClearForm();
+                    SetMode(view: false);
+                    lblEntryTitle.Text = "New old birth record";
+                    lblEntrySub.Text = "Not yet saved — type the Registry Number, Book/Volume and " +
+                                        "Page from the ledger on the Registration tab";
+                    ShowEntryView();
+                }
+            }
         }
 
         private void OpenBook(string volRaw, string volDisplay)

@@ -89,6 +89,22 @@ namespace CROMS.Forms
         /// </summary>
         private BirthRegistrationForm _returnToBirth;
 
+        /// <summary>
+        /// Set by <see cref="RunLegacyDigitization"/> when this window was opened from a
+        /// Civil Registry Record's "+ Digitize Old Record" -&gt; "Scan / Upload with OCR"
+        /// chooser (Birth, Marriage or Death Record). In this mode Commit/Draft write
+        /// straight into the backlog table (record_source = 'OCR-Backlog') for ALL THREE
+        /// kinds — including Marriage, which outside this mode only ever Auto-Fills into the
+        /// live Form 97 dialog — and Auto-Fill is disabled outright, because a digitized old
+        /// record must never be routed into a live registration screen.
+        /// </summary>
+        private bool _legacyBacklogMode;
+
+        /// <summary>The record type the Civil Registry Record screen that opened this window
+        /// expects back — a scan read as a different kind is refused rather than silently
+        /// filed under the wrong record type.</summary>
+        private DocKind? _legacyExpectedKind;
+
         // ---- Birth Record Digitization wizard (STEP 6) ----------------------------------
         // Groups the review grid into the certificate's own logical blocks — Child / Mother /
         // Father / Other Birth Certificate Information / Registry Information / Review and
@@ -307,6 +323,36 @@ namespace CROMS.Forms
             }
         }
 
+        /// <summary>
+        /// Civil Registry Record's "+ Digitize Old Record" -&gt; "Scan / Upload with OCR"
+        /// chooser. Opens this screen standalone (not attached to any live registration form)
+        /// so Commit/Draft — which write straight into the backlog table tagged
+        /// <c>record_source = 'OCR-Backlog'</c> — are the only way values leave this window;
+        /// Auto-Fill is disabled here for every kind, since routing a digitized OLD record
+        /// into a live New Registration screen is exactly what Steps 3-4 of the digitization
+        /// workflow forbid. A scan read as something other than <paramref name="expectedKind"/>
+        /// is still shown, but Commit/Draft stay disabled until it matches.
+        /// </summary>
+        public static void RunLegacyDigitization(IWin32Window owner, DocKind expectedKind)
+        {
+            using (var ocr = new OcrDigitizationForm())
+            {
+                ocr._legacyBacklogMode = true;
+                ocr._legacyExpectedKind = expectedKind;
+                ocr.FormBorderStyle = FormBorderStyle.Sizable;
+                ocr.StartPosition = FormStartPosition.CenterParent;
+                ocr.WindowState = FormWindowState.Maximized;
+                ocr.Text = DocumentAI.KindName(expectedKind) + " Record Digitization";
+                ocr.lblSubtitle.Text =
+                    "Scan or upload the physical registry page for this already-registered " +
+                    DocumentAI.KindName(expectedKind).ToLowerInvariant() + " record, review the " +
+                    "values against the page, then Commit to add it to the backlog. This does " +
+                    "not create a new registration.";
+                UiTheme.Polish(ocr);
+                ocr.ShowDialog(owner);
+            }
+        }
+
         // ---- load ---------------------------------------------------------
 
         private void btnLoad_Click(object sender, EventArgs e)
@@ -421,13 +467,17 @@ namespace CROMS.Forms
                 _seals = SealDetector.Detect(_image);
                 SuppressSealReadings(r);
 
-                // Registry Information (Step 7 of the Birth Record Digitization wizard):
-                // where this record belongs in the archive — never read off the page and
-                // never generated from it, so these start blank for the operator to copy
-                // from the physical ledger. Revalidate folds them into the normal Missing/
-                // Ok scoring without dragging down OverallConfidence (blanks are excluded
-                // from that average).
-                if (r.Kind == DocKind.Birth)
+                // Registry Information (Step 7 of the Civil Registry Record digitization
+                // workflow): where this record belongs in the archive — never read off the
+                // page and never generated from it, so these start blank for the operator to
+                // copy from the physical ledger. Always shown for Birth and Death (both commit
+                // straight to their backlog table from this screen, in or out of legacy mode);
+                // shown for Marriage only in legacy mode, since a normal-mode Marriage scan
+                // never writes a book/page itself — it only Auto-Fills into the live Form 97.
+                // Revalidate folds them into the normal Missing/Ok scoring without dragging
+                // down OverallConfidence (blanks are excluded from that average).
+                if (r.Kind == DocKind.Birth || r.Kind == DocKind.Death
+                    || (_legacyBacklogMode && r.Kind == DocKind.Marriage))
                 {
                     EnsureRegistryInfoFields(r);
                     DocIntelligence.Revalidate(r);
@@ -447,6 +497,24 @@ namespace CROMS.Forms
                 LogBatch(r);
                 ApplyResultToUi();
                 LoadBatch();
+
+                // Civil Registry Record digitization opened expecting one kind of certificate
+                // (Birth Record, Marriage Record or Death Record) — a scan that reads as a
+                // different kind is shown, same as any other scan, but Commit/Draft stay
+                // disabled (see ApplyResultToUi) and this is the one case worth a pop-up: the
+                // operator is standing at a screen for a specific record type and needs to
+                // know they loaded the wrong page.
+                if (_legacyBacklogMode && _legacyExpectedKind != null
+                    && r.Kind != DocKind.Unknown && r.Kind != _legacyExpectedKind)
+                {
+                    MessageBox.Show(
+                        "This page reads as a " + DocumentAI.KindName(r.Kind) + " document, not a " +
+                        DocumentAI.KindName(_legacyExpectedKind.Value) +
+                        " — it cannot be committed to the " + DocumentAI.KindName(_legacyExpectedKind.Value) +
+                        " Record backlog from here. Load the correct page, or close this window and open " +
+                        "\"+ Digitize Old Record\" from the " + DocumentAI.KindName(r.Kind) + " Record screen instead.",
+                        "Wrong document type", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
 
                 // Deliberately NO pop-up here. Everything these used to say is already on
                 // the screen the operator is looking at: the status line below names the
@@ -500,6 +568,7 @@ namespace CROMS.Forms
             bool blocked = _result == null || _result.NeedsManualReview;
             bool birth = have && _kind == DocKind.Birth;
             bool death = have && _kind == DocKind.Death;
+            bool marriage = have && _kind == DocKind.Marriage;
 
             // Birth and Death commit straight into the database from this screen — that is
             // the whole point of digitizing an old registry book, and it must never pass
@@ -515,17 +584,40 @@ namespace CROMS.Forms
             // actually run — every earlier step is for reading and correcting one certificate
             // block at a time, not for saving from.
             bool reviewStepOk = !_wizardActive || _stepIndex == BirthWizardStepTitles.Length - 1;
-            btnCommit.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
-            btnDraft.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
-            // Final Verification (the wizard's last step) is a distinct check from OCR
-            // verification — it asks whether the record is correct and complete, not whether
-            // OCR read it right — so its own commit button says so, rather than reusing the
-            // generic "Commit to Registry" caption used everywhere else on this screen.
-            btnCommit.Text = (_wizardActive && birth && reviewStepOk)
-                ? "Save Digitized Record" : "Commit to Registry";
-            btnAutoFill.Enabled = have && !blocked && reviewStepOk &&
-                (_kind == DocKind.Marriage || (birthReturn && _kind == DocKind.Birth));
-            btnReview.Enabled = _result != null;
+
+            if (_legacyBacklogMode)
+            {
+                // Civil Registry Record digitization: an already-registered PAPER record is
+                // being converted into a database row, never a new registration. So Commit/
+                // Draft write straight to the backlog for all three kinds — including
+                // Marriage, which outside this mode has no backlog-commit path at all — and
+                // Auto-Fill is switched off entirely, because routing a digitized old record
+                // into a live registration screen is exactly what this mode exists to avoid.
+                bool matchesExpected = _legacyExpectedKind == null || _kind == _legacyExpectedKind;
+                bool canCommit = have && matchesExpected && !blocked && reviewStepOk;
+                btnCommit.Enabled = canCommit;
+                btnDraft.Enabled = canCommit;
+                btnCommit.Text = (_wizardActive && birth && reviewStepOk)
+                    ? "Save Digitized Record" : "Commit to Registry";
+                btnAutoFill.Enabled = false;
+                btnAutoFill.Visible = false;
+                btnReview.Enabled = _result != null;
+            }
+            else
+            {
+                btnCommit.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
+                btnDraft.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
+                // Final Verification (the wizard's last step) is a distinct check from OCR
+                // verification — it asks whether the record is correct and complete, not
+                // whether OCR read it right — so its own commit button says so, rather than
+                // reusing the generic "Commit to Registry" caption used everywhere else.
+                btnCommit.Text = (_wizardActive && birth && reviewStepOk)
+                    ? "Save Digitized Record" : "Commit to Registry";
+                btnAutoFill.Enabled = have && !blocked && reviewStepOk &&
+                    (marriage || (birthReturn && birth));
+                btnAutoFill.Visible = true;
+                btnReview.Enabled = _result != null;
+            }
 
             btnAutoFill.Text = have ? "Auto-Fill " + ModuleName(_kind) : "Auto-Fill Form";
             btnSeal.Enabled = _seals.Count > 0 && _image != null;
@@ -1612,15 +1704,19 @@ namespace CROMS.Forms
         {
             if (!ReadyToSave()) return;
             string table = TableFor(_kind);
-            string registry = _kind == DocKind.Death ? "death" : "birth";
+            string registry = RegistryWord(_kind);
             if (!Confirm("commit to the " + registry + " registry")) return;
 
             // STEP 9 — locate the registry book by the STAFF-VERIFIED Book No. + Year
             // (EnsureRegistryInfoFields), never by unverified OCR text. A book that does not
             // already exist is never created silently — the operator confirms it first.
-            if (_kind == DocKind.Birth && !ConfirmRegistryBook()) return;
+            // Applies to all three kinds: Marriage can now commit straight to its own
+            // backlog too, in legacy digitization mode.
+            if (!ConfirmRegistryBook()) return;
 
-            long id = _kind == DocKind.Death ? SaveDeath("Registered") : SaveBirth("Registered");
+            long id = _kind == DocKind.Death ? SaveDeath("Registered")
+                    : _kind == DocKind.Marriage ? SaveMarriageLegacy("Registered")
+                    : SaveBirth("Registered");
             _savedRecordId = id;
             WriteAudit(OcrAudit.Committed);
             MarkBatch("Committed", table, id);
@@ -1629,33 +1725,22 @@ namespace CROMS.Forms
             LoadBatch();
             UpdateFormIdentity();
 
-            // Step 11 — result after saving: for a birth, land on the record's own
-            // registry book (creating its card in the gallery the moment this re-queries,
-            // if it's brand new) instead of leaving the operator to go find it by hand.
-            // The old standalone "oldbirth" module key is gone (2026-09-28) — the workbench
-            // now lives inside Records Archive's "Legacy Digitized Records" group.
-            OldBirthRecordsForm obr = _kind == DocKind.Birth
-                ? (Shell()?.GoToModule("archive") as RecordsArchiveForm)?.OpenBirthRecordWorkbench()
-                : null;
-            if (obr != null)
-                obr.OpenToRecord(id);
-            else
-                MessageBox.Show(
-                    "Committed to the " + registry + " registry as " + FormLabel() + ".\n\n" +
-                    "Find, edit, view or delete it from Records Archive → \"" +
-                    (registry == "death" ? "Death Record" : "Birth Record") +
-                    "\" (under Legacy Digitized Records) — this old record does not appear on the live " +
-                    (registry == "death" ? "Death" : "Birth") + " Registration screen.",
-                    "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Step 11 — result after saving: land on the record's own registry book
+            // (creating its card in the gallery the moment this re-queries, if it's brand
+            // new) instead of leaving the operator to go find it by hand. The old standalone
+            // "oldbirth"/"olddeath" module keys are gone (2026-09-28) — every workbench now
+            // lives inside Records Archive's "Civil Registry Records" group.
+            OpenBacklogRecordResult(_kind, id, "Committed to");
         }
 
         private void btnDraft_Click(object sender, EventArgs e)
         {
             if (!ReadyToSave()) return;
             string table = TableFor(_kind);
-            string registry = _kind == DocKind.Death ? "death" : "birth";
 
-            long id = _kind == DocKind.Death ? SaveDeath("Draft") : SaveBirth("Draft");
+            long id = _kind == DocKind.Death ? SaveDeath("Draft")
+                    : _kind == DocKind.Marriage ? SaveMarriageLegacy("Draft")
+                    : SaveBirth("Draft");
             _savedRecordId = id;
             WriteAudit(OcrAudit.Draft);
             MarkBatch("Draft", table, id);
@@ -1664,17 +1749,57 @@ namespace CROMS.Forms
             LoadBatch();
             UpdateFormIdentity();
 
-            OldBirthRecordsForm obr = _kind == DocKind.Birth
-                ? (Shell()?.GoToModule("archive") as RecordsArchiveForm)?.OpenBirthRecordWorkbench()
-                : null;
-            if (obr != null)
-                obr.OpenToRecord(id);
-            else
-                MessageBox.Show(
-                    "Saved as a draft old record in the " + registry + " registry. Find it from Records " +
-                    "Archive → \"" + (registry == "death" ? "Death Record" : "Birth Record") +
-                    "\" (under Legacy Digitized Records).",
-                    "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            OpenBacklogRecordResult(_kind, id, "Saved as a draft old record in");
+        }
+
+        private static string RegistryWord(DocKind k)
+        {
+            switch (k)
+            {
+                case DocKind.Birth: return "birth";
+                case DocKind.Marriage: return "marriage";
+                case DocKind.Death: return "death";
+                default: return "record";
+            }
+        }
+
+        private static string RecordLabel(DocKind k)
+        {
+            switch (k)
+            {
+                case DocKind.Birth: return "Birth Record";
+                case DocKind.Marriage: return "Marriage Record";
+                case DocKind.Death: return "Death Record";
+                default: return "Record";
+            }
+        }
+
+        /// <summary>
+        /// Step 11 — land on the just-saved record's own workbench (Birth / Marriage / Death
+        /// Record under Civil Registry Records), or, if the shell can't be reached, tell the
+        /// operator plainly where to find it. One method for all three kinds so Commit and
+        /// Draft can't drift into disagreeing about where a record ends up.
+        /// </summary>
+        private void OpenBacklogRecordResult(DocKind kind, long id, string verbPhrase)
+        {
+            RecordsArchiveForm archive = Shell()?.GoToModule("archive") as RecordsArchiveForm;
+            Form workbench = null;
+            if (archive != null)
+            {
+                if (kind == DocKind.Birth) workbench = archive.OpenBirthRecordWorkbench();
+                else if (kind == DocKind.Marriage) workbench = archive.OpenMarriageRecordWorkbench();
+                else if (kind == DocKind.Death) workbench = archive.OpenDeathRecordWorkbench();
+            }
+            if (workbench is OldBirthRecordsForm obr) { obr.OpenToRecord(id); return; }
+            if (workbench is OldMarriageRecordsForm omr) { omr.OpenToRecord(id); return; }
+            if (workbench is OldDeathRecordsForm odr) { odr.OpenToRecord(id); return; }
+
+            MessageBox.Show(
+                verbPhrase + " the " + RegistryWord(kind) + " registry as " + FormLabel() + ".\n\n" +
+                "Find, edit, view or delete it from Records Archive → \"" + RecordLabel(kind) +
+                "\" — this old record does not appear on the live " +
+                RecordLabel(kind).Replace(" Record", "") + " Registration screen.",
+                "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>
@@ -1734,9 +1859,14 @@ namespace CROMS.Forms
 
         private bool BookVolumeExists(string bookVolume)
         {
+            // TableFor(_kind) is one of the three fixed table names off the DocKind enum
+            // (never operator-typed text), so building the SQL with it is safe — the same
+            // pattern RegistryNumber.Table() already uses.
+            string table = TableFor(_kind);
+            if (table == null) return true; // unknown kind: nothing to check, fail open
             try
             {
-                DataTable dt = Db.Pull("SELECT COUNT(*) c FROM births WHERE book_volume = @v",
+                DataTable dt = Db.Pull("SELECT COUNT(*) c FROM " + table + " WHERE book_volume = @v",
                     new MySqlParameter("@v", bookVolume));
                 return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["c"]) > 0;
             }
@@ -1826,11 +1956,16 @@ namespace CROMS.Forms
                     "Not classified", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
-            if (_kind != DocKind.Birth && _kind != DocKind.Death)
+            // A Marriage document only commits straight to the backlog in legacy digitization
+            // mode (Civil Registry Record -> "+ Digitize Old Record"); outside that mode it
+            // only ever Auto-Fills into the live Form 97 dialog.
+            bool marriageAllowed = _legacyBacklogMode && _kind == DocKind.Marriage;
+            if (_kind != DocKind.Birth && _kind != DocKind.Death && !marriageAllowed)
             {
                 MessageBox.Show(
-                    "Only a birth or death certificate is written straight to the database from " +
-                    "this screen. Use \"Auto-Fill Marriage\" for a Certificate of Marriage.",
+                    "Only a birth, marriage or death certificate is written straight to the database " +
+                    "from this screen, and a marriage certificate only from \"+ Digitize Old Record\" on " +
+                    "the Marriage Record screen. Use \"Auto-Fill Marriage\" here for a live Form 97 instead.",
                     "Wrong document type", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
@@ -2346,12 +2481,6 @@ namespace CROMS.Forms
                        : sexText.StartsWith("M", StringComparison.OrdinalIgnoreCase) ? "Male"
                        : (object)DBNull.Value;
 
-            // Same "the book is identified by the year the event happened in" convention
-            // SaveBirth already uses.
-            string year = parsed ? d.Year.ToString()
-                        : (dodText.Length >= 4 && dodText.Substring(0, 4).All(char.IsDigit)
-                            ? dodText.Substring(0, 4) : "");
-
             object age = int.TryParse(V("Age"), out int a) ? (object)a : DBNull.Value;
 
             // `deaths` keeps one joined full_name column (BR-2026-09-19), not separate
@@ -2366,7 +2495,7 @@ namespace CROMS.Forms
             string formName = _formDef?.FormName;
 
             return Db.Insert(
-                "INSERT INTO deaths (form_code, form_name, registry_no, book_volume, status, " +
+                "INSERT INTO deaths (form_code, form_name, registry_no, book_volume, book_page, status, " +
                 "full_name, sex, civil_status, age, citizenship, date_of_death, place_of_death, " +
                 "religion_name, immediate_cause, disposal_method, place_of_disposal, " +
                 "informant_name, informant_relationship, informant_address, informant_date, " +
@@ -2375,7 +2504,7 @@ namespace CROMS.Forms
                 "registered_by, registered_by_title, registered_by_date, " +
                 "death_image, scan_image, record_source, " +
                 "digitized_by, date_digitized, encoding_method, source_reference) " +
-                "VALUES (@fcode, @fname, @reg, @book, @status, " +
+                "VALUES (@fcode, @fname, @reg, @book, @page, @status, " +
                 "@name, @sex, @civil, @age, @cit, @dod, @place, " +
                 "@religion, @imm, @disp, @dplace, " +
                 "@informant, @irel, @iaddr, @idate, " +
@@ -2387,7 +2516,12 @@ namespace CROMS.Forms
                 new MySqlParameter("@fcode", NullIfEmpty(formCode)),
                 new MySqlParameter("@fname", NullIfEmpty(formName)),
                 new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
-                new MySqlParameter("@book", NullIfEmpty(year)),
+                // STEP 7/9 — Registry Information, from what the operator copied off the
+                // physical ledger (EnsureRegistryInfoFields seeds both blank) — never derived
+                // from the date of death. A guessed archive location is the same fabrication
+                // this project refused for Birth on 2026-09-28.
+                new MySqlParameter("@book", NullIfEmpty(V("BookVolume"))),
+                new MySqlParameter("@page", NullIfEmpty(V("BookPage"))),
                 new MySqlParameter("@status", status),
                 new MySqlParameter("@name", NullIfEmpty(fullName)),
                 new MySqlParameter("@sex", sex),
@@ -2415,6 +2549,64 @@ namespace CROMS.Forms
                 new MySqlParameter("@regbydate", DateOrNull("RegisteredByDate")),
                 new MySqlParameter("@img", MySqlDbType.LongBlob)
                     { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
+                new MySqlParameter("@scan", MySqlDbType.LongBlob)
+                    { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
+                new MySqlParameter("@digby", DigitizedBy()),
+                new MySqlParameter("@digdate", DateTime.Now),
+                new MySqlParameter("@encmethod", "OCR + Manual Verification"),
+                new MySqlParameter("@srcref", NullIfEmpty(_sourceLabel)));
+        }
+
+        /// <summary>
+        /// Writes an old, already-registered marriage certificate straight into
+        /// <c>marriages</c>, tagged <c>record_source = 'OCR-Backlog'</c> — reachable only from
+        /// legacy digitization mode (Civil Registry Record -&gt; "+ Digitize Old Record"),
+        /// never from the normal Auto-Fill path that fills the live Form 97. Writes the same
+        /// simplified free-text columns the Marriage Record backlog screen itself manages
+        /// (husband/wife name cells, civil status, place of birth) rather than the live
+        /// screen's FK-based citizenship/church lookups — a decades-old ledger entry naming a
+        /// church or nationality that was never entered into those lookup tables should not
+        /// force a lossy best-fit match, the same reasoning `births.place_of_birth` already
+        /// follows as free text.
+        /// </summary>
+        private long SaveMarriageLegacy(string status)
+        {
+            string dateText = V("DateOfMarriage");
+            bool parsed = DateTime.TryParse(dateText, CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out DateTime d);
+            object mdate = parsed ? (object)d.Date : DBNull.Value;
+
+            string formCode = _formDef?.FormCode;
+            string formName = _formDef?.FormName;
+
+            return Db.Insert(
+                "INSERT INTO marriages (form_code, form_name, registry_no, book_volume, book_page, status, " +
+                "husband_first_name, husband_middle_name, husband_last_name, husband_sex, " +
+                "wife_first_name, wife_middle_name, wife_last_name, wife_sex, " +
+                "date_of_marriage, place_of_marriage, solemnizer, " +
+                "scan_image, record_source, digitized_by, date_digitized, encoding_method, source_reference) " +
+                "VALUES (@fcode, @fname, @reg, @book, @page, @status, " +
+                "@hfn, @hmn, @hln, 'Male', " +
+                "@wfn, @wmn, @wln, 'Female', " +
+                "@mdate, @mplace, @solemnizer, " +
+                "@scan, 'OCR-Backlog', @digby, @digdate, @encmethod, @srcref)",
+                new MySqlParameter("@fcode", NullIfEmpty(formCode)),
+                new MySqlParameter("@fname", NullIfEmpty(formName)),
+                new MySqlParameter("@reg", NullIfEmpty(V("RegistryNo"))),
+                // STEP 7/9 — Registry Information, from what the operator copied off the
+                // physical ledger (EnsureRegistryInfoFields seeds both blank, in legacy mode).
+                new MySqlParameter("@book", NullIfEmpty(V("BookVolume"))),
+                new MySqlParameter("@page", NullIfEmpty(V("BookPage"))),
+                new MySqlParameter("@status", status),
+                new MySqlParameter("@hfn", V("HusbandFirst")),
+                new MySqlParameter("@hmn", NullIfEmpty(V("HusbandMiddle"))),
+                new MySqlParameter("@hln", V("HusbandLast")),
+                new MySqlParameter("@wfn", V("WifeFirst")),
+                new MySqlParameter("@wmn", NullIfEmpty(V("WifeMiddle"))),
+                new MySqlParameter("@wln", V("WifeLast")),
+                new MySqlParameter("@mdate", mdate),
+                new MySqlParameter("@mplace", NullIfEmpty(V("PlaceOfMarriage"))),
+                new MySqlParameter("@solemnizer", NullIfEmpty(V("Solemnizer"))),
                 new MySqlParameter("@scan", MySqlDbType.LongBlob)
                     { Value = _scanBytes == null ? (object)DBNull.Value : _scanBytes },
                 new MySqlParameter("@digby", DigitizedBy()),

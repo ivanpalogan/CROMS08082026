@@ -381,6 +381,28 @@ namespace CROMS.Forms
             return _workbenches.TryGetValue(cat, out Form form) ? form as OldBirthRecordsForm : null;
         }
 
+        /// <summary>Same hand-off as <see cref="OpenBirthRecordWorkbench"/>, for the Marriage
+        /// Record workbench.</summary>
+        public OldMarriageRecordsForm OpenMarriageRecordWorkbench()
+        {
+            ArchiveCategory cat = _categories.Find(c => c.Workbench != null && c.Label == "Marriage Record");
+            if (cat == null) return null;
+            if (_categoryNodes.TryGetValue(cat, out TreeNode node)) treeCategories.SelectedNode = node;
+            else LoadCategory(cat);
+            return _workbenches.TryGetValue(cat, out Form form) ? form as OldMarriageRecordsForm : null;
+        }
+
+        /// <summary>Same hand-off as <see cref="OpenBirthRecordWorkbench"/>, for the Death
+        /// Record workbench.</summary>
+        public OldDeathRecordsForm OpenDeathRecordWorkbench()
+        {
+            ArchiveCategory cat = _categories.Find(c => c.Workbench != null && c.Label == "Death Record");
+            if (cat == null) return null;
+            if (_categoryNodes.TryGetValue(cat, out TreeNode node)) treeCategories.SelectedNode = node;
+            else LoadCategory(cat);
+            return _workbenches.TryGetValue(cat, out Form form) ? form as OldDeathRecordsForm : null;
+        }
+
         private void btnRefresh_Click(object sender, EventArgs e) => RefreshData();
 
         // ------------------------------------------------------------ detail

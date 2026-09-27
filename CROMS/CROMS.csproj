@@ -315,6 +315,9 @@
     <Compile Include="Forms\OcrDigitizationForm.Designer.cs">
       <DependentUpon>OcrDigitizationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\DigitizeChoiceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Forms\OldBirthRecordsForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -665,6 +668,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\HoverFade.cs" />
+    <Compile Include="Modules\RegistryBookGallery.cs" />
     <Compile Include="Modules\ReasonPrompt.cs" />
     <Compile Include="Modules\AutoCaps.cs" />
     <Compile Include="Modules\NextStepGlow.cs" />

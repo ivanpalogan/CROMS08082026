@@ -27,11 +27,24 @@ namespace CROMS.Forms
     /// </summary>
     public class OldMarriageRecordsForm : Form, IRefreshable
     {
+        // ---- books gallery (top level) -------------------------------------------
+        // Hierarchy: Marriage Record (this form) -> Registry Books -> Selected Book ->
+        // Individual Marriage Records -> Record Details — the same shape OldBirthRecordsForm
+        // uses, via the shared RegistryBookGallery control.
+        private CardPanel cardBooks;
+        private RegistryBookGallery _gallery;
+
+        // which book is currently opened (null = the "(no volume recorded)" group)
+        private string _bookVolRaw;
+        private string _bookVolDisplay;
+        private bool _bookIsNullGroup;
+
         // ---- list view ----------------------------------------------------------
         private CardPanel cardList;
         private DataGridView dgv;
         private TextBox txtSearch;
-        private Button btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
+        private Label lblListHeader;
+        private Button btnBackToBooks, btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
 
         // ---- entry view ----------------------------------------------------------
         private CardPanel cardEntry;
@@ -67,14 +80,35 @@ namespace CROMS.Forms
         {
             Text = "Marriage Record";
             BuildUi();
-            LoadGrid();
-            ShowListView();
+            LoadBooks();
         }
 
         public void RefreshData()
         {
-            LoadGrid();
-            if (!cardEntry.Visible) ShowListView();
+            if (cardEntry.Visible) return; // don't yank focus off an open record
+            if (cardList.Visible) LoadGrid();
+            else LoadBooks();
+        }
+
+        /// <summary>
+        /// Cross-module hand-off: after a Marriage Record Digitization commit/draft, land
+        /// here on the record's own book (creating the book's card the moment this
+        /// re-queries, if it's brand new) with the record itself opened — Step 11's
+        /// "Result After Saving".
+        /// </summary>
+        public void OpenToRecord(long id)
+        {
+            DataTable dt = Db.Pull(
+                "SELECT book_volume FROM marriages WHERE id = @id AND record_source = 'OCR-Backlog'",
+                new MySqlParameter("@id", id));
+            if (dt.Rows.Count == 0) return;
+            object volObj = dt.Rows[0]["book_volume"];
+            string volRaw = volObj == DBNull.Value ? null : volObj.ToString();
+            string volDisplay = string.IsNullOrEmpty(volRaw) ? "(no volume recorded)" : volRaw;
+
+            LoadBooks();
+            OpenBook(volRaw, volDisplay);
+            OpenSelected(id, view: true);
         }
 
         // ---- UI: shell ---------------------------------------------------------
@@ -115,8 +149,73 @@ namespace CROMS.Forms
             var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 0, 24, 20) };
             root.Controls.Add(body, 0, 1);
 
+            BuildBooksCard(body);
             BuildListCard(body);
             BuildEntryCard(body);
+        }
+
+        // ---- UI: books gallery (top level) ---------------------------------------
+
+        private void BuildBooksCard(Panel host)
+        {
+            cardBooks = new CardPanel { Dock = DockStyle.Fill, Radius = 12 };
+            host.Controls.Add(cardBooks);
+
+            var pad = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18) };
+            cardBooks.Controls.Add(pad);
+
+            _gallery = new RegistryBookGallery("marriages", "Marriage");
+            _gallery.BookOpened += b => OpenBook(b.VolRaw, b.VolDisplay);
+            _gallery.DigitizeRequested += () => StartDigitizeWizard();
+            pad.Controls.Add(_gallery);
+        }
+
+        private void LoadBooks()
+        {
+            _gallery.Reload();
+            ShowBooksGallery();
+        }
+
+        /// <summary>
+        /// Step 3 — "+ Digitize Old Record" on the Registry Books gallery. Offers Scan/Upload
+        /// with OCR (Step 4, reuses Intelligent Document Processing, which writes straight
+        /// into `marriages` tagged OCR-Backlog in legacy digitization mode and asks before
+        /// creating a brand-new registry book) or Manual Entry (Step 5, the blank entry form
+        /// already on this screen). Neither path is a Marriage Registration.
+        /// </summary>
+        private void StartDigitizeWizard()
+        {
+            using (var dlg = new DigitizeChoiceForm("Marriage"))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                if (dlg.UseOcr)
+                {
+                    OcrDigitizationForm.RunLegacyDigitization(this, DocKind.Marriage);
+                    LoadBooks();
+                }
+                else
+                {
+                    _bookVolRaw = null;
+                    _bookVolDisplay = null;
+                    _bookIsNullGroup = true;
+                    ClearForm();
+                    SetMode(view: false);
+                    lblEntryTitle.Text = "New old marriage record";
+                    lblEntrySub.Text = "Not yet saved — type the Registry Number, Book/Volume and " +
+                                        "Page from the ledger on the Registration tab";
+                    ShowEntryView();
+                }
+            }
+        }
+
+        private void OpenBook(string volRaw, string volDisplay)
+        {
+            _bookVolRaw = volRaw;
+            _bookVolDisplay = volDisplay;
+            _bookIsNullGroup = volRaw == null;
+            txtSearch.Text = "";
+            ShowListView();
+            LoadGrid();
         }
 
         // ---- UI: list card ---------------------------------------------------------
@@ -136,12 +235,23 @@ namespace CROMS.Forms
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             layout.Controls.Add(toolbar, 0, 0);
 
-            var searchRow = new TableLayoutPanel { Dock = DockStyle.Left, AutoSize = true, ColumnCount = 2 };
+            var searchRow = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.TopDown };
+            btnBackToBooks = new Button { Text = "← Books", Width = 100 };
+            btnBackToBooks.Click += (s, e) => ShowBooksGallery();
+            lblListHeader = new Label
+            {
+                Text = "", Font = new Font("Segoe UI", 10.5F, FontStyle.Bold), ForeColor = UiTheme.Ink,
+                AutoSize = true, Margin = new Padding(0, 6, 0, 4)
+            };
+            var searchSub = new TableLayoutPanel { AutoSize = true, ColumnCount = 2 };
             var lblSearch = new Label { Text = "Search:", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 8, 0) };
             txtSearch = new TextBox { Width = 320 };
             txtSearch.TextChanged += (s, e) => LoadGrid();
-            searchRow.Controls.Add(lblSearch, 0, 0);
-            searchRow.Controls.Add(txtSearch, 1, 0);
+            searchSub.Controls.Add(lblSearch, 0, 0);
+            searchSub.Controls.Add(txtSearch, 1, 0);
+            searchRow.Controls.Add(btnBackToBooks);
+            searchRow.Controls.Add(lblListHeader);
+            searchRow.Controls.Add(searchSub);
             toolbar.Controls.Add(searchRow, 0, 0);
 
             var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
@@ -352,14 +462,24 @@ namespace CROMS.Forms
 
         // ---- view switching ---------------------------------------------------------
 
+        private void ShowBooksGallery()
+        {
+            cardList.Visible = false;
+            cardEntry.Visible = false;
+            cardBooks.Visible = true;
+        }
+
         private void ShowListView()
         {
+            cardBooks.Visible = false;
             cardEntry.Visible = false;
             cardList.Visible = true;
+            lblListHeader.Text = "Book " + (_bookVolDisplay ?? "(no volume recorded)");
         }
 
         private void ShowEntryView()
         {
+            cardBooks.Visible = false;
             cardList.Visible = false;
             cardEntry.Visible = true;
         }
@@ -367,6 +487,7 @@ namespace CROMS.Forms
         private void OpenNew()
         {
             ClearForm();
+            if (!_bookIsNullGroup && !string.IsNullOrEmpty(_bookVolRaw)) txtBookVol.Text = _bookVolRaw;
             SetMode(view: false);
             lblEntryTitle.Text = "New old marriage record";
             lblEntrySub.Text = "Not yet saved";
@@ -377,7 +498,12 @@ namespace CROMS.Forms
         {
             long? id = SelectedId();
             if (id == null) return;
-            LoadRecord(id.Value);
+            OpenSelected(id.Value, view);
+        }
+
+        private void OpenSelected(long id, bool view)
+        {
+            LoadRecord(id);
             SetMode(view);
             ShowEntryView();
         }
@@ -409,21 +535,23 @@ namespace CROMS.Forms
                 "SELECT id, registry_no AS 'Registry No.', " +
                 "TRIM(CONCAT(husband_last_name,', ',husband_first_name)) AS Husband, " +
                 "TRIM(CONCAT(wife_last_name,', ',wife_first_name)) AS Wife, " +
-                "date_of_marriage AS 'Date of Marriage', book_volume AS 'Book/Vol', status AS Status " +
+                "date_of_marriage AS 'Date of Marriage', book_page AS 'Page', status AS Status " +
                 "FROM marriages WHERE record_source = 'OCR-Backlog'";
-            MySqlParameter[] ps;
+            var ps = new List<MySqlParameter>();
+            sql += _bookIsNullGroup ? " AND book_volume IS NULL" : " AND book_volume = @vol";
+            if (!_bookIsNullGroup) ps.Add(new MySqlParameter("@vol", _bookVolRaw));
             if (term.Length > 0)
             {
                 sql += " AND (registry_no LIKE @t OR husband_first_name LIKE @t OR husband_last_name LIKE @t " +
                        "OR wife_first_name LIKE @t OR wife_last_name LIKE @t)";
-                ps = new[] { new MySqlParameter("@t", "%" + term + "%") };
+                ps.Add(new MySqlParameter("@t", "%" + term + "%"));
             }
-            else ps = new MySqlParameter[0];
-            sql += " ORDER BY id DESC";
+            sql += " ORDER BY book_page, id DESC";
 
-            DataTable dt = ps.Length > 0 ? Db.Pull(sql, ps) : Db.Pull(sql);
+            DataTable dt = ps.Count > 0 ? Db.Pull(sql, ps.ToArray()) : Db.Pull(sql);
             dgv.DataSource = dt;
             if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
+            lblListHeader.Text = "Book " + (_bookVolDisplay ?? "(no volume recorded)") + "  ·  " + dt.Rows.Count + " record(s)";
             UpdateListButtons();
         }
 

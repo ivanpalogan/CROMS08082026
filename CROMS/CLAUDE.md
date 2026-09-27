@@ -1639,6 +1639,97 @@ this file's own established query pattern, and the dialog's three-way result mir
 `BookDecision` enum directly; rebuild in VS and confirm Commit prompts when a brand-new Book
 No./Year is typed, and proceeds silently when it matches an existing one.
 
+### 2026-09-28 (evening) — Civil Registry Record redesigned: Registry Books gallery + a
+### shared "+ Digitize Old Record" OCR/Manual chooser, for Birth, Marriage AND Death alike
+
+Per the office's full 11-step spec: Birth/Marriage/Death Record (under Civil Registry Record)
+now open on a Registry Books GALLERY — rectangular book cards, search, a year filter, a
+count summary, and the "+ Digitize Old Record" button — instead of a flat records table. This
+extends work already partly built: Birth already had a books level (just as a DataGridView,
+not cards); Marriage and Death had NONE at all and went straight to a flat list. All three now
+share the identical gallery via one new control rather than three near-copies.
+
+**New `Modules/RegistryBookGallery.cs`** — a reusable `Panel`: cards are `CardPanel`s (rounded,
+`HoverFade`-eased hover tint) showing the `NavIcons` book glyph, the book/year (`book_volume`,
+the same value `RegistryBooksForm` already groups by — this office's book_volume already IS
+the year, unchanged), and its record/page counts; search filters by text, year filter by a
+4-digit year found in `book_volume`; the count line states filtered-vs-total. Scoped per table
+to `record_source = 'OCR-Backlog'`, so a book here is always the digitization backlog, never
+the live registry. `BookOpened`/`DigitizeRequested` events keep it agnostic of which of the
+three tables it's pointed at — `new RegistryBookGallery("births"|"marriages"|"deaths", label)`.
+
+**Step 2 (opening a book)** — Marriage and Death gained the "← Books" / book header / per-book
+filtered list Birth already had: `LoadGrid()` now scopes to the open book (`book_volume = @vol`
+or `IS NULL`), an `OpenSelected(long, bool)` overload was added (both forms only had the
+`SelectedId()`-reading version before), and `OpenToRecord(long id)` was added to both (mirroring
+Birth's) so Step 11 can land on the exact book+record after a save — previously only Birth had
+this hand-off target. The "+ Digitize Old Record" button stays ONLY on the gallery, never
+inside an opened book, per the spec; each form's pre-existing in-book "+ New Record" (manual,
+pre-filled with the open book) was left as a secondary convenience.
+
+**New `Forms/DigitizeChoiceForm.cs`** — the Step 3 chooser: "Scan / Upload with OCR" vs
+"Manual Entry", titled per record type, states plainly this is not a new registration.
+
+**Step 4/OCR — reused Intelligent Document Processing, added NO second OCR engine.**
+`OcrDigitizationForm` gained `_legacyBacklogMode`/`_legacyExpectedKind` and a new public
+`RunLegacyDigitization(owner, DocKind)` launcher, opened standalone (not attached to any live
+registration form). In this mode: Auto-Fill is disabled and hidden outright (a digitized OLD
+record must never route into a live New Registration screen — the one hard rule in the spec);
+Commit/Draft become the transfer mechanism instead ("modify Auto-Fill's behavior for this
+mode," which the spec explicitly allows) — the review grid IS the field editor, and Commit
+writes exactly those values, with the scan retained as `scan_image`. A scan that reads as a
+different kind than the screen expects is flagged (Commit stays disabled) and explained in a
+one-time message box, without blocking a correctly-matching document.
+
+**Marriage could not previously commit to its own backlog at all** — outside this new mode, a
+Marriage OCR read only ever Auto-Filled into the live Form 97 dialog, with no backlog-commit
+path whatsoever. New `SaveMarriageLegacy(status)` writes straight into `marriages` tagged
+`OCR-Backlog`, using the SAME simplified free-text columns `OldMarriageRecordsForm` already
+manages (husband/wife name cells, not the live screen's FK-based citizenship/church lookups —
+a decades-old ledger entry naming a church never entered into that lookup table shouldn't force
+a lossy best-fit match, same reasoning `births.place_of_birth` already follows). `ReadyToSave`,
+`ApplyResultToUi`'s button gating, and `ConfirmRegistryBook`/`BookVolumeExists` (now built off
+`TableFor(_kind)` instead of a hardcoded `births`) were all generalized to include Marriage.
+
+**Step 7/9 — fixed a real fabrication in `SaveDeath` along the way.** `EnsureRegistryInfoFields`
+(the blank Registry Number/Book/Page fields, previously Birth-only) now also runs for Death
+always, and for Marriage in legacy mode. That exposed that `SaveDeath` was silently DERIVING
+`book_volume` from the parsed date of death instead of from anything the operator entered — the
+exact fabrication this project refused for Birth on 2026-09-28 earlier the same day, and which
+this same log already flagged as a known, unfixed gap for Death. Removed the derivation; Death
+now writes `book_volume`/`book_page` from the grid only, matching Birth and the spec's own
+"never generate a book/page for an old record — use the physical ledger" rule.
+
+**Step 11 — one generalized hand-off** (`OpenBacklogRecordResult`, replacing the Birth-only
+inline code in Commit/Draft): resolves the saved record's own workbench via two new
+`RecordsArchiveForm` methods, `OpenMarriageRecordWorkbench()`/`OpenDeathRecordWorkbench()`
+(mirroring the existing `OpenBirthRecordWorkbench()`), and calls that workbench's
+`OpenToRecord(id)` — landing on the record's own book, freshly reloaded so a brand-new book's
+card appears immediately, for all three kinds alike.
+
+**Schema: NONE.** Everything reused columns already on `births`/`marriages`/`deaths` from
+migrations 68/70/71 (`record_source`, `digitized_by`, `date_digitized`, `encoding_method`,
+`source_reference`, `book_volume`, `book_page`) and the marriages table's own existing
+husband/wife plain columns — no migration, no new table, per the spec's own instruction to use
+the current structure wherever possible.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors — only one PRE-EXISTING unrelated
+warning (`ArchiveCategory.CertKind` unused field). GUI not clicked (no interactive desktop) —
+the gallery/chooser wiring and the generalized Commit/Draft/ConfirmRegistryBook paths were
+reasoned from the exact existing, already-proven Birth code they extend; rebuild in VS and walk
+a Marriage and a Death scan through "+ Digitize Old Record" -> Scan/Upload with OCR -> Commit
+to confirm the backlog commit, the book-not-found prompt, and the book-gallery hand-off all
+work for both, not just Birth.
+
+NOT DONE, stated plainly: Steps 6/8's NUMBERED STEP WIZARD (StepStrip UI, "1. First/Second
+Spouse -> ... -> 6. Review and Save") exists only for Birth (built in an earlier pass the same
+day) — Marriage and Death still show the flat grid, grouped under the certificate's own printed
+section headings (the pre-existing convention), not a clickable step strip. Building the
+equivalent StepStrip for MF-97/MF-103 is the same shape of work Birth's already got, just not
+done here given the size of this pass; flagged as the natural next step. Edit/Delete on the
+backlog screens is unchanged from before this pass (already existed; the spec said not to ADD
+it, not to remove what was already there).
+
 ### 2026-09-28 (later) — Step 10, Save Both Image and Structured Data: the four fields the
 ### existing architecture didn't already carry on the record itself
 
