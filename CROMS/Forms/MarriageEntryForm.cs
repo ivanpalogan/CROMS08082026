@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -874,10 +874,10 @@ namespace CROMS.Forms
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false, MinimizeBox = false, ShowInTaskbar = false,
                 BackColor = Color.White,
-                ClientSize = new Size(560, 400),
+                ClientSize = new Size(560, 560),
             })
             {
-                var head = MUi.Txt("How do you want to fill in this Marriage Registration?", 12F, FontStyle.Bold, UiTheme.Ink);
+                var head = MUi.Txt("Start Marriage Registration (Form 97)", 12F, FontStyle.Bold, UiTheme.Ink);
                 head.AutoSize = false; head.Size = new Size(520, 26); head.Location = new Point(20, 18);
                 string link = _queueCode != null || _txnCode != null
                     ? "Queue " + (_queueCode ?? "-") + "   ·   Transaction " + (_txnCode ?? "not yet linked") + (_queueIntakeHint != null ? "   ·   " + _queueIntakeHint : "")
@@ -886,12 +886,47 @@ namespace CROMS.Forms
                 sub.AutoSize = false; sub.AutoEllipsis = true; sub.Size = new Size(520, 20); sub.Location = new Point(20, 48);
                 dlg.Controls.Add(head); dlg.Controls.Add(sub);
 
-                int y = 84;
+                // Step 1 - who handed the certificate in. Asked first because it is a fact about
+                // the visit, not about the paper; the same four choices as the Certification tab
+                // (Form 97 item "Submitted by"), which stays editable there afterwards.
+                var subCap = MUi.Txt("1.  Who is submitting this registration?", 10F, FontStyle.Bold, UiTheme.Ink);
+                subCap.AutoSize = false; subCap.Size = new Size(520, 22); subCap.Location = new Point(20, 80);
+                var wOfficer = new RadioButton { Text = "Solemnizing Officer", AutoSize = true, Location = new Point(22, 108), Checked = _rbSubOfficer.Checked };
+                var wHusband = new RadioButton { Text = "Husband", AutoSize = true, Location = new Point(180, 108), Checked = _rbSubHusband.Checked };
+                var wWife = new RadioButton { Text = "Wife", AutoSize = true, Location = new Point(272, 108), Checked = _rbSubWife.Checked };
+                var wRep = new RadioButton { Text = "Authorized Representative", AutoSize = true, Location = new Point(346, 108), Checked = _rbSubRep.Checked };
+                if (!wHusband.Checked && !wWife.Checked && !wRep.Checked) wOfficer.Checked = true;
+                var repNameCap = MUi.Txt("Representative's name", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                repNameCap.Location = new Point(22, 138);
+                var repName = new TextBox { Location = new Point(22, 156), Width = 250, Text = _repName.Text, CharacterCasing = CharacterCasing.Upper };
+                var repOrgCap = MUi.Txt("Office / Organization", 8.5F, FontStyle.Regular, UiTheme.Muted);
+                repOrgCap.Location = new Point(290, 138);
+                var repOrg = new TextBox { Location = new Point(290, 156), Width = 250, Text = _repOrg.Text };
+                Action repState = () => { repName.Enabled = repOrg.Enabled = repNameCap.Enabled = repOrgCap.Enabled = wRep.Checked; };
+                wRep.CheckedChanged += (s, e) => repState();
+                repState();
+                dlg.Controls.AddRange(new Control[] { subCap, wOfficer, wHusband, wWife, wRep, repNameCap, repName, repOrgCap, repOrg });
+
+                var howCap = MUi.Txt("2.  How do you want to fill it in?", 10F, FontStyle.Bold, UiTheme.Ink);
+                howCap.AutoSize = false; howCap.Size = new Size(520, 22); howCap.Location = new Point(20, 196);
+                dlg.Controls.Add(howCap);
+
+                int y = 224;
                 Action<string, string, string, MUi.Kind> option = (key, title, desc, kind) =>
                 {
                     var b = MUi.Btn(title, kind, 520);
                     b.Height = 44; b.Location = new Point(20, y);
-                    b.Click += (s, e) => { choice = key; dlg.DialogResult = DialogResult.OK; };
+                    b.Click += (s, e) =>
+                    {
+                        if (wRep.Checked && repName.Text.Trim().Length == 0)
+                        {
+                            MessageBox.Show(dlg, "Type the name of the authorized representative.", "Submitted by",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                            repName.Focus();
+                            return;
+                        }
+                        choice = key; dlg.DialogResult = DialogResult.OK;
+                    };
                     var d = MUi.Txt(desc, 9F, FontStyle.Regular, UiTheme.Muted);
                     d.AutoSize = false; d.Size = new Size(520, 36); d.Location = new Point(22, y + 48);
                     dlg.Controls.Add(b); dlg.Controls.Add(d);
@@ -908,6 +943,14 @@ namespace CROMS.Forms
                     MUi.Kind.Secondary);
                 UiTheme.Polish(dlg);
                 if (dlg.ShowDialog(this) != DialogResult.OK) return;
+
+                // Carry the answer into the form's own Submitted-by controls (Certification tab).
+                // Setting the checked radio fires ApplySubmittedBy, which shows/clears the
+                // representative fields, so the names are written after it.
+                (wHusband.Checked ? _rbSubHusband : wWife.Checked ? _rbSubWife : wRep.Checked ? _rbSubRep : _rbSubOfficer).Checked = true;
+                if (wRep.Checked) { _repName.Text = repName.Text.Trim(); _repOrg.Text = repOrg.Text.Trim(); }
+                _dirty = true;
+                RefreshAll();
             }
             if (choice == "mobile") StartCaptureFlow();
             else if (choice == "file") StartFileFlow();
@@ -1814,6 +1857,11 @@ namespace CROMS.Forms
             foreach (Control c in _rail.Controls.Cast<Control>().ToList()) if (c != _issues) c.Dispose();
             _rail.Controls.Clear();
             var items = new List<Control>();
+            items.Add(MUi.Cap("Submitted by"));
+            string subBy = _rbSubHusband.Checked ? "Husband" : _rbSubWife.Checked ? "Wife"
+                : _rbSubRep.Checked ? (_repName.Text.Trim().Length > 0 ? _repName.Text.Trim() + " (rep.)" : "Representative")
+                : "Solemnizing Officer";
+            items.Add(MUi.Kv("Filed by", subBy));
             items.Add(MUi.Cap(_rbEx.Checked ? "License exemption" : _oop.Checked ? "License (out of province)" : "License on file"));
             if (_rbEx.Checked)
                 items.Add(MUi.Kv("Basis", _exBasis.SelectedIndex >= 0 ? MarriageRules.ExemptionBases[_exBasis.SelectedIndex, 0].Replace("ART", "Art. ") : "not stated",
