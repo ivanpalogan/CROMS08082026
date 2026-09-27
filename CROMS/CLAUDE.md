@@ -1603,3 +1603,38 @@ NOT DONE: the kiosk's printed ticket / on-screen confirmation dialog do not ment
 photo at all (they never announced the typed number either, so nothing regressed); and the
 licence's own printed application (Form 90, MF-90) is unaffected — that form is filed at the
 issuing office when APPLYING for the licence, before this registration-side capture ever runs.
+
+### 2026-09-28 (later still) — Step 9, Find the Correct Registry Book: no silent book creation
+Per spec: once Book No./Year (Step 7's `BookVolume` field) is confirmed, locate its destination
+before Commit writes the record — and if no matching book exists, ask before creating one rather
+than making it silently.
+
+"Registry book" here is exactly what `RegistryBooksForm` already means by the term — one row per
+distinct `book_volume` value (2026-09-15), so "does the book exist" is answered by whether any
+`births` row already carries that same `book_volume`. No new table: a second book-catalog table
+would just be the same fact kept in two places with nothing to stop them disagreeing, the shape
+of bug this project keeps refusing (registry-number regexes, category/detail split, etc.).
+
+`OcrDigitizationForm.btnCommit_Click` (Birth only — Marriage/Death commit through different
+paths and don't carry this field) now calls new `ConfirmRegistryBook()` after the existing
+review-values confirmation and before `SaveBirth` runs. A blank Book No./Year (nothing copied
+off the ledger yet, Step 7's normal starting state) has nothing to check and passes through
+untouched — this only engages once a value has actually been entered. `BookVolumeExists(book)`
+queries `SELECT COUNT(*) FROM births WHERE book_volume=@v`; a query failure fails OPEN (treated
+as "exists") so a DB hiccup can never itself trigger a book-creation prompt.
+
+When the book is not found, a new small modal (`ShowRegistryBookNotFoundDialog`, code-built in
+the same file, `UiTheme.Polish`-ed to match the rest of the app) states the Book No./Year and
+offers exactly the three choices asked for: **Create Registry Book & Save Record** (proceeds to
+`SaveBirth` as normal — the book is created implicitly the moment this record is the first one
+saved under that `book_volume`, since there is no separate table to insert a book row into),
+**Change Book Information** (returns to the grid with focus placed on the BookVolume cell so the
+operator can correct it, and Commit is aborted — nothing is saved), or **Cancel** (aborts,
+nothing saved). Never auto-creates from unverified OCR text — the check runs against the
+grid's CONFIRMED value, the same one Step 7 already keeps separate from anything the engine read.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, temp OutDir. GUI not
+clicked (no interactive desktop) — the existence check is a plain parameterized `Db.Pull` matching
+this file's own established query pattern, and the dialog's three-way result mirrors the
+`BookDecision` enum directly; rebuild in VS and confirm Commit prompts when a brand-new Book
+No./Year is typed, and proceeds silently when it matches an existing one.

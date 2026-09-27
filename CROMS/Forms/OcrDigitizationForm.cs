@@ -1612,6 +1612,11 @@ namespace CROMS.Forms
             string registry = _kind == DocKind.Death ? "death" : "birth";
             if (!Confirm("commit to the " + registry + " registry")) return;
 
+            // STEP 9 — locate the registry book by the STAFF-VERIFIED Book No. + Year
+            // (EnsureRegistryInfoFields), never by unverified OCR text. A book that does not
+            // already exist is never created silently — the operator confirms it first.
+            if (_kind == DocKind.Birth && !ConfirmRegistryBook()) return;
+
             long id = _kind == DocKind.Death ? SaveDeath("Registered") : SaveBirth("Registered");
             _savedRecordId = id;
             WriteAudit(OcrAudit.Committed);
@@ -1667,6 +1672,125 @@ namespace CROMS.Forms
                 (string.IsNullOrEmpty(_result.ReviewReason) ? "" : " — " + _result.ReviewReason) +
                 ".\nIt stays in today's batch with everything the engine read.",
                 "Manual review", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// STEP 9 — find the correct registry book before the record is written.
+        /// "Registry book" here is the office's own <c>book_volume</c> (Registry Books groups
+        /// records by that column exactly the same way — 2026-09-15). If a book carrying that
+        /// value already exists, the record simply belongs there. If none does, this asks
+        /// before creating one — a book must never be invented from an unverified OCR read.
+        /// A blank Book No./Year (nothing copied off the ledger yet) has nothing to check and
+        /// is let through unchanged.
+        /// </summary>
+        private bool ConfirmRegistryBook()
+        {
+            string book = V("BookVolume");
+            if (string.IsNullOrWhiteSpace(book)) return true;
+            if (BookVolumeExists(book)) return true;
+
+            switch (ShowRegistryBookNotFoundDialog(book))
+            {
+                case BookDecision.Create:
+                    return true;
+                case BookDecision.Change:
+                    dgvFields.Select();
+                    foreach (DataGridViewRow gridRow in dgvFields.Rows)
+                    {
+                        if (gridRow.Tag is DocField f && f.Key == "BookVolume")
+                        {
+                            dgvFields.CurrentCell = gridRow.Cells[1];
+                            break;
+                        }
+                    }
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        private bool BookVolumeExists(string bookVolume)
+        {
+            try
+            {
+                DataTable dt = Db.Pull("SELECT COUNT(*) c FROM births WHERE book_volume = @v",
+                    new MySqlParameter("@v", bookVolume));
+                return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["c"]) > 0;
+            }
+            catch
+            {
+                // A lookup failure must never invent a missing book by itself — fail OPEN
+                // to "exists" so a DB hiccup asks nothing rather than risking a duplicate
+                // book prompt on top of a real one.
+                return true;
+            }
+        }
+
+        private enum BookDecision { Create, Change, Cancel }
+
+        private BookDecision ShowRegistryBookNotFoundDialog(string book)
+        {
+            using (var dlg = new Form())
+            {
+                dlg.Text = "Registry Book Not Found";
+                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.MaximizeBox = false;
+                dlg.MinimizeBox = false;
+                dlg.ShowInTaskbar = false;
+                dlg.ClientSize = new Size(440, 300);
+                dlg.BackColor = UiTheme.Surface;
+
+                var lblTitle = new Label
+                {
+                    Text = "Registry Book Not Found",
+                    Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                    ForeColor = UiTheme.Ink,
+                    AutoSize = true,
+                    Location = new Point(24, 20)
+                };
+                var lblBody = new Label
+                {
+                    Text = "Book No. / Year: " + book + "\n\n" +
+                           "No matching registry book exists.",
+                    Font = new Font("Segoe UI", 9.5F),
+                    ForeColor = UiTheme.Muted,
+                    AutoSize = true,
+                    Location = new Point(24, 60),
+                    MaximumSize = new Size(392, 0)
+                };
+
+                var btnCreate = new Button
+                {
+                    Text = "Create Registry Book && Save Record",
+                    Size = new Size(392, 40),
+                    Location = new Point(24, 150),
+                    DialogResult = DialogResult.OK
+                };
+                var btnChange = new Button
+                {
+                    Text = "Change Book Information",
+                    Size = new Size(392, 36),
+                    Location = new Point(24, 198),
+                    DialogResult = DialogResult.Retry
+                };
+                var btnCancel = new Button
+                {
+                    Text = "Cancel",
+                    Size = new Size(392, 32),
+                    Location = new Point(24, 242),
+                    DialogResult = DialogResult.Cancel
+                };
+
+                dlg.Controls.AddRange(new Control[] { lblTitle, lblBody, btnCreate, btnChange, btnCancel });
+                dlg.CancelButton = btnCancel;
+                UiTheme.Polish(dlg);
+
+                DialogResult r = dlg.ShowDialog(this);
+                return r == DialogResult.OK ? BookDecision.Create
+                     : r == DialogResult.Retry ? BookDecision.Change
+                     : BookDecision.Cancel;
+            }
         }
 
         private bool ReadyToSave()
