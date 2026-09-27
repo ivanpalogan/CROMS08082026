@@ -1628,13 +1628,20 @@ namespace CROMS.Forms
                 "Committed as an old record from OCR scan " + _scanId + " as " + FormLabel());
             LoadBatch();
             UpdateFormIdentity();
-            MessageBox.Show(
-                "Committed to the " + registry + " registry as " + FormLabel() + ".\n\n" +
-                "Find, edit, view or delete it from \"Old " +
-                (registry == "death" ? "Death" : "Birth") +
-                " Records (OCR)\" — this old record does not appear on the live " +
-                (registry == "death" ? "Death" : "Birth") + " Registration screen.",
-                "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            // Step 11 — result after saving: for a birth, land on the record's own
+            // registry book (creating its card in the gallery the moment this re-queries,
+            // if it's brand new) instead of leaving the operator to go find it by hand.
+            if (_kind == DocKind.Birth && Shell()?.GoToModule("oldbirth") is OldBirthRecordsForm obr)
+                obr.OpenToRecord(id);
+            else
+                MessageBox.Show(
+                    "Committed to the " + registry + " registry as " + FormLabel() + ".\n\n" +
+                    "Find, edit, view or delete it from \"Old " +
+                    (registry == "death" ? "Death" : "Birth") +
+                    " Records (OCR)\" — this old record does not appear on the live " +
+                    (registry == "death" ? "Death" : "Birth") + " Registration screen.",
+                    "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void btnDraft_Click(object sender, EventArgs e)
@@ -1651,10 +1658,14 @@ namespace CROMS.Forms
                 "Draft old record from OCR scan " + _scanId + " as " + FormLabel());
             LoadBatch();
             UpdateFormIdentity();
-            MessageBox.Show(
-                "Saved as a draft old record in the " + registry + " registry. Find it from \"Old " +
-                (registry == "death" ? "Death" : "Birth") + " Records (OCR)\".",
-                "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            if (_kind == DocKind.Birth && Shell()?.GoToModule("oldbirth") is OldBirthRecordsForm obr)
+                obr.OpenToRecord(id);
+            else
+                MessageBox.Show(
+                    "Saved as a draft old record in the " + registry + " registry. Find it from \"Old " +
+                    (registry == "death" ? "Death" : "Birth") + " Records (OCR)\".",
+                    "Document", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         /// <summary>

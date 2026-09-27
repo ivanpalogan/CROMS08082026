@@ -24,11 +24,28 @@ namespace CROMS.Forms
     /// </summary>
     public class OldBirthRecordsForm : Form, IRefreshable
     {
-        // ---- list view ----------------------------------------------------------
+        // ---- books gallery (top level) -------------------------------------------
+        // Hierarchy: Birth Records (this form) -> Registry Books -> Selected Book ->
+        // Individual Birth Records -> Record Details. The gallery groups the backlog
+        // by book_volume the same way RegistryBooksForm does (2026-09-15) so a book's
+        // record count and any brand-new book both just fall out of a live re-query —
+        // nothing here is tracked separately from what's already on the rows.
+        private CardPanel cardBooks;
+        private DataGridView dgvBooks;
+        private Label lblBooksHeader;
+        private Button btnBooksRefresh;
+
+        // ---- list view (records inside the opened book) --------------------------
         private CardPanel cardList;
         private DataGridView dgv;
         private TextBox txtSearch;
-        private Button btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
+        private Label lblListHeader;
+        private Button btnBackToBooks, btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
+
+        // which book is currently opened (null = the "(no volume recorded)" group)
+        private string _bookVolRaw;
+        private string _bookVolDisplay;
+        private bool _bookIsNullGroup;
 
         // ---- entry view ----------------------------------------------------------
         private CardPanel cardEntry;
@@ -59,14 +76,35 @@ namespace CROMS.Forms
         {
             Text = "Old Birth Records (OCR)";
             BuildUi();
-            LoadGrid();
-            ShowListView();
+            LoadBooks();
         }
 
         public void RefreshData()
         {
-            LoadGrid();
-            if (!cardEntry.Visible) ShowListView();
+            if (cardEntry.Visible) return; // don't yank focus off an open record
+            if (cardList.Visible) LoadGrid();
+            else LoadBooks();
+        }
+
+        /// <summary>
+        /// Cross-module hand-off: after a Birth Record Digitization commit/draft/update,
+        /// land here on the record's own book (creating the book's card the moment this
+        /// re-queries, if it's brand new) with the record itself opened — Step 11's
+        /// "Result After Saving".
+        /// </summary>
+        public void OpenToRecord(long id)
+        {
+            DataTable dt = Db.Pull(
+                "SELECT book_volume FROM births WHERE id = @id AND record_source = 'OCR-Backlog'",
+                new MySqlParameter("@id", id));
+            if (dt.Rows.Count == 0) return;
+            object volObj = dt.Rows[0]["book_volume"];
+            string volRaw = volObj == DBNull.Value ? null : volObj.ToString();
+            string volDisplay = string.IsNullOrEmpty(volRaw) ? "(no volume recorded)" : volRaw;
+
+            LoadBooks();
+            OpenBook(volRaw, volDisplay);
+            OpenSelected(id, view: true);
         }
 
         // ---- UI: shell ---------------------------------------------------------
@@ -107,8 +145,100 @@ namespace CROMS.Forms
             var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 0, 24, 20) };
             root.Controls.Add(body, 0, 1);
 
+            BuildBooksCard(body);
             BuildListCard(body);
             BuildEntryCard(body);
+        }
+
+        // ---- UI: books gallery (top level) ---------------------------------------
+
+        private void BuildBooksCard(Panel host)
+        {
+            cardBooks = new CardPanel { Dock = DockStyle.Fill, Radius = 12 };
+            host.Controls.Add(cardBooks);
+
+            var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(18) };
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            cardBooks.Controls.Add(layout);
+
+            var toolbar = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+            layout.Controls.Add(toolbar, 0, 0);
+
+            lblBooksHeader = new Label
+            {
+                Text = "BOOKS ON FILE",
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 6, 0, 0)
+            };
+            toolbar.Controls.Add(lblBooksHeader, 0, 0);
+
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
+            btnBooksRefresh = new Button { Text = "Refresh", Width = 90 };
+            btnBooksRefresh.Click += (s, e) => LoadBooks();
+            actions.Controls.Add(btnBooksRefresh);
+            toolbar.Controls.Add(actions, 1, 0);
+
+            dgvBooks = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            };
+            dgvBooks.CellClick += (s, e) => { if (e.RowIndex >= 0) OpenBookFromRow(e.RowIndex); };
+            dgvBooks.CellDoubleClick += (s, e) => { if (e.RowIndex >= 0) OpenBookFromRow(e.RowIndex); };
+            layout.Controls.Add(dgvBooks, 0, 1);
+        }
+
+        private void LoadBooks()
+        {
+            const string sql =
+                "SELECT COALESCE(book_volume,'(no volume recorded)') AS 'Book / Year', " +
+                "COUNT(*) AS 'Records', " +
+                "COUNT(DISTINCT CASE WHEN book_page IS NOT NULL AND book_page<>'' THEN book_page END) AS 'Pages', " +
+                "book_volume AS VolRaw " +
+                "FROM births WHERE record_source = 'OCR-Backlog' " +
+                "GROUP BY book_volume ORDER BY book_volume DESC";
+            try
+            {
+                DataTable dt = Db.Pull(sql);
+                dgvBooks.DataSource = dt;
+                if (dgvBooks.Columns.Contains("VolRaw")) dgvBooks.Columns["VolRaw"].Visible = false;
+                lblBooksHeader.Text = "BOOKS ON FILE  (" + dt.Rows.Count + ")";
+            }
+            catch (Exception ex)
+            {
+                lblBooksHeader.Text = "Could not load books: " + ex.Message;
+            }
+            ShowBooksGallery();
+        }
+
+        private void OpenBookFromRow(int rowIndex)
+        {
+            var row = dgvBooks.Rows[rowIndex];
+            object volRawObj = row.Cells["VolRaw"].Value;
+            string volRaw = volRawObj == null || volRawObj == DBNull.Value ? null : volRawObj.ToString();
+            string volDisplay = row.Cells["Book / Year"].Value?.ToString();
+            OpenBook(volRaw, volDisplay);
+        }
+
+        private void OpenBook(string volRaw, string volDisplay)
+        {
+            _bookVolRaw = volRaw;
+            _bookVolDisplay = volDisplay;
+            _bookIsNullGroup = volRaw == null;
+            txtSearch.Text = "";
+            ShowListView();
+            LoadGrid();
         }
 
         // ---- UI: list card ---------------------------------------------------------
@@ -128,12 +258,26 @@ namespace CROMS.Forms
             toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             layout.Controls.Add(toolbar, 0, 0);
 
-            var searchRow = new TableLayoutPanel { Dock = DockStyle.Left, AutoSize = true, ColumnCount = 2 };
+            var searchRow = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.TopDown };
+            btnBackToBooks = new Button { Text = "← Books", Width = 100 };
+            btnBackToBooks.Click += (s, e) => ShowBooksGallery();
+            lblListHeader = new Label
+            {
+                Text = "",
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                AutoSize = true,
+                Margin = new Padding(0, 6, 0, 4)
+            };
+            var searchSub = new TableLayoutPanel { AutoSize = true, ColumnCount = 2 };
             var lblSearch = new Label { Text = "Search:", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 8, 0) };
             txtSearch = new TextBox { Width = 320 };
             txtSearch.TextChanged += (s, e) => LoadGrid();
-            searchRow.Controls.Add(lblSearch, 0, 0);
-            searchRow.Controls.Add(txtSearch, 1, 0);
+            searchSub.Controls.Add(lblSearch, 0, 0);
+            searchSub.Controls.Add(txtSearch, 1, 0);
+            searchRow.Controls.Add(btnBackToBooks);
+            searchRow.Controls.Add(lblListHeader);
+            searchRow.Controls.Add(searchSub);
             toolbar.Controls.Add(searchRow, 0, 0);
 
             var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
@@ -349,14 +493,24 @@ namespace CROMS.Forms
 
         // ---- view switching ---------------------------------------------------------
 
+        private void ShowBooksGallery()
+        {
+            cardList.Visible = false;
+            cardEntry.Visible = false;
+            cardBooks.Visible = true;
+        }
+
         private void ShowListView()
         {
+            cardBooks.Visible = false;
             cardEntry.Visible = false;
             cardList.Visible = true;
+            lblListHeader.Text = "Book " + (_bookVolDisplay ?? "(no volume recorded)");
         }
 
         private void ShowEntryView()
         {
+            cardBooks.Visible = false;
             cardList.Visible = false;
             cardEntry.Visible = true;
         }
@@ -364,6 +518,9 @@ namespace CROMS.Forms
         private void OpenNew()
         {
             ClearForm();
+            // pre-fill with the book this record is being added under, unless the
+            // opened group is the "no volume recorded" bucket — nothing to prefill there.
+            if (!_bookIsNullGroup && !string.IsNullOrEmpty(_bookVolRaw)) txtBookVol.Text = _bookVolRaw;
             SetMode(view: false);
             lblEntryTitle.Text = "New old birth record";
             lblEntrySub.Text = "Not yet saved";
@@ -374,7 +531,12 @@ namespace CROMS.Forms
         {
             long? id = SelectedId();
             if (id == null) return;
-            LoadRecord(id.Value);
+            OpenSelected(id.Value, view);
+        }
+
+        private void OpenSelected(long id, bool view)
+        {
+            LoadRecord(id);
             SetMode(view);
             ShowEntryView();
         }
@@ -405,20 +567,22 @@ namespace CROMS.Forms
             string sql =
                 "SELECT id, registry_no AS 'Registry No.', " +
                 "CONCAT_WS(' ', first_name, middle_name, last_name) AS 'Child Name', " +
-                "sex AS Sex, date_of_birth AS 'Date of Birth', book_volume AS 'Book/Vol', status AS Status " +
+                "sex AS Sex, date_of_birth AS 'Date of Birth', book_page AS 'Page', status AS Status " +
                 "FROM births WHERE record_source = 'OCR-Backlog'";
-            MySqlParameter[] ps;
+            var ps = new List<MySqlParameter>();
+            sql += _bookIsNullGroup ? " AND book_volume IS NULL" : " AND book_volume = @vol";
+            if (!_bookIsNullGroup) ps.Add(new MySqlParameter("@vol", _bookVolRaw));
             if (term.Length > 0)
             {
                 sql += " AND (registry_no LIKE @t OR first_name LIKE @t OR middle_name LIKE @t OR last_name LIKE @t)";
-                ps = new[] { new MySqlParameter("@t", "%" + term + "%") };
+                ps.Add(new MySqlParameter("@t", "%" + term + "%"));
             }
-            else ps = new MySqlParameter[0];
-            sql += " ORDER BY id DESC";
+            sql += " ORDER BY book_page, id DESC";
 
-            DataTable dt = ps.Length > 0 ? Db.Pull(sql, ps) : Db.Pull(sql);
+            DataTable dt = ps.Count > 0 ? Db.Pull(sql, ps.ToArray()) : Db.Pull(sql);
             dgv.DataSource = dt;
             if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
+            lblListHeader.Text = "Book " + (_bookVolDisplay ?? "(no volume recorded)") + "  ·  " + dt.Rows.Count + " record(s)";
             UpdateListButtons();
         }
 
@@ -552,9 +716,9 @@ namespace CROMS.Forms
                     ps.ToArray());
                 Audit.Write(Audit.Create, "births", id, "Old birth record added by hand (OCR-Backlog)");
                 MessageBox.Show("Old birth record saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                LoadGrid();
-                LoadRecord(id);
-                SetMode(view: true);
+                // Step 11 — result after saving: back to Birth Records (the books gallery),
+                // reloaded so the record's book (new or existing) shows its updated count.
+                LoadBooks();
             }
             else
             {
@@ -571,9 +735,9 @@ namespace CROMS.Forms
                     ps.ToArray());
                 Audit.Write(Audit.Update, "births", _editingId.Value, "Old birth record updated (OCR-Backlog)");
                 MessageBox.Show("Old birth record updated.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                LoadGrid();
-                LoadRecord(_editingId.Value);
-                SetMode(view: true);
+                // Step 11 — same result-after-saving path: the edit may have moved the
+                // record to a different book, so land back on the gallery, not the old list.
+                LoadBooks();
             }
         }
 
