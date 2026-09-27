@@ -2171,24 +2171,8 @@ namespace CROMS.Forms
                 return;
             }
 
-            Bitmap loaded;
-            try { loaded = DocumentAI.LoadImageBytes(bytes); }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Could not open the phone scan: " + ex.Message, "Document",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            if (!ShowScanImage(bytes, "SCANNED DOCUMENT — " + (dr["source_book"] as string ?? "Phone scan")))
                 return;
-            }
-
-            _image?.Dispose();
-            _image = loaded;
-            _scanBytes = bytes;
-            _licenseBytes = null;
-            _zoom = 1f;
-            pbScan.SizeMode = PictureBoxSizeMode.Zoom;
-            pbScan.Size = pnlScanHost.ClientSize;
-            pbScan.Image = _image;
-            grpScan.Text = "SCANNED DOCUMENT — " + (dr["source_book"] as string ?? "Phone scan");
 
             // Keep the SAME upload id rather than clearing it — LogBatch (inside Analyze,
             // below) sees a non-null _scanId and UPDATEs this exact row in place instead of
@@ -2209,8 +2193,47 @@ namespace CROMS.Forms
         }
 
         /// <summary>
+        /// Loads a scan's bytes into the SCANNED DOCUMENT frame (decode + display only —
+        /// does not touch _scanId/_result, so it's safe to call for a record that's already
+        /// been committed and must not be re-analyzed). Returns false (and shows why) when
+        /// there is nothing to show.
+        /// </summary>
+        private bool ShowScanImage(byte[] bytes, string caption)
+        {
+            if (bytes == null || bytes.Length == 0)
+            {
+                MessageBox.Show("This scan has no image attached.", "Document",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            Bitmap loaded;
+            try { loaded = DocumentAI.LoadImageBytes(bytes); }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not open the scan: " + ex.Message, "Document",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+
+            _image?.Dispose();
+            _image = loaded;
+            _scanBytes = bytes;
+            _licenseBytes = null;
+            _zoom = 1f;
+            pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+            pbScan.Size = pnlScanHost.ClientSize;
+            pbScan.Image = _image;
+            grpScan.Text = caption;
+            return true;
+        }
+
+        /// <summary>
         /// The "view" action for a processed row — what it was, what it became, and the
         /// registry number it carries (or a plain statement that none was read/assigned).
+        /// Also pulls the saved softcopy off the record itself (births/deaths/marriages
+        /// all keep a scan_image column) and puts it back on screen, so clicking a
+        /// processed row shows the document again, not just a text summary.
         /// A shortcut to the record itself when this PC has that module open.
         /// </summary>
         private void ViewProcessed(DataRow dr)
@@ -2230,6 +2253,18 @@ namespace CROMS.Forms
 
             string moduleKey = table == "births" ? "birth" : table == "deaths" ? "death"
                               : table == "marriages" ? "marriage" : null;
+
+            if (moduleKey != null && recIdObj != DBNull.Value)
+            {
+                // table is one of the three literals above, never user input — safe to
+                // interpolate directly.
+                var scan = Db.Pull(
+                    "SELECT scan_image FROM " + table + " WHERE id = @id",
+                    new MySqlParameter("@id", recIdObj));
+                byte[] scanBytes = scan.Rows.Count > 0 ? scan.Rows[0]["scan_image"] as byte[] : null;
+                ShowScanImage(scanBytes, "SCANNED DOCUMENT — " + table + " #" + recIdObj +
+                    (string.IsNullOrWhiteSpace(reg) ? "" : " (" + reg + ")"));
+            }
 
             if (moduleKey != null && recIdObj != DBNull.Value
                 && MessageBox.Show(detail + "\n\nOpen this record now?", "Processed document",
