@@ -234,14 +234,17 @@ namespace CROMS.Data
         }
 
         /// <summary>
-        /// The mobile page's URL - hosted by the save-API (port 3000), the same server the
-        /// phone already reaches for /api/scans and the claimapp ID upload.
+        /// The mobile page's URL - hosted by the save-API's HTTPS listener (port 3443,
+        /// same process/app as the plain-HTTP :3000 API). HTTPS is required here because
+        /// this page's Live Camera (getUserMedia) is refused by browsers outside a secure
+        /// context - :3000 stays plain HTTP for the ng-serve dev-proxy and the desktop
+        /// dashboard, which don't need the camera.
         /// </summary>
         public static string BuildMobileUrl(string token)
         {
             string ip = IonicServerManager.DetectLanIp();
             if (string.IsNullOrEmpty(ip)) ip = "127.0.0.1";
-            return "http://" + ip + ":3000/form97-capture.html?token=" + token;
+            return "https://" + ip + ":3443/form97-capture.html?token=" + token;
         }
     }
 }

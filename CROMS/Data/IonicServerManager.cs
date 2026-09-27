@@ -426,7 +426,7 @@ namespace CROMS.Data
         /// cert script through Git's bundled bash. Best-effort: if bash/openssl aren't on
         /// this PC, the server just keeps whatever cert it already had — same as before
         /// this method existed, no regression, only a missed opportunity to self-heal.</summary>
-        private void EnsureCertCoversIp(string ip)
+        internal void EnsureCertCoversIp(string ip)
         {
             try
             {

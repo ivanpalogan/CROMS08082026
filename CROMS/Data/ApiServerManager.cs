@@ -42,6 +42,19 @@ namespace CROMS.Data
                 _logFile = Path.Combine(Path.GetTempPath(), "croms-save-api.log");
                 try { File.WriteAllText(_logFile, "CROMS save-API — " + DateTime.Now + Environment.NewLine); } catch { }
 
+                // The save-API also listens on HTTPS :3443 (for the Live Camera mobile-capture
+                // page, which getUserMedia refuses outside a secure context — see
+                // Form97Capture.BuildMobileUrl). Reuses the SAME dev cert the Ionic apps use
+                // (ssl/dev-cert.pem, one folder up from this server), regenerating it first if
+                // it does not yet cover this PC's current LAN IP — same self-heal-on-IP-change
+                // logic IonicServerManager already runs for its own HTTPS instance (ClaimApp).
+                try
+                {
+                    string ip = IonicServerManager.DetectLanIp();
+                    if (!string.IsNullOrEmpty(ip)) IonicServerManager.Instance.EnsureCertCoversIp(ip);
+                }
+                catch { /* best-effort — the API falls back to plain HTTP on :3000 either way */ }
+
                 var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
