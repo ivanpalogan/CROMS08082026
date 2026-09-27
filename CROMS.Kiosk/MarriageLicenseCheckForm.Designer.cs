@@ -9,12 +9,9 @@ namespace CROMS.Kiosk
         private Panel _card;
         private Button _back, _next;
         private Button _btnNo, _btnYes;
-        private readonly Label _photoCaption = new Label();
-        private readonly PictureBox _picLicense = new PictureBox();
-        private readonly Label _lblCamStatus = new Label();
-        private Button _btnCapture;
+        private readonly Label _lblHandOver = new Label();
 
-        private const int CardW = 760, CardH = 860;
+        private const int CardW = 760, CardH = 560;
         private const int Pad = 44, FieldW = 672;
 
         private void InitializeComponent()
@@ -60,39 +57,14 @@ namespace CROMS.Kiosk
             _card.Controls.Add(_btnYes);
             y += 100;
 
-            _photoCaption.Text = "Take a photo of your Marriage License *";
-            _photoCaption.Location = new Point(Pad, y);
-            _photoCaption.Size = new Size(FieldW, 22);
-            _photoCaption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-            _photoCaption.ForeColor = KioskCore.Ink;
-            _photoCaption.Visible = false;
-            _card.Controls.Add(_photoCaption);
-            y += 26;
-
-            _picLicense.Location = new Point(Pad, y);
-            _picLicense.Size = new Size(FieldW, 260);
-            _picLicense.SizeMode = PictureBoxSizeMode.Zoom;
-            _picLicense.BackColor = Color.FromArgb(30, 34, 40);
-            _picLicense.Visible = false;
-            _card.Controls.Add(_picLicense);
-            y += 272;
-
-            _lblCamStatus.Text = "";
-            _lblCamStatus.Location = new Point(Pad, y);
-            _lblCamStatus.Size = new Size(FieldW, 20);
-            _lblCamStatus.Font = new Font("Segoe UI", 9F);
-            _lblCamStatus.ForeColor = KioskCore.Muted;
-            _lblCamStatus.TextAlign = ContentAlignment.MiddleCenter;
-            _lblCamStatus.Visible = false;
-            _card.Controls.Add(_lblCamStatus);
-            y += 30;
-
-            _btnCapture = ActionButton("📷 Capture Photo", KioskCore.Accent, Color.White);
-            _btnCapture.Size = new Size(280, 48);
-            _btnCapture.Location = new Point(Pad + (FieldW - 280) / 2, y);
-            _btnCapture.Click += new EventHandler(Capture_Click);
-            _btnCapture.Visible = false;
-            _card.Controls.Add(_btnCapture);
+            _lblHandOver.Text = "Please bring your Marriage License and Certificate of Marriage to the window. " +
+                "The staff will take pictures of them for you.";
+            _lblHandOver.Location = new Point(Pad, y);
+            _lblHandOver.Size = new Size(FieldW, 60);
+            _lblHandOver.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+            _lblHandOver.ForeColor = KioskCore.Accent;
+            _lblHandOver.Visible = false;
+            _card.Controls.Add(_lblHandOver);
 
             _back = ActionButton("Back", KioskCore.Line, KioskCore.Ink);
             _back.Location = new Point(Pad, CardH - 86);

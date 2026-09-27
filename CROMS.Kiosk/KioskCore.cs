@@ -423,10 +423,9 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@contact", contact),
                 ImageParam(s.Photo),
                 ImageParam(s.HasMarriageApp ? s.Photo2 : null, "@simg"),
-                // Photo of the physical Marriage License (kiosk gate, MarriageLicenseCheckForm) —
-                // travels with the ticket exactly like the id/spouse photos above until the desk
-                // reads it (see MarriageEntryForm.PrepareForQueueTicket).
-                ImageParam(s.MarriageLicenseImage, "@limg"),
+                // The kiosk no longer photographs the Marriage License - staff capture it with
+                // Mobile Capture at the window. The column stays for tickets issued before.
+                ImageParam(null, "@limg"),
                 new MySqlParameter("@idtype", NullIfBlank(s.IdType)),
                 new MySqlParameter("@num", num),
                 new MySqlParameter("@date", DateTime.Today),
@@ -436,7 +435,7 @@ namespace CROMS.Kiosk
                 // grid, the Now Serving card). The full structured request is in ctc_requests.
                 new MySqlParameter("@purpose", NullIfBlank(
                     s.HasCtc ? CtcSummary(s)
-                    : s.MarriageLicenseImage != null ? "Marriage License photo attached"
+                    : s.HasMarriageLicense ? "Has Marriage License - hand it to staff"
                     : null)),
                 new MySqlParameter("@label", joined),
                 new MySqlParameter("@priority", priority));
