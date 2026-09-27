@@ -3,6 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Modules;
@@ -75,6 +79,24 @@ namespace CROMS.Forms
         private DataGridView _dgvPending;
         private Button _btnApprovePending;
         private bool _pendingInitialized;
+        private TableLayoutPanel _recordsSplit;   // the side-by-side records+pending layout built there
+
+        // Registry Books gallery — the default list-view screen (a "shelf" of the office's
+        // physical registry books, one card per book_volume). Opening a book swaps this
+        // panel out for _recordsSplit (the flat record list, filtered to that book) - see
+        // InitializeBooksGallery / ShowBooksGallery / OpenBook.
+        private bool _galleryInitialized;
+        private TableLayoutPanel _galleryPanel;
+        private FlowLayoutPanel _galleryCards;
+        private TextBox _txtBookSearch;
+        private ComboBox _cboBookYear;
+        private Label _lblBookSummary;
+        private readonly List<BookInfo> _books = new List<BookInfo>();
+
+        /// <summary>The book currently drilled into (records list filtered by it), or null
+        /// at the gallery / when no book has been opened. See ApplySearchFilter.</summary>
+        private string _openBookVolume;
+        private bool _openBookIsNull;
 
         // Form-90-style wizard chrome: a numbered step strip above the tabs and an
         // "at a glance" summary rail beside them, built in code (like the rest of this
@@ -323,6 +345,7 @@ namespace CROMS.Forms
             InitializeAddAnotherBirthButton();
             InitializeWizardChrome();
             InitializePendingApproval();
+            InitializeBooksGallery();
             chkDelayed.CheckedChanged += (s, e) => RefreshRequirementsTab();
 
             // Auto-save: any typed change anywhere in the tabs marks the form dirty; a
@@ -376,9 +399,14 @@ namespace CROMS.Forms
             btnOCRLiveBirth.Visible = false;
             btnBackToList.Visible = false;
             chkDelayed.Visible = false;
+            lblTitle.Text = "Birth Records";
             lblSubtitle.Text = "Search recent registrations, or start a new one.";
 
             if (_entryDialog != null) _entryDialog.Close();
+
+            // Default screen is the Registry Books gallery, not the flat record table -
+            // see ShowBooksGallery.
+            ShowBooksGallery();
         }
 
         /// <summary>Prepares the full registration panel and opens it in its own popup window
@@ -391,6 +419,7 @@ namespace CROMS.Forms
             cardForm.Visible = true;
             cardRecords.Visible = false;
             chkDelayed.Visible = true;
+            lblTitle.Text = "Birth Registration";
             lblSubtitle.Text = "MUNICIPAL FORM 102  •  NEW & DELAYED REGISTRATION";
 
             // Syncs the step strip / at-a-glance rail to whatever tab and record are
@@ -1052,13 +1081,13 @@ namespace CROMS.Forms
             pendingRoot.Controls.Add(_dgvPending, 0, 1);
             pendingRoot.Controls.Add(_btnApprovePending, 0, 2);
 
-            var split = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
-            split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 68));
-            split.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
-            split.Controls.Add(layoutRecords, 0, 0);
-            split.Controls.Add(pendingRoot, 1, 0);
+            _recordsSplit = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0) };
+            _recordsSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 68));
+            _recordsSplit.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 32));
+            _recordsSplit.Controls.Add(layoutRecords, 0, 0);
+            _recordsSplit.Controls.Add(pendingRoot, 1, 0);
 
-            cardRecords.Controls.Add(split);
+            cardRecords.Controls.Add(_recordsSplit);
         }
 
         private void LoadPendingBirths()
@@ -1125,14 +1154,27 @@ namespace CROMS.Forms
             if (!(dgvBirths.DataSource is DataTable dt)) return;
 
             string q = EscapeFilterValue((txtSearch?.Text ?? "").Trim());
-            if (q.Length == 0) { dt.DefaultView.RowFilter = ""; return; }
-
             var parts = new List<string>();
-            foreach (string col in new[] { "Registry No", "Child", "Sex", "Status" })
-                if (dt.Columns.Contains(col))
-                    parts.Add("[" + col + "] LIKE '%" + q + "%'");
+            if (q.Length > 0)
+                foreach (string col in new[] { "Registry No", "Child", "Sex", "Status" })
+                    if (dt.Columns.Contains(col))
+                        parts.Add("[" + col + "] LIKE '%" + q + "%'");
+            string textPart = parts.Count == 0 ? "" : "(" + string.Join(" OR ", parts) + ")";
 
-            dt.DefaultView.RowFilter = parts.Count == 0 ? "" : string.Join(" OR ", parts);
+            // When a Registry Book has been opened (see OpenBook), the list is also
+            // restricted to that book's own records - the text search then narrows
+            // WITHIN the open book rather than across every birth on file.
+            string bookPart = "";
+            if (dt.Columns.Contains("Book"))
+            {
+                if (_openBookIsNull) bookPart = "[Book] IS NULL";
+                else if (_openBookVolume != null) bookPart = "[Book] = '" + _openBookVolume.Replace("'", "''") + "'";
+            }
+
+            dt.DefaultView.RowFilter =
+                bookPart.Length == 0 ? textPart :
+                textPart.Length == 0 ? bookPart :
+                bookPart + " AND " + textPart;
         }
 
         /// <summary>
@@ -2768,5 +2810,364 @@ namespace CROMS.Forms
         private static void Fail(Exception ex) =>
             MessageBox.Show("Operation failed: " + ex.Message, "Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+        // ================================================================
+        // Registry Books gallery — the default screen for Birth Records.
+        // One card per book_volume ("registry book"), File-Explorer style;
+        // opening a card drills into that book's own records (the flat list
+        // this screen used to show as its only view). See ShowListView,
+        // which shows this by default, and ApplySearchFilter, which narrows
+        // the flat list to whichever book is open.
+        // ================================================================
+
+        private const string NullBookKey = "\0__NO_VOLUME__";
+
+        private sealed class BookInfo
+        {
+            public string VolumeRaw;   // null = "(No Volume Recorded)"
+            public string Display;
+            public string Year;        // null = unknown
+            public int Count;
+        }
+
+        /// <summary>Builds the gallery UI once, as a sibling of _recordsSplit inside
+        /// cardRecords - the two are toggled by Visible (see ShowBooksGallery/OpenBook),
+        /// the same "two panels, one shown" convention this form already uses for
+        /// cardForm/cardRecords and for the pending-approval split.</summary>
+        private void InitializeBooksGallery()
+        {
+            if (_galleryInitialized) return;
+            _galleryInitialized = true;
+
+            var toolbar = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4,
+                RowCount = 1,
+                Margin = new Padding(0),
+                BackColor = UiTheme.Surface
+            };
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 240));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190));
+
+            var title = new Label
+            {
+                Text = "REGISTRY BOOKS",
+                Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
+                ForeColor = UiTheme.Muted,
+                BackColor = UiTheme.Surface,
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+
+            _txtBookSearch = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 6, 8, 6)
+            };
+            _txtBookSearch.TextChanged += (s, e) => ApplyBookFilter();
+
+            _cboBookYear = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 9F),
+                Margin = new Padding(0, 6, 8, 6)
+            };
+            _cboBookYear.SelectedIndexChanged += (s, e) => ApplyBookFilter();
+
+            var btnDigitize = new Button
+            {
+                Text = "+ Digitize Old Record",
+                Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat,
+                BackColor = UiTheme.Accent,
+                ForeColor = Color.White,
+                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                Margin = new Padding(0, 4, 0, 4)
+            };
+            btnDigitize.FlatAppearance.BorderSize = 0;
+            btnDigitize.Click += (s, e) => button1_Click(this, EventArgs.Empty);
+
+            toolbar.Controls.Add(title, 0, 0);
+            toolbar.Controls.Add(_txtBookSearch, 1, 0);
+            toolbar.Controls.Add(_cboBookYear, 2, 0);
+            toolbar.Controls.Add(btnDigitize, 3, 0);
+
+            _lblBookSummary = new Label
+            {
+                Dock = DockStyle.Fill,
+                Font = new Font("Segoe UI", 8.5F),
+                ForeColor = UiTheme.Muted,
+                BackColor = UiTheme.Surface,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin = new Padding(0)
+            };
+
+            _galleryCards = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = true,
+                FlowDirection = FlowDirection.LeftToRight,
+                BackColor = UiTheme.Surface,
+                Padding = new Padding(0, 10, 0, 0)
+            };
+
+            var scrollHost = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = UiTheme.Surface };
+            scrollHost.Controls.Add(_galleryCards);
+
+            _galleryPanel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Margin = new Padding(0),
+                Visible = false
+            };
+            _galleryPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+            _galleryPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+            _galleryPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            _galleryPanel.Controls.Add(toolbar, 0, 0);
+            _galleryPanel.Controls.Add(_lblBookSummary, 0, 1);
+            _galleryPanel.Controls.Add(scrollHost, 0, 2);
+
+            cardRecords.Controls.Add(_galleryPanel);
+        }
+
+        /// <summary>Shows the Registry Books gallery (the default screen) and hides the
+        /// flat record list. Called by ShowListView and by BackToGalleryFromBook.</summary>
+        private void ShowBooksGallery()
+        {
+            _openBookVolume = null;
+            _openBookIsNull = false;
+            lblRecent.Click -= LblRecent_BackClick;
+            lblRecent.Cursor = Cursors.Default;
+            lblRecent.Text = "RECENT BIRTH REGISTRATIONS";
+
+            if (_galleryPanel == null) return;
+            if (_recordsSplit != null) _recordsSplit.Visible = false;
+            _galleryPanel.Visible = true;
+            _galleryPanel.BringToFront();
+            LoadBooksGallery();
+        }
+
+        /// <summary>Reads every birth's book_volume + registry_no and groups them into one
+        /// row per registry book, computing each book's YEAR the same honest way the
+        /// registry-year column elsewhere in this app does: read off the record, never
+        /// guessed from an unrelated date. A book literally named after its year
+        /// ("2018") is trusted outright; otherwise the year is the one most of that
+        /// book's own registry numbers actually carry (their own "YYYY-..." prefix) - and
+        /// a book with neither is reported as Year: Unknown rather than invented.</summary>
+        private void LoadBooksGallery()
+        {
+            _books.Clear();
+            try
+            {
+                DataTable dt = Db.Pull("SELECT book_volume AS Vol, registry_no AS Reg FROM births");
+
+                var order = new List<string>();
+                var regsByKey = new Dictionary<string, List<string>>();
+                foreach (DataRow r in dt.Rows)
+                {
+                    string vol = r["Vol"] == DBNull.Value ? null : Convert.ToString(r["Vol"]);
+                    string key = vol ?? NullBookKey;
+                    if (!regsByKey.TryGetValue(key, out List<string> list))
+                    {
+                        list = new List<string>();
+                        regsByKey[key] = list;
+                        order.Add(key);
+                    }
+                    list.Add(r["Reg"] == DBNull.Value ? null : Convert.ToString(r["Reg"]));
+                }
+
+                var bareYear = new Regex(@"^(19|20)\d{2}$");
+                var regYearPrefix = new Regex(@"^((19|20)\d{2})[^0-9]");
+
+                foreach (string key in order)
+                {
+                    string vol = key == NullBookKey ? null : key;
+                    List<string> regs = regsByKey[key];
+
+                    string year = null;
+                    if (vol != null && bareYear.IsMatch(vol))
+                        year = vol;
+                    else
+                    {
+                        var counts = new Dictionary<string, int>();
+                        foreach (string reg in regs)
+                        {
+                            if (string.IsNullOrEmpty(reg)) continue;
+                            Match m = regYearPrefix.Match(reg);
+                            if (!m.Success) continue;
+                            string y = m.Groups[1].Value;
+                            counts[y] = counts.TryGetValue(y, out int c) ? c + 1 : 1;
+                        }
+                        if (counts.Count > 0) year = counts.OrderByDescending(kv => kv.Value).First().Key;
+                    }
+
+                    _books.Add(new BookInfo
+                    {
+                        VolumeRaw = vol,
+                        Display = vol ?? "(No Volume Recorded)",
+                        Year = year,
+                        Count = regs.Count
+                    });
+                }
+
+                // Most recent book first; "(No Volume Recorded)" always sinks to the end,
+                // since it is not really one book but everything nobody has filed yet.
+                _books.Sort((a, b) =>
+                {
+                    if (a.VolumeRaw == null && b.VolumeRaw == null) return 0;
+                    if (a.VolumeRaw == null) return 1;
+                    if (b.VolumeRaw == null) return -1;
+                    return string.CompareOrdinal(b.VolumeRaw, a.VolumeRaw);
+                });
+            }
+            catch (Exception ex)
+            {
+                _lblBookSummary.Text = "Could not load registry books: " + ex.Message;
+                return;
+            }
+
+            PopulateYearFilter();
+            ApplyBookFilter();
+        }
+
+        private void PopulateYearFilter()
+        {
+            string prevSelection = _cboBookYear.SelectedIndex > 0 ? _cboBookYear.SelectedItem as string : null;
+
+            _cboBookYear.Items.Clear();
+            _cboBookYear.Items.Add("All Years");
+            foreach (string y in _books.Where(b => b.Year != null).Select(b => b.Year)
+                                        .Distinct().OrderByDescending(y => y))
+                _cboBookYear.Items.Add(y);
+
+            int idx = prevSelection == null ? -1 : _cboBookYear.Items.IndexOf(prevSelection);
+            _cboBookYear.SelectedIndex = idx >= 0 ? idx : 0;
+        }
+
+        /// <summary>Re-renders the card grid from the already-loaded _books list against
+        /// the current search text + year filter - client-side, like every other search
+        /// box in this app, so typing never re-queries the database.</summary>
+        private void ApplyBookFilter()
+        {
+            if (_galleryCards == null) return;
+
+            string q = (_txtBookSearch?.Text ?? "").Trim();
+            string year = _cboBookYear != null && _cboBookYear.SelectedIndex > 0
+                ? _cboBookYear.SelectedItem as string : null;
+
+            _galleryCards.SuspendLayout();
+            _galleryCards.Controls.Clear();
+            int shown = 0;
+            int totalRecords = 0;
+            foreach (BookInfo b in _books)
+            {
+                totalRecords += b.Count;
+                if (year != null && b.Year != year) continue;
+                if (q.Length > 0 && b.Display.IndexOf(q, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                _galleryCards.Controls.Add(MakeBookCard(b));
+                shown++;
+            }
+            _galleryCards.ResumeLayout(true);
+
+            _lblBookSummary.Text = _books.Count == 0
+                ? "No registry books yet — digitize an old record, or register a new birth, to start one."
+                : shown + " of " + _books.Count + " book(s) shown  •  " + totalRecords + " record(s) digitized in total";
+        }
+
+        private Control MakeBookCard(BookInfo b)
+        {
+            var card = new BookCard(b.Display, b.Year, b.Count);
+            card.Click += (s, e) => OpenBook(b);
+            return card;
+        }
+
+        /// <summary>Drills into one registry book: filters the existing flat record list
+        /// (dgvBirths, via ApplySearchFilter) down to that book and shows it in place of
+        /// the gallery. lblRecent doubles as the "← back" breadcrumb while drilled in.</summary>
+        private void OpenBook(BookInfo b)
+        {
+            _openBookVolume = b.VolumeRaw;
+            _openBookIsNull = b.VolumeRaw == null;
+
+            lblRecent.Click -= LblRecent_BackClick;
+            lblRecent.Click += LblRecent_BackClick;
+            lblRecent.Cursor = Cursors.Hand;
+            lblRecent.Text = "← Registry Books   /   Book " + b.Display +
+                "  (" + b.Count + (b.Count == 1 ? " record)" : " records)");
+
+            if (_galleryPanel != null) _galleryPanel.Visible = false;
+            if (_recordsSplit != null) { _recordsSplit.Visible = true; _recordsSplit.BringToFront(); }
+
+            txtSearch.Text = "";
+            ApplySearchFilter();
+        }
+
+        private void LblRecent_BackClick(object sender, EventArgs e) => ShowBooksGallery();
+
+        /// <summary>
+        /// One registry-book tile - book icon, its number, the year it covers (or
+        /// "Unknown" when neither the book itself nor its records' registry numbers say),
+        /// and how many records are digitized in it. Rounded/shadowed like every other
+        /// card in the app (CardPanel); the icon and colours come off the shared theme
+        /// tokens rather than new literals.
+        /// </summary>
+        private sealed class BookCard : CardPanel
+        {
+            private readonly string _title;
+            private readonly string _yearLine;
+            private readonly string _countLine;
+            private readonly Action<Graphics, RectangleF, Color> _icon = NavIcons.For("books");
+
+            public BookCard(string display, string year, int count)
+            {
+                _title = "Registry Book " + display;
+                _yearLine = year == null ? "Year: Unknown" : "Year: " + year;
+                _countLine = count == 1 ? "1 Record" : count + " Records";
+
+                Size = new Size(216, 148);
+                Margin = new Padding(0, 0, 16, 16);
+                Cursor = Cursors.Hand;
+                Radius = 12;
+                BackColor = UiTheme.Surface;   // sits on the card panel's white face, not the page
+                CardColor = UiTheme.Surface;
+
+                HoverFade.Attach(this, 140, t =>
+                {
+                    CardColor = HoverFade.Lerp(UiTheme.Surface, UiTheme.AccentTint, t * 0.55f);
+                    LineColor = HoverFade.Lerp(UiTheme.CardLine, UiTheme.Accent, t);
+                    Invalidate();
+                });
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                base.OnPaint(e);
+                Graphics g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                _icon(g, new RectangleF(18, 16, 30, 30), UiTheme.Accent);
+
+                TextRenderer.DrawText(g, _title, new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                    new Rectangle(18, 56, Width - 36, 36), UiTheme.Ink,
+                    TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix);
+
+                TextRenderer.DrawText(g, _yearLine, new Font("Segoe UI", 8.75F),
+                    new Rectangle(18, 98, Width - 36, 18), UiTheme.Muted,
+                    TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+
+                TextRenderer.DrawText(g, _countLine, new Font("Segoe UI", 9F, FontStyle.Bold),
+                    new Rectangle(18, 118, Width - 36, 20), UiTheme.Accent,
+                    TextFormatFlags.Left | TextFormatFlags.NoPrefix);
+            }
+        }
     }
 }
