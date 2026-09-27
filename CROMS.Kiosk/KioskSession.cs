@@ -44,6 +44,13 @@ namespace CROMS.Kiosk
         // the client said No and was routed to Marriage Application instead.
         public bool HasMarriageLicense;
 
+        // Marriage Registration only - WHO is handing in the Certificate of Marriage: "Officer",
+        // "Husband", "Wife" or "Representative" (same values as marriages.submitted_by,
+        // migration 59). The person at the kiosk types their OWN name on the next screen, so
+        // the ticket's name is the submitter; a representative may also give their office.
+        public string SubmittedBy;
+        public string SubmittedByOrg;
+
         // Lazily-created claimapp QR — created for EVERY visit's "Upload Your ID" step, not
         // only a Release & Claim pickup (see KioskCore.EnsureClaimRequest).
         public string ClaimQrToken;
@@ -108,6 +115,7 @@ namespace CROMS.Kiosk
             ClaimTicketEntry = null;
             IdType = null;
             HasMarriageLicense = false;
+            SubmittedBy = SubmittedByOrg = null;
             First2 = Middle2 = Last2 = null;
             Photo2 = null;
             ClaimQrToken = null;

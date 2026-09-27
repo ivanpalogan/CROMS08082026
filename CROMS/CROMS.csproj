@@ -869,6 +869,7 @@
     <None Include="Database\64_marriage_final_document.sql" />
     <None Include="Database\65_marriage_license_photo.sql" />
     <None Include="Database\66_capture_doc_role.sql" />
+    <None Include="Database\67_kiosk_submitted_by.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />

@@ -821,6 +821,29 @@ namespace CROMS.Forms
                 }
                 if (dt.Columns.Contains("marriage_license_image") && r["marriage_license_image"] != DBNull.Value)
                     _kioskLicenseImage = (byte[])r["marriage_license_image"];
+
+                // Who submitted the certificate, as answered at the kiosk (migration 67). The
+                // person at the kiosk typed their own name, so for a representative that name
+                // IS the representative's. The start wizard opens pre-set to this answer.
+                try
+                {
+                    DataTable sb = Db.Pull("SELECT submitted_by, submitted_by_org FROM queue_tickets WHERE id=@id",
+                        new MySqlParameter("@id", ticketId));
+                    string by = sb.Rows.Count > 0 ? Str1(sb.Rows[0]["submitted_by"]) : null;
+                    if (!string.IsNullOrWhiteSpace(by))
+                    {
+                        bool wasLoading = _loading; _loading = true;
+                        (by == "Husband" ? _rbSubHusband : by == "Wife" ? _rbSubWife : by == "Representative" ? _rbSubRep : _rbSubOfficer).Checked = true;
+                        _loading = wasLoading;
+                        ApplySubmittedBy();
+                        if (by == "Representative")
+                        {
+                            _repName.Text = husband ?? "";
+                            _repOrg.Text = Str1(sb.Rows[0]["submitted_by_org"]) ?? "";
+                        }
+                    }
+                }
+                catch (MySqlException ex) when (ex.Number == 1054) { /* migration 67 not applied: staff pick it in the wizard */ }
             }
             _dirty = true;
             RefreshAll();

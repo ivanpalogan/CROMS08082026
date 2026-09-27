@@ -413,9 +413,9 @@ namespace CROMS.Kiosk
 
             long ticketId = Db.Insert(
                 "INSERT INTO queue_tickets (ticket_code, full_name, spouse_full_name, contact_no, " +
-                "id_image, spouse_image, marriage_license_image, valid_id_type, number_queue, " +
+                "id_image, spouse_image, marriage_license_image, submitted_by, submitted_by_org, valid_id_type, number_queue, " +
                 "date, time, status, document_type, purpose, type_label, priority) " +
-                "VALUES (@code, @name, @sname, @contact, @img, @simg, @limg, @idtype, @num, @date, @time, " +
+                "VALUES (@code, @name, @sname, @contact, @img, @simg, @limg, @subby, @suborg, @idtype, @num, @date, @time, " +
                 "'Waiting', @doc, @purpose, @label, @priority)",
                 new MySqlParameter("@code", code),
                 new MySqlParameter("@name", FullName(s)),
@@ -426,6 +426,11 @@ namespace CROMS.Kiosk
                 // The kiosk no longer photographs the Marriage License - staff capture it with
                 // Mobile Capture at the window. The column stays for tickets issued before.
                 ImageParam(null, "@limg"),
+                // Who is submitting the Certificate of Marriage (migration 67) - Marriage
+                // Registration only; MarriageEntryForm.PrepareForQueueTicket copies it to Form 97.
+                new MySqlParameter("@subby", s.Selected.Contains("MARRIAGE_REG") ? NullIfBlank(s.SubmittedBy) : DBNull.Value),
+                new MySqlParameter("@suborg", s.Selected.Contains("MARRIAGE_REG") && s.SubmittedBy == "Representative"
+                    ? NullIfBlank(s.SubmittedByOrg) : DBNull.Value),
                 new MySqlParameter("@idtype", NullIfBlank(s.IdType)),
                 new MySqlParameter("@num", num),
                 new MySqlParameter("@date", DateTime.Today),

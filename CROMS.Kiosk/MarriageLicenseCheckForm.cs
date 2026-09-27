@@ -26,6 +26,7 @@ namespace CROMS.Kiosk
         private bool? _answer;   // null = unanswered, true = "Yes, I have a licence", false = "No"
         // Set by every DELIBERATE close so OnFormClosing can tell navigation from a real quit.
         private bool _navigating;
+        private string _submittedBy;   // Officer / Husband / Wife / Representative, null = not chosen
 
         public MarriageLicenseCheckForm(KioskSession session)
         {
@@ -51,6 +52,8 @@ namespace CROMS.Kiosk
         private void MarriageLicenseCheckForm_Load(object sender, EventArgs e)
         {
             _answer = _session.HasMarriageLicense ? true : (bool?)null;
+            _submittedBy = _session.SubmittedBy;
+            _txtOrg.Text = _session.SubmittedByOrg ?? "";
             ApplyAnswerStyle();
             CenterCard();
         }
@@ -65,6 +68,13 @@ namespace CROMS.Kiosk
 
         private void No_Click(object sender, EventArgs e) { _answer = false; ApplyAnswerStyle(); }
         private void Yes_Click(object sender, EventArgs e) { _answer = true; ApplyAnswerStyle(); }
+
+        private void Submitter_Click(object sender, EventArgs e)
+        {
+            _submittedBy = sender == _btnSubOfficer ? "Officer" : sender == _btnSubHusband ? "Husband"
+                : sender == _btnSubWife ? "Wife" : "Representative";
+            ApplyAnswerStyle();
+        }
 
         private void Back_Click(object sender, EventArgs e)
         {
@@ -82,7 +92,16 @@ namespace CROMS.Kiosk
                 return;
             }
 
+            if (_answer == true && _submittedBy == null)
+            {
+                MessageBox.Show("Please tell us who is submitting the Certificate of Marriage.",
+                    "Please check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             _session.HasMarriageLicense = _answer == true;
+            _session.SubmittedBy = _answer == true ? _submittedBy : null;
+            _session.SubmittedByOrg = _answer == true && _submittedBy == "Representative" ? _txtOrg.Text.Trim() : null;
             if (_answer == false)
             {
                 // Wrong card for this client — route them to Marriage Application instead.
@@ -106,6 +125,19 @@ namespace CROMS.Kiosk
             _btnNo.ForeColor = no ? System.Drawing.Color.White : KioskCore.Ink;
             _btnNo.FlatAppearance.BorderColor = no ? KioskCore.Accent : KioskCore.Line;
             _lblHandOver.Visible = yes;
+            _lblSubCap.Visible = _lblNameHint.Visible = yes;
+            foreach (var pair in new[] {
+                Tuple.Create(_btnSubOfficer, "Officer"), Tuple.Create(_btnSubHusband, "Husband"),
+                Tuple.Create(_btnSubWife, "Wife"), Tuple.Create(_btnSubRep, "Representative") })
+            {
+                bool on = _submittedBy == pair.Item2;
+                pair.Item1.Visible = yes;
+                pair.Item1.BackColor = on ? KioskCore.Accent : KioskCore.CardBg;
+                pair.Item1.ForeColor = on ? System.Drawing.Color.White : KioskCore.Ink;
+                pair.Item1.FlatAppearance.BorderColor = on ? KioskCore.Accent : KioskCore.Line;
+            }
+            bool rep = yes && _submittedBy == "Representative";
+            _lblOrgCap.Visible = _txtOrg.Visible = rep;
         }
 
         private void CenterCard()
