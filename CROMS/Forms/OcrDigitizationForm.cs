@@ -65,6 +65,20 @@ namespace CROMS.Forms
         private List<SealDetector.Seal> _seals = new List<SealDetector.Seal>();
         private bool _updatingFieldGrid;
 
+        /// <summary>
+        /// The Marriage License photographed in the same Mobile Capture session as the
+        /// certificate. OCR never reads it - it travels with the reviewed values to Form 97 and
+        /// is saved as marriages.license_image. Cleared whenever a different page is loaded.
+        /// </summary>
+        private byte[] _licenseBytes;
+
+        /// <summary>
+        /// Set when this window was opened FROM a Marriage Registration (the Form 97 wizard) to
+        /// review a capture. Auto-Fill then fills THAT form - the same record, queue ticket and
+        /// transaction - and closes this window, instead of opening a second, blank Form 97.
+        /// </summary>
+        private MarriageEntryForm _returnTo;
+
         public OcrDigitizationForm()
         {
             InitializeComponent();
@@ -119,7 +133,7 @@ namespace CROMS.Forms
         {
             var btn = new Button
             {
-                Text = "📱 Scan with Phone",
+                Text = "Phone Scanner App",
                 FlatStyle = FlatStyle.Flat,
                 Font = btnLoad.Font,
                 Size = new Size(190, 40),
@@ -130,6 +144,102 @@ namespace CROMS.Forms
             btn.Click += (s, e) => ShowScanQrDialog();
             Controls.Add(btn);
             btn.BringToFront();
+
+            // Mobile Capture: a QR that turns the office phone into a camera for THIS window.
+            // The phone photographs the certificate (and a Marriage License, when there is
+            // one) and the picture lands here, ready for the desktop OCR - no queue ticket or
+            // registration needs to be open first.
+            var cap = new Button
+            {
+                Text = "Mobile Capture",
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font(btnLoad.Font, FontStyle.Bold),
+                BackColor = UiTheme.Accent,
+                ForeColor = Color.White,
+                Size = new Size(180, 40),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Location = new Point(btn.Left - 190, btnLoad.Top),
+                UseVisualStyleBackColor = false,
+            };
+            cap.Click += async (s, e) => await StartMobileCapture();
+            Controls.Add(cap);
+            cap.BringToFront();
+        }
+
+        /// <summary>Opens a Mobile Capture session and, once the certificate arrives, runs OCR on it here.</summary>
+        private async Task StartMobileCapture()
+        {
+            using (var dlg = new MobileCaptureDialog(Form97Capture.PurposeOcrCapture, null, null, null, null, null))
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK || dlg.Docs == null) return;
+                await LoadCapture(dlg.Docs.PrimaryCertificate, dlg.Docs.PrimaryLicense, "Mobile Capture");
+            }
+        }
+
+        /// <summary>
+        /// Puts a phone-captured certificate on screen exactly as Load Image does for a file,
+        /// keeps the licence photo beside it, and runs the desktop OCR on the certificate.
+        /// </summary>
+        public async Task LoadCapture(byte[] certificate, byte[] license, string sourceLabel)
+        {
+            if (certificate == null || certificate.Length == 0) return;
+            Bitmap loaded;
+            try { loaded = DocumentAI.LoadImageBytes(certificate); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Could not open the captured photo: " + ex.Message, "Mobile Capture",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            _image?.Dispose();
+            _image = loaded;
+            _scanBytes = certificate;
+            _licenseBytes = license;
+            _zoom = 1f;
+            pbScan.SizeMode = PictureBoxSizeMode.Zoom;
+            pbScan.Size = pnlScanHost.ClientSize;
+            pbScan.Image = _image;
+            grpScan.Text = "SCANNED DOCUMENT — " + (sourceLabel ?? "Mobile Capture") +
+                (license != null ? "   (+ Marriage License photo)" : "");
+
+            _scanId = null;
+            _result = null;
+            _kind = DocKind.Unknown;
+            _formDef = null;
+            _savedRecordId = null;
+            _seals = new List<SealDetector.Seal>();
+            txtDocClass.Clear();
+            dgvFields.Rows.Clear();
+            ApplyResultToUi();
+
+            await Analyze();
+        }
+
+        /// <summary>
+        /// The Form 97 wizard's review step: opens this window as a dialog over the Marriage
+        /// Registration, reads the captured certificate, and lets the operator check the
+        /// fields exactly as on the normal screen. Auto-Fill fills <paramref name="target"/>
+        /// (the same record) and closes. Returns true when the form was filled.
+        /// </summary>
+        public static bool ReviewForMarriage(IWin32Window owner, MarriageEntryForm target,
+            byte[] certificate, byte[] license, string sourceLabel)
+        {
+            using (var ocr = new OcrDigitizationForm())
+            {
+                ocr._returnTo = target;
+                ocr.FormBorderStyle = FormBorderStyle.Sizable;
+                ocr.StartPosition = FormStartPosition.CenterParent;
+                ocr.WindowState = FormWindowState.Maximized;
+                ocr.ShowInTaskbar = false;
+                ocr.MinimizeBox = false;
+                ocr.Text = "OCR Review  -  Marriage Registration (Form 97)";
+                ocr.lblSubtitle.Text = "Check every field against the photo, correct anything flagged, then press " +
+                    "Auto-Fill Marriage to send the values back to the Marriage Registration.";
+                UiTheme.Polish(ocr);
+                ocr.Shown += async (s, e) => await ocr.LoadCapture(certificate, license, sourceLabel);
+                return ocr.ShowDialog(owner) == DialogResult.OK;
+            }
         }
 
         /// <summary>
@@ -362,6 +472,7 @@ namespace CROMS.Forms
                 _image = loaded;
                 try { _scanBytes = System.IO.File.ReadAllBytes(ofd.FileName); }
                 catch { _scanBytes = null; }
+                _licenseBytes = null;   // a file has no licence photo with it
                 _zoom = 1f;
                 pbScan.SizeMode = PictureBoxSizeMode.Zoom;
                 pbScan.Size = pnlScanHost.ClientSize;
@@ -1346,6 +1457,13 @@ namespace CROMS.Forms
             MarkBatch("Auto-Filled", TableFor(_kind), null);
             LoadBatch();
 
+            if (_returnTo != null)
+            {
+                // Wizard review step done - back to the same Marriage Registration.
+                DialogResult = DialogResult.OK;
+                return;
+            }
+
             MessageBox.Show(
                 "The " + ModuleName(_kind) + " form has been filled from the confirmed values. The " +
                 "scanned copy will be saved with the record when you Save.",
@@ -1475,6 +1593,26 @@ namespace CROMS.Forms
         /// </summary>
         private bool PrimeModule(DocKind kind, Dictionary<string, string> vals)
         {
+            // Opened from the Form 97 wizard: fill THAT form, not a new one. It is a dialog
+            // over the Marriage Registration, so there is no shell to route through.
+            if (_returnTo != null)
+            {
+                if (kind != DocKind.Marriage)
+                {
+                    MessageBox.Show(this,
+                        "This photo was read as a " + ModuleName(kind) + " document, not a Certificate of Marriage.\n\n" +
+                        "Close this window and capture the Certificate of Marriage again.",
+                        "Not a marriage certificate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return false;
+                }
+                if (!string.IsNullOrEmpty(_scanId)) vals["OcrScanId"] = _scanId;
+                _returnTo.PrimeFromExtraction(vals);
+                _returnTo.SetScanImage(_scanBytes);
+                if (_licenseBytes != null) _returnTo.SetLicenseImage(_licenseBytes);
+                _returnTo.SetOcrContext(_scanId, _result);
+                return true;
+            }
+
             MainForm shell = Shell();
             if (shell == null)
             {
@@ -1513,6 +1651,7 @@ namespace CROMS.Forms
                 using (var dlg = new MarriageEntryForm(null))
                 {
                     dlg.SetScanImage(_scanBytes);
+                    if (_licenseBytes != null) dlg.SetLicenseImage(_licenseBytes);
                     dlg.PrimeFromExtraction(vals);
                     // The OCR run travels with the record: its confidence, its weak fields
                     // (highlighted on Form 97) and a review hold that must be cleared before
@@ -2023,6 +2162,7 @@ namespace CROMS.Forms
             _image?.Dispose();
             _image = loaded;
             _scanBytes = bytes;
+            _licenseBytes = null;
             _zoom = 1f;
             pbScan.SizeMode = PictureBoxSizeMode.Zoom;
             pbScan.Size = pnlScanHost.ClientSize;

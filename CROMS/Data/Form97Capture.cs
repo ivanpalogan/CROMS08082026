@@ -24,12 +24,38 @@ namespace CROMS.Data
         /// scan_image - the two are different images with different meanings.</summary>
         public const string PurposeFinalRegistered = "FINAL_REGISTERED_FORM_97";
 
+        /// <summary>
+        /// A capture started from the Intelligent Document Processing window itself, outside
+        /// any registration or queue task - no couple or transaction to show on the phone.
+        /// The photographed certificate goes straight into that window for OCR.
+        /// </summary>
+        public const string PurposeOcrCapture = "OCR_CAPTURE";
+
+        // Which DOCUMENT a page is (migration 66). The certificate is what OCR reads; the
+        // licence is kept as a picture only. A page with no role (uploaded before 66, or a
+        // final-copy capture) is read as the certificate.
+        public const string RoleCertificate = "CERTIFICATE";
+        public const string RoleLicense = "LICENSE";
+
         public sealed class Status
         {
             public string State = "Pending";     // Pending / Uploaded / Completed / Expired
             public int PageCount;
+            public int CertificatePages;
+            public int LicensePages;
             public bool Expired;
             public DateTime? LastUploadAt;
+        }
+
+        /// <summary>Every page of one capture session, split by the document it shows.</summary>
+        public sealed class CapturedDocs
+        {
+            public List<byte[]> Certificate = new List<byte[]>();
+            public List<byte[]> License = new List<byte[]>();
+
+            /// <summary>The page OCR should read: the newest certificate page (a retake supersedes the first).</summary>
+            public byte[] PrimaryCertificate => Certificate.Count == 0 ? null : Certificate[Certificate.Count - 1];
+            public byte[] PrimaryLicense => License.Count == 0 ? null : License[License.Count - 1];
         }
 
         /// <summary>
@@ -107,9 +133,53 @@ namespace CROMS.Data
                 s.Expired = Convert.ToBoolean(r["is_expired"]) || s.State == "Expired";
                 s.PageCount = Convert.ToInt32(r["pages"]);
                 s.LastUploadAt = r["last_upload"] == DBNull.Value ? (DateTime?)null : Convert.ToDateTime(r["last_upload"]);
+                s.CertificatePages = s.PageCount;
+                try
+                {
+                    DataTable roles = Db.Pull(
+                        "SELECT SUM(COALESCE(i.doc_role,'CERTIFICATE') = 'LICENSE') AS lic " +
+                        "FROM form97_capture_images i JOIN form97_capture_tokens t ON t.id = i.token_id WHERE t.token=@t",
+                        new MySqlParameter("@t", token));
+                    int lic = roles.Rows.Count == 0 || roles.Rows[0]["lic"] == DBNull.Value ? 0 : Convert.ToInt32(roles.Rows[0]["lic"]);
+                    s.LicensePages = lic;
+                    s.CertificatePages = s.PageCount - lic;
+                }
+                catch (MySqlException ex) when (ex.Number == 1054) { /* migration 66 not applied: every page is a certificate */ }
             }
             catch { /* transient DB blip - dialog just polls again */ }
             return s;
+        }
+
+        /// <summary>
+        /// Every page of the session, sorted into certificate and licence pages (migration 66).
+        /// On a database without doc_role every page is treated as a certificate - the same
+        /// behaviour as before the licence step existed.
+        /// </summary>
+        public static CapturedDocs FetchDocs(string token)
+        {
+            var docs = new CapturedDocs();
+            DataTable dt;
+            try
+            {
+                dt = Db.Pull(
+                    "SELECT i.image, i.doc_role FROM form97_capture_images i " +
+                    "JOIN form97_capture_tokens t ON t.id = i.token_id " +
+                    "WHERE t.token=@t ORDER BY i.page_no",
+                    new MySqlParameter("@t", token));
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)
+            {
+                foreach (byte[] b in FetchImages(token)) docs.Certificate.Add(b);
+                return docs;
+            }
+            foreach (DataRow r in dt.Rows)
+            {
+                if (r["image"] == DBNull.Value) continue;
+                string role = r["doc_role"] as string;
+                if (string.Equals(role, RoleLicense, StringComparison.OrdinalIgnoreCase)) docs.License.Add((byte[])r["image"]);
+                else docs.Certificate.Add((byte[])r["image"]);
+            }
+            return docs;
         }
 
         /// <summary>Every page captured on the phone, oldest first (page 1 = the primary/front image).</summary>

@@ -95,6 +95,10 @@ namespace CROMS.Forms
         // _kioskLicenseImage above has been cleared.
         private byte[] _licenseImageStored;
 
+        // The capture session behind the Form 97 wizard's Mobile Capture, linked to the record
+        // once it has an id so the audit trail names the record the photos produced.
+        private string _wizardCaptureToken;
+
         // Mobile Capture (Step 6): detection belongs to THIS WINDOW, not the transient QR
         // dialog - the timer keeps polling and the rail keeps showing the live "Form 97
         // Received" card whether or not that dialog is open, so nothing needs reopening.
@@ -140,10 +144,30 @@ namespace CROMS.Forms
             _captureTimer.Tick += (s, e) => CapturePoll();
             _captureTimer.Start();
             FormClosed += (s, e) => { _captureTimer.Stop(); _captureTimer.Dispose(); };
+            // A brand new registration starts with a short guide instead of an empty form:
+            // photograph the documents, let OCR read them, then check the fields here. Not
+            // shown when the form arrives already filled (Auto-Fill from the OCR window).
+            Shown += (s, e) =>
+            {
+                if (!_id.HasValue && _scanImage == null && _ocrScanId == null) ShowStartWizard();
+            };
         }
 
         // ===================================================================== public API (OCR hand-off)
         public void SetScanImage(byte[] bytes) { _scanImage = bytes; RefreshRail(); }
+
+        /// <summary>
+        /// A photo of the physical Marriage License (Mobile Capture step 2). Held until the
+        /// record has an id, then saved to marriages.license_image by <see cref="Save"/> - the
+        /// same path as the kiosk-captured licence photo.
+        /// </summary>
+        public void SetLicenseImage(byte[] bytes)
+        {
+            if (bytes == null || bytes.Length == 0) return;
+            _kioskLicenseImage = bytes;
+            _dirty = true;
+            RefreshRail();
+        }
 
         /// <summary>The OCR run this certificate came from. Weak fields are highlighted and hold registration until reviewed.</summary>
         public void SetOcrContext(string scanId, DocAiResult result)
@@ -222,7 +246,7 @@ namespace CROMS.Forms
             _infoStrip.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, _infoStrip.Height - 1, _infoStrip.Width, _infoStrip.Height - 1); };
             _btnLinkTxn.Click += (s, e) => LinkTransaction();
             _btnLinkQueue.Click += (s, e) => LinkQueueTicket();
-            _btnMobileCapture.Click += (s, e) => ShowMobileCapture();
+            _btnMobileCapture.Click += (s, e) => StartCaptureFlow();
             _btnHistory.Click += (s, e) =>
             {
                 if (!_id.HasValue) { MessageBox.Show(this, "Save the record first to view its activity history.", "Activity History", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
@@ -464,7 +488,7 @@ namespace CROMS.Forms
             Stack(_oopPanel, oopFieldsRow, oopScanRow, oopHint);
             _oopPanel.Height = 58 + 34 + 76;
 
-            var viewLicPhoto = MUi.Btn("View License Photo (from kiosk)", MUi.Kind.Secondary);
+            var viewLicPhoto = MUi.Btn("View License Photo", MUi.Kind.Secondary);
             viewLicPhoto.Click += (s, e) => ViewKioskLicensePhoto();
 
             var placeRow = MUi.Grid(2, 1, 58);
@@ -718,11 +742,12 @@ namespace CROMS.Forms
             byte[] img = _kioskLicenseImage ?? _licenseImageStored;
             if (img == null)
             {
-                MessageBox.Show(this, "No Marriage License photo was captured for this visit at the kiosk.",
+                MessageBox.Show(this, "No Marriage License photo has been captured for this record.\n\n" +
+                    "Use Mobile Capture to photograph it with the office phone.",
                     "Nothing to view", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            SoftcopyViewer.Show(img, "Marriage License - photo from kiosk intake", this);
+            SoftcopyViewer.Show(img, "Marriage License - photo", this);
         }
 
         private bool CoupleFieldsEmpty()
@@ -831,6 +856,130 @@ namespace CROMS.Forms
         }
 
         private static string Str1(object v) { return v == null || v == DBNull.Value ? null : v.ToString(); }
+
+        // ===================================================================== start wizard + capture flow
+        /// <summary>
+        /// First screen of a NEW Marriage Registration: three plain choices instead of an empty
+        /// five-tab form. Mobile Capture is first and marked recommended because it is the flow
+        /// the office uses - the phone photographs the certificate and licence, the desktop
+        /// OCR reads them, and the staff member only checks the result.
+        /// </summary>
+        private void ShowStartWizard()
+        {
+            string choice = null;
+            using (var dlg = new Form
+            {
+                Text = "Start Marriage Registration",
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false, MinimizeBox = false, ShowInTaskbar = false,
+                BackColor = Color.White,
+                ClientSize = new Size(560, 400),
+            })
+            {
+                var head = MUi.Txt("How do you want to fill in this Marriage Registration?", 12F, FontStyle.Bold, UiTheme.Ink);
+                head.AutoSize = false; head.Size = new Size(520, 26); head.Location = new Point(20, 18);
+                string link = _queueCode != null || _txnCode != null
+                    ? "Queue " + (_queueCode ?? "-") + "   ·   Transaction " + (_txnCode ?? "not yet linked") + (_queueIntakeHint != null ? "   ·   " + _queueIntakeHint : "")
+                    : "Not linked to a queue ticket.";
+                var sub = MUi.Txt(link, 9F, FontStyle.Regular, UiTheme.Muted);
+                sub.AutoSize = false; sub.AutoEllipsis = true; sub.Size = new Size(520, 20); sub.Location = new Point(20, 48);
+                dlg.Controls.Add(head); dlg.Controls.Add(sub);
+
+                int y = 84;
+                Action<string, string, string, MUi.Kind> option = (key, title, desc, kind) =>
+                {
+                    var b = MUi.Btn(title, kind, 520);
+                    b.Height = 44; b.Location = new Point(20, y);
+                    b.Click += (s, e) => { choice = key; dlg.DialogResult = DialogResult.OK; };
+                    var d = MUi.Txt(desc, 9F, FontStyle.Regular, UiTheme.Muted);
+                    d.AutoSize = false; d.Size = new Size(520, 36); d.Location = new Point(22, y + 48);
+                    dlg.Controls.Add(b); dlg.Controls.Add(d);
+                    y += 94;
+                };
+                option("mobile", "Mobile Capture  (recommended)",
+                    "Photograph the Certificate of Marriage and the Marriage License with the office phone. CROMS reads the certificate and fills the form for you to check.",
+                    MUi.Kind.Primary);
+                option("file", "Scan / Upload a file",
+                    "Use a scanned image of the Certificate of Marriage already saved on this PC. CROMS reads it the same way.",
+                    MUi.Kind.Secondary);
+                option("manual", "Type it manually",
+                    "Fill in every field by hand from the paper certificate. You can still attach a scan later with Mobile Capture.",
+                    MUi.Kind.Secondary);
+                UiTheme.Polish(dlg);
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            }
+            if (choice == "mobile") StartCaptureFlow();
+            else if (choice == "file") StartFileFlow();
+        }
+
+        /// <summary>
+        /// Mobile Capture -> OCR review -> back here. The phone only photographs; the OCR
+        /// window (opened over this form) reads the certificate and Auto-Fill brings the checked
+        /// values back into THIS record, so the queue ticket and transaction stay linked. Both
+        /// photos are kept on the record when it is saved.
+        /// </summary>
+        private void StartCaptureFlow()
+        {
+            string husband = (_h.First.Text + " " + _h.Last.Text).Trim();
+            string wife = (_w.First.Text + " " + _w.Last.Text).Trim();
+            Form97Capture.CapturedDocs docs;
+            using (var cap = new MobileCaptureDialog(Form97Capture.PurposeIncoming, _id, _txnId, husband, wife, _txnCode))
+            {
+                if (cap.ShowDialog(this) != DialogResult.OK || cap.Docs == null) return;
+                docs = cap.Docs;
+                _wizardCaptureToken = cap.Token;
+            }
+            if (_id.HasValue)
+            {
+                MarriageService.History("Marriage", _id.Value, "Incoming Form 97 uploaded", null, null,
+                    docs.Certificate.Count + " certificate page(s), " + docs.License.Count + " licence page(s)");
+                Form97Capture.AttachMarriageId(_wizardCaptureToken, _id.Value);
+            }
+            ReviewCapturedCertificate(docs.PrimaryCertificate, docs.PrimaryLicense, "Mobile Capture");
+        }
+
+        /// <summary>The same review step for a scan that is already a file on this PC.</summary>
+        private void StartFileFlow()
+        {
+            using (var ofd = new OpenFileDialog
+            {
+                Title = "Scanned Certificate of Marriage",
+                Filter = "Image files (*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp)|*.png;*.jpg;*.jpeg;*.tif;*.tiff;*.bmp"
+            })
+            {
+                if (ofd.ShowDialog(this) != DialogResult.OK) return;
+                byte[] bytes;
+                try { bytes = File.ReadAllBytes(ofd.FileName); }
+                catch (Exception ex) { MessageBox.Show(this, "Could not read the file: " + ex.Message, "Scan", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                ReviewCapturedCertificate(bytes, null, Path.GetFileName(ofd.FileName));
+            }
+        }
+
+        private void ReviewCapturedCertificate(byte[] certificate, byte[] license, string source)
+        {
+            if (certificate == null) return;
+            bool filled = OcrDigitizationForm.ReviewForMarriage(this, this, certificate, license, source);
+            if (filled)
+            {
+                ShowTab(0);
+                MessageBox.Show(this,
+                    "The form has been filled from the OCR reading." +
+                    (license != null ? " The Marriage License photo is attached." : "") +
+                    "\n\nCheck the highlighted fields, then Save as Draft or Send for Review.",
+                    "Marriage Registration", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            // Review closed without Auto-Fill: the photos were still taken, so keep them on
+            // the record rather than making the client photograph the documents again.
+            if (_scanImage == null) SetScanImage(certificate);
+            if (license != null) SetLicenseImage(license);
+            _dirty = true;
+            MessageBox.Show(this,
+                "The OCR review was closed without Auto-Fill, so the fields were not filled.\n\n" +
+                "The photos are attached to this record - type the fields from the paper, or press Mobile Capture again.",
+                "Marriage Registration", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
 
         // ===================================================================== mobile capture (Form 97, before OCR)
         /// <summary>
@@ -1400,6 +1549,11 @@ namespace CROMS.Forms
                     try { MarriageService.SaveLicenseImage(_id.Value, _kioskLicenseImage); _licenseImageStored = _kioskLicenseImage; _kioskLicenseImage = null; }
                     catch { /* the marriage record itself still saved; the photo stays on the queue ticket for a later attempt */ }
                 }
+                if (_wizardCaptureToken != null && _id.HasValue)
+                {
+                    Form97Capture.AttachMarriageId(_wizardCaptureToken, _id.Value);
+                    _wizardCaptureToken = null;
+                }
                 _dirty = false;
                 RefreshAll();
                 return true;
@@ -1719,6 +1873,8 @@ namespace CROMS.Forms
             }
 
             items.Add(MUi.Cap("Source document"));
+            bool haveLicPhoto = (_kioskLicenseImage ?? _licenseImageStored) != null;
+            items.Add(MUi.Kv("License photo", haveLicPhoto ? "attached ✓" : "not captured", haveLicPhoto ? UiTheme.Success : (Color?)null));
             if (_scanImage == null && _ocrScanId == null) items.Add(MUi.Txt("Typed from the paper - no scan attached.", 9F, FontStyle.Regular, UiTheme.Muted));
             else
             {
