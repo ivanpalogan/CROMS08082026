@@ -57,19 +57,62 @@ namespace CROMS.Forms
         // would otherwise query before the grid/tree exist).
         private bool _ready;
 
-        // Full-width grid bounds captured once, so search mode can shrink the grid to
-        // make room for cardDetail and non-search categories can restore the original
-        // full-width layout exactly.
+        // Full-width grid bounds captured once at design size, so both search mode and
+        // non-search categories know where the grid STARTS (its left/top offset never
+        // changes). The grid's actual WIDTH/HEIGHT are recomputed from the form's real,
+        // current ClientSize on every layout — not from this frozen rectangle — because
+        // this form is embedded into MainForm's content panel via Dock=Fill AFTER the
+        // constructor runs, so ClientSize here is still the small design size until then.
         private Rectangle _gridFullBounds;
+
+        // Constant margins (design-time gaps between the grid and the form's own right/
+        // bottom edge, e.g. room left for btnViewRecord below the grid) — captured once
+        // so every later layout can re-derive full-window bounds from whatever the real
+        // ClientSize is, instead of re-deriving it from ClientSize itself (which is what
+        // silently cancelled out to a fixed size on every earlier layout attempt here).
+        private int _bottomReserve;
+        private int _rightReserve;
 
         public RecordsArchiveForm()
         {
             InitializeComponent();
             _gridFullBounds = grid.Bounds;
+            _bottomReserve = ClientSize.Height - _gridFullBounds.Bottom;
+            _rightReserve = ClientSize.Width - _gridFullBounds.Right;
             cboSearchType.SelectedIndex = 0;
             BuildCategories();
             _ready = true;
             BuildTree();
+            Resize += (s, e) => ApplyBounds();
+        }
+
+        /// <summary>Re-lays the grid (and, in search mode, cardDetail) to fill whatever
+        /// space this form actually has right now — called on every category change AND
+        /// on every resize, so the screen always uses the full window instead of the
+        /// small design-time rectangle it starts life at before MainForm docks it.</summary>
+        private void ApplyBounds()
+        {
+            if (_current == null) return;
+            int bottom = ClientSize.Height - _bottomReserve;
+
+            if (_current.IsSearch)
+            {
+                int top = pnlSearchBar.Bottom + 12;
+                const int detailWidth = 330;
+                const int gap = 12;
+                int height = Math.Max(120, bottom - top);
+                int rightEdge = ClientSize.Width - _rightReserve;
+                int gridWidth = Math.Max(200, rightEdge - detailWidth - gap - _gridFullBounds.X);
+                grid.Bounds = new Rectangle(_gridFullBounds.X, top, gridWidth, height);
+                cardDetail.Bounds = new Rectangle(grid.Right + gap, top, detailWidth, height);
+            }
+            else
+            {
+                int top = _gridFullBounds.Y;
+                int height = Math.Max(120, bottom - top);
+                int gridWidth = Math.Max(200, ClientSize.Width - _rightReserve - _gridFullBounds.X);
+                grid.Bounds = new Rectangle(_gridFullBounds.X, top, gridWidth, height);
+            }
         }
 
         public void RefreshData()
@@ -705,16 +748,7 @@ namespace CROMS.Forms
             pnlSearchBar.Visible = true;
             cardDetail.Visible = true;
             btnViewRecord.Text = "Open in Module";
-
-            int bottomMargin = ClientSize.Height - _gridFullBounds.Bottom;
-            int top = pnlSearchBar.Bottom + 12;
-            int detailWidth = 330;
-            int gap = 12;
-            grid.Bounds = new Rectangle(_gridFullBounds.X, top,
-                _gridFullBounds.Width - detailWidth - gap, ClientSize.Height - top - bottomMargin);
-            cardDetail.Bounds = new Rectangle(grid.Right + gap, top,
-                detailWidth, ClientSize.Height - top - bottomMargin);
-
+            ApplyBounds();
             txtQuery.Focus();
         }
 
@@ -723,7 +757,7 @@ namespace CROMS.Forms
             pnlSearchBar.Visible = false;
             cardDetail.Visible = false;
             btnViewRecord.Text = "View Full Record";
-            grid.Bounds = _gridFullBounds;
+            ApplyBounds();
         }
 
         private void txtQuery_TextChanged(object sender, EventArgs e) => DoSearch();
