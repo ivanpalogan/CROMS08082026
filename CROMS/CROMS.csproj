@@ -861,6 +861,7 @@
     <None Include="Database\62_marriage_registered_by.sql" />
     <None Include="Database\63_marriage_final_scan.sql" />
     <None Include="Database\64_marriage_final_document.sql" />
+    <None Include="Database\65_marriage_license_photo.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />

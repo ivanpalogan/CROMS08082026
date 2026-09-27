@@ -1556,3 +1556,50 @@ DocIntelligence) — the phone's name guess is deliberately separate and lighter
 2026-09-19 architecture decision intended; the Petitions/Certificate-Request/BREQS OCR paths are
 untouched; and the mobile confirm screen has no camera-based rescan-if-name-guess-looks-wrong
 affordance — Retake already exists and clears the guess, that is the whole mechanism.
+
+### 2026-09-27 (later still) — Kiosk "Marriage License" gate: photo of the licence instead of
+### typing its number
+
+User asked, after the kiosk gate itself was confirmed as intentional (not a leftover from the
+Form 97 desk rework earlier the same day): does it need to ask for the licence NUMBER, or should
+it just photograph the physical licence and store it alongside the scanned certificate? Right
+call and built as asked — a typed registry/licence number has been the least trustworthy field
+on these forms twice already in this project's own history (2026-09-06 registry-label-collision
+entry, 2026-09-10 registry-number bug), while a photo is the document itself.
+
+`MarriageLicenseCheckForm`'s "Yes" branch no longer shows a licence-number textbox; it shows the
+kiosk's own webcam (same AForge pattern `DetailsPhotoForm` already uses, simplified — no
+cover-fit/face-guide, since this is a document, not a face) with a single Capture/Retake button.
+`KioskSession.MarriageLicenseNo` (string) is replaced by `MarriageLicenseImage` (byte[]);
+`KioskCore.Submit`'s INSERT writes it to a new `queue_tickets.marriage_license_image` column and
+the ticket's one-line purpose summary now says "Marriage License photo attached" instead of
+repeating a number.
+
+Migration `65_marriage_license_photo.sql` (NOT yet applied to the live database) adds that
+holding column plus a PERMANENT `marriages.license_image` — separate from `scan_image` (the
+certificate) and from `marriage_final_documents` (the signed Form 97 after registration): three
+different physical documents, three different places to keep them, matching every other
+"attach the actual document" decision already made in this project.
+
+Staff side (`MarriageEntryForm`): `PrepareForQueueTicket` (called when a Marriage Registration
+ticket is opened from the live queue) now also reads `marriage_license_image` off that ticket
+into `_kioskLicenseImage`; the first successful Save on a record that has one calls new
+`MarriageService.SaveLicenseImage(id, bytes)` (mirrors `AddFinalDocumentPage`'s history-logging
+convention) and clears the pending field so a second save can't re-attach it. A new "View License
+Photo (from kiosk)" button sits beside the existing "Copy applicants from licence" button on the
+Licence tab, opening it in the existing `SoftcopyViewer`; it reads whichever of
+`_kioskLicenseImage` (not yet saved) or `_licenseImageStored` (loaded back from the record) is
+set, and says plainly when neither exists — most existing records, and any registration not
+opened from a kiosk ticket, will have neither.
+
+VERIFIED: `MSBuild` (VS2019) clean, 0 errors, 0 warnings on both `CROMS.Kiosk.csproj` and
+`CROMS.csproj` (temp OutDir). Migration 65 not yet applied to the live `croms` database — run it
+before a captured photo can be saved, or `SaveLicenseImage`'s UPDATE and the kiosk's INSERT will
+fail on the two new columns. GUI not clicked (no interactive desktop) — the camera capture code
+follows `DetailsPhotoForm`'s already-proven AForge start/frame/capture/stop pattern; rebuild both
+projects in VS and confirm a Marriage Registration kiosk visit captures/attaches the photo.
+
+NOT DONE: the kiosk's printed ticket / on-screen confirmation dialog do not mention the licence
+photo at all (they never announced the typed number either, so nothing regressed); and the
+licence's own printed application (Form 90, MF-90) is unaffected — that form is filed at the
+issuing office when APPLYING for the licence, before this registration-side capture ever runs.

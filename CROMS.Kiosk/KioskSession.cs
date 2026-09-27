@@ -34,9 +34,12 @@ namespace CROMS.Kiosk
         public string IdType;
 
         // Marriage Registration only — answered by MarriageLicenseCheckForm before the ticket
-        // is issued. Null while unanswered / after the client said No and was routed to
-        // Marriage Application instead (see MarriageLicenseCheckForm.Continue_Click).
-        public string MarriageLicenseNo;
+        // is issued. A PHOTO of the physical licence, not a typed number (2026-09-27: a typed
+        // registry/licence number is the least trustworthy field a client can fill in — this
+        // project has hit that exact failure twice already). Null while unanswered / after the
+        // client said No and was routed to Marriage Application instead (see
+        // MarriageLicenseCheckForm.Continue_Click).
+        public byte[] MarriageLicenseImage;
 
         // Lazily-created claimapp QR — created for EVERY visit's "Upload Your ID" step, not
         // only a Release & Claim pickup (see KioskCore.EnsureClaimRequest).
@@ -99,7 +102,7 @@ namespace CROMS.Kiosk
             Photo = null;
             ClaimTicketEntry = null;
             IdType = null;
-            MarriageLicenseNo = null;
+            MarriageLicenseImage = null;
             First2 = Middle2 = Last2 = null;
             Photo2 = null;
             ClaimQrToken = null;

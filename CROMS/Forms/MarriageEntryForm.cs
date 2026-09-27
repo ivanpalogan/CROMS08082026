@@ -85,6 +85,16 @@ namespace CROMS.Forms
         private string _queueIntakeHint;  // "husband name  ·  wife name  ·  contact" read off the kiosk ticket - reference text only, never split into fields
         private string _currentStep = "Form 97 Capture";
 
+        // Photo of the physical Marriage License, captured at the kiosk gate
+        // (MarriageLicenseCheckForm, 2026-09-27) and read off the linked queue ticket by
+        // PrepareForQueueTicket. Held here only until the record has an id to attach it to
+        // (SaveLicenseImage) - then cleared so a later save cannot re-attach it a second time.
+        private byte[] _kioskLicenseImage;
+        // The same photo, once it has actually been saved onto marriages.license_image -
+        // reloaded from the record so reopening it can still show/view the photo after
+        // _kioskLicenseImage above has been cleared.
+        private byte[] _licenseImageStored;
+
         // Mobile Capture (Step 6): detection belongs to THIS WINDOW, not the transient QR
         // dialog - the timer keeps polling and the rail keeps showing the live "Form 97
         // Received" card whether or not that dialog is open, so nothing needs reopening.
@@ -443,10 +453,15 @@ namespace CROMS.Forms
             Stack(_oopPanel, oopFieldsRow, oopScanRow, oopHint);
             _oopPanel.Height = 58 + 34 + 76;
 
+            var viewLicPhoto = MUi.Btn("View License Photo (from kiosk)", MUi.Kind.Secondary);
+            viewLicPhoto.Click += (s, e) => ViewKioskLicensePhoto();
+
             var placeRow = MUi.Grid(2, 1, 58);
             placeRow.Controls.Add(MUi.Field("Issuing LCRO (place of issuance)", _licPlace), 0, 0);
             var cp = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 24, 0, 0), BackColor = Color.Transparent };
-            cp.Controls.Add(copy); copy.Dock = DockStyle.Left;
+            var cpFlow = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.LeftToRight, BackColor = Color.Transparent };
+            cpFlow.Controls.Add(copy); cpFlow.Controls.Add(viewLicPhoto);
+            cp.Controls.Add(cpFlow);
             placeRow.Controls.Add(cp, 1, 0);
             _licPlace.TextChanged += (s, e) => Changed(_licPlace);
             Stack(_licPanel, oopRow, _localPanel, _oopPanel, placeRow);
@@ -680,6 +695,25 @@ namespace CROMS.Forms
             RefreshAll();
         }
 
+        /// <summary>
+        /// Shows the photo of the physical Marriage License captured at the kiosk gate
+        /// (MarriageLicenseCheckForm) - not saved yet (_kioskLicenseImage) or already attached
+        /// to the record (_licenseImageStored). Neither field is set when this couple obtained
+        /// their licence outside the kiosk flow (e.g. a walk-in registration with no queue
+        /// ticket), which is the normal case for most existing records.
+        /// </summary>
+        private void ViewKioskLicensePhoto()
+        {
+            byte[] img = _kioskLicenseImage ?? _licenseImageStored;
+            if (img == null)
+            {
+                MessageBox.Show(this, "No Marriage License photo was captured for this visit at the kiosk.",
+                    "Nothing to view", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            SoftcopyViewer.Show(img, "Marriage License - photo from kiosk intake", this);
+        }
+
         private void CopyFromLicense()
         {
             if (_lic == null) { MessageBox.Show(this, "Select a licence first.", "Licence", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
@@ -714,7 +748,8 @@ namespace CROMS.Forms
         {
             _queueTicketId = ticketId; _queueCode = ticketCode;
             DataTable dt = Db.Pull(
-                "SELECT full_name, spouse_full_name, contact_no, transaction_id FROM queue_tickets WHERE id=@id",
+                "SELECT full_name, spouse_full_name, contact_no, transaction_id, marriage_license_image " +
+                "FROM queue_tickets WHERE id=@id",
                 new MySqlParameter("@id", ticketId));
             if (dt.Rows.Count > 0)
             {
@@ -728,6 +763,8 @@ namespace CROMS.Forms
                     _txnId = Convert.ToInt32(r["transaction_id"]);
                     _txnCode = Col1("SELECT txn_code FROM transactions WHERE id=@id", _txnId.Value);
                 }
+                if (dt.Columns.Contains("marriage_license_image") && r["marriage_license_image"] != DBNull.Value)
+                    _kioskLicenseImage = (byte[])r["marriage_license_image"];
             }
             _dirty = true;
             RefreshAll();
@@ -1152,6 +1189,8 @@ namespace CROMS.Forms
             else if (oop) { _oopLicNo.Text = S("license_no"); MUi.Put(_oopLicDate, D("license_date")); }
             else if (S("license_no") != "") _licSearch.Text = S("license_no");
             _scanImage = r["scan_image"] == DBNull.Value ? null : (byte[])r["scan_image"];
+            _licenseImageStored = dt.Columns.Contains("license_image") && r["license_image"] != DBNull.Value ? (byte[])r["license_image"] : null;
+            _kioskLicenseImage = null;
             _ocrScanId = S("ocr_scan_id") == "" ? null : S("ocr_scan_id");
             // STEP 11: final document pages + confirmation flag (migration 64). Guarded - a
             // database that hasn't run 64 yet must still open every other marriage record.
@@ -1298,6 +1337,15 @@ namespace CROMS.Forms
                         try { MarriageService.AttachRequirement(oopRow.Id, _oopScanImage, _oopScanImageName); _oopScanImage = null; _oopScanImageName = null; }
                         catch { /* the marriage record itself still saved; retry the attach from the grid below */ }
                     }
+                }
+                // Photo of the physical Marriage License from the kiosk gate (queue_tickets.
+                // marriage_license_image) - the record needs an id before it can be attached,
+                // so this can only happen after the save above. Cleared once attached so a
+                // later save on the same open dialog cannot re-attach it a second time.
+                if (_kioskLicenseImage != null && _id.HasValue)
+                {
+                    try { MarriageService.SaveLicenseImage(_id.Value, _kioskLicenseImage); _licenseImageStored = _kioskLicenseImage; _kioskLicenseImage = null; }
+                    catch { /* the marriage record itself still saved; the photo stays on the queue ticket for a later attempt */ }
                 }
                 _dirty = false;
                 RefreshAll();

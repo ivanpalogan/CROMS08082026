@@ -411,9 +411,9 @@ namespace CROMS.Kiosk
 
             long ticketId = Db.Insert(
                 "INSERT INTO queue_tickets (ticket_code, full_name, spouse_full_name, contact_no, " +
-                "id_image, spouse_image, valid_id_type, number_queue, " +
+                "id_image, spouse_image, marriage_license_image, valid_id_type, number_queue, " +
                 "date, time, status, document_type, purpose, type_label, priority) " +
-                "VALUES (@code, @name, @sname, @contact, @img, @simg, @idtype, @num, @date, @time, " +
+                "VALUES (@code, @name, @sname, @contact, @img, @simg, @limg, @idtype, @num, @date, @time, " +
                 "'Waiting', @doc, @purpose, @label, @priority)",
                 new MySqlParameter("@code", code),
                 new MySqlParameter("@name", FullName(s)),
@@ -421,6 +421,10 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@contact", contact),
                 ImageParam(s.Photo),
                 ImageParam(s.HasMarriage ? s.Photo2 : null, "@simg"),
+                // Photo of the physical Marriage License (kiosk gate, MarriageLicenseCheckForm) —
+                // travels with the ticket exactly like the id/spouse photos above until the desk
+                // reads it (see MarriageEntryForm.PrepareForQueueTicket).
+                ImageParam(s.MarriageLicenseImage, "@limg"),
                 new MySqlParameter("@idtype", NullIfBlank(s.IdType)),
                 new MySqlParameter("@num", num),
                 new MySqlParameter("@date", DateTime.Today),
@@ -428,11 +432,9 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@doc", s.HasCtc ? (object)s.CtcDocumentType : primary),
                 // One readable line for the screens that only have room for one (the live queue
                 // grid, the Now Serving card). The full structured request is in ctc_requests.
-                // Marriage Registration carries its licence number the same way, since the desk
-                // needs it before it can pull the licence up (MarriageLicenseCheckForm).
                 new MySqlParameter("@purpose", NullIfBlank(
                     s.HasCtc ? CtcSummary(s)
-                    : !string.IsNullOrWhiteSpace(s.MarriageLicenseNo) ? "Marriage License No. " + s.MarriageLicenseNo.Trim()
+                    : s.MarriageLicenseImage != null ? "Marriage License photo attached"
                     : null)),
                 new MySqlParameter("@label", joined),
                 new MySqlParameter("@priority", priority));

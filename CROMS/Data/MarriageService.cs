@@ -992,6 +992,22 @@ namespace CROMS.Data
                 (string.IsNullOrWhiteSpace(registeredByName) ? "" : " - recorded by " + registeredByName));
         }
 
+        /// <summary>
+        /// Attaches a photo of the physical Marriage License captured at the kiosk gate
+        /// (MarriageLicenseCheckForm, 2026-09-27) to this record. Separate from `scan_image`
+        /// (the Certificate of Marriage) and from the final-document pages (the signed Form 97
+        /// after registration) - the licence is a third, distinct document. Overwrites any
+        /// previous kiosk photo on this record rather than accumulating pages: only one licence
+        /// is ever attached per marriage, unlike the final Form 97 which can span pages.
+        /// </summary>
+        public static void SaveLicenseImage(int marriageId, byte[] image)
+        {
+            Db.Push("UPDATE marriages SET license_image=@img WHERE id=@id",
+                new MySqlParameter("@img", image) { MySqlDbType = MySqlDbType.LongBlob }, P("@id", marriageId));
+            History("Marriage", marriageId, "Marriage License photo attached (from kiosk intake)", null, null,
+                image.Length + " bytes");
+        }
+
         // ================================================================ STEP 10/11: final registered Form 97
         // A dedicated table (marriage_final_documents, migration 64), not `scan_image` - that
         // column is the pre-registration certificate OCR already read; the final, signed/
