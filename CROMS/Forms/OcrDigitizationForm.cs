@@ -88,11 +88,48 @@ namespace CROMS.Forms
         /// </summary>
         private BirthRegistrationForm _returnToBirth;
 
+        // ---- Birth Record Digitization wizard (STEP 6) ----------------------------------
+        // Groups the review grid into the certificate's own logical blocks — Child / Mother /
+        // Father / Other Birth Certificate Information / Registry Information / Review and
+        // Save — instead of showing every field at once. Every OCR-filled value stays in the
+        // SAME grid cells this screen has always used, so nothing about how a field is edited
+        // or saved changes; only which rows are visible at a time does. Only offered for Birth
+        // — Marriage/Death keep the flat sectioned grid they already had.
+        private static readonly string[] BirthWizardStepTitles =
+        {
+            "Child Information", "Mother Information", "Father Information",
+            "Other Birth Certificate Information", "Registry Information", "Review and Save"
+        };
+
+        private static readonly string[][] BirthWizardStepSections =
+        {
+            new[] { "1-5. Child" },
+            new[] { "6-12. Mother" },
+            new[] { "13-17. Father" },
+            new[] { "18. Marriage of Parents", "19/21a. Attendant at Birth",
+                     "Read from the whole page", "Other Entries" },
+            new[] { "Form Identification", "19b/21b. Certification of Attendant",
+                     "20/22. Certification of Informant", "21/23. Prepared By",
+                     "22/24. Received at the Office of the Civil Registrar",
+                     "25. Registered at the Civil Registrar" },
+            null // Review and Save — every row, regardless of section
+        };
+
+        private StepStrip _stepStrip;
+        private Button _btnStepBack, _btnStepNext;
+        private bool _wizardActive;
+        private int _stepIndex;
+        private Point _dgvHomeLoc;
+        private Size _dgvHomeSize;
+        private readonly Dictionary<string, string> _keyToSection =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         public OcrDigitizationForm()
         {
             InitializeComponent();
             dgvBatch.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BuildFieldGrid();
+            SetupBirthWizardChrome();
             SetupScanQrButton();
 
             bool ok = DocumentAI.IsAvailable();
@@ -208,6 +245,7 @@ namespace CROMS.Forms
             _seals = new List<SealDetector.Seal>();
             txtDocClass.Clear();
             dgvFields.Rows.Clear();
+            SetupBirthWizard(false);
             ApplyResultToUi();
 
             await Analyze();
@@ -317,6 +355,7 @@ namespace CROMS.Forms
                 _seals = new List<SealDetector.Seal>();
                 txtDocClass.Clear();
                 dgvFields.Rows.Clear();
+                SetupBirthWizard(false);
                 ApplyResultToUi();
             }
         }
@@ -457,9 +496,14 @@ namespace CROMS.Forms
             // row straight into `births` — are disabled while a wizard is waiting for this
             // scan's values.
             bool birthReturn = _returnToBirth != null;
-            btnCommit.Enabled = (birth || death) && !blocked && !birthReturn;
-            btnDraft.Enabled = (birth || death) && !blocked && !birthReturn;
-            btnAutoFill.Enabled = have && !blocked && (_kind == DocKind.Marriage || (birthReturn && _kind == DocKind.Birth));
+            // The wizard's own "Review and Save" step is where Commit / Draft / Auto-Fill
+            // actually run — every earlier step is for reading and correcting one certificate
+            // block at a time, not for saving from.
+            bool reviewStepOk = !_wizardActive || _stepIndex == BirthWizardStepTitles.Length - 1;
+            btnCommit.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
+            btnDraft.Enabled = (birth || death) && !blocked && !birthReturn && reviewStepOk;
+            btnAutoFill.Enabled = have && !blocked && reviewStepOk &&
+                (_kind == DocKind.Marriage || (birthReturn && _kind == DocKind.Birth));
             btnReview.Enabled = _result != null;
 
             btnAutoFill.Text = have ? "Auto-Fill " + ModuleName(_kind) : "Auto-Fill Form";
@@ -935,10 +979,12 @@ namespace CROMS.Forms
         private void FillFieldGrid(DocAiResult r)
         {
             dgvFields.Rows.Clear();
+            _keyToSection.Clear();
 
             if (_formDef == null || _formDef.Sections.Count == 0)
             {
                 foreach (DocField f in r.Fields) AddFieldRow(f);
+                SetupBirthWizard(false);
                 return;
             }
 
@@ -949,8 +995,138 @@ namespace CROMS.Forms
             {
                 AddSectionRow(section.Key);
                 foreach (string key in section.Value)
-                    if (byKey.TryGetValue(key, out DocField f)) AddFieldRow(f);
+                {
+                    if (byKey.TryGetValue(key, out DocField f))
+                    {
+                        AddFieldRow(f);
+                        _keyToSection[key] = section.Key;
+                    }
+                }
             }
+
+            SetupBirthWizard(_kind == DocKind.Birth);
+        }
+
+        /// <summary>
+        /// Builds the step strip + Back/Next controls once, on top of the grid's own
+        /// footprint — hidden until a Birth document with a recognised layout is on screen.
+        /// Code-built rather than added to the Designer: this screen's Designer has been
+        /// silently regenerated before (2026-09-02/09-10 entries), and a control added purely
+        /// in code cannot be lost that way.
+        /// </summary>
+        private void SetupBirthWizardChrome()
+        {
+            _dgvHomeLoc = dgvFields.Location;
+            _dgvHomeSize = dgvFields.Size;
+
+            _stepStrip = new StepStrip(true)
+            {
+                Dock = DockStyle.None,
+                Location = _dgvHomeLoc,
+                Size = new Size(_dgvHomeSize.Width, 54),
+                Visible = false
+            };
+            foreach (string title in BirthWizardStepTitles) _stepStrip.AddStep(title, "");
+            _stepStrip.StepClicked += GoToStep;
+            grpFields.Controls.Add(_stepStrip);
+            _stepStrip.BringToFront();
+
+            _btnStepBack = new Button
+            {
+                Text = "◀ Back",
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F),
+                Location = new Point(116, 500),
+                Size = new Size(80, 40),
+                Visible = false
+            };
+            _btnStepBack.Click += (s, e) => GoToStep(_stepIndex - 1);
+
+            _btnStepNext = new Button
+            {
+                Text = "Next ▶",
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9F),
+                Location = new Point(200, 500),
+                Size = new Size(88, 40),
+                Visible = false
+            };
+            _btnStepNext.Click += (s, e) => GoToStep(_stepIndex + 1);
+
+            grpFields.Controls.Add(_btnStepBack);
+            grpFields.Controls.Add(_btnStepNext);
+        }
+
+        /// <summary>
+        /// Turns the step wizard on/off for the document currently on screen. Only a Birth
+        /// certificate whose layout was recognised (so it has real sections to group by) gets
+        /// the wizard; everything else keeps the plain, fully-visible sectioned grid it
+        /// always had.
+        /// </summary>
+        private void SetupBirthWizard(bool active)
+        {
+            _wizardActive = active && _stepStrip != null;
+            _stepStrip.Visible = _wizardActive;
+            _btnStepBack.Visible = _wizardActive;
+            _btnStepNext.Visible = _wizardActive;
+
+            if (_wizardActive)
+            {
+                dgvFields.Location = new Point(_dgvHomeLoc.X, _dgvHomeLoc.Y + _stepStrip.Height);
+                dgvFields.Size = new Size(_dgvHomeSize.Width, _dgvHomeSize.Height - _stepStrip.Height);
+                GoToStep(0);
+            }
+            else
+            {
+                dgvFields.Location = _dgvHomeLoc;
+                dgvFields.Size = _dgvHomeSize;
+                _stepIndex = 0;
+                foreach (DataGridViewRow row in dgvFields.Rows) row.Visible = true;
+                ApplyResultToUi();
+            }
+        }
+
+        /// <summary>
+        /// Shows only the rows that belong to step <paramref name="i"/>'s certificate blocks
+        /// — every OCR-filled value stays editable in place, only which rows are visible
+        /// changes. "Review and Save" (the last step) shows every row, and Commit / Draft /
+        /// Auto-Fill only become enabled once the operator has reached it (see
+        /// <see cref="ApplyResultToUi"/>).
+        /// </summary>
+        private void GoToStep(int i)
+        {
+            if (!_wizardActive) return;
+            i = Math.Max(0, Math.Min(BirthWizardStepTitles.Length - 1, i));
+            _stepIndex = i;
+
+            bool lastStep = i == BirthWizardStepTitles.Length - 1;
+            string[] allow = BirthWizardStepSections[i];
+
+            DataGridViewRow firstVisible = null;
+            foreach (DataGridViewRow row in dgvFields.Rows)
+            {
+                bool visible;
+                if (lastStep) visible = true;
+                else if (row.Tag is string title) visible = allow.Contains(title, StringComparer.OrdinalIgnoreCase);
+                else if (row.Tag is DocField f && _keyToSection.TryGetValue(f.Key, out string sec))
+                    visible = allow.Contains(sec, StringComparer.OrdinalIgnoreCase);
+                else
+                    visible = false; // an unsectioned row is only ever shown on Review
+
+                row.Visible = visible;
+                if (visible && firstVisible == null) firstVisible = row;
+            }
+            if (firstVisible != null) dgvFields.FirstDisplayedScrollingRowIndex = firstVisible.Index;
+
+            for (int s = 0; s < _stepStrip.Count; s++)
+                _stepStrip.SetState(s, s < i ? StepStrip.State.Done
+                                    : s == i ? StepStrip.State.Current : StepStrip.State.Todo);
+
+            _btnStepBack.Enabled = i > 0;
+            _btnStepNext.Text = lastStep ? "Review" : "Next ▶";
+            _btnStepNext.Enabled = !lastStep;
+
+            ApplyResultToUi();
         }
 
         private void AddFieldRow(DocField f)
@@ -2221,6 +2397,7 @@ namespace CROMS.Forms
             _seals = new List<SealDetector.Seal>();
             txtDocClass.Clear();
             dgvFields.Rows.Clear();
+            SetupBirthWizard(false);
             ApplyResultToUi();
 
             await Analyze();

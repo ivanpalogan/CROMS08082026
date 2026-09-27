@@ -6227,3 +6227,49 @@ GUI not clicked (no interactive desktop) — the search-mode query/rail logic is
 from the already-proven `RecordSearchForm`, only the hosting/layout is new; rebuild in VS and
 confirm the sidebar no longer shows "Record Search", Records Archive opens on Search Records by
 default, and a non-Admin sign-in still sees the "Records Archive" button.
+
+### 2026-09-28 — Step 6, Birth Record Digitization Wizard: the OCR review grid is now organized
+### into steps instead of showing every field at once
+
+Per spec: Child Information -> Mother Information -> Father Information -> Other Birth
+Certificate Information -> Registry Information -> Review and Save, using the fields already
+used by the existing birth data structure, every OCR-filled field staying editable, and staff
+able to correct wrong values before saving. Built into `OcrDigitizationForm` — the screen the
+2026-09-02 "+ Digitize Old Record" comment already calls the Birth Record Digitization wizard —
+rather than a second form, since the review grid there is exactly the fields this spec names.
+
+The grid was already grouped under the certificate's OWN printed section headings (2026-09-10),
+so no new field mapping was needed: a new `_keyToSection` map (built alongside the existing
+`FillFieldGrid`) just records which of those section titles each row belongs to, and a static
+table (`BirthWizardStepSections`) folds the printed sections into the six requested steps ("1-5.
+Child" -> Child Information; "6-12. Mother" -> Mother Information; "13-17. Father" -> Father
+Information; "18. Marriage of Parents" + "19/21a. Attendant at Birth" + "Read from the whole
+page" + "Other Entries" -> Other Birth Certificate Information; "Form Identification" + both
+certification-of-attendant/informant blocks + Prepared/Received/Registered By -> Registry
+Information). Review and Save shows every row, unfiltered.
+
+New `StepStrip` (reused from `MarriageUi.cs` — the same numbered-circle control the Marriage
+License and Birth Registration wizards already use) plus Back/Next buttons, built in CODE inside
+`SetupBirthWizardChrome()` rather than the Designer: this file's own history records the
+Designer silently deleting hand-added controls more than once (2026-09-02, 2026-09-10), and a
+control added purely in code cannot be lost that way. They sit on top of the grid's existing
+fixed footprint — the strip takes the top 54px, the grid shrinks by exactly that, so nothing
+else on the screen moved.
+
+`GoToStep` sets `DataGridViewRow.Visible` per row rather than rebuilding the grid — the same
+cells, same editors, same Verified checkboxes stay live the whole time, so a value typed on one
+step is exactly what Review and Save shows. Only offered for Birth with a recognised layout
+(`_kind == DocKind.Birth && _formDef.Sections.Count > 0`); Marriage and Death, and an
+unrecognised birth scan on the label-anchored path, keep the flat sectioned grid unchanged.
+
+Commit / Draft / Auto-Fill now also require the operator to be ON the last step
+(`reviewStepOk` in `ApplyResultToUi`) before they enable — the wizard's earlier steps are for
+reading and correcting one certificate block at a time, not for saving from. This is on top of,
+not instead of, every existing gate (recognised class, not blocked for manual review, not
+routing through a Birth Digitization wizard return, etc.).
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2019) clean, 0 errors, 0 warnings, built to a temp OutDir.
+GUI not clicked (no interactive desktop) — the row-visibility filter and step gating were
+reasoned from the exact existing `AddSectionRow`/`AddFieldRow`/`ApplyResultToUi` code paths, not
+run against a live scan; rebuild in VS and step through a real birth scan to confirm the six
+steps land on the right fields and Commit/Draft only enable on Review and Save.
