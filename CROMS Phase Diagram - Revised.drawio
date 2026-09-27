@@ -1,0 +1,164 @@
+<mxfile host="app.diagrams.net" modified="2026-09-27T00:00:00.000Z" agent="CROMS project team" version="24.7.17">
+  <diagram id="croms-process" name="CROMS Process">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="CROMS System Process" style="text;html=1;align=left;verticalAlign=middle;fontSize=24;fontStyle=1;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="620" height="34" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="From client request to service completion" style="text;html=1;align=left;verticalAlign=middle;fontSize=12;fontColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="42" y="52" width="420" height="24" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="phase1" value="PHASE 1&#xa;Request and queue" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#60a5fa;fontColor=#1e3a5f;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="150" y="85" width="285" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="phase2" value="PHASE 2&#xa;Serve and check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#4ade80;fontColor=#14532d;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="450" y="85" width="285" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="phase3" value="PHASE 3&#xa;Process the request" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#fbbf24;fontColor=#713f12;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="750" y="85" width="315" height="52" as="geometry"/>
+        </mxCell>
+        <mxCell id="phase4" value="PHASE 4&#xa;Payment, release and completion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#f472b6;fontColor=#831843;fontSize=14;fontStyle=1;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="85" width="430" height="52" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="laneClientBg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d1d5db;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="1470" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="laneSystemBg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#d1d5db;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="1470" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="laneStaffBg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d1d5db;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="1470" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="laneDataBg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#d1d5db;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="1470" height="130" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="laneClient" value="CLIENT / KIOSK" style="rounded=0;whiteSpace=wrap;html=1;horizontal=0;fillColor=#e5e7eb;strokeColor=#9ca3af;fontSize=12;fontStyle=1;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="70" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="laneSystem" value="CROMS" style="rounded=0;whiteSpace=wrap;html=1;horizontal=0;fillColor=#e5e7eb;strokeColor=#9ca3af;fontSize=12;fontStyle=1;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="70" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="laneStaff" value="LCRO STAFF" style="rounded=0;whiteSpace=wrap;html=1;horizontal=0;fillColor=#e5e7eb;strokeColor=#9ca3af;fontSize=12;fontStyle=1;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="40" y="480" width="70" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="laneData" value="RECORDS" style="rounded=0;whiteSpace=wrap;html=1;horizontal=0;fillColor=#e5e7eb;strokeColor=#9ca3af;fontSize=12;fontStyle=1;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="40" y="700" width="70" height="130" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="cStart" value="Start" style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.5;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="135" y="202" width="70" height="42" as="geometry"/>
+        </mxCell>
+        <mxCell id="cSelect" value="Choose one or more services" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="225" y="190" width="185" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="cDetails" value="Enter name, purpose, contact number and take photo" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="465" y="183" width="210" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="cTicket" value="Receive one queue number and wait for the call" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="690" y="187" width="200" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="cRequirements" value="Present the needed documents or details" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="905" y="187" width="190" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="cPay" value="Pay the assessed fee, if required" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="187" width="180" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="cReceive" value="Receive the document, decision or status" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;size=14;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1305" y="187" width="180" height="72" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="sTicket" value="Create the queue ticket and its service list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="205" y="342" width="210" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="sQueue" value="Prioritize the ticket, assign an available window and update the public display" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#3b82f6;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="450" y="332" width="260" height="86" as="geometry"/>
+        </mxCell>
+        <mxCell id="sModule" value="Open the module for the current service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0fdf4;strokeColor=#22c55e;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="745" y="342" width="220" height="66" as="geometry"/>
+        </mxCell>
+        <mxCell id="sSave" value="Save or update the record, request and transaction status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#f59e0b;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="980" y="337" width="240" height="76" as="geometry"/>
+        </mxCell>
+        <mxCell id="sMore" value="Another service on the same ticket?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#fdf2f8;strokeColor=#ec4899;strokeWidth=1.4;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1255" y="322" width="170" height="106" as="geometry"/>
+        </mxCell>
+        <mxCell id="sClose" value="Complete the ticket" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdf2f8;strokeColor=#ec4899;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1438" y="347" width="62" height="56" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="stAccept" value="Accept the next ticket, locate the record, then call the client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="455" y="525" width="250" height="72" as="geometry"/>
+        </mxCell>
+        <mxCell id="stCheck" value="Check identity and requirements" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="745" y="530" width="180" height="62" as="geometry"/>
+        </mxCell>
+        <mxCell id="stComplete" value="Complete?" style="rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="940" y="516" width="135" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="stReturn" value="Explain what is missing and return for correction" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#fb923c;strokeWidth=1.4;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="880" y="620" width="210" height="58" as="geometry"/>
+        </mxCell>
+        <mxCell id="stProcess" value="Search or encode the record, review scanned fields, and process the selected service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1095" y="515" width="245" height="92" as="geometry"/>
+        </mxCell>
+        <mxCell id="stApprove" value="Registrar approves when required" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=11;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1110" y="625" width="190" height="54" as="geometry"/>
+        </mxCell>
+        <mxCell id="stRelease" value="Cashier records payment; releasing staff checks the claimant and releases the result" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#374151;strokeWidth=1.4;fontSize=12;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="520" width="145" height="112" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="dQueue" value="Queue tickets, services and windows" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=11;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="205" y="740" width="220" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="dRegistry" value="Birth, marriage and death records" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=11;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="500" y="740" width="220" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="dTxn" value="Transactions, requests and payments" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=11;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="795" y="740" width="220" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="dOther" value="Petitions, OCR batches and audit trail" style="shape=partialRectangle;right=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#64748b;strokeWidth=1.5;fontSize=11;spacingLeft=12;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="740" width="240" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="note" value="Note: OCR is used only when a document is scanned. Staff still review and correct the extracted fields before saving." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;fillColor=#fffdf0;strokeColor=#d6b656;fontColor=#5f4b00;fontSize=11;size=14;" vertex="1" parent="1">
+          <mxGeometry x="1350" y="725" width="145" height="85" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="cStart" target="cSelect"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="cSelect" target="cDetails"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="cDetails" target="cTicket"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cDetails" target="sTicket"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="sTicket" target="sQueue"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="sQueue" target="stAccept"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="stAccept" target="stCheck"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="stCheck" target="stComplete"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e9" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#ea580c;strokeWidth=1.4;fontSize=11;" edge="1" parent="1" source="stComplete" target="stReturn"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e10" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#16a34a;strokeWidth=1.4;fontSize=11;" edge="1" parent="1" source="stComplete" target="sModule"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="stProcess" target="sSave"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="stProcess" target="stApprove"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e13" value="if required" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;fontSize=10;" edge="1" parent="1" source="stApprove" target="stRelease"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="stRelease" target="sMore"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e15" value="Yes - continue or forward" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#2563eb;strokeWidth=1.4;fontSize=10;" edge="1" parent="1" source="sMore" target="sModule"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1340" y="452"/><mxPoint x="855" y="452"/></Array></mxGeometry></mxCell>
+        <mxCell id="e16" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;fontSize=10;" edge="1" parent="1" source="sMore" target="sClose"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="sClose" target="cReceive"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="sTicket" target="dQueue"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="stProcess" target="dRegistry"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="sSave" target="dTxn"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#64748b;strokeWidth=1.1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="stApprove" target="dOther"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="cTicket" target="cRequirements"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e23" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="cRequirements" target="stCheck"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e24" value="submit again" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#ea580c;strokeWidth=1.2;fontSize=10;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="stReturn" target="cRequirements"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e25" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="sModule" target="stProcess"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.4;" edge="1" parent="1" source="sSave" target="sMore"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e27" value="if a fee applies" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.2;fontSize=10;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" edge="1" parent="1" source="stApprove" target="cPay"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=1;strokeColor=#374151;strokeWidth=1.2;exitX=0.5;exitY=1;entryX=0;entryY=0.5;" edge="1" parent="1" source="cPay" target="stRelease"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
