@@ -11,9 +11,12 @@ using AForge.Video.DirectShow;
 namespace CROMS.Kiosk
 {
     /// <summary>
-    /// Step 2 of 2 — details + priority + live webcam photo. For Marriage Application / Marriage Registration the personal
-    /// info and photo are for TWO people (husband and wife) — see
-    /// <see cref="ApplyMarriagePersons"/>; every other service is a single person, unchanged.
+    /// Step 2 of 2 — details + priority + live webcam photo. For Marriage Application ONLY the
+    /// personal info and photo are for TWO people (husband and wife) — see
+    /// <see cref="ApplyMarriagePersons"/>. Marriage Registration is a single person (whoever is
+    /// at the counter with the signed certificate) exactly like every other service — the
+    /// couple's own details were already captured by the license photo / the certificate itself
+    /// (see KioskSession.HasMarriageApp).
     /// Reads/writes the shared <see cref="KioskSession"/>. Print submits via
     /// <see cref="KioskCore.Submit"/> and returns DialogResult.OK (flow resets for the next
     /// client); Back returns DialogResult.Cancel (flow re-shows Step 1 with selections intact).
@@ -141,13 +144,13 @@ namespace CROMS.Kiosk
             OthersBox.SetValue(_cboIdType, _session.IdType);
             _txtIdNo.Text = _session.IdNo ?? "";
 
-            if (_session.HasMarriage)
+            if (_session.HasMarriageApp)
             {
                 _txtFirst2.Text = _session.First2 ?? "";
                 _txtMiddle2.Text = _session.Middle2 ?? "";
                 _txtLast2.Text = _session.Last2 ?? "";
             }
-            ApplyMarriagePersons(_session.HasMarriage);
+            ApplyMarriagePersons(_session.HasMarriageApp);
             RefreshCaptureUi();
         }
 
@@ -176,6 +179,7 @@ namespace CROMS.Kiosk
         /// other service leaves the screen exactly as it always was: no header, no second
         /// column, single camera person. Runs once at Load — each visit gets a fresh form.
         /// </summary>
+        /// <summary>marriage = HasMarriageApp (Registration never reaches this true).</summary>
         private void ApplyMarriagePersons(bool marriage)
         {
             _lblHeadA.Visible = marriage;
@@ -245,12 +249,12 @@ namespace CROMS.Kiosk
         /// </summary>
         private void RefreshCaptureUi()
         {
-            if (_session.HasMarriage)
+            if (_session.HasMarriageApp)
             {
                 _btnPersonA.Text = _session.Photo != null ? "Husband  ✓" : "Husband";
                 _btnPersonB.Text = _session.Photo2 != null ? "Wife  ✓" : "Wife";
             }
-            byte[] current = _capturingWife && _session.HasMarriage ? _session.Photo2 : _session.Photo;
+            byte[] current = _capturingWife && _session.HasMarriageApp ? _session.Photo2 : _session.Photo;
             if (current != null)
             {
                 _btnCapture.Text = "Retake Photo";
@@ -288,7 +292,7 @@ namespace CROMS.Kiosk
             _rightTitle.Location = new Point(26, 22);
             _rightHint.Location = new Point(26, 60);
 
-            bool marriage = _session.HasMarriage;
+            bool marriage = _session.HasMarriageApp;
             _btnPersonA.Visible = marriage;
             _btnPersonB.Visible = marriage;
             int camY = marriage ? 148 : 104;
@@ -452,7 +456,7 @@ namespace CROMS.Kiosk
 
         private void BtnCapture_Click(object sender, EventArgs e)
         {
-            bool wife = _capturingWife && _session.HasMarriage;
+            bool wife = _capturingWife && _session.HasMarriageApp;
             lock (_frameLock)
             {
                 if (_lastFrame == null) { Warn("The camera is not ready yet."); return; }
@@ -467,7 +471,7 @@ namespace CROMS.Kiosk
             _lblCamState.Text = "Photo Captured";
             _lblCamState.ForeColor = Color.FromArgb(46, 148, 87);
             _picCam?.Invalidate();
-            _lblCamStatus.Text = _session.HasMarriage
+            _lblCamStatus.Text = _session.HasMarriageApp
                 ? (wife ? "Wife's photo captured. Switch to Husband, or Retake." : "Husband's photo captured. Switch to Wife, or Retake.")
                 : "Photo captured. Tap Retake Photo to redo.";
         }

@@ -22,9 +22,13 @@ namespace CROMS.Kiosk
         public byte[] Photo;
         public string ClaimTicketEntry;
 
-        // Marriage Application / Marriage Registration only: the SECOND person (spouse). First/
-        // Middle/Last/Photo above are the husband's when HasMarriage is true; these are the
-        // wife's. Both are captured on the same kiosk screen, one camera, toggled between them.
+        // Marriage Application ONLY: the SECOND person (spouse). First/Middle/Last/Photo above
+        // are the husband's when HasMarriageApp is true; these are the wife's. Both are
+        // captured on the same kiosk screen, one camera, toggled between them.
+        // Marriage Registration does NOT use these — the couple is already on record from the
+        // license (photographed at the gate step) and the signed certificate (read by staff /
+        // OCR at the desk); re-asking full couple info here would just duplicate that. A
+        // Registration visit is a single person at the counter, like every other service.
         public string First2, Middle2, Last2;
         public byte[] Photo2;
 
@@ -71,7 +75,9 @@ namespace CROMS.Kiosk
 
         public bool HasClaim => Selected.Contains("CLAIM");
         public bool HasBreqs => Selected.Contains("BREQS");
-        public bool HasMarriage => Selected.Contains("MARRIAGE_APP") || Selected.Contains("MARRIAGE_REG");
+        // Couple-info UI (both names, both photos) — Application only. See the comment on
+        // First2/Photo2 above for why Registration is deliberately excluded.
+        public bool HasMarriageApp => Selected.Contains("MARRIAGE_APP");
         public bool HasCtc => Selected.Contains("CTC");
 
         // Marriage Registration presumes a licence already exists — this is unanswered until

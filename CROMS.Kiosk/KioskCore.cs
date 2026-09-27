@@ -405,9 +405,11 @@ namespace CROMS.Kiosk
             string code = "Q-" + num.ToString("D3");
             object contact = NullIfBlank(s.Contact);
 
-            // Spouse fields are only meaningful for Marriage Application / Marriage
-            // Registration — every other service leaves them NULL.
-            object spouseName = s.HasMarriage ? (object)FullName2(s) : DBNull.Value;
+            // Spouse fields are only meaningful for Marriage Application — every other
+            // service (Marriage Registration included) leaves them NULL. Registration's
+            // couple was already captured by the license photo / signed certificate; asking
+            // again at the kiosk would just duplicate it (see KioskSession.HasMarriageApp).
+            object spouseName = s.HasMarriageApp ? (object)FullName2(s) : DBNull.Value;
 
             long ticketId = Db.Insert(
                 "INSERT INTO queue_tickets (ticket_code, full_name, spouse_full_name, contact_no, " +
@@ -420,7 +422,7 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@sname", spouseName),
                 new MySqlParameter("@contact", contact),
                 ImageParam(s.Photo),
-                ImageParam(s.HasMarriage ? s.Photo2 : null, "@simg"),
+                ImageParam(s.HasMarriageApp ? s.Photo2 : null, "@simg"),
                 // Photo of the physical Marriage License (kiosk gate, MarriageLicenseCheckForm) —
                 // travels with the ticket exactly like the id/spouse photos above until the desk
                 // reads it (see MarriageEntryForm.PrepareForQueueTicket).
@@ -464,7 +466,7 @@ namespace CROMS.Kiosk
 
             var services = s.Selected.Select(c => Find(c).Label).ToList();
             int ahead = AheadCount(ticketId, priority, num);
-            string spouseLine = s.HasMarriage ? FullName2(s) : null;
+            string spouseLine = s.HasMarriageApp ? FullName2(s) : null;
             PrintTicket(code, services, priority, FullName(s), spouseLine, ahead, claimToken, claimNo);
             ShowTicket(code, services, claimToken, claimNo);
             return true;
@@ -476,7 +478,7 @@ namespace CROMS.Kiosk
             if (s.Selected.Count == 0) { error = "Please select at least one service."; return false; }
             if (string.IsNullOrWhiteSpace(s.First) || string.IsNullOrWhiteSpace(s.Last))
             { error = "Please enter your first and last name."; return false; }
-            if (s.HasMarriage && (string.IsNullOrWhiteSpace(s.First2) || string.IsNullOrWhiteSpace(s.Last2)))
+            if (s.HasMarriageApp && (string.IsNullOrWhiteSpace(s.First2) || string.IsNullOrWhiteSpace(s.Last2)))
             { error = "Please enter the spouse's first and last name."; return false; }
             // Checked BEFORE the ticket exists, so a half-filled PSA request never leaves a
             // ticket behind with no request for staff to find.

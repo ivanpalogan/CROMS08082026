@@ -126,7 +126,7 @@ namespace CROMS.Kiosk
             Section("CLIENT");
             Row("Name", KioskCore.FullName(_session));
             if (!string.IsNullOrWhiteSpace(_session.Contact)) Row("Contact", _session.Contact);
-            if (_session.HasMarriage) Row("Spouse", KioskCore.FullName2(_session));
+            if (_session.HasMarriageApp) Row("Spouse", KioskCore.FullName2(_session));
 
             Section("SERVICES SELECTED");
             int i = 1;
