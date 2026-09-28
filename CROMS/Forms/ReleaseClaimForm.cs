@@ -433,6 +433,170 @@ namespace CROMS.Forms
             }
         }
 
+        /// <summary>
+        /// "Show ID-Upload QR for Claimant" — this is now the ONLY place CROMS generates a
+        /// claimapp QR. It used to be printed on every kiosk ticket regardless of whether the
+        /// visit ever reached a release; moved here so it is only ever shown when a document is
+        /// actually about to be handed over, to the person actually standing at the counter.
+        /// </summary>
+        private void ShowIdUploadQr()
+        {
+            if (!_selectedTxnId.HasValue)
+            {
+                MessageBox.Show("Select a request to release first.", "No request selected",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            long txnId = _selectedTxnId.Value;
+            string token, ticketNo;
+            try
+            {
+                EnsureClaimForTransaction(txnId, out token, out ticketNo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not prepare the ID-upload QR: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            ShowIdUploadQrDialog(txnId, token, ticketNo);
+        }
+
+        /// <summary>
+        /// Finds the claim_requests row already linked to this transaction (a returning
+        /// pickup, or a QR shown earlier for the same release) and reuses its token, or
+        /// creates a fresh one tied directly to transaction_id — no queue ticket involved,
+        /// since this is generated at the release counter, not at the kiosk.
+        /// </summary>
+        private static void EnsureClaimForTransaction(long txnId, out string token, out string ticketNo)
+        {
+            DataTable dt = Db.Pull(
+                "SELECT qr_token, claim_ticket_no FROM claim_requests WHERE transaction_id = @t " +
+                "ORDER BY id DESC LIMIT 1", new MySqlParameter("@t", txnId));
+            if (dt.Rows.Count > 0 && dt.Rows[0]["qr_token"] != DBNull.Value)
+            {
+                token = Convert.ToString(dt.Rows[0]["qr_token"]);
+                ticketNo = Convert.ToString(dt.Rows[0]["claim_ticket_no"]);
+                return;
+            }
+
+            string clientName = null;
+            DataTable ct = Db.Pull("SELECT client_name FROM transactions WHERE id = @t",
+                new MySqlParameter("@t", txnId));
+            if (ct.Rows.Count > 0 && ct.Rows[0]["client_name"] != DBNull.Value)
+                clientName = Convert.ToString(ct.Rows[0]["client_name"]);
+
+            token = Guid.NewGuid().ToString("N");
+            ticketNo = NextClaimNo();
+            Db.Push(
+                "INSERT INTO claim_requests (qr_token, claim_ticket_no, transaction_id, first_name, " +
+                "request_details, status) VALUES (@t, @tk, @txn, @f, @d, 'Pending')",
+                new MySqlParameter("@t", token),
+                new MySqlParameter("@tk", ticketNo),
+                new MySqlParameter("@txn", txnId),
+                new MySqlParameter("@f", string.IsNullOrWhiteSpace(clientName) ? (object)DBNull.Value : clientName),
+                new MySqlParameter("@d", "Identity verification for release"));
+        }
+
+        private static string NextClaimNo()
+        {
+            string year = DateTime.Now.Year.ToString();
+            DataTable dt = Db.Pull(
+                "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(claim_ticket_no,'-',-1) AS UNSIGNED)),0)+1 AS n " +
+                "FROM claim_requests WHERE claim_ticket_no LIKE 'CLM-" + year + "-%'");
+            int n = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
+            return "CLM-" + year + "-" + n.ToString("D4");
+        }
+
+        /// <summary>Small modal showing the QR + a "check for upload" button that re-reads the
+        /// claim row and refreshes the Uploaded ID pane behind it — no auto-polling, since the
+        /// officer is standing right there and can just tap it once the client says they're done.</summary>
+        private void ShowIdUploadQrDialog(long txnId, string token, string ticketNo)
+        {
+            using (var dlg = new Form
+            {
+                Text = "Ask Claimant to Upload ID",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                MinimizeBox = false, MaximizeBox = false,
+                ClientSize = new Size(420, 566), BackColor = Color.White
+            })
+            {
+                var title = new Label
+                {
+                    Text = "Scan with your phone camera", Location = new Point(20, 18),
+                    Size = new Size(380, 26), Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = Ink
+                };
+                var sub = new Label
+                {
+                    Text = "to upload a photo of your valid ID.", Location = new Point(20, 46),
+                    Size = new Size(380, 22), Font = new Font("Segoe UI", 10F), ForeColor = Muted
+                };
+                var pic = new PictureBox
+                {
+                    Location = new Point(90, 78), Size = new Size(240, 240),
+                    SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle
+                };
+                Bitmap qr = QrHelper.TryCreate(ClaimLink.Build(token), 8);
+                if (qr != null) pic.Image = qr;
+                else pic.Visible = false;
+
+                var noQr = new Label
+                {
+                    Text = "Token:\n" + token, Location = new Point(20, 78), Size = new Size(380, 240),
+                    TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Consolas", 9F),
+                    Visible = qr == null
+                };
+                var ticketLbl = new Label
+                {
+                    Text = "Claim ticket: " + ticketNo, Location = new Point(20, 328), Size = new Size(380, 24),
+                    TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = Ink
+                };
+                var fallback = new Label
+                {
+                    Text = "No camera? On the phone open " + ClaimLink.BaseUrl() +
+                           " and enter the ticket number above.",
+                    Location = new Point(20, 356), Size = new Size(380, 50),
+                    TextAlign = ContentAlignment.TopCenter, Font = new Font("Segoe UI", 9F), ForeColor = Muted
+                };
+                var status = new Label
+                {
+                    Text = "Waiting for upload…", Location = new Point(20, 412), Size = new Size(380, 24),
+                    TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 9.5F, FontStyle.Italic),
+                    ForeColor = UiTheme.Warning
+                };
+                var refresh = new Button
+                {
+                    Text = "Check for Upload", Location = new Point(20, 448), Size = new Size(380, 40),
+                    FlatStyle = FlatStyle.Flat, BackColor = Accent, ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold), Cursor = Cursors.Hand
+                };
+                refresh.FlatAppearance.BorderSize = 0;
+                refresh.Click += (s, e) =>
+                {
+                    ShowUploadedIdFor((int)txnId);
+                    bool uploaded = picUploadedId.Image != null;
+                    status.Text = uploaded ? "✔ ID uploaded — check the panel behind this window." : "Waiting for upload…";
+                    status.ForeColor = uploaded ? Green : UiTheme.Warning;
+                };
+                var close = new Button
+                {
+                    Text = "Close", Location = new Point(20, 500), Size = new Size(380, 36),
+                    FlatStyle = FlatStyle.Flat, BackColor = Chip, ForeColor = Ink,
+                    Font = new Font("Segoe UI", 10F), Cursor = Cursors.Hand, DialogResult = DialogResult.OK
+                };
+                close.FlatAppearance.BorderSize = 0;
+
+                dlg.Controls.Add(title); dlg.Controls.Add(sub); dlg.Controls.Add(pic);
+                dlg.Controls.Add(noQr);
+                dlg.Controls.Add(ticketLbl); dlg.Controls.Add(fallback); dlg.Controls.Add(status);
+                dlg.Controls.Add(refresh); dlg.Controls.Add(close);
+                dlg.AcceptButton = close;
+                dlg.FormClosed += (s, e) => qr?.Dispose();
+                dlg.ShowDialog(this);
+            }
+        }
+
         /// <summary>Search filters the pending list by transaction code or client name; a
         /// number (queue / txn) also selects the matching release directly.</summary>
         private void DoSearch()
@@ -716,6 +880,22 @@ namespace CROMS.Forms
             chkRep.CheckedChanged += (s, e) => ShowRepFields(chkRep.Checked);
 
             AddStack(t, Section("IDENTITY EVIDENCE"), 24);
+
+            // Generated here — not at the kiosk — because uploading an ID only matters at
+            // the moment a document is actually being released. Creates (or reuses) a
+            // claim_requests row tied straight to this transaction; the claimant scans it
+            // with their own phone to upload an ID photo into claimapp right at the counter.
+            var btnIdQr = new Button
+            {
+                Text = "📱  Show ID-Upload QR for Claimant", Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat, BackColor = Chip, ForeColor = Accent,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false
+            };
+            btnIdQr.FlatAppearance.BorderSize = 1;
+            btnIdQr.FlatAppearance.BorderColor = UiTheme.CardLine;
+            btnIdQr.Click += (s, e) => ShowIdUploadQr();
+            AddStack(t, btnIdQr, 38);
 
             // The two faces sit SIDE BY SIDE because that is the officer's actual task —
             // compare the ID the claimant uploaded against the photo the kiosk took.

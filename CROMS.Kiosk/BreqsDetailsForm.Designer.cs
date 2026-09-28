@@ -90,11 +90,6 @@ namespace CROMS.Kiosk
         private Label lblMother;
         private RoundPanel hostMother;
         private TextBox _txtMother;
-        // Upload-a-photo-of-your-ID block, the same claimapp QR shown on Personal Info & Photo
-        // (see DetailsPhotoForm) so the client is never limited to typing the ID number here.
-        private RoundPanel qrCard;
-        private Label lblQrTitle, lblQrSubtitle, lblQrTicketCap, lblQrTicketNo, lblQrNote;
-        private PictureBox picBreqsQr;
 
         protected override void Dispose(bool disposing)
         {
@@ -182,13 +177,6 @@ namespace CROMS.Kiosk
             this.lblMother = new Label();
             this.hostMother = new RoundPanel();
             this._txtMother = new TextBox();
-            this.qrCard = new RoundPanel();
-            this.lblQrTitle = new Label();
-            this.lblQrSubtitle = new Label();
-            this.picBreqsQr = new PictureBox();
-            this.lblQrTicketCap = new Label();
-            this.lblQrTicketNo = new Label();
-            this.lblQrNote = new Label();
             this.header.SuspendLayout();
             this.footer.SuspendLayout();
             this.footerDivider.SuspendLayout();
@@ -197,7 +185,6 @@ namespace CROMS.Kiosk
             this._box.SuspendLayout();
             this.leftCard.SuspendLayout();
             this.rightCard.SuspendLayout();
-            this.qrCard.SuspendLayout();
             this.hostCopies.SuspendLayout();
             this.hostPurpose.SuspendLayout();
             this.hostRelationship.SuspendLayout();
@@ -272,7 +259,7 @@ namespace CROMS.Kiosk
             this.panelStep.Resize += new System.EventHandler(this.PanelStep_Resize);
             this._box.BackColor = Color.FromArgb(244, 246, 249);
             this._box.Location = new Point(20, 16);
-            this._box.Size = new Size(1200, 888);
+            this._box.Size = new Size(1200, 700);
             this.leftCard.Fill = Color.White;
             this.leftCard.Location = new Point(6, 6);
             this.leftCard.Radius = 14;
@@ -283,43 +270,6 @@ namespace CROMS.Kiosk
             this.rightCard.Radius = 14;
             this.rightCard.Shadow = 8;
             this.rightCard.Size = new Size(574, 688);
-            //
-            // qrCard - upload a photo of the ID instead of only typing its number
-            //
-            this.qrCard.Fill = Color.White;
-            this.qrCard.Location = new Point(6, 708);
-            this.qrCard.Radius = 14;
-            this.qrCard.Shadow = 8;
-            this.qrCard.Size = new Size(1188, 174);
-            this.lblQrTitle.AutoSize = true;
-            this.lblQrTitle.Font = new Font("Segoe UI", 13F, FontStyle.Bold);
-            this.lblQrTitle.ForeColor = Color.FromArgb(23, 26, 36);
-            this.lblQrTitle.Location = new Point(24, 14);
-            this.lblQrTitle.Text = "Upload a Photo of Your Valid ID";
-            this.lblQrSubtitle.AutoSize = true;
-            this.lblQrSubtitle.Font = new Font("Segoe UI", 9.5F);
-            this.lblQrSubtitle.ForeColor = Color.FromArgb(91, 100, 114);
-            this.lblQrSubtitle.Location = new Point(24, 42);
-            this.lblQrSubtitle.Text = "Optional, but it speeds up verification when you claim your document.";
-            this.picBreqsQr.BackColor = Color.White;
-            this.picBreqsQr.BorderStyle = BorderStyle.FixedSingle;
-            this.picBreqsQr.Location = new Point(24, 68);
-            this.picBreqsQr.Size = new Size(96, 96);
-            this.picBreqsQr.SizeMode = PictureBoxSizeMode.Zoom;
-            this.lblQrTicketCap.Font = new Font("Segoe UI", 9.5F);
-            this.lblQrTicketCap.ForeColor = Color.FromArgb(91, 100, 114);
-            this.lblQrTicketCap.Location = new Point(140, 68);
-            this.lblQrTicketCap.Size = new Size(220, 20);
-            this.lblQrTicketCap.Text = "Your Claim Ticket Number";
-            this.lblQrTicketNo.Font = new Font("Segoe UI", 18F, FontStyle.Bold);
-            this.lblQrTicketNo.ForeColor = Color.FromArgb(29, 78, 216);
-            this.lblQrTicketNo.Location = new Point(140, 90);
-            this.lblQrTicketNo.Size = new Size(220, 32);
-            this.lblQrNote.Font = new Font("Segoe UI", 9F);
-            this.lblQrNote.ForeColor = Color.FromArgb(91, 100, 114);
-            this.lblQrNote.Location = new Point(380, 68);
-            this.lblQrNote.Size = new Size(764, 96);
-            this.lblQrNote.Text = "Scan with your phone camera to upload a photo of the ID you will present.";
             //
             // left card - which document, requester ID
             //
@@ -721,13 +671,6 @@ namespace CROMS.Kiosk
             this.panelStep.Controls.Add(this._box);
             this._box.Controls.Add(this.leftCard);
             this._box.Controls.Add(this.rightCard);
-            this._box.Controls.Add(this.qrCard);
-            this.qrCard.Controls.Add(this.lblQrTitle);
-            this.qrCard.Controls.Add(this.lblQrSubtitle);
-            this.qrCard.Controls.Add(this.picBreqsQr);
-            this.qrCard.Controls.Add(this.lblQrTicketCap);
-            this.qrCard.Controls.Add(this.lblQrTicketNo);
-            this.qrCard.Controls.Add(this.lblQrNote);
             this.leftCard.Controls.Add(this.lblLeftTitle);
             this.leftCard.Controls.Add(this.lblLeftHint);
             this.leftCard.Controls.Add(this.lblDocType);
@@ -826,7 +769,6 @@ namespace CROMS.Kiosk
             this.hostCopies.ResumeLayout(false);
             this.rightCard.ResumeLayout(false);
             this.leftCard.ResumeLayout(false);
-            this.qrCard.ResumeLayout(false);
             this._box.ResumeLayout(false);
             this.panelStep.ResumeLayout(false);
             this._host.ResumeLayout(false);

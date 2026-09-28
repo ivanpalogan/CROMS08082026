@@ -4968,6 +4968,38 @@ present; exactly one Settings page visible at a time across all eight; zero cont
 the page area on the three grid pages; both hosted modules built on first selection and drawn.
 MSBuild exit 0, 0 warnings 0 errors (temp OutputPath — REBUILD IN VS to pick it up).
 
+### 2026-09-28 (later) — claimapp QR moved off the kiosk entirely; now generated at Release &
+### Claim, at the moment a document is actually being handed over
+
+The kiosk generated a claimapp ID-upload QR (and, on the BREQS step, a second copy of the same
+QR) on EVERY visit regardless of whether that visit would ever reach a release — printed on the
+thermal ticket and shown in the post-submit confirmation dialog. Removed outright: `KioskCore`'s
+`EnsureClaimRequest`/`FinalizeClaimRow`/`NextClaimNo` are gone, `PrintTicket`/`DrawTicket`/
+`ShowTicket` dropped their `claimToken`/`claimNo` parameters and the QR-drawing blocks, and
+`BreqsDetailsForm`'s `qrCard` panel (+ `EnsureClaimQr`) was removed along with its Designer
+controls — `_box`'s design height shrank 888→700 to close the gap it left. `KioskSession.
+ClaimQrToken`/`ClaimQrNo` and the kiosk's own `ClaimLink.cs`/`QrHelper.cs` (unused once nothing
+called them) were deleted; the kiosk no longer talks to claimapp in any way.
+
+Moved to `ReleaseClaimForm` — the releasing window, where a claimant is actually standing at the
+counter — as a new "📱 Show ID-Upload QR for Claimant" button under IDENTITY EVIDENCE, live only
+in the ForRelease state (matches the existing rail block already shown there). New
+`EnsureClaimForTransaction(txnId, ...)` reuses an existing `claim_requests` row already linked to
+this transaction (a returning pickup, or a QR shown earlier for the same release) or creates one
+tied straight to `transaction_id` — no queue ticket involved, since this never touches the kiosk.
+A new `NextClaimNo()` (year-scoped MAX+1, same `CLM-YYYY-####` shape the kiosk used to generate)
+mirrors the retired kiosk helper. `ShowIdUploadQrDialog` shows the QR (`Data/ClaimLink.cs` +
+`Data/QrHelper.cs`, already used elsewhere in this project) plus the base URL as a manual-entry
+fallback, and a "Check for Upload" button that re-runs the existing `ShowUploadedIdFor` and
+reports whether the ID has landed — no background polling, since the officer is standing right
+there and can tap it once the client says they're done.
+
+VERIFIED: `MSBuild` clean, 0 errors, 0 new warnings on both `CROMS.Kiosk.csproj` and
+`CROMS.csproj` (temp OutDir). GUI not clicked (no interactive desktop) — the dialog reuses the
+already-proven `ClaimLink`/`QrHelper` pair and the existing `ShowUploadedIdFor` lookup verbatim;
+rebuild both projects in VS and confirm a kiosk ticket no longer shows any ID-upload QR, and that
+Release & Claim's new button generates one tied to the selected transaction.
+
 NOT DONE: the module keys "masterfiles", "users" and "certtemplates" are still registered in
 ModuleRegistry (ModuleTitle and any future GoToModule resolve through it) even though nothing
 navigates to them any more — removing them would be a second, unrelated change to the cross-module

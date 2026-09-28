@@ -234,73 +234,6 @@ namespace CROMS.Kiosk
             return "Regular";
         }
 
-        // -------------------------------------------------------- claim QR
-        /// <summary>
-        /// Creates the claim_requests row (once) and stores its token + ticket number on the
-        /// session. Shown as the "Upload Your ID" QR on EVERY visit's Step 2 now, not only a
-        /// Release &amp; Claim pickup — request_details states what this particular visit is
-        /// actually for, so an office reading claim_requests later can still tell them apart.
-        /// Best-effort — never blocks the queue ticket.
-        /// </summary>
-        public static void EnsureClaimRequest(KioskSession s)
-        {
-            if (s.ClaimQrToken != null) return;
-            try
-            {
-                string token = Guid.NewGuid().ToString("N");
-                string ticketNo = NextClaimNo();
-                string details = s.Selected.Count > 0
-                    ? string.Join(", ", s.Selected.Select(c => Find(c).Label))
-                    : "Identity Verification";
-                if (details.Length > 255) details = details.Substring(0, 255);
-                Db.Push(
-                    "INSERT INTO claim_requests " +
-                    "(qr_token, claim_ticket_no, first_name, middle_name, last_name, request_details, status) " +
-                    "VALUES (@t, @tk, @f, @m, @l, @d, 'Pending')",
-                    new MySqlParameter("@t", token),
-                    new MySqlParameter("@tk", ticketNo),
-                    new MySqlParameter("@f", NullIfBlank(s.First)),
-                    new MySqlParameter("@m", NullIfBlank(s.Middle)),
-                    new MySqlParameter("@l", NullIfBlank(s.Last)),
-                    new MySqlParameter("@d", details));
-                s.ClaimQrToken = token;
-                s.ClaimQrNo = ticketNo;
-            }
-            catch { /* leave token null → the UI shows a friendly note */ }
-        }
-
-        private static void FinalizeClaimRow(KioskSession s, long txnId, long queueTicketId)
-        {
-            if (s.ClaimQrToken == null) return;
-            try
-            {
-                // queue_ticket_id links the claim to the kiosk ticket that holds the client's
-                // face photo, so the Claim Form shows it even when no transaction is set yet.
-                string details = string.Join(", ", s.Selected.Select(c => Find(c).Label));
-                if (details.Length > 255) details = details.Substring(0, 255);
-                Db.Push(
-                    "UPDATE claim_requests SET first_name = @f, middle_name = @m, last_name = @l, " +
-                    "request_details = @d, transaction_id = @txn, queue_ticket_id = @qt WHERE qr_token = @t",
-                    new MySqlParameter("@f", NullIfBlank(s.First)),
-                    new MySqlParameter("@m", NullIfBlank(s.Middle)),
-                    new MySqlParameter("@l", NullIfBlank(s.Last)),
-                    new MySqlParameter("@d", details),
-                    new MySqlParameter("@txn", txnId > 0 ? (object)txnId : DBNull.Value),
-                    new MySqlParameter("@qt", queueTicketId > 0 ? (object)queueTicketId : DBNull.Value),
-                    new MySqlParameter("@t", s.ClaimQrToken));
-            }
-            catch { /* best-effort */ }
-        }
-
-        private static string NextClaimNo()
-        {
-            string year = DateTime.Now.Year.ToString();
-            DataTable dt = Db.Pull(
-                "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(claim_ticket_no,'-',-1) AS UNSIGNED)),0)+1 AS n " +
-                "FROM claim_requests WHERE claim_ticket_no LIKE 'CLM-" + year + "-%'");
-            int n = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
-            return "CLM-" + year + "-" + n.ToString("D4");
-        }
 
         // ------------------------------------------------------- queue math
         /// <summary>
@@ -464,15 +397,11 @@ namespace CROMS.Kiosk
             if (s.HasBreqs) SaveBreqsRequest(s, ticketId, code);
             if (s.HasCtc) SaveCtcRequest(s, ticketId);
 
-            EnsureClaimRequest(s);
-            string claimToken = s.ClaimQrToken, claimNo = s.ClaimQrNo;
-            FinalizeClaimRow(s, returnTxnId, ticketId);
-
             var services = s.Selected.Select(c => Find(c).Label).ToList();
             int ahead = AheadCount(ticketId, priority, num);
             string spouseLine = s.HasMarriageApp ? FullName2(s) : null;
-            PrintTicket(code, services, priority, FullName(s), spouseLine, ahead, claimToken, claimNo);
-            ShowTicket(code, services, claimToken, claimNo);
+            PrintTicket(code, services, priority, FullName(s), spouseLine, ahead);
+            ShowTicket(code, services);
             return true;
         }
 
@@ -697,18 +626,18 @@ namespace CROMS.Kiosk
 
         // -------------------------------------------------------- printing
         private static void PrintTicket(string code, List<string> services, string priorityLane,
-            string name, string spouseName, int ahead, string claimToken, string claimNo)
+            string name, string spouseName, int ahead)
         {
             try
             {
                 using (var doc = new PrintDocument())
                 {
                     int h = 330 + services.Count * 24 + (priorityLane != "Regular" ? 36 : 0)
-                            + (claimToken != null ? 210 : 0) + (!string.IsNullOrEmpty(spouseName) ? 18 : 0);
+                            + (!string.IsNullOrEmpty(spouseName) ? 18 : 0);
                     doc.DefaultPageSettings.PaperSize = new PaperSize("Q58", 228, h); // 58mm wide
                     doc.DefaultPageSettings.Margins = new Margins(8, 8, 10, 10);
                     doc.DocumentName = "Queue Ticket " + code;
-                    doc.PrintPage += (s, e) => DrawTicket(e, code, services, priorityLane, name, spouseName, ahead, claimToken, claimNo);
+                    doc.PrintPage += (s, e) => DrawTicket(e, code, services, priorityLane, name, spouseName, ahead);
                     doc.Print();
                 }
             }
@@ -716,7 +645,7 @@ namespace CROMS.Kiosk
         }
 
         private static void DrawTicket(PrintPageEventArgs e, string code, List<string> services,
-            string priorityLane, string name, string spouseName, int ahead, string claimToken, string claimNo)
+            string priorityLane, string name, string spouseName, int ahead)
         {
             Graphics g = e.Graphics;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
@@ -785,41 +714,20 @@ namespace CROMS.Kiosk
 
                 mid("Please wait for your number", fSmall);
                 mid("to be called. Keep this ticket.", fSmall);
-
-                if (!string.IsNullOrEmpty(claimToken))
-                {
-                    rule();
-                    mid("UPLOAD YOUR ID", fLabel);
-                    if (!string.IsNullOrEmpty(claimNo)) mid("Ticket: " + claimNo, fSmall);
-                    Bitmap qr = QrHelper.TryCreate(ClaimLink.Build(claimToken), 6);
-                    if (qr != null)
-                    {
-                        float size = Math.Min(width, 150);
-                        g.DrawImage(qr, left + (width - size) / 2, y, size, size);
-                        y += size + 4;
-                        qr.Dispose();
-                    }
-                    else
-                    {
-                        mid(claimToken, fSmall);
-                    }
-                    mid("Scan with your phone camera to upload your ID.", fSmall);
-                }
             }
         }
 
         // ------------------------------------------------ on-screen ticket
-        private static void ShowTicket(string code, List<string> services, string claimToken, string claimNo)
+        private static void ShowTicket(string code, List<string> services)
         {
-            bool claim = !string.IsNullOrEmpty(claimToken);
             using (var dlg = new Form())
             {
-                dlg.Text = claim ? "Upload Your ID + Queue Number" : "Your Queue Number";
+                dlg.Text = "Your Queue Number";
                 dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
                 dlg.StartPosition = FormStartPosition.CenterScreen;
                 dlg.MinimizeBox = false;
                 dlg.MaximizeBox = false;
-                dlg.ClientSize = new Size(480, claim ? 720 : 420);
+                dlg.ClientSize = new Size(480, 420);
                 dlg.BackColor = Color.FromArgb(17, 24, 39);
 
                 var ok = new Button
@@ -840,39 +748,6 @@ namespace CROMS.Kiosk
                     Dock = DockStyle.Bottom, Height = 44,
                     TextAlign = ContentAlignment.MiddleCenter
                 };
-
-                Panel claimPanel = null;
-                if (claim)
-                {
-                    claimPanel = new Panel { Dock = DockStyle.Bottom, Height = 300, BackColor = Color.White };
-                    claimPanel.Controls.Add(new Label
-                    {
-                        Text = "SCAN WITH YOUR PHONE CAMERA TO UPLOAD YOUR ID" +
-                               (string.IsNullOrEmpty(claimNo) ? "" : "\nClaim Ticket: " + claimNo),
-                        Dock = DockStyle.Top, Height = 60, TextAlign = ContentAlignment.MiddleCenter,
-                        Font = new Font("Segoe UI", 11F, FontStyle.Bold), ForeColor = Color.FromArgb(33, 37, 41)
-                    });
-                    var pic = new PictureBox
-                    {
-                        Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom,
-                        Image = QrHelper.TryCreate(ClaimLink.Build(claimToken), 10),
-                        Padding = new Padding(8)
-                    };
-                    if (pic.Image == null)
-                        claimPanel.Controls.Add(new Label
-                        {
-                            Text = "Token:\n" + claimToken, Dock = DockStyle.Fill,
-                            TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Consolas", 9F)
-                        });
-                    else
-                    {
-                        claimPanel.Controls.Add(pic);
-                        // Dock=Fill added last is laid out FIRST and claims the whole panel, so the
-                        // caption label covered the QR's top rows and it would not scan. Sending the
-                        // fill to the front makes it dock last, into what the caption leaves over.
-                        pic.BringToFront();
-                    }
-                }
 
                 var list = new Label
                 {
@@ -905,7 +780,6 @@ namespace CROMS.Kiosk
                 dlg.Controls.Add(serviceList);
                 dlg.Controls.Add(ok);
                 dlg.Controls.Add(note);
-                if (claimPanel != null) dlg.Controls.Add(claimPanel);
                 dlg.Controls.Add(big);
                 dlg.Controls.Add(header);
                 dlg.ShowDialog();

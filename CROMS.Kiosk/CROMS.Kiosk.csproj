@@ -163,9 +163,7 @@
       <DependentUpon>DetailsPhotoForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Db.cs" />
-    <Compile Include="ClaimLink.cs" />
     <Compile Include="LocalServices.cs" />
-    <Compile Include="QrHelper.cs" />
     <Compile Include="ServerConfig.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

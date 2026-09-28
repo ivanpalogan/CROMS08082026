@@ -51,11 +51,6 @@ namespace CROMS.Kiosk
         public string SubmittedBy;
         public string SubmittedByOrg;
 
-        // Lazily-created claimapp QR — created for EVERY visit's "Upload Your ID" step, not
-        // only a Release & Claim pickup (see KioskCore.EnsureClaimRequest).
-        public string ClaimQrToken;
-        public string ClaimQrNo;   // CLM-YYYY-####
-
         // PSA Copy (BREQS) only - what PSA is being asked for (BreqsDetailsForm). The generic
         // Owner/Spouse/Event fields follow the certificate type, exactly as breqs_requests does.
         public string BreqsDocType, BreqsPurpose, BreqsRelationship, IdNo;
@@ -118,8 +113,6 @@ namespace CROMS.Kiosk
             SubmittedBy = SubmittedByOrg = null;
             First2 = Middle2 = Last2 = null;
             Photo2 = null;
-            ClaimQrToken = null;
-            ClaimQrNo = null;
             BreqsDocType = BreqsPurpose = BreqsRelationship = IdNo = null;
             BreqsCopies = 1;
             OwnerFirst = OwnerMiddle = OwnerLast = SpouseFirst = SpouseMiddle = SpouseLast = null;

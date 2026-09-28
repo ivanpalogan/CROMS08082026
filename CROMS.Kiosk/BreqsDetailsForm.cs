@@ -54,7 +54,7 @@ namespace CROMS.Kiosk
             _pillMarriage.CheckedChanged += (s, e) => { if (_pillMarriage.Checked) { _pillBirth.SetChecked(false); _pillDeath.SetChecked(false); } ApplyDocType(); };
             _pillDeath.CheckedChanged += (s, e) => { if (_pillDeath.Checked) { _pillBirth.SetChecked(false); _pillMarriage.SetChecked(false); } ApplyDocType(); };
 
-            Load += (s, e) => { LoadFromSession(); ApplyDocType(); EnsureClaimQr(); };
+            Load += (s, e) => { LoadFromSession(); ApplyDocType(); };
             Shown += (s, e) => { FitToScreen(); CenterBox(); };
             panelStep.Resize += (s, e) => { FitToScreen(); CenterBox(); };
 
@@ -143,37 +143,6 @@ namespace CROMS.Kiosk
         }
 
         private static string Blank(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
-
-        /// <summary>
-        /// Same claimapp QR as Personal Info & Photo (DetailsPhotoForm.EnsureClaimQr) — the ID
-        /// number field on THIS step is still typed and required (KioskCore.BreqsProblem), but
-        /// a client who would rather not type it out can scan here to upload a photo of it
-        /// instead of only typing the number. EnsureClaimRequest is idempotent (a token already
-        /// created here is reused, not duplicated, when Personal Info later calls it too).
-        /// </summary>
-        private void EnsureClaimQr()
-        {
-            KioskCore.EnsureClaimRequest(_session);
-            if (_session.ClaimQrToken == null)
-            {
-                picBreqsQr.Image = null;
-                lblQrTicketNo.Text = "";
-                lblQrNote.Text = "QR unavailable — the staff will assist you at the window.";
-                return;
-            }
-            try
-            {
-                var old = picBreqsQr.Image;
-                picBreqsQr.Image = QrHelper.TryCreate(ClaimLink.Build(_session.ClaimQrToken), 6);
-                old?.Dispose();
-            }
-            catch { /* QR lib missing → text only */ }
-
-            lblQrTicketNo.Text = _session.ClaimQrNo ?? "";
-            lblQrNote.Text = "Scan with your phone camera to upload a photo of the ID you will present.\n" +
-                "No phone camera? On your phone open " + ClaimLink.BaseUrl() +
-                " and enter the ticket number above.";
-        }
 
         // ------------------------------------------------ the fields follow the certificate
         private void ApplyDocType()
