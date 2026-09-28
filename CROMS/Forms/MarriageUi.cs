@@ -661,6 +661,7 @@ namespace CROMS.Forms
         public void AddStep(string title, string sub) { _titles.Add(title); _subs.Add(sub); _states.Add(State.Todo); _badges.Add(0); Invalidate(); }
         public int Count { get { return _titles.Count; } }
         public void SetState(int i, State s) { _states[i] = s; Invalidate(); }
+        public void SetTitle(int i, string title) { _titles[i] = title; Invalidate(); }
         public void SetSub(int i, string s) { _subs[i] = s; Invalidate(); }
         public void SetBadge(int i, int n) { _badges[i] = n; Invalidate(); }
         public int IndexOf(string title) { return _titles.FindIndex(t => string.Equals(t, title, StringComparison.OrdinalIgnoreCase)); }

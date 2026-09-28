@@ -6433,3 +6433,65 @@ not clicked (no interactive desktop) — the embedding follows `MainForm.ShowMod
 already-proven pattern exactly; rebuild in VS and confirm the sidebar no longer shows the two old
 entries, and that Records Archive's "Legacy Digitized Records" group opens Birth Record /
 Marriage Record / Death Record as full working screens.
+
+### 2026-09-28 (later still) — Marriage and Death legacy digitization get the same numbered-step
+### wizard Birth already had; one StepStrip/GoToStep reused for all three kinds
+
+Birth's Civil Registry Record digitization (2026-09-28, "one shared 'Digitize Old Record'
+chooser") had the six-step wizard (`BirthWizardStepTitles`/`BirthWizardStepSections`,
+`SetupBirthWizard`, `GoToStep`); Marriage and Death still showed the plain flat grid grouped
+under the certificate's own printed section headings, with no step navigation at all. Extended
+the SAME mechanism to both rather than writing two more copies.
+
+**Generalized, not triplicated.** `WizardStepTitles(DocKind)`/`WizardStepSections(DocKind)` pick
+the right pair of arrays (`BirthWizardStep*` unchanged; new `MarriageWizardStep*`/
+`DeathWizardStep*`); `SetupBirthWizard` renamed `SetupWizard` and now rewrites the strip's six
+captions via a new `StepStrip.SetTitle(i, title)` whenever it turns on for a document, instead
+of assuming Birth's titles; `SetupBirthWizardChrome` renamed `SetupWizardChrome` (still builds
+the strip/Back/Next once, in code, for the same reason stated on 2026-09-02/09-10 — this
+screen's Designer has been silently regenerated before); `GoToStep` reads
+`WizardStepTitles(_kind)`/`WizardStepSections(_kind)` instead of the Birth arrays directly. One
+`_stepStrip`/`_btnStepBack`/`_btnStepNext` triple, one `GoToStep`, for all three kinds.
+
+`SetupWizard(active)` in `FillFieldGrid` now activates for
+`_kind == Birth || _kind == Marriage || _kind == Death` (any recognised kind with a
+`FormDefinition.Sections.Count > 0`), not Birth-only. `reviewStepOk` (the "only the wizard's
+last step may Commit/Draft/Auto-Fill" gate in `ApplyResultToUi`) reads
+`WizardStepTitles(_kind).Length - 1` instead of always Birth's count (both are 6 today, but the
+check no longer assumes it). The `"Save Digitized Record"` vs `"Commit to Registry"` caption
+swap dropped its `birth &&` check in both branches — `(_wizardActive && have && reviewStepOk)` —
+so the caption is correct on the wizard's last step for any of the three kinds.
+
+**Section mapping, read off `FormCatalog.MarriageSections()`/`DeathSections()` verbatim** (not
+guessed) — the same titles `FillFieldGrid` already groups the flat grid by:
+  - Marriage (MF-97): First Spouse -> "1-8. Husband"; Second Spouse -> "1-8. Wife"; Marriage
+    Information -> "13. Marriage Licence" + "14-16. Place and Date of Marriage" +
+    "17. Solemnizing Officer" + "18. Witnesses"; Other Marriage Certificate Information ->
+    "9-12. Parents of the Contracting Parties" + the synthetic "Other Entries" fallback bucket
+    (`FormDefinition.OrderedSections` adds this for any key the catalog has no section for —
+    confirmed by reading it before use, not assumed); Registry Information ->
+    "Form Identification" + "Received at the Office of the Civil Registrar"; Review and Save ->
+    every row (`null`).
+  - Death (MF-103): Deceased Information -> "1-8. Deceased"; Death Information ->
+    "Medical Certificate" + "24-25. Corpse Disposal"; Parent/Family Information ->
+    "9-10. Parents"; Other Death Certificate Information -> "26. Certification of Informant" +
+    "Other Entries"; Registry Information -> "Form Identification" + "27. Prepared By" +
+    "28. Received By" + "29. Registered by the Civil Registrar"; Review and Save -> every row.
+  Both mappings bundle "Form Identification" together with the certification/receiving blocks
+  under "Registry Information" — the same convention Birth's own step 5 already uses (Form
+  Identification + attendant/informant/prepared/received/registered certification, all
+  together), rather than inventing a different grouping rule per kind.
+
+Applies in every context this screen is opened from: the legacy backlog chooser
+(`RunLegacyDigitization`/`_legacyBacklogMode`, both Marriage and Death), and the plain
+standalone Document Processing screen for a Marriage/Death scan — `SetupWizard` is called from
+one place (`FillFieldGrid`) that both paths already go through, so nothing extra needed wiring.
+
+VERIFIED: `MSBuild CROMS.csproj` (VS2022 BuildTools) clean, 0 errors, 0 warnings beyond one
+pre-existing unrelated field warning (`ArchiveCategory.CertKind`), built to a temp OutDir. Not
+run against the live database — no live `croms` connection in this session; the section-title
+mapping was checked against `FormCatalog.cs`'s exact `MarriageSections()`/`DeathSections()`
+definitions rather than guessed, and the generalization mirrors the already-proven Birth code
+path line for line. GUI not clicked (no interactive desktop) — rebuild in VS, run a real
+marriage and death scan through the legacy digitizer, and confirm each step shows only its own
+fields and Commit/Draft only enable on "Review and Save".

@@ -105,13 +105,15 @@ namespace CROMS.Forms
         /// filed under the wrong record type.</summary>
         private DocKind? _legacyExpectedKind;
 
-        // ---- Birth Record Digitization wizard (STEP 6) ----------------------------------
-        // Groups the review grid into the certificate's own logical blocks — Child / Mother /
-        // Father / Other Birth Certificate Information / Registry Information / Review and
-        // Save — instead of showing every field at once. Every OCR-filled value stays in the
-        // SAME grid cells this screen has always used, so nothing about how a field is edited
-        // or saved changes; only which rows are visible at a time does. Only offered for Birth
-        // — Marriage/Death keep the flat sectioned grid they already had.
+        // ---- Civil Registry Record digitization wizard (STEP 6) -------------------------
+        // Groups the review grid into the certificate's own logical blocks instead of showing
+        // every field at once. Every OCR-filled value stays in the SAME grid cells this screen
+        // has always used, so nothing about how a field is edited or saved changes; only which
+        // rows are visible at a time does. One StepStrip/GoToStep pair is reused for all three
+        // kinds — WizardStepTitles(kind)/WizardStepSections(kind) pick the right array, and the
+        // step strip's own captions are rewritten (StepStrip.SetTitle) whenever the wizard turns
+        // on for a document of a different kind. Only offered for a document with a recognised
+        // FormDefinition (Sections.Count > 0) — an unrecognised layout keeps the flat grid.
         private static readonly string[] BirthWizardStepTitles =
         {
             "Child Information", "Mother Information", "Father Information",
@@ -132,6 +134,67 @@ namespace CROMS.Forms
             null // Review and Save — every row, regardless of section
         };
 
+        // MF-97: First Spouse / Second Spouse / Marriage Information (licence, place+date,
+        // solemnizer, witnesses) / Other Marriage Certificate Information (parents of the
+        // contracting parties + anything the catalog has no section for) / Registry
+        // Information (form identity + the office's own receiving block) / Review and Save.
+        private static readonly string[] MarriageWizardStepTitles =
+        {
+            "First Spouse Information", "Second Spouse Information", "Marriage Information",
+            "Other Marriage Certificate Information", "Registry Information", "Review and Save"
+        };
+
+        private static readonly string[][] MarriageWizardStepSections =
+        {
+            new[] { "1-8. Husband" },
+            new[] { "1-8. Wife" },
+            new[] { "13. Marriage Licence", "14-16. Place and Date of Marriage",
+                     "17. Solemnizing Officer", "18. Witnesses" },
+            new[] { "9-12. Parents of the Contracting Parties", "Other Entries" },
+            new[] { "Form Identification", "Received at the Office of the Civil Registrar" },
+            null // Review and Save — every row, regardless of section
+        };
+
+        // MF-103: Deceased Information / Death Information (cause + disposal) / Parent-Family
+        // Information / Other Death Certificate Information (informant + anything unsectioned)
+        // / Registry Information (form identity + prepared/received/registered) / Review+Save.
+        private static readonly string[] DeathWizardStepTitles =
+        {
+            "Deceased Information", "Death Information", "Parent/Family Information",
+            "Other Death Certificate Information", "Registry Information", "Review and Save"
+        };
+
+        private static readonly string[][] DeathWizardStepSections =
+        {
+            new[] { "1-8. Deceased" },
+            new[] { "Medical Certificate", "24-25. Corpse Disposal" },
+            new[] { "9-10. Parents" },
+            new[] { "26. Certification of Informant", "Other Entries" },
+            new[] { "Form Identification", "27. Prepared By", "28. Received By",
+                     "29. Registered by the Civil Registrar" },
+            null // Review and Save — every row, regardless of section
+        };
+
+        private static string[] WizardStepTitles(DocKind kind)
+        {
+            switch (kind)
+            {
+                case DocKind.Marriage: return MarriageWizardStepTitles;
+                case DocKind.Death: return DeathWizardStepTitles;
+                default: return BirthWizardStepTitles;
+            }
+        }
+
+        private static string[][] WizardStepSections(DocKind kind)
+        {
+            switch (kind)
+            {
+                case DocKind.Marriage: return MarriageWizardStepSections;
+                case DocKind.Death: return DeathWizardStepSections;
+                default: return BirthWizardStepSections;
+            }
+        }
+
         private StepStrip _stepStrip;
         private Button _btnStepBack, _btnStepNext;
         private bool _wizardActive;
@@ -146,7 +209,7 @@ namespace CROMS.Forms
             InitializeComponent();
             dgvBatch.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             BuildFieldGrid();
-            SetupBirthWizardChrome();
+            SetupWizardChrome();
             SetupScanQrButton();
 
             bool ok = DocumentAI.IsAvailable();
@@ -263,7 +326,7 @@ namespace CROMS.Forms
             _seals = new List<SealDetector.Seal>();
             txtDocClass.Clear();
             dgvFields.Rows.Clear();
-            SetupBirthWizard(false);
+            SetupWizard(false);
             ApplyResultToUi();
 
             await Analyze();
@@ -404,7 +467,7 @@ namespace CROMS.Forms
                 _seals = new List<SealDetector.Seal>();
                 txtDocClass.Clear();
                 dgvFields.Rows.Clear();
-                SetupBirthWizard(false);
+                SetupWizard(false);
                 ApplyResultToUi();
             }
         }
@@ -583,7 +646,7 @@ namespace CROMS.Forms
             // The wizard's own "Review and Save" step is where Commit / Draft / Auto-Fill
             // actually run — every earlier step is for reading and correcting one certificate
             // block at a time, not for saving from.
-            bool reviewStepOk = !_wizardActive || _stepIndex == BirthWizardStepTitles.Length - 1;
+            bool reviewStepOk = !_wizardActive || _stepIndex == WizardStepTitles(_kind).Length - 1;
 
             if (_legacyBacklogMode)
             {
@@ -597,7 +660,7 @@ namespace CROMS.Forms
                 bool canCommit = have && matchesExpected && !blocked && reviewStepOk;
                 btnCommit.Enabled = canCommit;
                 btnDraft.Enabled = canCommit;
-                btnCommit.Text = (_wizardActive && birth && reviewStepOk)
+                btnCommit.Text = (_wizardActive && have && reviewStepOk)
                     ? "Save Digitized Record" : "Commit to Registry";
                 btnAutoFill.Enabled = false;
                 btnAutoFill.Visible = false;
@@ -611,7 +674,7 @@ namespace CROMS.Forms
                 // verification — it asks whether the record is correct and complete, not
                 // whether OCR read it right — so its own commit button says so, rather than
                 // reusing the generic "Commit to Registry" caption used everywhere else.
-                btnCommit.Text = (_wizardActive && birth && reviewStepOk)
+                btnCommit.Text = (_wizardActive && have && reviewStepOk)
                     ? "Save Digitized Record" : "Commit to Registry";
                 btnAutoFill.Enabled = have && !blocked && reviewStepOk &&
                     (marriage || (birthReturn && birth));
@@ -1131,7 +1194,7 @@ namespace CROMS.Forms
             if (_formDef == null || _formDef.Sections.Count == 0)
             {
                 foreach (DocField f in r.Fields) AddFieldRow(f);
-                SetupBirthWizard(false);
+                SetupWizard(false);
                 return;
             }
 
@@ -1151,17 +1214,19 @@ namespace CROMS.Forms
                 }
             }
 
-            SetupBirthWizard(_kind == DocKind.Birth);
+            SetupWizard(_kind == DocKind.Birth || _kind == DocKind.Marriage || _kind == DocKind.Death);
         }
 
         /// <summary>
         /// Builds the step strip + Back/Next controls once, on top of the grid's own
-        /// footprint — hidden until a Birth document with a recognised layout is on screen.
-        /// Code-built rather than added to the Designer: this screen's Designer has been
-        /// silently regenerated before (2026-09-02/09-10 entries), and a control added purely
-        /// in code cannot be lost that way.
+        /// footprint — hidden until a document with a recognised layout is on screen. The
+        /// strip's captions are placeholder Birth titles at construction time; whichever kind
+        /// activates the wizard first rewrites them via <see cref="StepStrip.SetTitle"/> in
+        /// <see cref="SetupWizard"/>. Code-built rather than added to the Designer: this
+        /// screen's Designer has been silently regenerated before (2026-09-02/09-10 entries),
+        /// and a control added purely in code cannot be lost that way.
         /// </summary>
-        private void SetupBirthWizardChrome()
+        private void SetupWizardChrome()
         {
             _dgvHomeLoc = dgvFields.Location;
             _dgvHomeSize = dgvFields.Size;
@@ -1205,12 +1270,14 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Turns the step wizard on/off for the document currently on screen. Only a Birth
-        /// certificate whose layout was recognised (so it has real sections to group by) gets
-        /// the wizard; everything else keeps the plain, fully-visible sectioned grid it
-        /// always had.
+        /// Turns the step wizard on/off for the document currently on screen. Any of Birth,
+        /// Marriage or Death gets it, as long as the document's layout was recognised (so it
+        /// has real sections to group by); everything else keeps the plain, fully-visible
+        /// sectioned grid it always had. Rewrites the strip's captions to match the current
+        /// kind's step titles before showing it — the same six-step strip is reused for all
+        /// three, not a separate wizard per kind.
         /// </summary>
-        private void SetupBirthWizard(bool active)
+        private void SetupWizard(bool active)
         {
             _wizardActive = active && _stepStrip != null;
             _stepStrip.Visible = _wizardActive;
@@ -1219,6 +1286,10 @@ namespace CROMS.Forms
 
             if (_wizardActive)
             {
+                string[] titles = WizardStepTitles(_kind);
+                for (int s = 0; s < _stepStrip.Count && s < titles.Length; s++)
+                    _stepStrip.SetTitle(s, titles[s]);
+
                 dgvFields.Location = new Point(_dgvHomeLoc.X, _dgvHomeLoc.Y + _stepStrip.Height);
                 dgvFields.Size = new Size(_dgvHomeSize.Width, _dgvHomeSize.Height - _stepStrip.Height);
                 GoToStep(0);
@@ -1238,16 +1309,19 @@ namespace CROMS.Forms
         /// — every OCR-filled value stays editable in place, only which rows are visible
         /// changes. "Review and Save" (the last step) shows every row, and Commit / Draft /
         /// Auto-Fill only become enabled once the operator has reached it (see
-        /// <see cref="ApplyResultToUi"/>).
+        /// <see cref="ApplyResultToUi"/>). Reads whichever kind is currently on screen —
+        /// <see cref="WizardStepTitles"/>/<see cref="WizardStepSections"/> — so the one strip
+        /// serves Birth, Marriage and Death without three copies of this method.
         /// </summary>
         private void GoToStep(int i)
         {
             if (!_wizardActive) return;
-            i = Math.Max(0, Math.Min(BirthWizardStepTitles.Length - 1, i));
+            string[] titles = WizardStepTitles(_kind);
+            i = Math.Max(0, Math.Min(titles.Length - 1, i));
             _stepIndex = i;
 
-            bool lastStep = i == BirthWizardStepTitles.Length - 1;
-            string[] allow = BirthWizardStepSections[i];
+            bool lastStep = i == titles.Length - 1;
+            string[] allow = WizardStepSections(_kind)[i];
 
             DataGridViewRow firstVisible = null;
             foreach (DataGridViewRow row in dgvFields.Rows)
@@ -2815,7 +2889,7 @@ namespace CROMS.Forms
             _seals = new List<SealDetector.Seal>();
             txtDocClass.Clear();
             dgvFields.Rows.Clear();
-            SetupBirthWizard(false);
+            SetupWizard(false);
             ApplyResultToUi();
 
             await Analyze();
