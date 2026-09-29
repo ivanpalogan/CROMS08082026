@@ -249,17 +249,37 @@ namespace CROMS.Data
 
             try
             {
-                DocAiResult best = AnalyzeAt(upright, PreferredLongSide);
-
-                // A second pass at native size only helps when the page had to be read as
-                // free text. Once a form LAYOUT is recognised the values already come from
-                // full-resolution crops of the original bitmap, so re-reading the page
-                // larger buys nothing and doubles the time.
+                // The 2400px pass and the native-size pass are independent - each reads the
+                // whole page fresh and only the SCORE decides which one wins - so they used
+                // to run one after the other for no reason but code order. On an unrecognised
+                // layout (the slow case: no per-field region reads, just free-text extraction)
+                // this doubled the wall-clock time for zero extra accuracy. Now both start at
+                // once and the native pass's own result is simply discarded whenever the
+                // 2400px pass already resolved a layout - the OUTCOME is identical to the old
+                // sequential version (same two computations, same Score() comparison), only
+                // the ordering in time changed. Measured 2026-09-29: gilvan birth.jpg (1993,
+                // unrecognised layout) 71.9s -> see CLAUDE.md log entry for the after number.
                 int longest = Math.Max(upright.Width, upright.Height);
-                if (best.LayoutCode == null && longest > PreferredLongSide * 1.15)
+                bool wantNative = longest > PreferredLongSide * 1.15;
+
+                Task<DocAiResult> preferredTask = Task.Run(() => AnalyzeAt(upright, PreferredLongSide));
+                Task<DocAiResult> nativeTask = wantNative
+                    ? Task.Run(() => AnalyzeAt(upright, longest))
+                    : null;
+
+                DocAiResult best = preferredTask.Result;
+                if (nativeTask != null)
                 {
-                    DocAiResult native = AnalyzeAt(upright, longest);
-                    if (Score(native) > Score(best)) best = native;
+                    DocAiResult native = nativeTask.Result;
+                    // Only a genuinely unrecognised layout was ever eligible for the native
+                    // pass to matter (see the old guard this replaces) - if the 2400px pass
+                    // DID resolve a layout, the native result is thrown away here exactly as
+                    // the old code would never have computed it at all in that branch. The
+                    // wasted CPU (native pass ran "for nothing" in that case) is the accepted
+                    // cost of running both concurrently instead of checking best.LayoutCode
+                    // before starting the second one; the already-fast recognised-layout case
+                    // has spare cores (region reads run at ProcessorCount-1, see DocLayouts.cs).
+                    if (best.LayoutCode == null && Score(native) > Score(best)) best = native;
                 }
                 best.RotationApplied = rotation;
                 AssessScanQuality(upright, best);

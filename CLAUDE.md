@@ -6527,3 +6527,81 @@ definitions rather than guessed, and the generalization mirrors the already-prov
 path line for line. GUI not clicked (no interactive desktop) — rebuild in VS, run a real
 marriage and death scan through the legacy digitizer, and confirm each step shows only its own
 fields and Commit/Draft only enable on "Review and Save".
+
+### 2026-09-29 — OCR speed: parallelized the two-resolution fallback pass; one earlier number
+### in this conversation was wrong (cold-cache artifact), corrected here with clean measurements
+
+`DocumentAI.Analyze()` ran its 2400px pass and its native-resolution fallback pass (only tried
+when `LayoutCode == null` after the first pass — an unrecognised-layout scan) one after another.
+Both compute independent results and only the `Score()` comparison decides the winner, so nothing
+about correctness depends on running them in order. Changed to `Task.Run` both and `await`/
+`.Result` both, keeping the identical `Score()` comparison afterward — same computation, same
+winner-picking logic, just overlapped in wall-clock time. One necessary change in shape: the
+native task now starts on the SIZE condition alone (`longest > PreferredLongSide * 1.15`) rather
+than waiting to know whether the preferred pass resolved a layout, since that isn't knowable
+without running it — its result is simply discarded when `best.LayoutCode != null`, exactly
+matching what the old code would have skipped computing at all in that branch.
+
+CORRECTING A NUMBER I GAVE EARLIER IN THIS SAME SESSION. Before writing this fix I quoted
+"71.9s -> ~55s" for `gilvan birth.jpg` (a 1993 birth scan) as if that drop proved the fix worked.
+It didn't — that 71.9s was this specific file's FIRST-EVER touch today (cold OS file cache /
+first load of that image), not a steady-state number. Re-running the UNCHANGED, reverted,
+sequential code on the same file gave 54.1-54.6s consistently across three more runs. The
+speculative-concurrency version gave 54.1-55.5s on the same file, same three-run spread. Before
+and after are the SAME within run-to-run noise for this file — not because the fix failed, but
+because `gilvan birth.jpg` actually RESOLVES a layout (MF-102 1993, 5 anchors agreeing, confirmed
+in its own printed diagnostic line), so the native pass was ALWAYS wasted speculative work on this
+file both before this change (never ran at all, since `LayoutCode != null`) and after (runs
+concurrently, then is thrown away for the same reason) — its ~54s cost is from the recognized-
+layout per-field parallel region reads on a dense 1993-revision form, not from the two-pass
+fallback this fix targets. Reporting a number without re-checking whether it survived reversion is
+exactly the kind of measurement failure this project's own log has caught in itself before
+(2026-09-06/09-13 "TRIED AND REVERTED" entries) — caught here before it shipped as a false claim.
+
+MEASURED PROPERLY, same file each side of a real revert/rebuild, not different files across time:
+      form                          layout        before (seq.)   after (concurrent)   fields
+  gilvan birth.jpg (1993 birth)     resolved       54.1-54.6s      54.1-55.5s           identical
+  nice.jpg (2007 birth)             resolved       25.3-26.4s      25.3s                identical
+  Marriage Cert.jpg (MF-97 1993)    label path     49.8s           32.3s (-35%)         identical
+  Death Cert.png (MF-103 2016)      label path     18.8-19.1s      18.8s                identical
+Field-by-field output diffed line for line before vs after on all four — byte-identical in every
+case (confirms the concurrency didn't change WHICH pass wins or introduce a race).
+
+WHY the four forms split the way they did, and why this is a safe ship rather than a mixed bag:
+Marriage genuinely benefits because this office's own MF-97 samples have NEVER resolved a layout
+in this project's history (2026-09-06 log: both marriage samples explicitly REFUSED by PageFit,
+one for perspective skew) — so the native pass isn't speculative waste for marriage, it always
+actually runs and always needed the time either way; running it alongside the 2400px pass instead
+of after it is a clean, real win with nothing to lose. Death's sample is small enough
+(706x968 native) that it never crosses the 1.15x trigger at all — single pass either way, so no
+change is exactly the expected outcome, not a missed opportunity. Birth's 2007 sample resolves
+its layout and is comfortably under the size trigger too — also unaffected as expected. Birth's
+1993 sample resolves its layout but happens to be large enough to trigger the speculative native
+task anyway; that wasted work runs CONCURRENTLY with the (already 5-thread-parallel, see
+`DocLayouts.cs:904`) per-field region reads the preferred pass is doing, and on this 6-core/
+12-thread machine the two don't visibly starve each other — measured NEUTRAL, not negative.
+
+FORM 90 (Marriage License application) has NO entry anywhere in the OCR pipeline — `DocLayouts`,
+`DocumentAI`'s classification profiles, and `FormCatalog` were all grepped for "MF-90"/"Form90"
+and matched nothing. It exists in this codebase only as a PRINT template (`Mf90Form.cs`, fills a
+.rpt/overlay from already-known data) — it has never been something CROMS scans or classifies, so
+there is nothing to speed-test on it and no sample exists to test even if there were (only the
+office's blank/unfilled template PDF is in this machine's Downloads, no filled scan).
+
+Not changed: resolution caps (2400/4200), renderings-per-field count, the 1.15x trigger threshold,
+any classification or extraction logic. This is a pure concurrency change over the existing
+computation, per this project's own repeated, hard-won lesson (2026-09-04, 2026-09-06 entries)
+that touching those specific knobs without per-sample measurement has cost real accuracy before.
+
+VERIFIED by running, not by reasoning: every number above came from an actual `CROMS.DocTest.exe`
+run on this machine (6-core/12-thread i5-11260H) against the office's own real sample scans
+(`gilvan birth.jpg`, `nice.jpg`, `Marriage Cert.jpg`, `Death Cert.png`, all already used as this
+project's standing accuracy baseline since 2026-09-04), with a genuine code revert (`git stash`)
+and rebuild in between to get a true same-file A/B rather than trusting the first run of a fresh
+file. MSBuild (VS2019) clean, 0 errors, 0 warnings, for `CROMS` and `CROMS.DocTest` — built to
+`bin\Debug` directly (no other process was holding it this session).
+
+NOT DONE / not tried: no attempt to fix the birth-1993 dense-form case (54s, unaffected by this
+change) — that time is genuine per-field OCR work on a form with ~50 fields, not fallback-pass
+waste, and cutting it would mean touching renderings-per-field, which this project has already
+measured to cost accuracy twice. Form 90 has no OCR path to test, as above.
