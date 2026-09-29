@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -525,17 +525,13 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// The scanner is served over HTTPS so the phone will allow its LIVE CAMERA —
-        /// a browser refuses camera access on a plain http:// address. The certificate
-        /// is self-signed for the office LAN, so the phone shows one warning the first
-        /// time. Saying so HERE is the difference between a staff member tapping
-        /// through it and a staff member deciding the app is broken.
+        /// Says why the phone address is not (yet) the trusted https:// one. When everything is
+        /// set up this is empty: staff just scan and tap Allow for the camera.
         /// </summary>
         private static string SecurityWarningNote(IonicServerManager m)
         {
-            return (m != null && m.Scheme == "https")
-                ? "  First time on a phone: open http://" + m.LanIp + ":3000/croms-ca.crt and install it (Settings > Security > Install certificate > CA certificate). After that there is no warning and the camera works."
-                : "";
+            string note = TrustedHost.StatusNote();
+            return note.Length == 0 ? "" : "  " + note;
         }
 
         // ------------------------------------------------------------------ KPIs

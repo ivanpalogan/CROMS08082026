@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Configuration;
 using System.Diagnostics;
 using System.IO;
@@ -10,6 +10,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace CROMS.Data
 {
@@ -32,12 +33,14 @@ namespace CROMS.Data
         // Two servers can auto-start: the certificate-scanner app (Instance, :4200) and
         // the claimapp ID-upload app (ClaimApp, :4300). Each is an independent instance
         // with its own folder / serve command / port, so one CROMS launch brings up both.
-        // Served over plain HTTP (no --ssl) so the scanner QR opens with no cert warning.
-        // Its capture uses the native camera file-input (no secure context needed).
+        // The scanner is served over HTTPS with a PUBLICLY TRUSTED Let's Encrypt certificate for a
+        // stable DuckDNS name (see TrustedHost) so phones need no CA/profile/warning and the live
+        // camera (a secure-context feature) works. Until that is configured/issued it serves plain
+        // HTTP on the LAN IP.
         public static readonly IonicServerManager Instance = new IonicServerManager(
             "Mobile", "IonicAppPath", @"C:\Users\ivan palogan\ORCMobile_Application",
             "MobileServeCommand", "npx ng serve --host 0.0.0.0 --port 4200 --disable-host-check", 4200,
-            "MobileScheme", "http");
+            "MobileScheme", "https", true);
         // claimapp is served over HTTPS (angular.json sets ssl:true, cert in claimapp/ssl/)
         // because the ID-upload page now runs a LIVE in-page camera (edge detection while
         // framing the ID) via getUserMedia, which browsers refuse outside a secure context.
@@ -51,10 +54,22 @@ namespace CROMS.Data
 
         private readonly string _label, _appPathKey, _appPathDefault, _serveCmdKey, _serveCmdDefault,
                                 _schemeKey, _schemeDefault;
+        private readonly bool _trustedHost;
+
+        static IonicServerManager()
+        {
+            // A NEW certificate is only read when a server launches, so relaunch the two that use it.
+            TrustedHost.CertificateChanged += () =>
+            {
+                try { Instance.Restart(); } catch { }
+                try { ApiServerManager.Instance.Restart(); } catch { }
+            };
+        }
         private IonicServerManager(string label, string appPathKey, string appPathDefault,
             string serveCmdKey, string serveCmdDefault, int defaultPort,
-            string schemeKey, string schemeDefault)
+            string schemeKey, string schemeDefault, bool trustedHost = false)
         {
+            _trustedHost = trustedHost;
             _label = label;
             _appPathKey = appPathKey; _appPathDefault = appPathDefault;
             _serveCmdKey = serveCmdKey; _serveCmdDefault = serveCmdDefault;
@@ -105,10 +120,25 @@ namespace CROMS.Data
 
         // URL scheme the QR/URL is built with. Per-instance (Mobile=https for its --ssl
         // camera server, ClaimApp=http so the QR opens with no cert warning).
-        public string Scheme =>
-            (ConfigurationManager.AppSettings[_schemeKey] ?? "").Trim().Length > 0
-                ? ConfigurationManager.AppSettings[_schemeKey].Trim()
-                : _schemeDefault;
+        public string Scheme
+        {
+            get
+            {
+                string cfg = (ConfigurationManager.AppSettings[_schemeKey] ?? "").Trim();
+                if (_trustedHost)
+                {
+                    // https only when there is a real trusted cert for the hostname; never a
+                    // self-signed one. MobileScheme=http still forces plain HTTP.
+                    if (cfg.Equals("http", StringComparison.OrdinalIgnoreCase)) return "http";
+                    return TrustedHost.CertReady ? "https" : "http";
+                }
+                return cfg.Length > 0 ? cfg : _schemeDefault;
+            }
+        }
+
+        /// <summary>Host used in the phone URL/QR: the stable trusted name when HTTPS is live,
+        /// otherwise the LAN IP.</summary>
+        private string UrlHost => (_trustedHost && Scheme == "https") ? TrustedHost.Host : LanIp;
 
         private const int MaxRestarts = 3;
 
@@ -155,7 +185,16 @@ namespace CROMS.Data
                 // ("can't be reached") rather than the usual click-through warning. Cover
                 // THIS ip before launching, so the server never starts serving a cert that
                 // is already known to be wrong for the network it is on.
-                if (Scheme == "https") EnsureCertCoversIp(LanIp);
+                if (_trustedHost)
+                {
+                    // Stable hostname -> this PC's current LAN IP (background), then issue/renew the
+                    // trusted certificate if needed. A newly issued cert restarts this server.
+                    string ipNow = LanIp;
+                    Task.Run(() => TrustedHost.UpdateDns(ipNow));
+                    TrustedHost.EnsureCertificateAsync();
+                    TrustedHost.StartMaintenance();
+                }
+                else if (Scheme == "https") EnsureCertCoversIp(LanIp);
 
                 try
                 {
@@ -173,7 +212,8 @@ namespace CROMS.Data
                         // /c so cmd exits when the server exits. The command is
                         // configurable (App.config 'MobileServeCommand') so it can be
                         // changed without a rebuild; default is an HTTPS ng serve.
-                        Arguments = "/c " + ServeCommand,
+                        Arguments = "/c " + ServeCommand +
+                                    ((_trustedHost && Scheme != "https") ? " --ssl=false" : ""),
                         WorkingDirectory = AppPath,
                         UseShellExecute = false,
                         CreateNoWindow = true,
@@ -271,7 +311,7 @@ namespace CROMS.Data
                     {
                         try { _portPoll?.Dispose(); } catch { } _portPoll = null;
                         _restartAttempts = 0;
-                        MobileUrl = Scheme + "://" + LanIp + ":" + Port;
+                        MobileUrl = Scheme + "://" + UrlHost + ":" + Port;
                         SetStatus(IonicStatus.Running);
                     }
                 }
@@ -366,6 +406,18 @@ namespace CROMS.Data
             var lan = DetectLan();
             if (lan.ip == LanIp) return;
 
+            if (_trustedHost)
+            {
+                // Same hostname, same certificate: only the DNS record needs to follow the new IP.
+                LanIp = lan.ip;
+                NetworkType = lan.type;
+                MobileUrl = Scheme + "://" + UrlHost + ":" + Port;
+                string ipNow = lan.ip;
+                Task.Run(() => TrustedHost.UpdateDns(ipNow));
+                Raise();
+                return;
+            }
+
             if (Scheme == "https" && !CertCoversIp(lan.ip))
             {
                 EnsureCertCoversIp(lan.ip);   // regenerate to include the new address
@@ -381,7 +433,7 @@ namespace CROMS.Data
 
         /// <summary>Stop then Start — used when the network changed enough that the
         /// server has to relaunch (a new cert) rather than just report a new URL.</summary>
-        private void Restart()
+        internal void Restart()
         {
             Stop();
             lock (_lock) { _restartAttempts = 0; _shuttingDown = false; }

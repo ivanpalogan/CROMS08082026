@@ -541,6 +541,7 @@
     <Compile Include="Data\BirthCertificatePrinter.cs" />
     <Compile Include="Data\ClaimLink.cs" />
     <Compile Include="Data\IonicServerManager.cs" />
+    <Compile Include="Data\TrustedHost.cs" />
     <Compile Include="Data\ApiServerManager.cs" />
     <Compile Include="Data\HotspotInfo.cs" />
     <Compile Include="Data\QrHelper.cs" />

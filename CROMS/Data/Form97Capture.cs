@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using MySql.Data.MySqlClient;
@@ -242,9 +242,12 @@ namespace CROMS.Data
         /// </summary>
         public static string BuildMobileUrl(string token)
         {
+            // Stable trusted hostname when the certificate is live (no phone warning, camera works).
+            if (TrustedHost.CertReady)
+                return "https://" + TrustedHost.Host + ":3443/form97-capture.html?token=" + token;
             string ip = IonicServerManager.DetectLanIp();
             if (string.IsNullOrEmpty(ip)) ip = "127.0.0.1";
-            return "https://" + ip + ":3443/form97-capture.html?token=" + token;
+            return "http://" + ip + ":3000/form97-capture.html?token=" + token;
         }
     }
 }

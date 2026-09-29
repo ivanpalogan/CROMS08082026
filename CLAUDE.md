@@ -6720,3 +6720,23 @@ The paper slip the client is handed for a tracking-only transaction (petition / 
 
 ### 2026-09-29 - Code/design split finished for the last five code-built forms
 Audit of every Form/UserControl lacking a `.Designer.cs`: `DigitizeChoiceForm`, `OldBirthRecordsForm`, `OldDeathRecordsForm`, `OldMarriageRecordsForm` and the nested `ReasonPrompt.PromptForm` (all built after the 2026-09-20 split). Each now has `X.cs` (logic, handlers, data) + `X.Designer.cs` (fields, `InitializeComponent`, layout). Old*RecordsForm: field declarations and the `BuildUi/BuildBooksCard/BuildListCard/BuildEntryCard/NewTab/FieldGrid/AddField/AddReadOnlyField/AddCombo/AddDate` helpers moved to the Designer partial (`BuildUi` renamed `InitializeComponent`); lambdas became named handlers in the `.cs`; book/record state fields stay in the `.cs`. `ReasonPrompt` now just calls the new `Modules/ReasonPromptForm` (+ Designer). Behaviour unchanged. Left alone on purpose (not forms): `MarriageUi.cs` helper class, custom-painted `ClientTasksPanel`. As with the 2026-09-20 split these are file splits, not drag-designer-loadable (layout code still calls helpers). csproj entries added. MSBuild clean, 0 errors (temp OutputPath). GUI not opened.
+
+### 2026-09-30 - Phone HTTPS: local CA REMOVED; publicly trusted Let's Encrypt cert on a free DuckDNS name
+Replaced the croms-local-ca / croms-ca.crt approach (every phone had to install a CA). Now: a free
+DuckDNS hostname (`MobileHostname`, e.g. croms-lcro.duckdns.org, plus `DuckDnsToken` in App.config)
+whose A record points at the PC's PRIVATE LAN IP (unroutable from the Internet = office-only; nothing
+port-forwarded). `Data/TrustedHost.cs` re-points the record via the DuckDNS API on start and whenever
+`IonicServerManager.CheckIpChange` sees a new IP, so the QR hostname never changes and no cert is
+regenerated on an IP/Wi-Fi change. Certificate: `ORCMobile_Application/ssl/get-cert.js` (new dependency
+`acme-client`) issues/renews Let's Encrypt via DNS-01 (TXT set through DuckDNS, no inbound access) into
+`ssl/trusted-cert.pem` + `trusted-key.pem` (git-ignored); renewed 30 days before expiry (daily check).
+A newly issued cert restarts the scanner dev server and save-API (they read it at launch).
+Consumers switched to the trusted files: angular.json (ORCMobile), save-API HTTPS :3443,
+`Form97Capture.BuildMobileUrl` (hostname when cert ready). Removed: CA + self-signed files, make-cert.*,
+the `/croms-ca.crt` endpoint, the Dashboard "install the CA" instructions. Until configured/issued the
+scanner serves plain HTTP on the LAN IP (`--ssl=false`) and the Dashboard says what to set up.
+claimapp (:4300) is deliberately UNCHANGED (still its own self-signed cert / ClaimLink by IP).
+CAVEATS: needs Internet when issuing/renewing and updating DNS; some routers' DNS-rebinding protection
+blocks public names resolving to private IPs (allow duckdns.org). NOT VERIFIED END-TO-END: no DuckDNS
+account/token exists yet (creating one is the user's step), so issuance and a real phone were not run;
+verified: CROMS builds clean, get-cert.js syntax + input validation, unconfigured fallback (Scheme=http).
