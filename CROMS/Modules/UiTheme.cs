@@ -92,8 +92,60 @@ namespace CROMS.Modules
                     if (b is SplitButton sb && sb.Menu != null) StyleMenu(sb.Menu);
                 }
                 else if (c is DataGridView g) StyleGrid(g);
+                else if (c is ComboBox cb) MakeSearchable(cb);
                 if (c.HasChildren) Polish(c);
             }
+        }
+
+        // ------------------------------------------------------- searchable combos
+        /// <summary>A combo with at least this many items becomes type-to-search.</summary>
+        private const int SearchableMin = 5;
+
+        private static readonly HashSet<ComboBox> _searchWired = new HashSet<ComboBox>();
+        // Combos that were pick-only (DropDownList) before we made them searchable:
+        // free text that matches no item is discarded on leave so they stay pick-only.
+        private static readonly HashSet<ComboBox> _pickOnly = new HashSet<ComboBox>();
+
+        /// <summary>
+        /// Any ComboBox holding 5+ items filters as you type: clicking still lists everything,
+        /// typing "t" narrows to every item starting with t, "sara" to every Sara, a full name
+        /// to just that one. Data is often bound AFTER Polish runs, so the check repeats on
+        /// DataSourceChanged and on Enter.
+        /// </summary>
+        private static void MakeSearchable(ComboBox cb)
+        {
+            if (!_searchWired.Add(cb)) return;
+            cb.Disposed += (s, e) => { _searchWired.Remove(cb); _pickOnly.Remove(cb); };
+            cb.DataSourceChanged += (s, e) => ApplySearch(cb);
+            cb.Enter += (s, e) => ApplySearch(cb);
+            cb.Leave += (s, e) => SnapToItem(cb);
+            ApplySearch(cb);
+        }
+
+        private static void ApplySearch(ComboBox cb)
+        {
+            if (cb.IsDisposed || cb.Items.Count < SearchableMin) return;
+            if (cb.AutoCompleteMode != AutoCompleteMode.None) return;   // already configured by its form
+
+            int idx = cb.SelectedIndex;
+            if (cb.DropDownStyle == ComboBoxStyle.DropDownList)
+            {
+                _pickOnly.Add(cb);
+                cb.DropDownStyle = ComboBoxStyle.DropDown;
+                if (idx >= 0 && idx < cb.Items.Count) cb.SelectedIndex = idx;
+            }
+            cb.AutoCompleteSource = AutoCompleteSource.ListItems;
+            cb.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+        }
+
+        private static void SnapToItem(ComboBox cb)
+        {
+            if (!_pickOnly.Contains(cb) || cb.IsDisposed) return;
+            string t = cb.Text;
+            if (string.IsNullOrEmpty(t) || cb.SelectedIndex >= 0) return;
+            int i = cb.FindStringExact(t);
+            if (i >= 0) cb.SelectedIndex = i;
+            else cb.Text = "";   // typed something that is not in the list: stay pick-only
         }
 
         // Kept for existing call sites — same as Polish (buttons + grids + fonts).
