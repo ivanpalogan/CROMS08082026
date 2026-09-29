@@ -446,6 +446,7 @@ namespace CROMS.Data
                 Width = 980,
                 Height = 1000,
                 StartPosition = FormStartPosition.CenterParent,
+                WindowState = FormWindowState.Maximized,
                 Text = watermark != null
                     ? watermark + "  —  " + def.FormName + " (not a certificate)"
                     : def.FormName + "  —  Municipal Form No. " + def.MunicipalFormNo

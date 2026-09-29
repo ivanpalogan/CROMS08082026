@@ -57,6 +57,7 @@ namespace CROMS.Data
                 preview.Width = 950;
                 preview.Height = 1000;
                 preview.StartPosition = FormStartPosition.CenterParent;
+                preview.WindowState = FormWindowState.Maximized;
                 preview.ShowDialog(owner);
             }
         }

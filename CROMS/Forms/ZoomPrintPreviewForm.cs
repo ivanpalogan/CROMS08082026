@@ -45,12 +45,30 @@ namespace CROMS.Forms
             InitializeComponent(caption, note);
         }
 
+        // True while the zoom is the automatic fit-to-window one; a manual zoom (wheel, +/-,
+        // 100%) turns it off so a resize never fights the operator's own choice.
+        private bool _autoFit = true;
+
         public void SetZoom(int percent)
+        {
+            _autoFit = false;
+            ApplyZoom(percent);
+        }
+
+        private void ApplyZoom(int percent)
         {
             _zoom = Math.Max(10, Math.Min(400, percent));
             _view.AutoZoom = false;
             _view.Zoom = _zoom / 100.0;
             _zoomLabel.Text = _zoom + "%";
+        }
+
+        /// <summary>Keeps the page fitted while the window is still being sized (maximize) and
+        /// until the operator zooms by hand.</summary>
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (_autoFit && _view != null && _view.IsHandleCreated && _doc != null) ApplyZoom(FitPercent(false));
         }
 
         private int FitPercent(bool width)
@@ -63,8 +81,8 @@ namespace CROMS.Forms
             return Math.Max(10, (int)Math.Floor(pct / 5.0) * 5);
         }
 
-        public void FitPage() { SetZoom(FitPercent(false)); }
-        public void FitWidth() { SetZoom(FitPercent(true)); }
+        public void FitPage() { ApplyZoom(FitPercent(false)); _autoFit = true; }
+        public void FitWidth() { ApplyZoom(FitPercent(true)); _autoFit = false; }
 
         /// <summary>Opens the visual Template Designer on the form being previewed, then redraws
         /// this preview from whatever the operator saved. Opens read-only — the designer's own

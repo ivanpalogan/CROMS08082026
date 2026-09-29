@@ -159,6 +159,7 @@ namespace CROMS.Forms
                 Width = 900,
                 Height = 950,
                 StartPosition = FormStartPosition.CenterParent,
+                WindowState = FormWindowState.Maximized,
                 Text = d.FormName + " — alignment sheet"
             })
             {

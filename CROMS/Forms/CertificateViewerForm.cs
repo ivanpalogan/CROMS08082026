@@ -66,12 +66,29 @@ namespace CROMS.Forms
             Shown += (s, e) => FitPage();
         }
 
+        // True while the zoom is the automatic fit-to-window one; a manual zoom turns it off.
+        private bool _autoFit = true;
+
         public void SetZoom(int percent)
+        {
+            _autoFit = false;
+            ApplyZoom(percent);
+        }
+
+        private void ApplyZoom(int percent)
         {
             // 1 and 2 are the viewer's own "page width" / "whole page" codes, not percentages.
             _zoom = Math.Max(10, Math.Min(400, percent));
             _viewer.Zoom(_zoom);
             _zoomLabel.Text = _zoom + "%";
+        }
+
+        /// <summary>Re-fits the page while the window is still being maximized/resized, until
+        /// the operator zooms by hand.</summary>
+        protected override void OnResize(EventArgs e)
+        {
+            base.OnResize(e);
+            if (_autoFit && _viewer != null && _viewer.IsHandleCreated) ApplyZoom(FitPercent(false));
         }
 
         /// <summary>The percentage at which one whole page fits the viewer, from the report's own page size.</summary>
@@ -91,8 +108,8 @@ namespace CROMS.Forms
             catch { return 100; }
         }
 
-        public void FitPage() { SetZoom(FitPercent(false)); }
-        public void FitWidth() { SetZoom(FitPercent(true)); }
+        public void FitPage() { ApplyZoom(FitPercent(false)); _autoFit = true; }
+        public void FitWidth() { ApplyZoom(FitPercent(true)); _autoFit = false; }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {

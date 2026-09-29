@@ -15,6 +15,7 @@ namespace CROMS.Forms
         {
             Text = caption;
             StartPosition = FormStartPosition.CenterParent;
+            WindowState = FormWindowState.Maximized;   // full window; zoom auto-fits (see OnResize/Shown)
             ClientSize = new Size(1000, 820);
             MinimumSize = new Size(720, 520);
             BackColor = UiTheme.PageBg;

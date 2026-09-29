@@ -198,7 +198,7 @@ namespace CROMS.Forms
 
             var doc = new PrintDocument { DocumentName = (preview ? "PREVIEW " : "") + "Marriage License " + l.LicenseNo };
             doc.PrintPage += (s, e) => Draw(e, l, preview, office, muni, prov, registrar, title);
-            using (var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 1000, Text = preview ? "LICENSE PREVIEW (not a license)" : "Marriage License " + l.LicenseNo })
+            using (var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 1000, WindowState = FormWindowState.Maximized, Text = preview ? "LICENSE PREVIEW (not a license)" : "Marriage License " + l.LicenseNo })
                 dlg.ShowDialog(owner);
         }
 

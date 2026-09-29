@@ -233,7 +233,7 @@ namespace CROMS.Forms
                     else e.HasMorePages = true;
                 }
             };
-            using (var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 1000 }) dlg.ShowDialog(this);
+            using (var dlg = new PrintPreviewDialog { Document = doc, Width = 900, Height = 1000, WindowState = FormWindowState.Maximized }) dlg.ShowDialog(this);
         }
     }
 }
