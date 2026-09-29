@@ -84,7 +84,8 @@ namespace CROMS.Kiosk
         // Marriage Registration presumes a licence already exists — this is unanswered until
         // MarriageLicenseCheckForm resolves it. A "No" answer removes MARRIAGE_REG from
         // Selected (routed to MARRIAGE_APP instead), which is what makes this false again.
-        public bool NeedsMarriageLicenseCheck => Selected.Contains("MARRIAGE_REG");
+        // Yes/No "Marriage License" screen retired: Marriage Registration goes straight on.
+        public bool NeedsMarriageLicenseCheck => false;
 
         public string[] StepLabels()
         {
