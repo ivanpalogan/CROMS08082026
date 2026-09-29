@@ -48,6 +48,13 @@ namespace CROMS.Forms
             btn("Fit page", 80, (s, e) => FitPage());
             btn("Fit width", 80, (s, e) => FitWidth());
             btn("100%", 56, (s, e) => SetZoom(100));
+            if (!string.IsNullOrEmpty(_rptPath))
+            {
+                var edit = btn("✎ Edit Layout", 110, (s, e) => EditLayout());
+                edit.BackColor = UiTheme.Accent; edit.ForeColor = Color.White;
+                edit.Margin = new Padding(14, 0, 6, 0);
+                edit.Tag = "noskin";
+            }
             var hint = new Label
             {
                 Text = "Ctrl + mouse wheel to zoom  ·  wheel to scroll  ·  Print and Export are on the toolbar above",

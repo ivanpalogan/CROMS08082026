@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using CrystalDecisions.CrystalReports.Engine;
 using CrystalDecisions.Windows.Forms;
+using CROMS.Data;
 using CROMS.Modules;
 
 namespace CROMS.Forms
@@ -38,7 +39,12 @@ namespace CROMS.Forms
 
         /// <param name="note">A warning shown above the page (e.g. values too long for their box), or null.</param>
         public CertificateViewerForm(ReportDocument report, string caption, string note)
+            : this(report, caption, note, null) { }
+
+        /// <param name="rptPath">The .rpt being shown; enables the Edit Layout button. Null hides it.</param>
+        public CertificateViewerForm(ReportDocument report, string caption, string note, string rptPath)
         {
+            _rptPath = rptPath;
             InitializeComponent();
 
             _report = report;
@@ -64,6 +70,30 @@ namespace CROMS.Forms
 
             _wheel = new CtrlWheelZoom(_viewer, dir => SetZoom(CtrlWheelZoom.Next(_zoom, dir)));
             Shown += (s, e) => FitPage();
+        }
+
+        private readonly string _rptPath;
+
+        /// <summary>
+        /// Opens this report in the Crystal designer. Behind the same administrator check as the
+        /// other layout tools: changing a certificate's layout changes what gets printed and
+        /// handed to clients. Saved edits show the next time the report is opened.
+        /// </summary>
+        private void EditLayout()
+        {
+            if (string.IsNullOrEmpty(_rptPath)) return;
+            using (var v = new AdminVerificationForm())
+            {
+                if (v.ShowDialog(this) != DialogResult.OK || v.VerifiedUser == null) return;
+                Audit.Write(Audit.Update, "reports", 0, "Opened report layout for editing: " +
+                    System.IO.Path.GetFileName(_rptPath) + " [by " + v.VerifiedUser.Username + "]");
+            }
+            string problem = ReportEditor.Open(_rptPath);
+            if (problem != null) { MessageBox.Show(this, problem, "Edit Layout", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
+            MessageBox.Show(this,
+                "The report opened in the Crystal designer.\n\nMove or restyle anything, save it, then close this preview " +
+                "and print it again to see the change.",
+                "Edit Layout", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         // True while the zoom is the automatic fit-to-window one; a manual zoom turns it off.

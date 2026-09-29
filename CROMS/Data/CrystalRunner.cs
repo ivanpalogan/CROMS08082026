@@ -41,6 +41,7 @@ namespace CROMS.Data
                                 byte[] logo, byte[] stamp, IWin32Window owner,
                                 FormDefinition layout = null)
         {
+            ReportEditor.SyncFromSource(rptPath);   // pick up a layout edited in the repo copy
             var report = new ReportDocument();
             report.Load(rptPath, OpenReportMethod.OpenReportByTempCopy);
 
@@ -63,7 +64,7 @@ namespace CROMS.Data
             ApplyParameters(report, def, bound);
 
             var host = new CertificateViewerForm(report, def.FormName +
-                "  —  Municipal Form No. " + def.MunicipalFormNo);
+                "  —  Municipal Form No. " + def.MunicipalFormNo, null, rptPath);
             host.ShowDialog(owner);
         }
 
@@ -161,6 +162,7 @@ namespace CROMS.Data
         /// <summary>Load a report and bind one DataTable to it. The caller owns disposal.</summary>
         private static ReportDocument LoadTable(string rptPath, DataTable data)
         {
+            ReportEditor.SyncFromSource(rptPath);   // pick up a layout edited in the repo copy
             var report = new ReportDocument();
             report.Load(rptPath, OpenReportMethod.OpenReportByTempCopy);
             report.SetDataSource(data);
@@ -177,7 +179,7 @@ namespace CROMS.Data
         /// <summary>The viewer window, not yet shown - the test harness drives zoom on it.</summary>
         public static Form OpenTable(string rptPath, DataTable data, string caption, string note)
         {
-            return new CertificateViewerForm(LoadTable(rptPath, data), caption, note);
+            return new CertificateViewerForm(LoadTable(rptPath, data), caption, note, rptPath);
         }
 
         /// <summary>Render a table report to PDF with no viewer.</summary>

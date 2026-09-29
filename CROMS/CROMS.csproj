@@ -641,6 +641,7 @@
     <Compile Include="Data\ServerConfig.cs" />
     <Compile Include="Data\AppUpdater.cs" />
     <Compile Include="Data\ReleasePublisher.cs" />
+    <Compile Include="Data\ReportEditor.cs" />
     <Compile Include="Data\DesktopShortcut.cs" />
     <Compile Include="Data\Audit.cs" />
     <Compile Include="Forms\ServerSetupForm.cs">
