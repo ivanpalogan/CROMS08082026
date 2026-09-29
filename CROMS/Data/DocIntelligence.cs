@@ -142,6 +142,13 @@ namespace CROMS.Data
             if (broken.Count > 0)
                 return "a key field failed its validation rule: " +
                        string.Join("; ", broken.Select(f => f.Label + " - " + f.Issue).Take(3));
+            // Every field blank is a DIFFERENT problem than some fields being weak - it means
+            // the scan itself produced nothing (a blank photo, the wrong side of the page, a
+            // corrupt file), not that a few readings need a closer look. Said plainly so the
+            // operator rescans instead of trying to "fix" fields that were never read at all.
+            if (r.Fields.Count > 0 && r.Fields.All(f => string.IsNullOrWhiteSpace(f.Value)))
+                return "every field came back blank - the scan did not read anything at all; "
+                     + "rescan the document rather than trying to correct individual fields";
             return "overall field confidence " + r.OverallConfidence + "% is below " + ReviewBelow + "%";
         }
 

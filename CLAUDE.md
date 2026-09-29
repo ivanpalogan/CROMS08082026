@@ -6605,3 +6605,26 @@ NOT DONE / not tried: no attempt to fix the birth-1993 dense-form case (54s, una
 change) — that time is genuine per-field OCR work on a form with ~50 fields, not fallback-pass
 waste, and cutting it would mean touching renderings-per-field, which this project has already
 measured to cost accuracy twice. Form 90 has no OCR path to test, as above.
+
+### 2026-09-29 (later) — DocIntelligence: "every field blank" is now its own flagged reason,
+### distinct from "some fields are weak"
+
+`scored.Count == 0` (every extracted field is blank) already forced `NeedsManualReview = true`,
+but `ReviewReason()`'s last fallback branch gave it the SAME wording as a partially-weak scan —
+"overall field confidence 0% is below 65%" — so an operator couldn't tell "this scan produced
+nothing at all, rescan it" from "a few fields came out weak, check them" without opening the grid
+and counting blanks themselves.
+
+Added one guard ahead of that fallback in `ReviewReason()`: when every field is blank (and no
+higher-priority reason already applies — scan quality, unknown document type, unrecognised
+layout, a broken core field — all unchanged, checked in the same order as before), the message
+is now "every field came back blank - the scan did not read anything at all; rescan the document
+rather than trying to correct individual fields." Nothing else in the flagging logic changed —
+this only replaces which STRING explains an already-existing flag in this one specific case.
+
+VERIFIED by driving `DocIntelligence.Revalidate` directly via reflection off the built exe (no
+live scan reproduces this cleanly — it needs a document that classifies as a known kind, isn't
+caught by any of the four higher-priority checks, yet reads zero fields, which none of the
+project's real sample scans do): three all-blank fields -> `NeedsManualReview=True`, the new
+message; one populated + one blank field -> unchanged, still the old generic confidence message.
+No regression on the case that already worked. MSBuild (VS2019) clean, 0 errors, 0 warnings.
