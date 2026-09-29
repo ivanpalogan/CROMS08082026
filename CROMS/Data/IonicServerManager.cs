@@ -404,6 +404,14 @@ namespace CROMS.Data
         {
             if (_shuttingDown || Status != IonicStatus.Running) return;
             var lan = DetectLan();
+            if (_trustedHost)
+            {
+                // A push that failed (PC still offline right after joining the new Wi-Fi) is retried
+                // on every poll until DuckDNS confirms it; then verify the name resolves to this IP.
+                string ipCheck = lan.ip;
+                if (TrustedHost.NeedsDnsPush(ipCheck)) Task.Run(() => TrustedHost.UpdateDns(ipCheck));
+                TrustedHost.VerifyDnsAsync(ipCheck);
+            }
             if (lan.ip == LanIp) return;
 
             if (_trustedHost)

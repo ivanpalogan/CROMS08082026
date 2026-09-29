@@ -157,12 +157,62 @@ namespace CROMS.Data
             _maint = new Timer(_ => EnsureCertificateAsync(), null, TimeSpan.FromHours(24), TimeSpan.FromHours(24));
         }
 
+        /// <summary>The IP the DuckDNS record was last successfully pointed at ("" = never).</summary>
+        public static string PushedIp => _lastPushedIp;
+
+        /// <summary>True when the record has NOT yet been confirmed for <paramref name="lanIp"/>
+        /// (a previous push failed, e.g. the PC was offline right after joining the new Wi-Fi).</summary>
+        public static bool NeedsDnsPush(string lanIp)
+        {
+            return IsConfigured && !string.IsNullOrEmpty(lanIp) && !lanIp.StartsWith("127.") && _lastPushedIp != lanIp;
+        }
+
+        private static string _dnsNote = "";
+        private static DateTime _dnsCheckedAt = DateTime.MinValue;
+        private static bool _dnsChecking;
+
+        /// <summary>Resolves Host the way a phone will and compares it to the PC's current LAN IP.
+        /// Cached 30s, runs in the background. Empty note = resolves correctly.</summary>
+        public static void VerifyDnsAsync(string lanIp)
+        {
+            if (!IsConfigured || string.IsNullOrEmpty(lanIp)) { _dnsNote = ""; return; }
+            if ((DateTime.Now - _dnsCheckedAt).TotalSeconds < 30 || _dnsChecking) return;
+            _dnsChecking = true;
+            Task.Run(() =>
+            {
+                try
+                {
+                    string note;
+                    try
+                    {
+                        bool ok = false; bool any = false;
+                        foreach (var a in Dns.GetHostAddresses(Host))
+                        {
+                            any = true;
+                            if (a.ToString() == lanIp) ok = true;
+                        }
+                        note = ok ? "" : any
+                            ? Host + " still points at an old address - it updates within a minute. If it stays this way the router is blocking public names that resolve to private IPs (DNS rebind protection): allow duckdns.org in the router."
+                            : "";
+                    }
+                    catch
+                    {
+                        note = "Cannot resolve " + Host + " yet (offline, or the router blocks it as DNS rebinding - allow duckdns.org in the router).";
+                    }
+                    _dnsNote = note;
+                }
+                finally { _dnsCheckedAt = DateTime.Now; _dnsChecking = false; }
+            });
+        }
+
         /// <summary>One-line status for the Dashboard hint.</summary>
         public static string StatusNote()
         {
             if (!IsConfigured)
                 return "Trusted HTTPS is not set up: set MobileHostname and DuckDnsToken in App.config (see ssl/README.md).";
-            return CertReady ? "" : "Getting the trusted certificate for " + Host + " (first run takes a few minutes, needs Internet)...";
+            if (!CertReady) return "Getting the trusted certificate for " + Host + " (first run takes a few minutes, needs Internet)...";
+            if (_dnsNote.Length > 0) return _dnsNote;
+            return "If a phone cannot open the page on this Wi-Fi, the network may block device-to-device traffic (client/AP isolation) - use another Wi-Fi or the PC's hotspot.";
         }
     }
 }
