@@ -506,7 +506,10 @@ namespace CROMS.Forms
         {
             return new Label
             {
+                Text = text,
+                UseMnemonic = false,
                 AutoSize = true,
+                BackColor = Color.Transparent,
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = UiTheme.Muted,
                 Location = new Point(20, y)
