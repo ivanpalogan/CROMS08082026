@@ -213,12 +213,22 @@ namespace CROMS.Data
             //    the AXIS: on that sideways death certificate the two horizontal angles
             //    scored 5292 and 5676 against 1960 upright. It cannot tell those two apart,
             //    because they differ only by a 180 degree flip.
-            long upright = ProbeScore(source, 0, probe);
+            //
+            //    The four probes are fully independent - each rotates and reads its OWN
+            //    copy of `source`, none reads what another produced - so they run across
+            //    cores instead of one after another. Measured 2026-09-29: this step alone
+            //    was 29.4s of a 54s total scan (over half) when OSD's confidence fell below
+            //    the trust threshold, which real faded/skewed backlog pages do often. The
+            //    SELECTION below still runs sequentially over the four scores in the same
+            //    0/90/180/270 order the old loop used, so a tie breaks identically to
+            //    before - only how the scores are COMPUTED changed, not which one wins.
+            long[] scores = new long[4];
+            System.Threading.Tasks.Parallel.For(0, 4, i => scores[i] = ProbeScore(source, i * 90, probe));
+            long upright = scores[0];
             int axis = 0; long axisScore = upright;
-            for (int deg = 90; deg < 360; deg += 90)
+            for (int i = 1; i < 4; i++)
             {
-                long score = ProbeScore(source, deg, probe);
-                if (score > axisScore) { axisScore = score; axis = deg; }
+                if (scores[i] > axisScore) { axisScore = scores[i]; axis = i * 90; }
             }
 
             // A turn has to beat leaving the page alone by a clear margin: upright is the

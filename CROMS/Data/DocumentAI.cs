@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -230,22 +231,43 @@ namespace CROMS.Data
         /// finish faster than the single pass this replaced, because the old
         /// GetPixel/SetPixel preprocessing cost more than an extra recognition does.
         /// </summary>
+        ///
+        /// <summary>
+        /// Optional phase-timing sink for diagnosing where a scan's time actually goes.
+        /// Null by default (zero cost, zero behaviour change) - set by a caller that wants
+        /// the breakdown (CROMS.DocTest's --diag flag) to a delegate that writes each line
+        /// wherever it likes. Never throws from the pipeline's side even if the sink itself
+        /// misbehaves, so a bad diagnostic hook can never break a real scan.
+        /// </summary>
+        public static Action<string> Diag;
+
+        private static void Log(string phase, Stopwatch sw)
+        {
+            var d = Diag;
+            if (d == null) return;
+            try { d(phase + ": " + sw.ElapsedMilliseconds + "ms"); } catch { }
+        }
+
         public static DocAiResult Analyze(Bitmap image)
         {
             if (!IsAvailable())
                 return new DocAiResult { Error = "OCR engine (Tesseract 'eng' language data) not found." };
+
+            var totalSw = Stopwatch.StartNew();
 
             // A sideways page is not a slightly worse read, it is no read at all -
             // Tesseract's layout analysis assumes horizontal lines. Probe the four right
             // angles once on a small copy, then work from the straightened page.
             int rotation = 0;
             Bitmap upright = image;
+            var rotSw = Stopwatch.StartNew();
             try
             {
                 rotation = OcrService.DetectRotation(image);
                 if (rotation != 0) upright = OcrService.Rotate(image, rotation);
             }
             catch { rotation = 0; upright = image; }
+            Log("rotation probe", rotSw);
 
             try
             {
@@ -262,9 +284,21 @@ namespace CROMS.Data
                 int longest = Math.Max(upright.Width, upright.Height);
                 bool wantNative = longest > PreferredLongSide * 1.15;
 
-                Task<DocAiResult> preferredTask = Task.Run(() => AnalyzeAt(upright, PreferredLongSide));
+                var preferredSw = Stopwatch.StartNew();
+                Task<DocAiResult> preferredTask = Task.Run(() =>
+                {
+                    var r = AnalyzeAt(upright, PreferredLongSide);
+                    Log("preferred pass (" + PreferredLongSide + "px)", preferredSw);
+                    return r;
+                });
+                var nativeSw = wantNative ? Stopwatch.StartNew() : null;
                 Task<DocAiResult> nativeTask = wantNative
-                    ? Task.Run(() => AnalyzeAt(upright, longest))
+                    ? Task.Run(() =>
+                    {
+                        var r = AnalyzeAt(upright, longest);
+                        Log("native pass (" + longest + "px)", nativeSw);
+                        return r;
+                    })
                     : null;
 
                 DocAiResult best = preferredTask.Result;
@@ -279,10 +313,17 @@ namespace CROMS.Data
                     // cost of running both concurrently instead of checking best.LayoutCode
                     // before starting the second one; the already-fast recognised-layout case
                     // has spare cores (region reads run at ProcessorCount-1, see DocLayouts.cs).
-                    if (best.LayoutCode == null && Score(native) > Score(best)) best = native;
+                    bool nativeWon = best.LayoutCode == null && Score(native) > Score(best);
+                    try { Diag?.Invoke(nativeWon
+                        ? "native pass WON (2400px layout was unresolved)"
+                        : "native pass DISCARDED (preferred already resolved a layout)"); } catch { }
+                    if (nativeWon) best = native;
                 }
                 best.RotationApplied = rotation;
+                var qualitySw = Stopwatch.StartNew();
                 AssessScanQuality(upright, best);
+                Log("scan quality assessment", qualitySw);
+                Log("TOTAL Analyze()", totalSw);
                 return best;
             }
             finally
@@ -411,6 +452,7 @@ namespace CROMS.Data
 
         private static DocAiResult AnalyzeAt(Bitmap image, int longSide)
         {
+            string tag = "[" + longSide + "px] ";
             var result = new DocAiResult();
             using (var session = new OcrSession(image, longSide))
             {
@@ -419,11 +461,13 @@ namespace CROMS.Data
                 // concurrent renderings (see OcrSession.PageIn). Running both passes at
                 // once instead of one after another is where most of this pipeline's
                 // real time was going (measured ~45s combined on a real sample).
+                var pageSw = Stopwatch.StartNew();
                 var pageTask = Task.Run(() => session.Page());
                 var sparseTask = Task.Run(() => session.PageSparse());
                 Task.WaitAll(pageTask, sparseTask);
                 OcrResult ocr = pageTask.Result;
                 OcrResult sparse = sparseTask.Result;
+                Log(tag + "whole-page Page()+PageSparse()", pageSw);
 
                 result.RawText = ocr.Text ?? "";
                 result.OcrConfidence = ocr.Confidence;
@@ -435,6 +479,7 @@ namespace CROMS.Data
                 // evidence for deciding WHICH form this is.
                 string evidence = result.RawText + "\n" + (sparse.Text ?? "");
 
+                var fitSw = Stopwatch.StartNew();
                 int layoutConfidence;
                 FormLayout layout = DocLayouts.Detect(evidence, out layoutConfidence);
                 result.CandidateLayoutCode = layout == null ? null : layout.Code;
@@ -460,6 +505,7 @@ namespace CROMS.Data
                         fit = null;
                     }
                 }
+                Log(tag + "classify + layout fit", fitSw);
 
                 if (layout != null)
                 {
@@ -475,14 +521,20 @@ namespace CROMS.Data
                         fit.AnchorsMatched, fit.RulingsMatched, fit.ScaleX, fit.ScaleY,
                         fit.OffsetX, fit.SquareInliers, fit.OffsetY);
 
+                    var regionSw = Stopwatch.StartNew();
                     List<FieldRead> reads = RegionReader.Read(session, layout, fit, ocr);
                     ReconcileFamilyNames(layout, reads);
                     DeriveFields(layout, reads);
                     result.Fields = reads.Select(ToDocField).ToList();
+                    Log(tag + "region path: per-field parallel reads (" + reads.Count + " fields)", regionSw);
+
+                    var mergeSw = Stopwatch.StartNew();
                     MergePageText(result, ocr, layout);
+                    Log(tag + "region path: merge whole-page text into blanks", mergeSw);
                 }
                 else
                 {
+                    var labelSw = Stopwatch.StartNew();
                     // No layout, or one that did not fit: read the page by its printed
                     // labels, so an unusual form — or a revision the library does not
                     // carry — still yields something rather than a page of wrong boxes.
@@ -495,6 +547,7 @@ namespace CROMS.Data
                         result.Fields = ExtractMarriage(ocr);
                     else if (result.Kind == DocKind.Death)
                         result.Fields = ExtractDeath(result.RawText, ocr.Confidence);
+                    Log(tag + "label path: whole-page classify + extract", labelSw);
                 }
 
                 // BR-20. Strip the scanner's noise BEFORE anything downstream sees it: the
@@ -502,11 +555,13 @@ namespace CROMS.Data
                 // "»" and stray box-drawing characters. Done here, at the one point both
                 // the region path and the label path have converged, so neither can leak
                 // them into a form field, a stored value or a printed certificate.
+                var enrichSw = Stopwatch.StartNew();
                 foreach (DocField field in result.Fields)
                     if (field != null) field.Value = Sanitize(field.Value);
 
                 // Score, correct and validate every field before anyone sees it.
                 DocIntelligence.Enrich(result, ocr);
+                Log(tag + "sanitize + DocIntelligence.Enrich", enrichSw);
             }
             return result;
         }

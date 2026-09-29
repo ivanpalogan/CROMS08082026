@@ -98,6 +98,8 @@ namespace CROMS.DocTest
                     using (Bitmap raw = DocumentAI.LoadImage(path))
                     using (Bitmap image = rotate == 0 ? new Bitmap(raw) : OcrService.Rotate(raw, rotate))
                         Console.WriteLine("  " + OcrService.DescribeOrientation(image));
+
+                    DocumentAI.Diag = line => Console.WriteLine("  [phase] " + line);
                 }
 
                 var started = DateTime.Now;

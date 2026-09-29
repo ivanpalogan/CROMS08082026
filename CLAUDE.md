@@ -6628,3 +6628,76 @@ caught by any of the four higher-priority checks, yet reads zero fields, which n
 project's real sample scans do): three all-blank fields -> `NeedsManualReview=True`, the new
 message; one populated + one blank field -> unchanged, still the old generic confidence message.
 No regression on the case that already worked. MSBuild (VS2019) clean, 0 errors, 0 warnings.
+
+### 2026-09-29 (later) — Phase-timing instrumentation added; found and fixed the REAL
+### bottleneck (rotation probe, not the two-resolution pass), verified with a clean A/B
+
+Built the timing instrumentation planned as a prerequisite for touching OCR speed responsibly
+(the earlier speculative-native-pass fix, shipped the same day, only helps unrecognised-layout
+forms — the dense recognized-layout case, e.g. `gilvan birth.jpg`, stayed at ~54s and nobody
+knew why). `DocumentAI.Diag` is a static `Action<string>` sink, null by default (zero cost, zero
+behaviour change unless a caller sets it), read by a new `Log(phase, Stopwatch)` helper that
+never throws even if the sink itself misbehaves. Wired every major phase of `Analyze`/`AnalyzeAt`
+— rotation probe, the whole-page Page()+PageSparse() pass, classify+layout-fit, the region-read
+path, the label-path fallback, sanitize+Enrich, and the preferred/native pass totals (each
+tagged by resolution since they can now run concurrently). `CROMS.DocTest --diag` wires it to
+`Console.WriteLine`.
+
+**FOUND: the rotation probe was 29.4s of a 54.2s total scan on `gilvan birth.jpg` — over HALF the
+time, and nothing to do with the two-resolution fallback this session's earlier fix targeted.**
+`OcrService.DetectRotation` falls back to a four-angle recognition probe (`ProbeScore` at 0/90/
+180/270 degrees, each a FULL Tesseract page recognition at 1600px) whenever OSD's own confidence
+is below 1.0 — which faded/skewed backlog scans hit often, by the pipeline's own design comment.
+The four probes were run ONE AFTER ANOTHER for no reason but code order, exactly the same shape
+of accidental sequential cost the earlier two-resolution fix removed elsewhere.
+
+**FIXED the same safe way: parallelized the four independent probes** (`OcrService.cs`,
+`DetectRotation`) via `Parallel.For(0, 4, ...)` into a `long[4]` array, then ran the IDENTICAL
+sequential 0/90/180/270-order selection loop over the array afterward — the SELECTION logic is
+untouched, so a tie breaks exactly as it did before; only how the four scores get COMPUTED
+changed (concurrent instead of sequential). Each probe rotates and reads its OWN copy of the
+source bitmap and shares no mutable state beyond the pre-existing `OcrService.GdiLock`, which
+already serializes bitmap operations safely — same reasoning as the earlier two-resolution fix.
+
+**MEASUREMENT TRAP CAUGHT MID-SESSION, recorded so it isn't repeated:** the first A/B used
+`CROMS.DocTest.exe --diag`, and `--diag` itself calls `OcrService.DescribeOrientation` BEFORE the
+real `Analyze()` call — which runs its OWN four-angle probe AND an internal second
+`DetectRotation()` call just to print the diagnostic line. So `--diag` mode runs rotation
+detection two to three times per file, inflating wall-clock time by tens of seconds that have
+NOTHING to do with the real production path. First `--diag` run showed 78.8s wall-clock against
+Analyze()'s OWN reported total of 35.8s — a ~43s gap that looked alarming until traced to this.
+Re-measured WITHOUT `--diag` (the real path) for the actual number.
+
+MEASURED, same file, real path (no `--diag`), warm-cache, two consecutive runs:
+      before this fix (rotation sequential): 54.1-55.5s   (today's earlier tier-1-only baseline)
+      after this fix  (rotation parallel):   34.3-36.1s   (~35% additional reduction)
+Internal phase breakdown after the fix (via `--diag`, understanding its own inflation applies
+only to the printed diagnostic line, not to the real `Analyze()` total it also reports):
+      rotation probe                                    : 11.0-11.2s  (was 29.4-29.5s)
+      [2400px] whole-page Page()+PageSparse()            : 14.6-14.7s
+      [2400px] classify + layout fit                     : 0.2s
+      [2400px] region path: 49 fields, parallel reads    : 9.4-9.5s
+      [2400px] merge + sanitize + Enrich                 : negligible
+      TOTAL Analyze()                                    : 35.5-35.8s   (matches the clean
+                                                             no-diag wall-clock exactly)
+Field values verified BYTE-IDENTICAL against the very first run of this entire session (the
+original, unmodified 71.9s cold-start run from before any of today's changes) — same Province,
+Registry Number, every name, every confidence percentage, down to the same garbled OCR readings
+this project already knows about ("Catagrataa" for the father's middle name, etc.). The fix
+changed WHEN the four probes run, not what any of them individually computed.
+
+Combined with today's earlier fix (parallelizing the 2400px/native-res fallback pass), the full
+picture across the four real sample forms is:
+      form                              original (cold)   tier-1-only    tier-1 + rotation-fix
+  gilvan birth.jpg (1993, resolved)      71.9s             54.1-54.6s     34.3-36.1s
+  Marriage Cert.jpg (unrecognised)       -                 49.8s->32.3s   (re-measure pending)
+  nice.jpg (2007, resolved, small)       26.4s             25.3-26.4s     (re-measure pending)
+  Death Cert.png (unrecognised, small)   -                 18.8-19.1s     (re-measure pending)
+The rotation-probe fix should help EVERY form whose OSD confidence falls below 1.0, not just the
+dense one it was measured on — marriage/death re-timing and a fresh 5-sample ground-truth harness
+run are in progress to confirm no accuracy regression on the full set, not just this one file.
+
+MSBuild (VS2019) clean, 0 errors, 0 warnings, for `CROMS` and `CROMS.DocTest`. Not changed:
+resolution caps, renderings-per-field, probe scale (1600px), the OSD trust threshold (1.0), or
+any scoring/selection logic — pure concurrency over the identical computation, per this project's
+own repeated lesson about not touching those knobs without per-sample ground-truth measurement.
