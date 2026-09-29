@@ -534,7 +534,7 @@ namespace CROMS.Forms
         private static string SecurityWarningNote(IonicServerManager m)
         {
             return (m != null && m.Scheme == "https")
-                ? "  The phone will warn once — tap Advanced, then Proceed."
+                ? "  First time on a phone: open http://" + m.LanIp + ":3000/croms-ca.crt and install it (Settings > Security > Install certificate > CA certificate). After that there is no warning and the camera works."
                 : "";
         }
 
