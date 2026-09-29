@@ -62,6 +62,13 @@ namespace CROMS.Forms
 
         private void StartSession()
         {
+            string why;
+            if (!Form97Capture.TrustedLinkReady(out why))
+            {
+                MessageBox.Show(this, why, "Mobile Capture", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                DialogResult = DialogResult.Cancel;
+                return;
+            }
             try
             {
                 Token = Form97Capture.CreateToken(_marriageId, _txnId, _husband, _wife, _txnCode, 20, _purpose);

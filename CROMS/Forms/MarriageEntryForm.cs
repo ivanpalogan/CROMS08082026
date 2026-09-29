@@ -1077,6 +1077,9 @@ namespace CROMS.Forms
         /// </summary>
         private void ShowMobileCapture()
         {
+            string trustWhy;
+            if (!Form97Capture.TrustedLinkReady(out trustWhy))
+            { MessageBox.Show(this, trustWhy, "Mobile Capture", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             // Reuse a still-open token (so "Add Page" accumulates under the same "Pages: N"
             // count) rather than starting a brand new capture set every time.
             Form97Capture.Status existing = _captureToken != null ? Form97Capture.GetStatus(_captureToken) : null;
@@ -1263,6 +1266,9 @@ namespace CROMS.Forms
         /// </summary>
         private void ShowFinalMobileCapture()
         {
+            string trustWhy;
+            if (!Form97Capture.TrustedLinkReady(out trustWhy))
+            { MessageBox.Show(this, trustWhy, "Mobile Capture", MessageBoxButtons.OK, MessageBoxIcon.Information); return; }
             string husband = (_h.First.Text + " " + _h.Last.Text).Trim();
             string wife = (_w.First.Text + " " + _w.Last.Text).Trim();
             string token = Form97Capture.CreateToken(_id, _txnId,
