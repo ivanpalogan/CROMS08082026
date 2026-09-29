@@ -318,14 +318,26 @@
     <Compile Include="Forms\DigitizeChoiceForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\DigitizeChoiceForm.Designer.cs">
+      <DependentUpon>DigitizeChoiceForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\OldBirthRecordsForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\OldBirthRecordsForm.Designer.cs">
+      <DependentUpon>OldBirthRecordsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\OldDeathRecordsForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\OldDeathRecordsForm.Designer.cs">
+      <DependentUpon>OldDeathRecordsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\OldMarriageRecordsForm.cs">
       <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\OldMarriageRecordsForm.Designer.cs">
+      <DependentUpon>OldMarriageRecordsForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Forms\FeesPaymentsForm.cs">
       <SubType>Form</SubType>
@@ -672,6 +684,12 @@
     <Compile Include="Modules\HoverFade.cs" />
     <Compile Include="Modules\RegistryBookGallery.cs" />
     <Compile Include="Modules\ReasonPrompt.cs" />
+    <Compile Include="Modules\ReasonPromptForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Modules\ReasonPromptForm.Designer.cs">
+      <DependentUpon>ReasonPromptForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Modules\AutoCaps.cs" />
     <Compile Include="Modules\NextStepGlow.cs" />
     <Compile Include="Modules\NavIcons.cs" />
