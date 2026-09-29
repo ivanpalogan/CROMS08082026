@@ -412,8 +412,57 @@ namespace CROMS.Forms
                     "values against the page, then Commit to add it to the backlog. This does " +
                     "not create a new registration.";
                 UiTheme.Polish(ocr);
+                ocr.Shown += async (s, e) => await ocr.AskScanSource();
                 ocr.ShowDialog(owner);
             }
+        }
+
+        /// <summary>
+        /// Legacy digitization only: asks where the page comes from, then hands off to the
+        /// same paths the toolbar buttons use. Closing the chooser leaves the window open so
+        /// the operator can still use Load Image / Mobile Capture themselves.
+        /// </summary>
+        private async Task AskScanSource()
+        {
+            int pick = 0; // 1 = phone QR, 2 = image file
+            using (var dlg = new Form())
+            {
+                dlg.Text = "Add the scanned page";
+                dlg.FormBorderStyle = FormBorderStyle.FixedDialog;
+                dlg.StartPosition = FormStartPosition.CenterParent;
+                dlg.MaximizeBox = false; dlg.MinimizeBox = false; dlg.ShowInTaskbar = false;
+                dlg.ClientSize = new Size(420, 210);
+                var head = new Label
+                {
+                    Text = "How do you want to add the page?",
+                    Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                    AutoSize = false, Location = new Point(20, 16), Size = new Size(380, 28)
+                };
+                var btnPhone = new Button
+                {
+                    Text = "Mobile Capture (scan QR with phone)",
+                    Location = new Point(20, 60), Size = new Size(380, 48)
+                };
+                var btnFile = new Button
+                {
+                    Text = "Upload image file from this PC",
+                    Location = new Point(20, 116), Size = new Size(380, 48)
+                };
+                var btnSkip = new Button
+                {
+                    Text = "Cancel", Location = new Point(300, 170), Size = new Size(100, 30),
+                    DialogResult = DialogResult.Cancel
+                };
+                btnPhone.Click += (s, e) => { pick = 1; dlg.DialogResult = DialogResult.OK; };
+                btnFile.Click += (s, e) => { pick = 2; dlg.DialogResult = DialogResult.OK; };
+                dlg.Controls.AddRange(new Control[] { head, btnPhone, btnFile, btnSkip });
+                dlg.CancelButton = btnSkip;
+                UiTheme.Polish(dlg);
+                dlg.ShowDialog(this);
+            }
+
+            if (pick == 1) await StartMobileCapture();
+            else if (pick == 2) btnLoad_Click(this, EventArgs.Empty);
         }
 
         // ---- load ---------------------------------------------------------
