@@ -258,7 +258,26 @@ namespace CROMS.Forms
             _tabs.AddStep("Consent & License", "items 13-16 · licence link");
             _tabs.AddStep("Solemnization", "items 17-19");
             _tabs.AddStep("Certification", "items 20-22 · receipt");
-            _tabs.StepClicked += ShowTab;
+            _tabs.StepClicked += i =>
+            {
+                // Going forward needs both spouses' first and last names; going back is always allowed.
+                if (i > _tab)
+                {
+                    TextBox empty = _h.First.Text.Trim().Length == 0 ? _h.First
+                                  : _h.Last.Text.Trim().Length == 0 ? _h.Last
+                                  : _w.First.Text.Trim().Length == 0 ? _w.First
+                                  : _w.Last.Text.Trim().Length == 0 ? _w.Last : null;
+                    if (empty != null)
+                    {
+                        MessageBox.Show("Fill in the husband's and wife's first and last names before going to the next step.",
+                            "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        ShowTab(0);
+                        empty.Focus();
+                        return;
+                    }
+                }
+                ShowTab(i);
+            };
 
             var footer = new Panel { Dock = DockStyle.Bottom, Height = 58, BackColor = Color.FromArgb(250, 251, 253), Padding = new Padding(14, 12, 14, 12) };
             footer.Paint += (s, e) => { using (var p = new Pen(UiTheme.CardLine)) e.Graphics.DrawLine(p, 0, 0, footer.Width, 0); };

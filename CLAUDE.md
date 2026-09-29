@@ -6701,3 +6701,6 @@ MSBuild (VS2019) clean, 0 errors, 0 warnings, for `CROMS` and `CROMS.DocTest`. N
 resolution caps, renderings-per-field, probe scale (1600px), the OSD trust threshold (1.0), or
 any scoring/selection logic — pure concurrency over the identical computation, per this project's
 own repeated lesson about not touching those knobs without per-sample ground-truth measurement.
+
+### 2026-09-29 (later) — Birth / Death / Marriage: can't go to the next step/tab with the name fields empty
+Reported: in all three registration screens the step strip / tabs let the operator jump forward with no name typed. Now moving FORWARD is blocked until the required names are filled; going back is always allowed. Birth (`GoToStep`): child first + last name. Marriage Form 97 (`_tabs.StepClicked`): husband and wife first + last name. Death (`tabControl.Selecting`): deceased first + last name. Each shows a "Missing data" message and focuses the empty box. Save/validation rules unchanged. MSBuild clean, 0 errors (temp OutputPath). GUI not clicked — rebuild in VS and try clicking a later step with names blank.

@@ -2575,6 +2575,21 @@ namespace CROMS.Forms
         {
             if (index < 0 || index >= tabControl.TabPages.Count) return;
 
+            // Going forward needs the child's name; going back is always allowed.
+            if (index > tabControl.SelectedIndex)
+            {
+                TextBox empty = string.IsNullOrWhiteSpace(txtFirstName.Text) ? txtFirstName
+                              : string.IsNullOrWhiteSpace(txtLastName.Text) ? txtLastName : null;
+                if (empty != null)
+                {
+                    MessageBox.Show("Fill in the child's first name and last name before going to the next step.",
+                        "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    tabControl.SelectedTab = tabChild;
+                    empty.Focus();
+                    return;
+                }
+            }
+
             tabControl.SelectedIndex = index;
             UpdateStepNavigation();
         }

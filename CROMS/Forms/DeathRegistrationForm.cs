@@ -71,6 +71,18 @@ namespace CROMS.Forms
         {
             InitializeComponent();
             tabControl.TabPages.Add(_extras.Page);
+            // Going forward to another tab needs the deceased's first and last name; going back is always allowed.
+            tabControl.Selecting += (s, e) =>
+            {
+                if (e.TabPageIndex <= tabControl.SelectedIndex) return;
+                TextBox empty = string.IsNullOrWhiteSpace(txtFirstName.Text) ? txtFirstName
+                              : string.IsNullOrWhiteSpace(txtLastName.Text) ? txtLastName : null;
+                if (empty == null) return;
+                e.Cancel = true;
+                MessageBox.Show("Fill in the deceased's first name and last name before going to the next tab.",
+                    "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                empty.Focus();
+            };
             LoadCombos();
             BuildLookups();
             LoadDeaths();
