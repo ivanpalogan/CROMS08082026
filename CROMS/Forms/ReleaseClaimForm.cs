@@ -295,9 +295,8 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Search + QR scan on one row. Both answer the SAME question — which request is
-        /// this — so they sit together and both load into the workspace on the right. The
-        /// QR button used to open a second release window (ClaimFormForm) with its own
+        /// Search + queue-number filter on one row. Both answer the SAME question — which request is
+        /// this. The old QR button used to open a second release window (ClaimFormForm) with its own
         /// claimant fields and its own Release button: two code paths to the same handover.
         /// </summary>
         private Panel BuildFindRow()
@@ -313,9 +312,9 @@ namespace CROMS.Forms
             SetCue(txtSearch, "Txn no., queue no., or name…");
             txtSearch.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; DoSearch(); } };
 
-            var btnScan = MakeMiniButton("Scan QR", Chip, Accent);
-            btnScan.Width = 86;
-            btnScan.Click += (s, e) => ScanClaimQr();
+            var btnScan = MakeMiniButton("Queue No.", Chip, Accent);
+            btnScan.Width = 90;
+            btnScan.Click += (s, e) => FilterByQueueNumber();
             var btnSearch = MakeMiniButton("Find", Accent, Color.White);
             btnSearch.Width = 60;
             btnSearch.Click += (s, e) => DoSearch();
@@ -338,99 +337,20 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Reads a scanned claim QR (handheld scanners type the token then Enter) and loads
-        /// that claim into THIS workspace. Scanning identifies a claim; it does not verify a
-        /// person, which is why the button no longer says "Verify by QR".
+        /// Filters the worklist by QUEUE NUMBER only (the number the client holds, e.g. 001 or
+        /// Q-001), using whatever is typed in the search box. The claimapp ID-upload QR is not
+        /// scanned here any more: staff show it to the claimant (see "Show ID-Upload QR for
+        /// Claimant" under Identity Evidence) so only staff start an ID upload.
         /// </summary>
-        private void ScanClaimQr()
+        private void FilterByQueueNumber()
         {
-            string token = PromptForToken();
-            if (string.IsNullOrWhiteSpace(token)) return;
-            token = token.Trim();
-
-            // A QR may carry the raw token or a URL ending in it; take the last segment.
-            int cut = token.LastIndexOfAny(new[] { '/', '=', '?', '&' });
-            if (cut >= 0 && cut < token.Length - 1) token = token.Substring(cut + 1);
-
-            DataTable dt = Db.Pull(
-                "SELECT id, queue_ticket_id, transaction_id, claim_ticket_no " +
-                "FROM claim_requests WHERE qr_token = @t OR claim_ticket_no = @t LIMIT 1",
-                new MySqlParameter("@t", token));
-            if (dt.Rows.Count == 0)
+            if (string.IsNullOrWhiteSpace(txtSearch?.Text))
             {
-                if (lblValidation != null) lblValidation.Text = "⚠ No claim request matches that QR / token.";
-                MessageBox.Show("No claim request matches that QR or token.", "Not found",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (lblValidation != null) lblValidation.Text = "Type the queue number (e.g. 001) in the box, then press Queue No.";
+                txtSearch?.Focus();
                 return;
             }
-
-            DataRow r = dt.Rows[0];
-            if (r["queue_ticket_id"] != DBNull.Value)
-            {
-                PrepareFromQueueTicket(Convert.ToInt32(r["queue_ticket_id"]));
-                return;
-            }
-            if (r["transaction_id"] != DBNull.Value)
-            {
-                long txn = Convert.ToInt64(r["transaction_id"]);
-                SetListMode(0);
-                PreselectTransaction(txn);
-                if (!_selectedTxnId.HasValue && lblValidation != null)
-                    lblValidation.Text = "⚠ Claim " + r["claim_ticket_no"] +
-                        " is not in the For Release list — check its payment status.";
-                return;
-            }
-            if (lblValidation != null)
-                lblValidation.Text = "⚠ Claim " + r["claim_ticket_no"] + " has no queue ticket or transaction yet.";
-        }
-
-        /// <summary>Small modal that takes the scanner's keystrokes (or a typed token).</summary>
-        private string PromptForToken()
-        {
-            using (var dlg = new Form
-            {
-                Text = "Scan claim QR",
-                FormBorderStyle = FormBorderStyle.FixedDialog,
-                StartPosition = FormStartPosition.CenterParent,
-                MinimizeBox = false, MaximizeBox = false,
-                ClientSize = new Size(430, 150), BackColor = CardBg
-            })
-            {
-                var lbl = new Label
-                {
-                    Text = "Scan the claimant's QR now, or type the claim token / ticket number.",
-                    Location = new Point(18, 18), Size = new Size(394, 36),
-                    ForeColor = Muted, Font = new Font("Segoe UI", 9F)
-                };
-                var box = new TextBox
-                {
-                    Location = new Point(18, 58), Size = new Size(394, 30),
-                    Font = new Font("Segoe UI", 12F)
-                };
-                var ok = new Button
-                {
-                    Text = "Load", DialogResult = DialogResult.OK,
-                    Location = new Point(292, 100), Size = new Size(120, 34),
-                    FlatStyle = FlatStyle.Flat, BackColor = Accent, ForeColor = Color.White,
-                    Font = new Font("Segoe UI", 10F, FontStyle.Bold), Cursor = Cursors.Hand
-                };
-                ok.FlatAppearance.BorderSize = 0;
-                var cancel = new Button
-                {
-                    Text = "Cancel", DialogResult = DialogResult.Cancel,
-                    Location = new Point(186, 100), Size = new Size(96, 34),
-                    FlatStyle = FlatStyle.Flat, BackColor = Chip, ForeColor = Ink,
-                    Font = new Font("Segoe UI", 10F), Cursor = Cursors.Hand
-                };
-                cancel.FlatAppearance.BorderSize = 0;
-                dlg.Controls.Add(lbl);
-                dlg.Controls.Add(box);
-                dlg.Controls.Add(ok);
-                dlg.Controls.Add(cancel);
-                dlg.AcceptButton = ok;
-                dlg.CancelButton = cancel;
-                return dlg.ShowDialog(this) == DialogResult.OK ? box.Text : null;
-            }
+            DoSearch(true);
         }
 
         /// <summary>
@@ -599,12 +519,12 @@ namespace CROMS.Forms
 
         /// <summary>Search filters the pending list by transaction code or client name; a
         /// number (queue / txn) also selects the matching release directly.</summary>
-        private void DoSearch()
+        private void DoSearch(bool queueOnly = false)
         {
             string q = (txtSearch?.Text ?? "").Trim();
             if (q.Length == 0) { LoadPending(); return; }
 
-            LoadPending(q);   // filter the grid by code / name
+            LoadPending(q, queueOnly);   // filter the grid by code / name (or queue no. only)
 
             // If the text is a number or exact code, also try to jump-select the row.
             int txnId = ResolveTxnId(q, out string status, out string foundCode);
@@ -1820,7 +1740,7 @@ namespace CROMS.Forms
         }
 
         // ---------- data ----------
-        private void LoadPending(string filter = null)
+        private void LoadPending(string filter = null, bool queueOnly = false)
         {
             // For-Release tab = ready to hand over. Waiting tab = parked (client left /
             // certificate hard to find) OR still awaiting print — anything not yet paid.
@@ -1830,8 +1750,11 @@ namespace CROMS.Forms
             MySqlParameter[] ps = new MySqlParameter[0];
             if (!string.IsNullOrWhiteSpace(filter))
             {
-                where += " AND (t.txn_code LIKE @f OR t.client_name LIKE @f OR t.parked_ticket LIKE @f " +
-                         "OR EXISTS (SELECT 1 FROM queue_tickets qf WHERE qf.transaction_id = t.id AND qf.ticket_code LIKE @f))";
+                where += queueOnly
+                    ? " AND (t.parked_ticket LIKE @f " +
+                      "OR EXISTS (SELECT 1 FROM queue_tickets qf WHERE qf.transaction_id = t.id AND qf.ticket_code LIKE @f))"
+                    : " AND (t.txn_code LIKE @f OR t.client_name LIKE @f OR t.parked_ticket LIKE @f " +
+                      "OR EXISTS (SELECT 1 FROM queue_tickets qf WHERE qf.transaction_id = t.id AND qf.ticket_code LIKE @f))";
                 ps = new[] { new MySqlParameter("@f", "%" + filter.Trim() + "%") };
             }
 
