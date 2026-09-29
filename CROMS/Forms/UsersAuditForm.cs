@@ -194,6 +194,7 @@ namespace CROMS.Forms
 
         private void btnBioSave_Click(object sender, EventArgs e)
         {
+            if (!AdminOnly()) return;
             if (cboBioUser.SelectedValue == null || !(cboBioUser.SelectedValue is int))
             {
                 MessageBox.Show("Pick a staff member first.", "Staff Biodata",
@@ -259,8 +260,37 @@ namespace CROMS.Forms
             txtConfirm.Clear();
         }
 
+        /// <summary>
+        /// Managing other people's accounts is Admin-only. The screen is only reachable through
+        /// Settings (which Staff cannot open); this re-checks so a stray shortcut cannot
+        /// let a Staff account create, promote or reset anybody.
+        /// </summary>
+        private static bool AdminOnly()
+        {
+            if (Session.IsAdmin) return true;
+            MessageBox.Show("Only an Administrator can manage user accounts.", "Users",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
+        /// <summary>
+        /// True when saving this edit would leave the office with no active Administrator
+        /// (demoting or deactivating the last one) - nobody could then reach Settings again.
+        /// </summary>
+        private bool WouldRemoveLastAdmin(int userId, string newRole, bool stillActive)
+        {
+            if (newRole == "Admin" && stillActive) return false;
+            DataTable dt = Db.Pull(
+                "SELECT COUNT(*) FROM users WHERE role = 'Admin' AND is_active = 1 AND id <> @id",
+                new MySqlParameter("@id", userId));
+            bool wasActiveAdmin = Db.Pull("SELECT COUNT(*) FROM users WHERE id=@id AND role='Admin' AND is_active=1",
+                new MySqlParameter("@id", userId)).Rows[0][0].ToString() != "0";
+            return wasActiveAdmin && Convert.ToInt32(dt.Rows[0][0]) == 0;
+        }
+
         private void AddUser()
         {
+            if (!AdminOnly()) return;
             if (!Require(true)) return;
             try
             {
@@ -272,7 +302,8 @@ namespace CROMS.Forms
                     new MySqlParameter("@f", txtFullName.Text.Trim()),
                     new MySqlParameter("@r", cboRole.SelectedItem.ToString()),
                     new MySqlParameter("@a", chkActive.Checked ? 1 : 0));
-                Audit.Write(Audit.Create, "users", null, "Created user " + txtUsername.Text.Trim());
+                Audit.Write(Audit.Create, "users", null,
+                    "Created user " + txtUsername.Text.Trim() + " with role " + cboRole.SelectedItem);
                 MessageBox.Show("User created.", "Users", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadUsers();
@@ -293,9 +324,16 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+            if (!AdminOnly()) return;
             if (!Require(false)) return;
             try
             {
+                if (WouldRemoveLastAdmin(_selUserId.Value, cboRole.SelectedItem.ToString(), chkActive.Checked))
+                {
+                    MessageBox.Show("This would leave no active Administrator. Make another account an " +
+                        "Administrator first.", "Users", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
                 // Update the core fields; only reset the password when one was typed.
                 Db.Push("UPDATE users SET username=@u, full_name=@f, role=@r, is_active=@a WHERE id=@id",
                     new MySqlParameter("@u", txtUsername.Text.Trim()),
@@ -311,7 +349,7 @@ namespace CROMS.Forms
                         new MySqlParameter("@id", _selUserId.Value));
 
                 Audit.Write(Audit.Update, "users", _selUserId.Value,
-                    "Updated user " + txtUsername.Text.Trim() +
+                    "Updated user " + txtUsername.Text.Trim() + " (role " + cboRole.SelectedItem + ")" +
                     (string.IsNullOrEmpty(txtPassword.Text) ? "" : " (password reset)"));
                 MessageBox.Show("User updated.", "Users", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();

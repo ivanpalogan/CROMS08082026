@@ -222,10 +222,7 @@
             this.cboRole.FormattingEnabled = true;
             this.cboRole.Items.AddRange(new object[] {
             "Admin",
-            "Registrar",
-            "Staff",
-            "Cashier",
-            "Releasing"});
+            "Staff"});
             this.cboRole.Location = new System.Drawing.Point(14, 158);
             this.cboRole.Name = "cboRole";
             this.cboRole.Size = new System.Drawing.Size(250, 25);

@@ -96,6 +96,7 @@ namespace CROMS.Data
         /// </summary>
         public static void UpdateFee(string code, decimal? amount, bool active, int? userId)
         {
+            if (!Session.IsAdmin) throw new UnauthorizedAccessException("Only an Administrator can change the fee schedule.");
             FeeItem cur = Fee(code);
             if (cur == null) throw new InvalidOperationException("Fee " + code + " not found.");
             if (amount.HasValue && amount.Value < 0) throw new InvalidOperationException("A fee cannot be negative.");

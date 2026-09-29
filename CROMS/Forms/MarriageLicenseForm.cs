@@ -488,7 +488,7 @@ namespace CROMS.Forms
             string reason = MUi.AskWithChecklist(this, "Admin Override",
                 "This will let the licence issue with the following still unresolved:",
                 toBypass.Select(i => i.Message),
-                "Issuing anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\n" +
+                "Issuing anyway will be permanently recorded with your name and role on the application and in the audit trail.\n\n" +
                 "Payment can NEVER be bypassed by this override - it will still be required.",
                 "Proceed With Override");
             if (reason == null) return;
@@ -662,7 +662,7 @@ namespace CROMS.Forms
             if (_l.IssueDate.HasValue) { _issue.Enabled = false; _adminOverride.Visible = false; _footReason.Text = "Licence " + _l.LicenseNo + " issued " + MUi.D(_l.IssueDate) + "."; return; }
 
             bool overridden = _l.RequirementsOverrideBy.HasValue;
-            _adminOverride.Visible = MarriageService.IsAdmin && !_dirty && (overridden || HasOverridableIssues());
+            _adminOverride.Visible = MarriageService.CanBypass && !_dirty && (overridden || HasOverridableIssues());
             _adminOverride.Text = overridden ? "Withdraw Override" : "Admin Override";
 
             List<RuleIssue> issues = IssueIssues();

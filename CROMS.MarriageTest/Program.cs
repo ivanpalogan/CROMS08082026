@@ -318,10 +318,11 @@ namespace CROMS.MarriageTest
             Check("after registrar finding the licence issues", iss.Count == 0 && no != null, Codes(iss));
 
             // role gate
-            LoginAs("Staff");
+            // Staff and Admin are the only roles and both may issue; an unknown role may not.
+            LoginAs("Unknown");
             bool refused = false;
             try { MarriageService.IssueLicense(id, Today, out no); } catch (UnauthorizedAccessException) { refused = true; }
-            Check("Staff role cannot issue a licence", refused);
+            Check("a role that is not Staff/Admin cannot issue a licence", refused);
             LoginAs("Admin");
 
             // success

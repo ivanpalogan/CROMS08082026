@@ -314,7 +314,7 @@ namespace CROMS.Forms
             _docs.Height = 300;
             _docs.AllowAddCustom = true; // a particular application may need a document beyond the standard set
             _docs.PartyOptions = new[] { "Both", "Husband", "Wife" };
-            _docs.AllowBypass = MarriageService.IsAdmin;
+            _docs.AllowBypass = MarriageService.CanBypass;
             _docs.Changed += () => RefreshAll();
             TableLayoutPanel pay = MUi.Grid(4, 1, 58);
             pay.Controls.Add(MUi.Field("Official receipt no. (Treasury)", _orNo), 0, 0);
@@ -335,7 +335,7 @@ namespace CROMS.Forms
             _consentNotes.FlowDirection = FlowDirection.TopDown; _consentNotes.WrapContents = false; _consentNotes.AutoSize = true;
             _consentNotes.AutoSizeMode = AutoSizeMode.GrowAndShrink; _consentNotes.BackColor = Color.Transparent;
             _consent.Height = 220;
-            _consent.AllowBypass = MarriageService.IsAdmin;
+            _consent.AllowBypass = MarriageService.CanBypass;
             _consent.Changed += () => RefreshAll();
             Stack(pg, Section("Consent, advice and counselling", "Derived from each applicant's age on the filing date. Record who gave consent or advice and, for advice, whether it was favourable."),
                   _consentNotes, _consent);

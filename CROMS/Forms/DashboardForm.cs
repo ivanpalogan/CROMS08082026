@@ -69,6 +69,10 @@ namespace CROMS.Forms
         {
             InitializeComponent();
 
+            // Window setup lives in Settings, which is Admin-only - do not offer Staff a button
+            // that only answers "not allowed".
+            btnAssignWindows.Visible = Session.IsAdmin;
+
             // Cards that map to a module become clickable (per modern-dashboard guidance:
             // connect a metric to its action).
             WireCard(cardWaiting);      // → Queue Management

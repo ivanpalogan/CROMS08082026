@@ -1192,12 +1192,12 @@ namespace CROMS.Forms
                     "Not needed", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            using (var verify = new AdminVerificationForm())
+            using (var verify = new AdminVerificationForm { AllowStaff = true })
             {
                 if (verify.ShowDialog(this) != DialogResult.OK) return;
-                if (verify.VerifiedUser == null || verify.VerifiedUser.Role != "Admin")
+                if (verify.VerifiedUser == null || (verify.VerifiedUser.Role != "Admin" && verify.VerifiedUser.Role != "Staff"))
                 {
-                    MessageBox.Show(this, "Only an Administrator account can bypass a requirement.",
+                    MessageBox.Show(this, "Only a Staff or Administrator account can bypass a requirement.",
                         "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
@@ -1214,7 +1214,7 @@ namespace CROMS.Forms
                 {
                     string reason = MUi.Ask(this, "Bypass requirement",
                         "\"" + (r.Label ?? r.Code) + "\" will count as satisfied even though it has not been checked. " +
-                        "This is an Admin decision and is permanently recorded in the audit trail.\n\nReason for bypassing:", "");
+                        "This is recorded permanently in the audit trail with your name and role.\n\nReason for bypassing:", "");
                     if (reason == null) return;
                     MarriageService.BypassRequirement(r.Id, reason);
                 }

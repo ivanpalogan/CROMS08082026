@@ -54,7 +54,7 @@ namespace CROMS.Forms
             this.lblHint.Name = "lblHint";
             this.lblHint.Size = new System.Drawing.Size(320, 15);
             this.lblHint.TabIndex = 1;
-            this.lblHint.Text = "Confirm an Administrator or Registrar account to manage windows.";
+            this.lblHint.Text = "Re-enter your credentials to authorize this action.";
             //
             // lblUserCap
             //

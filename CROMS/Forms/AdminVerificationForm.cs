@@ -10,7 +10,7 @@ namespace CROMS.Forms
     /// Secure re-authentication dialog shown before the Window Management CRUD in
     /// Settings. Verifies a username + password against the `users` table using the
     /// existing PBKDF2 hash (never plaintext, never stored/logged) and only accepts
-    /// Administrator or Registrar accounts. On success <see cref="VerifiedUser"/> holds
+    /// Administrator accounts (plus Staff when <see cref="AllowStaff"/> is set). On success <see cref="VerifiedUser"/> holds
     /// the confirmed account and the dialog returns OK.
     /// <para/>
     /// UI layout lives in AdminVerificationForm.Designer.cs; this file holds only the
@@ -20,6 +20,13 @@ namespace CROMS.Forms
     {
         /// <summary>The account that passed verification (null until success).</summary>
         public CurrentUser VerifiedUser { get; private set; }
+
+        /// <summary>
+        /// False (default): only an Administrator account passes - window management,
+        /// templates, publishing, priority-window override. True: a Staff account passes
+        /// too - used only by the document-bypass prompts, which Staff may perform.
+        /// </summary>
+        public bool AllowStaff { get; set; }
 
         public AdminVerificationForm()
         {
@@ -65,9 +72,12 @@ namespace CROMS.Forms
             }
 
             string role = r["role"].ToString();
-            if (role != "Admin" && role != "Registrar")
+            bool ok = role == "Admin" || (AllowStaff && role == "Staff");
+            if (!ok)
             {
-                Msg("You do not have permission to manage service windows.");
+                Msg(AllowStaff
+                    ? "This account cannot authorize this action."
+                    : "Only an Administrator account can authorize this action.");
                 return;
             }
 

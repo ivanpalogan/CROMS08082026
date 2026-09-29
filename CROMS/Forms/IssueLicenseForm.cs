@@ -87,7 +87,7 @@ namespace CROMS.Forms
         /// </summary>
         private Control OverrideRow()
         {
-            var p = new Panel { Height = 66, BackColor = Color.Transparent, Visible = MarriageService.IsAdmin };
+            var p = new Panel { Height = 66, BackColor = Color.Transparent, Visible = MarriageService.CanBypass };
             _override.Location = new Point(0, 0);
             _overrideStatus.AutoSize = false; _overrideStatus.Location = new Point(0, 38); _overrideStatus.Size = new Size(560, 26);
             p.Controls.Add(_override); p.Controls.Add(_overrideStatus);
@@ -105,7 +105,7 @@ namespace CROMS.Forms
                 return;
             }
             string reason = MUi.Ask(this, "Admin Override",
-                "This application is missing or has unverified requirement attachments. Issuing it anyway is an Admin decision and will be permanently recorded on the application and in the audit trail.\n\nReason for overriding:", "");
+                "This application is missing or has unverified requirement attachments. Issuing it anyway will be permanently recorded with your name and role on the application and in the audit trail.\n\nReason for overriding:", "");
             if (reason == null) return;
             try
             {
@@ -140,7 +140,7 @@ namespace CROMS.Forms
             bool hasReqIssues = rawIssues.Any(i => i.Code.StartsWith("REQ_"));
             bool active = _l.RequirementsOverrideBy.HasValue;
             _override.Text = active ? "Withdraw Requirements Override" : "Admin Override - Missing Requirements";
-            _override.Visible = MarriageService.IsAdmin && (hasReqIssues || active);
+            _override.Visible = MarriageService.CanBypass && (hasReqIssues || active);
             _overrideStatus.Text = active
                 ? "OVERRIDDEN: " + _l.RequirementsOverrideReason
                 : (hasReqIssues ? "Missing/unverified requirement attachments are blocking this licence." : "");

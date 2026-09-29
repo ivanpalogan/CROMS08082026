@@ -729,11 +729,12 @@ namespace CROMS
 
         /// <summary>
         /// Module keys each role may open, or null for full access (Admin).
-        /// The office runs a flexible three-stage workflow (receiving / processing / releasing)
-        /// where any staff member may cover any stage on a given day, rather than CROMS assuming
-        /// one fixed person per stage. So every non-Admin role gets the SAME broad operational
-        /// set ("semi-admin") — the distinction that matters is operational vs true admin
-        /// (Master Files / Settings / Users & Access stay Admin-only).
+        /// Two roles exist: Admin (oversees everything) and Staff (the operational role). The
+        /// office runs a flexible three-stage workflow (receiving / processing / releasing)
+        /// where any staff member may cover any stage on a given day, so Staff get the whole
+        /// operational set — the distinction that matters is operational vs true admin
+        /// (Master Files / Settings / Users & Access / windows / templates stay Admin-only).
+        /// Any role that is not exactly "Admin" gets the Staff set, never full access.
         ///
         /// "archive" (Records Archive) is included even though most of the screen is an
         /// admin-only browser over every stored record/image: its search bar is now the
@@ -757,16 +758,10 @@ namespace CROMS
 
         private static HashSet<string> AllowedKeys(string role)
         {
-            switch (role)
-            {
-                case "Registrar":
-                case "Staff":
-                case "Cashier":
-                case "Releasing":
-                    return OperationalKeys;
-                default:
-                    return null;   // Admin → everything, incl. masterfiles/settings/users/archive
-            }
+            // Admin -> everything, incl. masterfiles/settings/users. Anything else (Staff, or a
+            // missing/unknown role) -> the operational set only, so a bad value can never
+            // widen access.
+            return role == "Admin" ? null : OperationalKeys;
         }
 
         /// <summary>
@@ -812,6 +807,16 @@ namespace CROMS
                 if (m.Key == key) { module = m; break; }
             }
             if (module == null) return;
+
+            // The sidebar hides buttons a role may not use, but GoToModule() and any future
+            // shortcut reach here too - so the rule is enforced at the door, not just hidden.
+            HashSet<string> permitted = AllowedKeys(Session.User?.Role);
+            if (permitted != null && !permitted.Contains(key))
+            {
+                MessageBox.Show(this, "\"" + module.Title + "\" is available to an Administrator only.",
+                    "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
             if (!_cache.TryGetValue(key, out var form))
             {

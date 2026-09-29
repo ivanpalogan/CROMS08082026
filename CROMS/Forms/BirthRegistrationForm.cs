@@ -1193,8 +1193,8 @@ namespace CROMS.Forms
             IWin32Window owner = _entryDialog ?? (IWin32Window)this;
             DialogResult choice = MessageBox.Show(owner,
                 "Submit this birth registration for approval?\n\n" +
-                "Click YES to use ADMIN BYPASS (skips the required-field checks; needs " +
-                "admin verification and is written to the audit trail).\n" +
+                "Click YES to use BYPASS (skips the required-field checks; needs " +
+                "you to re-enter your password and is written to the audit trail).\n" +
                 "Click NO to submit normally.",
                 "Submit for Approval", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
             if (choice == DialogResult.Cancel) return;
@@ -1214,20 +1214,20 @@ namespace CROMS.Forms
         private void DoBypassSubmit()
         {
             IWin32Window owner = _entryDialog ?? (IWin32Window)this;
-            using (var dlg = new AdminVerificationForm())
+            using (var dlg = new AdminVerificationForm { AllowStaff = true })
             {
                 if (dlg.ShowDialog(_entryDialog ?? this) != DialogResult.OK) return;
-                if (dlg.VerifiedUser == null || dlg.VerifiedUser.Role != "Admin")
+                if (dlg.VerifiedUser == null || (dlg.VerifiedUser.Role != "Admin" && dlg.VerifiedUser.Role != "Staff"))
                 {
-                    MessageBox.Show(owner, "Only an Administrator account can bypass the required-field checks.",
+                    MessageBox.Show(owner, "Only a Staff or Administrator account can bypass the required-field checks.",
                         "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                string reason = MUi.Ask(owner, "Admin Bypass",
+                string reason = MUi.Ask(owner, "Bypass",
                     "State why this registration is being submitted despite missing or incomplete fields:", "");
                 if (reason == null) return;
 
-                SubmitRecord("ADMIN BYPASS by " + dlg.VerifiedUser.Username +
+                SubmitRecord("BYPASS by " + dlg.VerifiedUser.Username + " (" + dlg.VerifiedUser.Role + ")" +
                     " - required-field checks skipped. Reason: " + reason.Trim());
             }
         }
@@ -2473,7 +2473,7 @@ namespace CROMS.Forms
                 evidence.Dock = DockStyle.Top; evidence.AutoSize = false; evidence.Height = 22; evidence.Margin = new Padding(0, 0, 0, 6);
 
                 var grid = new RequirementsGrid { Dock = DockStyle.Top, Margin = new Padding(0, 0, 0, 12) };
-                grid.AllowBypass = Session.User != null && Session.User.Role == "Admin";
+                grid.AllowBypass = MarriageService.CanBypass;
                 grid.Bind("Birth", _editingId.Value, needs);
 
                 var openCase = MUi.Btn("Open Full Case (Posting & Evaluation)...", MUi.Kind.Secondary, 260);

@@ -21,7 +21,7 @@ namespace CROMS.Forms
     /// ForRelease (the original flow, now itemised).</item>
     /// <item><b>Walk-in payment</b> - a payment that starts in no CROMS module: payer, purpose, and
     /// one or more fee lines on one O.R.</item>
-    /// <item><b>Fee schedule</b> - the office's fees; amounts editable by Admin / Registrar, audited.</item>
+    /// <item><b>Fee schedule</b> - the office's fees; amounts editable by an Admin only, audited.</item>
     /// </list>
     /// The payment log and the monthly collection breakdown moved to Reports &amp; Analytics ->
     /// Fees &amp; Collections (<see cref="CollectionsReportForm"/>), alongside the printable
@@ -446,14 +446,14 @@ namespace CROMS.Forms
         private readonly DataGridView _fGrid = new DataGridView();
         private Button _fSave;
 
-        private static bool CanEditFees { get { return Session.User != null && (Session.User.Role == "Admin" || Session.User.Role == "Registrar"); } }
+        private static bool CanEditFees { get { return Session.IsAdmin; } }
 
         private void BuildFees()
         {
             var root = new Panel { Dock = DockStyle.Fill, Padding = new Padding(24, 16, 24, 16), BackColor = UiTheme.PageBg };
             var head = MUi.SectionHeader("Fee schedule",
                 "From the office's fee card (PLS. PAY AT TREASURY OFFICE). A blank amount means the office has not stated one - the cashier types it. " +
-                (CanEditFees ? "Change an amount and press Save; every change is audited." : "Only an Admin or Registrar can change amounts."));
+                (CanEditFees ? "Change an amount and press Save; every change is audited." : "Only an Administrator can change amounts."));
             head.Dock = DockStyle.Top;
             var bar = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 50, BackColor = Color.Transparent, Padding = new Padding(0, 8, 0, 0) };
             _fSave = MUi.Btn("Save changes", MUi.Kind.Primary, 140); _fSave.Enabled = CanEditFees;

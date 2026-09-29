@@ -83,15 +83,38 @@ namespace CROMS.Data
 
         private static object UserId { get { return Session.User != null ? (object)Session.User.Id : null; } }
 
+        /// <summary>
+        /// Two roles exist (Admin, Staff) and both may do the registrar-level work: issue a
+        /// licence, record a finding, register a marriage. The name is kept because it is
+        /// called from many screens; it now means "any signed-in Admin or Staff account".
+        /// </summary>
         public static bool IsRegistrar
         {
-            get { return Session.User != null && (Session.User.Role == "Registrar" || Session.User.Role == "Admin"); }
+            get { return Session.User != null && (Session.User.Role == "Staff" || Session.User.Role == "Admin"); }
         }
+
+        /// <summary>
+        /// Staff and Admin may bypass a document requirement. It is never silent: a reason
+        /// is required and every bypass is written to the case history and audit_log with
+        /// the acting user and their role.
+        /// </summary>
+        public static bool CanBypass { get { return IsRegistrar; } }
 
         private static void RequireRegistrar(string action)
         {
             if (!IsRegistrar)
-                throw new UnauthorizedAccessException("Only a Registrar or Admin can " + action + ".");
+                throw new UnauthorizedAccessException("Only a signed-in Staff or Admin account can " + action + ".");
+        }
+
+        private static void RequireBypass(string action)
+        {
+            if (!CanBypass)
+                throw new UnauthorizedAccessException("Only a signed-in Staff or Admin account can " + action + ".");
+        }
+
+        private static string ActorTag()
+        {
+            return Session.User == null ? "unknown" : Session.User.Username + " (" + Session.User.Role + ")";
         }
 
         public static bool IsAdmin
@@ -198,7 +221,7 @@ namespace CROMS.Data
         /// </summary>
         public static void BypassRequirement(int reqId, string reason)
         {
-            RequireAdmin("bypass a requirement");
+            RequireBypass("bypass a requirement");
             if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A reason is required to bypass a requirement.");
             DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM marriage_requirements WHERE id = @id", P("@id", reqId));
             if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
@@ -207,22 +230,22 @@ namespace CROMS.Data
             string owner = Str(cur.Rows[0]["owner_type"]);
             int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
             string code = Str(cur.Rows[0]["req_code"]) + (Str(cur.Rows[0]["party"]) == "Both" ? "" : " (" + Str(cur.Rows[0]["party"]) + ")");
-            History(owner, ownerId, "Requirement bypassed by Admin", null, null, code + " - " + reason);
-            Audit.Write(Audit.Update, "marriage_requirements", reqId, "Requirement bypassed: " + code + " - " + reason);
+            History(owner, ownerId, "Requirement bypassed by " + ActorTag(), null, null, code + " - " + reason);
+            Audit.Write(Audit.Update, "marriage_requirements", reqId, "BYPASS by " + ActorTag() + ": " + code + " - " + reason);
         }
 
         /// <summary>Withdraws a bypass (e.g. entered by mistake, or the document has now arrived).</summary>
         public static void ClearBypass(int reqId)
         {
-            RequireAdmin("withdraw a requirement bypass");
+            RequireBypass("withdraw a requirement bypass");
             DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM marriage_requirements WHERE id = @id", P("@id", reqId));
             if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
             Db.Push("UPDATE marriage_requirements SET bypassed_by=NULL, bypassed_at=NULL, bypass_reason=NULL WHERE id=@id", P("@id", reqId));
             string owner = Str(cur.Rows[0]["owner_type"]);
             int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
             string code = Str(cur.Rows[0]["req_code"]) + (Str(cur.Rows[0]["party"]) == "Both" ? "" : " (" + Str(cur.Rows[0]["party"]) + ")");
-            History(owner, ownerId, "Requirement bypass withdrawn", null, null, code);
-            Audit.Write(Audit.Update, "marriage_requirements", reqId, "Requirement bypass withdrawn: " + code);
+            History(owner, ownerId, "Requirement bypass withdrawn by " + ActorTag(), null, null, code);
+            Audit.Write(Audit.Update, "marriage_requirements", reqId, "Requirement bypass withdrawn by " + ActorTag() + ": " + code);
         }
 
         /// <summary>
@@ -662,22 +685,22 @@ namespace CROMS.Data
         /// </summary>
         public static void OverrideRequirements(int id, string reason)
         {
-            RequireAdmin("override missing marriage licence requirements");
+            RequireBypass("override missing marriage licence requirements");
             if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A reason is required to override missing requirements.");
             Db.Push("UPDATE marriage_licenses SET requirements_override_by=@u, requirements_override_at=NOW(), requirements_override_reason=@r WHERE id=@id",
                 P("@u", UserId), P("@r", reason), P("@id", id));
-            History("License", id, "Requirements overridden by Admin", null, null, reason);
-            Audit.Write(Audit.Update, "marriage_licenses", id, "Requirements override recorded: " + reason);
+            History("License", id, "Requirements overridden by " + ActorTag(), null, null, reason);
+            Audit.Write(Audit.Update, "marriage_licenses", id, "OVERRIDE by " + ActorTag() + ": " + reason);
         }
 
         /// <summary>Withdraws a requirements override (e.g. entered by mistake) before the licence is issued.</summary>
         public static void ClearRequirementsOverride(int id)
         {
-            RequireAdmin("withdraw a marriage licence requirements override");
+            RequireBypass("withdraw a marriage licence requirements override");
             Db.Push("UPDATE marriage_licenses SET requirements_override_by=NULL, requirements_override_at=NULL, requirements_override_reason=NULL WHERE id=@id",
                 P("@id", id));
-            History("License", id, "Requirements override withdrawn", null, null, null);
-            Audit.Write(Audit.Update, "marriage_licenses", id, "Requirements override withdrawn");
+            History("License", id, "Requirements override withdrawn by " + ActorTag(), null, null, null);
+            Audit.Write(Audit.Update, "marriage_licenses", id, "Requirements override withdrawn by " + ActorTag());
         }
 
         public static void Hold(int id, string reason)

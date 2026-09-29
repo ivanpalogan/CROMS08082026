@@ -78,7 +78,7 @@ namespace CROMS.Forms
             // Per-row Admin bypass replaces the old whole-checklist "Admin Override" button - the
             // grid itself hides the control for anyone not signed in as Admin, and the service
             // layer (MarriageService.BypassRequirement) re-checks the role regardless.
-            _grid.AllowBypass = Session.User != null && Session.User.Role == "Admin";
+            _grid.AllowBypass = MarriageService.CanBypass;
             _grid.Changed += () => Refresh_();
 
             var evalCard = MUi.Card(new Padding(16, 12, 16, 12));

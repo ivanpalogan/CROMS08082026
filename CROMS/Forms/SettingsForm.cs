@@ -1570,10 +1570,12 @@ namespace CROMS.Forms
                 "Every step is written to the audit trail. The sidebar groups the modules the same way: " +
                 "Transactions, Civil Registration, Petitions & Cases, Records & Documents, Reports, System."),
             new ManualTopic("Getting Started", "Which screens can I see?",
-                "Every signed-in role sees the same operational modules (queue, certificates, PSA copies, " +
-                "release, fees, birth/marriage/death, case tracking, record search, document processing, reports).\n" +
-                "Only an Administrator also sees Records Archive and Settings (users, master files, forms & " +
-                "templates, windows, audit trail, app updates).\n" +
+                "There are two roles. Staff see the operational modules (queue, certificates, PSA copies, " +
+                "release, fees, birth/marriage/death, case tracking, records archive and search, document " +
+                "processing, reports) and may bypass a document requirement - every bypass is audited with " +
+                "the person and a reason.\n" +
+                "Only an Administrator also sees Settings (users, master files, forms & templates, windows, " +
+                "audit trail, app updates) and can change the fee schedule.\n" +
                 "Use the Collapse button at the bottom of the sidebar to shrink it to an icon rail."),
 
             // ------------------------------------------------------------ Login
