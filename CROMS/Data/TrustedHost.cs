@@ -127,7 +127,11 @@ namespace CROMS.Data
                 {
                     if (rd.ReadToEnd().Trim().StartsWith("OK", StringComparison.OrdinalIgnoreCase)) return true;
                 }
-                error = "DuckDNS did not accept the name and token. Check both are typed exactly as shown on your DuckDNS page.";
+                // Say WHAT was sent (never the token itself) so a paste mistake is visible: DuckDNS answers
+                // the same "KO" for a wrong name, a wrong token and a token copied with a stray character.
+                error = "DuckDNS did not accept the name and token. Check both are typed exactly as shown on your DuckDNS page." +
+                        "\r\nSent: name '" + sub + "', token of " + token.Length + " characters ending '" +
+                        (token.Length >= 4 ? token.Substring(token.Length - 4) : token) + "' (a DuckDNS token is 36 characters).";
                 return false;
             }
             catch (WebException wex)
