@@ -62,10 +62,10 @@ namespace CROMS.Forms
 
         private void StartSession()
         {
-            string why;
-            if (!Form97Capture.TrustedLinkReady(out why))
+            // Not set up yet -> the Mobile Capture Setup window; network/certificate problems are
+            // reported by it with their real cause. Either way no link is handed out until ready.
+            if (!MobileCaptureSetupForm.EnsureReady(this))
             {
-                MessageBox.Show(this, why, "Mobile Capture", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 DialogResult = DialogResult.Cancel;
                 return;
             }

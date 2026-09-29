@@ -278,7 +278,7 @@ namespace CROMS.Forms
 
         // ---------------------------------------------------------------- General page
 
-        private Label _genOffice, _genServer, _genUser, _genLock;
+        private Label _genOffice, _genServer, _genUser, _genLock, _genMobile;
 
         private Control BuildGeneralPage()
         {
@@ -350,6 +350,29 @@ namespace CROMS.Forms
             btnMvc.Click += (s, e) => OfficeMissionCert.Show(OfficeMissionCert.BuildTable(), this);
             page.Controls.Add(btnMvc);
 
+            page.Controls.Add(Section("Mobile Capture", 22, 630));
+            _genMobile = new Label
+            {
+                AutoSize = false, Location = new Point(24, 656), Size = new Size(760, 54),
+                Font = new Font("Segoe UI", 9.75F), ForeColor = Color.FromArgb(33, 37, 41)
+            };
+            page.Controls.Add(_genMobile);
+            var btnMobile = BigButton("Set Up / Change Mobile Capture", 24, 716, Color.FromArgb(13, 110, 253));
+            btnMobile.Width = 300;
+            btnMobile.Click += (s, e) =>
+            {
+                using (var f = new MobileCaptureSetupForm()) f.ShowDialog(this);
+                RefreshGeneralPage();
+            };
+            page.Controls.Add(btnMobile);
+            page.Controls.Add(new Label
+            {
+                Text = "The phone camera link needs a free DuckDNS name and token, entered once here. " +
+                       "The token is stored encrypted on this PC and is never shown again.",
+                AutoSize = true, MaximumSize = new Size(760, 0), Location = new Point(26, 768),
+                Font = new Font("Segoe UI", 8.75F), ForeColor = Color.FromArgb(108, 117, 125)
+            });
+
             DisableMnemonics(page);
             return page;
         }
@@ -374,6 +397,12 @@ namespace CROMS.Forms
                             "  ·  " + (Session.User?.Role ?? "—") + "\r\n" +
                             (Session.HasWindow ? "Serving at " + Session.WindowName : "No service window claimed") +
                             "  ·  PC: " + Environment.MachineName;
+
+            try
+            {
+                _genMobile.Text = (TrustedHost.IsConfigured ? TrustedHost.Host : "Not set up yet") + Environment.NewLine + TrustedHost.StatusNote();
+            }
+            catch { _genMobile.Text = "Mobile Capture status could not be read."; }
 
             _genLock.Text = _verified
                 ? "Verified this session as " + (_verifiedUser?.Username ?? "?") + "."

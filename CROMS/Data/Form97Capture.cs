@@ -245,19 +245,17 @@ namespace CROMS.Data
             // Trusted hostname only. A raw-IP or plain-HTTP link is never handed to a phone:
             // it is not a secure context, so the live camera cannot start there.
             if (!TrustedHost.CertReady) return "";
-            return "https://" + TrustedHost.Host + ":3443/form97-capture.html?token=" + token;
+            return "https://" + TrustedHost.Host + ":" + TrustedHost.HttpsPort + "/form97-capture.html?token=" + token;
         }
 
         /// <summary>False (with the reason) until the trusted HTTPS hostname is configured and
-        /// its certificate issued. Call before creating a capture session.</summary>
+        /// its certificate issued. A non-interactive check; screens that can open the setup window
+        /// call <c>MobileCaptureSetupForm.EnsureReady</c> instead.</summary>
         public static bool TrustedLinkReady(out string why)
         {
             why = "";
             if (TrustedHost.CertReady) return true;
-            why = "Mobile Capture needs the trusted HTTPS hostname, which is not ready yet.\n\n" +
-                  TrustedHost.StatusNote() +
-                  "\n\nOne-time setup: set MobileHostname and DuckDnsToken in App.config (see ssl/README.md), " +
-                  "then restart CROMS. Phones need nothing installed.";
+            why = TrustedHost.StatusNote();
             return false;
         }
     }

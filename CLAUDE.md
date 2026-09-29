@@ -6756,3 +6756,35 @@ Two roles only. Migration `73_roles_admin_staff.sql` (APPLIED, idempotent): Regi
 - MarriageTest "Staff cannot issue a licence" check rewritten to "a role that is not Staff/Admin cannot issue".
 - VERIFIED: migration applied and read back; MSBuild CROMS clean, 0 errors (temp OutputPath). NOT run: the CROMS.MarriageTest suites (CROMS.exe/VS lock bin\Debug), and no GUI click-through (no interactive desktop) - rebuild in VS and sign in once as Staff and once as Admin to confirm the menus.
 - NOT changed, decide if wanted: Staff can still delete records they can open (birth/death/marriage/petition Delete buttons); making delete Admin-only is a separate pass.
+
+### 2026-09-30 (later) - Mobile Capture first-run setup moved INTO CROMS (no App.config editing); portable runtime
+Reported: Mobile Capture answered "set MobileHostname and DuckDnsToken in App.config" - unacceptable for LCRO staff. The
+error was the symptom; the workflow that caused it is replaced, not hidden.
+- **New `Forms/MobileCaptureSetupForm` (+ Designer)**: DuckDNS name + token (masked), Test Connection, Save & Configure, live status.
+  Opens automatically the first time Mobile Capture is used (`MobileCaptureSetupForm.EnsureReady`, now called by MobileCaptureDialog and
+  both Form 97 launchers) and from Settings > General > Mobile Capture (admin). A non-admin on an already-configured PC gets a locked,
+  status-only window with Retry.
+- **New `Data/MobileCaptureConfig`**: settings live in `%APPDATA%\CROMS\mobile.cfg`; the token is encrypted with Windows DPAPI (per Windows
+  account, useless if copied), never logged / put in a URL / QR / message, and never shown again ("saved" only; blank box keeps it).
+  Legacy App.config keys still honoured if the window was never used; App.config comment rewritten to say do not use them.
+- **`TrustedHost` reworked**: reads the new store; `Test()` (network + DuckDNS + runtime, saves nothing), `Apply()`, `Start()`, `Phase`
+  (NotConfigured / NetworkUnavailable / Working / Failed / Ready), `LastError` (real failure text, token scrubbed), `VerifyHttps()` (opens
+  https://host:3443 with NORMAL Windows cert validation - nothing bypassed). A 10 s network watch now lives here, so a new Wi-Fi/IP re-points
+  the SAME hostname (QR and certificate unchanged, nothing on phones) even when the Angular servers are off. Program.cs starts save-API +
+  TrustedHost whenever Mobile Capture is configured, independent of IonicAutoStart.
+- **Behaviour per case**: not configured -> setup window; no LAN address -> "Mobile Capture network unavailable."; certificate/HTTPS
+  failure -> the actual reason in the window (Retry); QR is only ever built from https://<hostname>:3443 (never a raw IP / http).
+- **Portability**: `Data/MobileRuntime` resolves the Mobile folder (configured path, else `MobileApp\` beside CROMS.exe, else dev default)
+  and node.exe (bundled `MobileApp\node\node.exe`, else PATH). New `Scripts/Build-MobileRuntime.ps1` (also `Build-Bundle.ps1
+  -WithMobileRuntime`) assembles MobileApp = portable node + save-API + cert tool + production node_modules (95 MB), excluding server\.env
+  (DB password), logs, keys and certs; it self-checks with the BUNDLED node. Office PCs need no Node/npm/Ionic for Mobile Capture.
+- **VERIFIED by running**: config store (DPAPI roundtrip, no plaintext on disk, blank token keeps saved, Clear); Test Connection against
+  real duckdns.org with a fake token -> clean "did not accept" message; certificate failure path through the bundled runtime -> Phase Failed,
+  LastError "DuckDNS refused the request", token absent from message and log; VerifyHttps failure mapping; setup window rendered (empty,
+  locked+working). Runtime script ran (npm install, bundled-node module check passed). MSBuild clean 0 errors (temp OutputPath; bin\Debug is
+  locked by the running app/VS - REBUILD IN VS).
+- **NOT verified / not done, plainly**: the happy path (real DuckDNS account -> Let's Encrypt cert -> https QR -> phone camera) needs a real
+  name+token and a phone - not run. Wi-Fi client isolation cannot be detected from the PC; the phone page and the Dashboard hint say "CROMS
+  server is not reachable from this Wi-Fi network". Windows Firewall may prompt for node on a new PC (port 3443) - not automated (needs
+  elevation). The Angular phone-scanner (:4200) and claimapp (:4300) dev servers are NOT bundled (Mobile Capture does not use them).
+  ORCMobile_Application edits (server\index.js message, ssl\README.md) are in that separate repo, uncommitted.

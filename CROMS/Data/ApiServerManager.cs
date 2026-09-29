@@ -16,7 +16,12 @@ namespace CROMS.Data
     public sealed class ApiServerManager
     {
         public static readonly ApiServerManager Instance = new ApiServerManager();
-        private ApiServerManager() { }
+        private ApiServerManager()
+        {
+            // Wherever it was started from (Program at launch, or the Mobile Capture setup window),
+            // the node process tree must never outlive CROMS.
+            AppDomain.CurrentDomain.ProcessExit += (s, e) => Stop();
+        }
 
         private Process _proc;
         private string _logFile;
@@ -57,6 +62,7 @@ namespace CROMS.Data
                     RedirectStandardError = true,
                 };
                 PassDatabaseSettings(psi);
+                MobileRuntime.PrepareEnvironment(psi);   // bundled node.exe first on PATH
                 _proc = new Process { StartInfo = psi };
                 _proc.OutputDataReceived += OnLog;
                 _proc.ErrorDataReceived += OnLog;

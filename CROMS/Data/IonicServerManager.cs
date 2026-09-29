@@ -61,7 +61,9 @@ namespace CROMS.Data
             // A NEW certificate is only read when a server launches, so relaunch the two that use it.
             TrustedHost.CertificateChanged += () =>
             {
-                try { Instance.Restart(); } catch { }
+                // Only relaunch the scanner dev server if it is actually up: on a PC that runs
+                // just Mobile Capture (no Angular app) a restart would try to start it from scratch.
+                try { if (Instance.Status == IonicStatus.Starting || Instance.Status == IonicStatus.Running) Instance.Restart(); } catch { }
                 try { ApiServerManager.Instance.Restart(); } catch { }
             };
         }
@@ -105,10 +107,12 @@ namespace CROMS.Data
         public event Action Changed;
 
         // ---- config (per-instance keys, so Mobile and ClaimApp differ) ----
+        // Portable: the configured folder if it exists, else the runtime bundled beside CROMS.exe
+        // (MobileApp / ClaimApp), else the development default - so a copy on another office PC
+        // needs no path edit. See MobileRuntime.
         public string AppPath =>
-            (ConfigurationManager.AppSettings[_appPathKey] ?? "").Trim().Length > 0
-                ? ConfigurationManager.AppSettings[_appPathKey].Trim()
-                : _appPathDefault;
+            MobileRuntime.ResolveDir(ConfigurationManager.AppSettings[_appPathKey], _appPathDefault,
+                                     _label == "Mobile" ? "MobileApp" : "ClaimApp");
 
         // Full command run after `cmd /c`. Defaults to an HTTPS Angular dev server
         // so the phone (a secure context is required for the camera) can connect.
@@ -189,10 +193,8 @@ namespace CROMS.Data
                 {
                     // Stable hostname -> this PC's current LAN IP (background), then issue/renew the
                     // trusted certificate if needed. A newly issued cert restarts this server.
-                    string ipNow = LanIp;
-                    Task.Run(() => TrustedHost.UpdateDns(ipNow));
-                    TrustedHost.EnsureCertificateAsync();
-                    TrustedHost.StartMaintenance();
+                    // (Program also calls this at launch, independent of this server; it is idempotent.)
+                    TrustedHost.Start();
                 }
                 else if (Scheme == "https") EnsureCertCoversIp(LanIp);
 
@@ -222,6 +224,7 @@ namespace CROMS.Data
                         StandardOutputEncoding = Encoding.UTF8,
                         StandardErrorEncoding = Encoding.UTF8,
                     };
+                    MobileRuntime.PrepareEnvironment(psi);
 
                     _proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
                     _proc.OutputDataReceived += OnOutput;

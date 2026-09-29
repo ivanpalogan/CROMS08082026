@@ -98,6 +98,16 @@ namespace CROMS
                 Application.ApplicationExit += (s, e) => stopAll();
             }
 
+            // Mobile Capture (phone photographs of Form 97 etc.): once it has been set up through the
+            // Mobile Capture Setup window, bring up its service and trusted-HTTPS upkeep on every launch,
+            // independent of the Angular dev servers above (which may be off, or not installed at all on
+            // an office PC). Idempotent - a no-op when already running or not configured yet.
+            if (MobileCaptureConfig.IsConfigured)
+            {
+                try { ApiServerManager.Instance.Start(); } catch { }
+                try { TrustedHost.Start(); } catch { }
+            }
+
             // If this launch is the restart from an in-app ⟳ Update that the operator
             // just authorized, resume their session (and window) so they aren't forced
             // to re-enter the password. One-time, short-lived, account-bound token;

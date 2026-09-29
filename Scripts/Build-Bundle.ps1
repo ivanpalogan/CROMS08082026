@@ -8,7 +8,8 @@
 #>
 param(
     [string]$Config = "Debug",
-    [switch]$NoZip
+    [switch]$NoZip,
+    [switch]$WithMobileRuntime   # also bundle MobileApp (Node + save-API + cert tool): see Build-MobileRuntime.ps1
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,6 +43,10 @@ foreach ($app in $apps) {
 foreach ($app in $apps) {
     $cfg = Join-Path $sources[$app] "$app.exe.config"
     if (Test-Path $cfg) { Copy-Item $cfg $out -Force }
+}
+
+if ($WithMobileRuntime) {
+    & (Join-Path $PSScriptRoot "Build-MobileRuntime.ps1") -Out (Join-Path $out "MobileApp")
 }
 
 Write-Host ""

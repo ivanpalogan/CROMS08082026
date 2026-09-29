@@ -77,6 +77,7 @@
     </Reference>
     <Reference Include="System.Configuration" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Security" />
     <Reference Include="System.Speech" />
     <Reference Include="System.Web.Extensions" />
     <!-- SAP Crystal Reports for .NET Framework 13.0.4000.0. A build machine without the
@@ -542,6 +543,8 @@
     <Compile Include="Data\ClaimLink.cs" />
     <Compile Include="Data\IonicServerManager.cs" />
     <Compile Include="Data\TrustedHost.cs" />
+    <Compile Include="Data\MobileCaptureConfig.cs" />
+    <Compile Include="Data\MobileRuntime.cs" />
     <Compile Include="Data\ApiServerManager.cs" />
     <Compile Include="Data\HotspotInfo.cs" />
     <Compile Include="Data\QrHelper.cs" />
@@ -657,6 +660,12 @@
     <Compile Include="Data\ReportEditor.cs" />
     <Compile Include="Data\DesktopShortcut.cs" />
     <Compile Include="Data\Audit.cs" />
+    <Compile Include="Forms\MobileCaptureSetupForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\MobileCaptureSetupForm.Designer.cs">
+      <DependentUpon>MobileCaptureSetupForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\ServerSetupForm.cs">
       <SubType>Form</SubType>
     </Compile>
