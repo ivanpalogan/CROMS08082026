@@ -55,8 +55,7 @@ namespace CROMS.Kiosk
         {
             _session = session;
             InitializeComponent();
-            // "Who is submitting" question removed from the kiosk: a church or other third party
-            // often submits, so staff record it in the Form 97 start wizard instead.
+            BuildSubmitterSection();          // must run BEFORE _designSize is cached (it may grow the box)
             _designSize = _detailsBox.Size;   // cache BEFORE any Scale() call, ever
 
             _btnBack.BringToFront();
@@ -184,8 +183,9 @@ namespace CROMS.Kiosk
             _session.ClaimTicketEntry = _txtClaimTicket.Text.Trim();
             _session.IdType = OthersBox.Value(_cboIdType);
             _session.IdNo = _txtIdNo.Text.Trim();
-            _session.SubmittedBy = null;
-            _session.SubmittedByOrg = null;
+            bool reg = _session.Selected.Contains("MARRIAGE_REG");
+            _session.SubmittedBy = reg ? _submittedBy : null;
+            _session.SubmittedByOrg = reg && _submittedBy == "Representative" ? _txtSubOrg.Text.Trim() : null;
         }
 
         // ---------------------------------------- marriage registration: who is submitting
