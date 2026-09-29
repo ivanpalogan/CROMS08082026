@@ -131,6 +131,7 @@ namespace CROMS.Kiosk
                                      : session.NeedsMarriageLicenseCheck ? Step.MarriageLicense
                                      : Step.ChooseServices;
                             }
+                            else if (r == DialogResult.Abort) { session.Reset(); step = Step.Welcome; }   // idle
                             else
                             {
                                 step = Step.Review;

@@ -64,7 +64,7 @@ namespace CROMS.Kiosk
 
             _confirm = new Button
             {
-                Text = "Confirm && Print Ticket", Size = new Size(260, 64), Anchor = AnchorStyles.Bottom | AnchorStyles.Right
+                Text = "Confirm & Print Ticket", Size = new Size(260, 64), Anchor = AnchorStyles.Bottom | AnchorStyles.Right
             };
             _confirm.Click += new EventHandler(Confirm);
 

@@ -124,7 +124,7 @@ namespace CROMS.Kiosk
                     idleTicks = 0;
                     _session.Reset();
                     _navigating = true;
-                    DialogResult = DialogResult.OK;   // OK => flow resets for the next client
+                    DialogResult = DialogResult.Abort;   // Abort => flow resets for the next client (OK means Next)
                     Close();
                 }
             };
