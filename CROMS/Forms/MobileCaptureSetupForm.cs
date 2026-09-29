@@ -154,7 +154,7 @@ namespace CROMS.Forms
             string err;
             string full = MobileCaptureConfig.NormalizeHost(host, out err);
             if (full.Length == 0) { SetStatus(err, UiTheme.Danger); txtHost.Focus(); return; }
-            if (token.Trim().Length > 0 ? !MobileCaptureConfig.TokenLooksValid(token, out err) : !MobileCaptureConfig.HasToken)
+            if (MobileCaptureConfig.CleanToken(token).Length > 0 ? !MobileCaptureConfig.TokenLooksValid(token, out err) : !MobileCaptureConfig.HasToken)
             {
                 if (err.Length == 0) err = "Enter your DuckDNS token.";
                 SetStatus(err, UiTheme.Danger); txtToken.Focus(); return;

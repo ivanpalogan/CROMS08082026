@@ -73,14 +73,24 @@ namespace CROMS.Data
             return h;
         }
 
+        /// <summary>Tolerates however the token was copied: the DuckDNS page wraps it across two lines, so a
+        /// selection can carry a line break or spaces in the middle, and a drag-select can also pick up the
+        /// word "token" beside it. Removes all whitespace and a leading "token" label; nothing else is touched.</summary>
+        public static string CleanToken(string raw)
+        {
+            string t = Regex.Replace(raw ?? "", @"\s+", "");
+            t = Regex.Replace(t, @"^token[:=]?", "", RegexOptions.IgnoreCase);
+            return t;
+        }
+
         public static bool TokenLooksValid(string token, out string error)
         {
             error = "";
-            string t = (token ?? "").Trim();
+            string t = CleanToken(token);
             if (t.Length == 0) { error = "Enter your DuckDNS token."; return false; }
             if (!Regex.IsMatch(t, @"^[A-Za-z0-9-]{8,64}$"))
             {
-                error = "The token should be the long code from your DuckDNS page (letters, digits and hyphens, no spaces).";
+                error = "The token should be the long code from your DuckDNS page (letters, digits and hyphens).";
                 return false;
             }
             return true;
@@ -92,7 +102,7 @@ namespace CROMS.Data
             string host = NormalizeHost(hostInput, out error);
             if (host.Length == 0) return false;
 
-            string token = (tokenOrNull ?? "").Trim();
+            string token = CleanToken(tokenOrNull);
             if (token.Length == 0)
             {
                 token = Token;   // keep what is already saved

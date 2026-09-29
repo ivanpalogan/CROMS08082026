@@ -1904,3 +1904,6 @@ repeating from the 2026-09-19 note) clean, 0 errors, 0 warnings (only the pre-ex
 `ArchiveCategory.CertKind` warning). Output goes to `CROMS\bin\Debug` as intended, confirmed
 against the same Tesseract engine and tessdata the app uses. `CROMS.exe` was not running during
 this build, so `bin\Debug` was updated directly — no temp OutDir needed this time.
+
+### 2026-09-30 (later) - Mobile Capture setup: token paste tolerates the DuckDNS page's line wrap
+The DuckDNS page wraps the token across two lines, so copying it can carry a line break or spaces (or the word "token"), and the old check rejected that. New `MobileCaptureConfig.CleanToken` strips all whitespace and a leading "token" label; used by `TokenLooksValid`, `Save`, `TrustedHost.Test` and the setup form. The token is still stored DPAPI-encrypted per Windows account and is NOT written into source, config or this log. MSBuild clean 0 errors (temp OutputPath - REBUILD IN VS). Not exercised in the window itself (no interactive desktop); cleaner checked by regex on 3 fake tokens.

@@ -171,7 +171,7 @@ namespace CROMS.Data
             string host = MobileCaptureConfig.NormalizeHost(hostInput, out err);
             if (host.Length == 0) { message = err; return false; }
 
-            string token = (tokenInput ?? "").Trim();
+            string token = MobileCaptureConfig.CleanToken(tokenInput);
             if (token.Length == 0) token = MobileCaptureConfig.Token;
             if (!MobileCaptureConfig.TokenLooksValid(token, out err)) { message = err; return false; }
 
