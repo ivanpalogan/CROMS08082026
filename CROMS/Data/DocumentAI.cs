@@ -241,6 +241,39 @@ namespace CROMS.Data
         /// </summary>
         public static Action<string> Diag;
 
+        /// <summary>
+        /// EXPERIMENT (2026-09-29), OFF by default. Today the native-resolution pass is only
+        /// ever allowed to win when the 2400px pass left the layout UNRESOLVED (see the
+        /// <c>nativeWon</c> line below) — a layout that resolved but read badly (many fields
+        /// at 28-65% confidence, e.g. a faded 1993 backlog scan) never gets a second attempt
+        /// at native resolution, only an unresolved one does. When this flag is on, a
+        /// RESOLVED-but-low-confidence result is also allowed to be replaced by the native
+        /// pass if the native pass scores higher (same <see cref="Score"/> function already
+        /// used for the unresolved case — never assumed better, always measured).
+        /// <para/>
+        /// Deliberately a toggle and not a silent behaviour change: this project's own history
+        /// (2026-09-04, 2026-09-06 log entries) has TWICE measured a "should help" resolution
+        /// change as a net accuracy LOSS on the office's real samples, so this must be provable
+        /// on/off before it can be trusted. Costs nothing extra when <see cref="wantNative"/>
+        /// campaign already runs the native pass anyway (it already runs concurrently and is
+        /// simply discarded today) — the only place this can add wall-clock time is a document
+        /// that resolves a layout, reads under <see cref="LowConfidenceRetryThreshold"/>, AND
+        /// is large enough to trigger a native pass that would not otherwise have run — which
+        /// cannot happen, because <c>wantNative</c> is decided purely by image SIZE, before any
+        /// OCR runs, so the native task either already started (no extra cost) or the image is
+        /// too small to have one at all (nothing to retry with).
+        /// </summary>
+        public static bool EnableLowConfidenceNativeRetry = false;
+
+        /// <summary>
+        /// Below this OverallConfidence, a RESOLVED layout is still considered "worth a second
+        /// look" under <see cref="EnableLowConfidenceNativeRetry"/>. Reuses the exact number
+        /// <see cref="DocIntelligence"/> already uses to decide manual review is needed
+        /// ("overall confidence below 65%") — not a new arbitrary cutoff, the same line the
+        /// operator already sees as "this needs a closer look".
+        /// </summary>
+        public const int LowConfidenceRetryThreshold = 65;
+
         private static void Log(string phase, Stopwatch sw)
         {
             var d = Diag;
@@ -313,10 +346,21 @@ namespace CROMS.Data
                     // cost of running both concurrently instead of checking best.LayoutCode
                     // before starting the second one; the already-fast recognised-layout case
                     // has spare cores (region reads run at ProcessorCount-1, see DocLayouts.cs).
-                    bool nativeWon = best.LayoutCode == null && Score(native) > Score(best);
+                    bool unresolved = best.LayoutCode == null;
+                    // EXPERIMENT, opt-in (see EnableLowConfidenceNativeRetry doc comment): a
+                    // RESOLVED layout that still read badly is also allowed to be replaced,
+                    // never assumed better - only if Score() actually says so below.
+                    bool lowConfResolved = EnableLowConfidenceNativeRetry && !unresolved
+                        && best.OverallConfidence < LowConfidenceRetryThreshold;
+                    bool nativeWon = (unresolved || lowConfResolved) && Score(native) > Score(best);
                     try { Diag?.Invoke(nativeWon
-                        ? "native pass WON (2400px layout was unresolved)"
-                        : "native pass DISCARDED (preferred already resolved a layout)"); } catch { }
+                        ? "native pass WON (" + (unresolved ? "2400px layout was unresolved"
+                            : "2400px resolved at " + best.OverallConfidence + "% - low-confidence retry")
+                            + ")"
+                        : lowConfResolved
+                            ? "native pass DISCARDED (low-confidence retry tried, did not score higher: "
+                                + Score(native) + " vs " + Score(best) + ")"
+                            : "native pass DISCARDED (preferred already resolved a layout)"); } catch { }
                     if (nativeWon) best = native;
                 }
                 best.RotationApplied = rotation;

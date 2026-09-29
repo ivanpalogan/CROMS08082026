@@ -36,6 +36,11 @@ namespace CROMS.DocTest
             {
                 if (args[i] == "--rotate" && i + 1 < args.Length) { int.TryParse(args[++i], out rotate); continue; }
                 if (args[i] == "--diag") { diag = true; continue; }
+                // Task-A experiment (2026-09-29, OFF by default in the app): also try the
+                // native-resolution pass on a RESOLVED-but-low-confidence layout, not only an
+                // unresolved one. Kept as a harness flag so a before/after --truth run is a
+                // one-flag comparison, never a code edit.
+                if (args[i] == "--retry") { DocumentAI.EnableLowConfidenceNativeRetry = true; continue; }
                 if (args[i] == "--words")
                 {
                     words = true;
