@@ -72,6 +72,7 @@ namespace CROMS.Forms
         private ComboBox cboStage;
         private Label lblStageInfo;
         private TextBox txtRemarks;
+        private TextBox txtRequester, txtRelationship;   // who is filing (Client Service Slip)
         private Label lblValidation;
         private Button btnAdvance;
         private Button btnDocuments;
@@ -311,6 +312,17 @@ namespace CROMS.Forms
 
             cboRecord = AddField(card, "Record", ref y, out _);
             cboRecord.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            var lblRequester = FieldCaption("Requester name (on the service slip)", y);
+            card.Controls.Add(lblRequester);
+            txtRequester = new TextBox { Location = new Point(20, y + 20), Width = 320, Font = new Font("Segoe UI", 9.75F) };
+            card.Controls.Add(txtRequester);
+            y += 46;
+            var lblRelationship = FieldCaption("Relationship to the document owner", y);
+            card.Controls.Add(lblRelationship);
+            txtRelationship = new TextBox { Location = new Point(20, y + 20), Width = 320, Font = new Font("Segoe UI", 9.75F) };
+            card.Controls.Add(txtRelationship);
+            y += 46;
 
             dtpFiled = new DateTimePicker { Format = DateTimePickerFormat.Short, Location = new Point(20, y + 20), Width = 320 };
             var lblFiled = FieldCaption("Filed date", y);
@@ -820,6 +832,8 @@ namespace CROMS.Forms
             RepopulateStage(typeCode, Math.Max(0, Array.IndexOf(StageCodesFor(typeCode), Str(r["stage"]))));
             if (r["filed_date"] != DBNull.Value) dtpFiled.Value = Convert.ToDateTime(r["filed_date"]);
             txtRemarks.Text = Str(r["remarks"]);
+            txtRequester.Text = dt.Columns.Contains("requester_name") ? Str(r["requester_name"]) : "";
+            txtRelationship.Text = dt.Columns.Contains("requester_relationship") ? Str(r["requester_relationship"]) : "";
             HideValidation();
 
             string label = TypeFilterLabelFor(typeCode);
@@ -862,26 +876,99 @@ namespace CROMS.Forms
                 new MySqlParameter("@filed", dtpFiled.Value.Date),
                 new MySqlParameter("@remarks", string.IsNullOrWhiteSpace(txtRemarks.Text)
                     ? (object)DBNull.Value : txtRemarks.Text.Trim()),
+                new MySqlParameter("@rq", string.IsNullOrWhiteSpace(txtRequester.Text)
+                    ? (object)DBNull.Value : txtRequester.Text.Trim()),
+                new MySqlParameter("@rel", string.IsNullOrWhiteSpace(txtRelationship.Text)
+                    ? (object)DBNull.Value : txtRelationship.Text.Trim()),
             };
+            int savedId;
+            SlipRequest slip;
             try
             {
                 if (_editingId == null)
                 {
-                    Db.Push("INSERT INTO petitions (petition_type, record_type, record_id, stage, filed_date, remarks) " +
-                            "VALUES (@pt, @rt, @rid, @stage, @filed, @remarks)", ps);
-                    Audit.Write(Audit.Create, "petitions", null, typeCode + " on " + cboRecordType.SelectedItem);
+                    savedId = (int)Db.Insert("INSERT INTO petitions (petition_type, record_type, record_id, stage, filed_date, remarks, requester_name, requester_relationship) " +
+                            "VALUES (@pt, @rt, @rid, @stage, @filed, @remarks, @rq, @rel)", ps);
+                    Audit.Write(Audit.Create, "petitions", savedId, typeCode + " on " + cboRecordType.SelectedItem);
                 }
                 else
                 {
                     var up = new List<MySqlParameter>(ps) { new MySqlParameter("@id", _editingId.Value) };
                     Db.Push("UPDATE petitions SET petition_type=@pt, record_type=@rt, record_id=@rid, " +
-                            "stage=@stage, filed_date=@filed, remarks=@remarks WHERE id=@id", up.ToArray());
+                            "stage=@stage, filed_date=@filed, remarks=@remarks, requester_name=@rq, requester_relationship=@rel WHERE id=@id", up.ToArray());
                     Audit.Write(Audit.Update, "petitions", _editingId.Value, null);
+                    savedId = _editingId.Value;
                 }
+                slip = BuildSlip(savedId, typeCode);
                 ClearForm();
                 LoadGrid();
             }
-            catch (Exception ex) { Fail(ex); }
+            catch (Exception ex) { Fail(ex); return; }
+
+            // The Client Service Slip (control number + Crystal report) opens on every Save.
+            // A failure here must never look like the case was not saved - it already was.
+            try { ClientServiceSlip.Show(slip, this); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "The case was saved, but its service slip could not be shown: " + ex.Message,
+                    "Client Service Slip", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        /// <summary>Gathers everything the Client Service Slip prints for one petition: the requester
+        /// typed on this screen, the linked record's details (birth / death / marriage block), the case
+        /// type + stage + remarks, and the signed-in staff. Read from the form while it still holds
+        /// the case, so it must run before ClearForm.</summary>
+        private SlipRequest BuildSlip(int petitionId, string typeCode)
+        {
+            string recType = cboRecordType.SelectedItem != null ? cboRecordType.SelectedItem.ToString() : "";
+            string owner = cboRecord.SelectedIndex >= 0 ? cboRecord.Text : "";
+            string stage = cboStage.SelectedIndex >= 0 ? cboStage.Text : "";
+            string remarks = TypeFilterLabelFor(typeCode) + " - " + stage +
+                (string.IsNullOrWhiteSpace(txtRemarks.Text) ? "" : ". " + txtRemarks.Text.Trim());
+            var s = new SlipRequest
+            {
+                SourceTable = "petitions", SourceId = petitionId,
+                RequesterName = txtRequester.Text, Relationship = txtRelationship.Text,
+                DocumentOwner = owner, DocType = recType,
+                TxnDate = dtpFiled.Value.Date,
+                AttendingStaff = Session.User != null ? Session.User.FullName : "",
+                Remarks = remarks
+            };
+            object rid = cboRecord.SelectedValue is int v ? (object)v : null;
+            if (rid != null)
+            {
+                try
+                {
+                    if (recType == "Birth")
+                    {
+                        DataTable b = Db.Pull("SELECT TRIM(CONCAT_WS(' ', first_name, middle_name, last_name)) AS n, date_of_birth AS dob, " +
+                            "TRIM(CONCAT_WS(' ', mother_first_name, mother_middle_name, mother_last_name)) AS m, " +
+                            "TRIM(CONCAT_WS(' ', father_first_name, father_middle_name, father_last_name)) AS f FROM births WHERE id=@i",
+                            new MySqlParameter("@i", rid));
+                        if (b.Rows.Count > 0)
+                        {
+                            s.BirthName = Str(b.Rows[0]["n"]);
+                            if (b.Rows[0]["dob"] != DBNull.Value) s.BirthDate = Convert.ToDateTime(b.Rows[0]["dob"]).ToString("MMMM d, yyyy");
+                            s.MotherMaiden = Str(b.Rows[0]["m"]); s.FatherName = Str(b.Rows[0]["f"]);
+                        }
+                    }
+                    else if (recType == "Death")
+                    {
+                        DataTable d = Db.Pull("SELECT full_name FROM deaths WHERE id=@i", new MySqlParameter("@i", rid));
+                        if (d.Rows.Count > 0) s.DeathName = Str(d.Rows[0][0]);
+                    }
+                    else if (recType == "Marriage")
+                    {
+                        DataTable m = Db.Pull("SELECT TRIM(CONCAT_WS(' ', husband_first_name, husband_middle_name, husband_last_name)) AS h, " +
+                            "TRIM(CONCAT_WS(' ', wife_first_name, wife_middle_name, wife_last_name)) AS w FROM marriages WHERE id=@i",
+                            new MySqlParameter("@i", rid));
+                        if (m.Rows.Count > 0) s.MarriageCouple = Str(m.Rows[0]["h"]) + " & " + Str(m.Rows[0]["w"]);
+                    }
+                }
+                catch { /* details are a convenience; the slip still prints without them */ }
+            }
+            return s;
         }
 
         /// <summary>Moves the selected case to the next stage of ITS OWN sequence (RA petitions
@@ -940,6 +1027,8 @@ namespace CROMS.Forms
             RepopulateStage("RA9048", 0);   // neutral default list until a type is chosen
             dtpFiled.Value = DateTime.Today;
             txtRemarks.Clear();
+            txtRequester.Clear();
+            txtRelationship.Clear();
             HideValidation();
             RefreshStageUi(); // hides Advance — nothing to advance until this is saved
         }

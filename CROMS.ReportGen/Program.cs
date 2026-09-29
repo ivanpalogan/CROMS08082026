@@ -99,6 +99,20 @@ namespace CROMS.ReportGen
                 BuildLetterReport(seed, outDir, OfficeMissionCert.RptFile, OfficeMissionCert.PageWidth, OfficeMissionCert.PageHeight,
                     OfficeMissionCert.Cells, OfficeMissionCert.BuildTable(), mvcBlank);
                 Console.WriteLine("wrote : " + Path.Combine(outDir, OfficeMissionCert.RptFile));
+
+                // Client Service Slip: only written when absent, because the office edits this
+                // report freely in the Crystal designer and regenerating would overwrite that.
+                // Pass --force-slip to rebuild it from ClientServiceSlip.Cells.
+                string slipTarget = Path.Combine(outDir, ClientServiceSlip.RptFile);
+                if (!File.Exists(slipTarget) || Array.IndexOf(args, "--force-slip") >= 0)
+                {
+                    string slipBlank = ClientServiceSlip.RenderBlankTemplate(outDir);
+                    Console.WriteLine("blank : " + slipBlank + " (generated)");
+                    BuildLetterReport(seed, outDir, ClientServiceSlip.RptFile, ClientServiceSlip.PageWidth, ClientServiceSlip.PageHeight,
+                        ClientServiceSlip.ReportCells(), ClientServiceSlip.BuildTable("", null), slipBlank);
+                    Console.WriteLine("wrote : " + slipTarget);
+                }
+                else Console.WriteLine("keep  : " + slipTarget + " (already exists - edited freely in the designer)");
                 return 0;
             }
             catch (Exception ex) { Console.WriteLine("FAILED: " + ex); return 1; }
