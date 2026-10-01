@@ -358,6 +358,7 @@ namespace CROMS.Forms
             var inner = new Panel { Padding = new Padding(12, 6, 2, 6), BackColor = Color.Transparent };
             p.First = MUi.Box(); p.Middle = MUi.Box(); p.Last = MUi.Box();
             p.Dob = MUi.Date(true); p.Age = MUi.Txt("-", 10F, FontStyle.Bold, UiTheme.Muted);
+            p.Dob.MaxDate = DateTime.Today; // a birth date cannot be in the future
             // Country/Province/Municipality, same trio and the same GeoLookup wiring as Birth
             // Registration and the Marriage Licence (Form 90) - editable so a foreign locality
             // can be typed, matching every other place-of-birth field in the app (2026-09-14).
