@@ -335,7 +335,10 @@ namespace CROMS.Forms
             OthersBox.Bind(_cboInfRel, txtInfRelOther, lblInfRelOther);
             InitializeAddAnotherBirthButton();
             InitializeWizardChrome();
+            PrepareFieldMessages();
             InitializePendingApproval();
+            // The shell styles the grids the first time the module is shown; this runs after that.
+            Load += delegate { ApplyListLayout(); };
             chkDelayed.CheckedChanged += (s, e) => RefreshRequirementsTab();
 
             // Auto-save: any typed change anywhere in the tabs marks the form dirty; a
@@ -457,18 +460,19 @@ namespace CROMS.Forms
                 Dock = DockStyle.Fill,
                 FlowDirection = FlowDirection.RightToLeft,
                 WrapContents = false,
-                Padding = new Padding(0, 10, 0, 0)
+                Padding = new Padding(0, 12, 0, 0)
             };
+            _entryFooter = footer;
             if (_btnClearForm == null)
             {
                 _btnClearForm = new Button
                 {
-                    Width = 110,
-                    Height = 40,
+                    Width = 150,
+                    Height = 56,
                     Text = "Clear",
                     FlatStyle = FlatStyle.Flat,
-                    Font = new System.Drawing.Font("Segoe UI", 9.75F),
-                    Margin = new Padding(10, 0, 0, 0)
+                    Font = Px(PxButton, System.Drawing.FontStyle.Bold),
+                    Margin = new Padding(12, 0, 0, 0)
                 };
                 _btnClearForm.Click += btnClearForm_Click;
             }
@@ -478,12 +482,12 @@ namespace CROMS.Forms
             {
                 _btnPrintFooter = new Button
                 {
-                    Width = 230,
-                    Height = 40,
+                    Width = 260,
+                    Height = 56,
                     Text = "Print Certificate",
                     FlatStyle = FlatStyle.Flat,
-                    Font = new System.Drawing.Font("Segoe UI", 9.75F),
-                    Margin = new Padding(10, 0, 0, 0)
+                    Font = Px(PxButton, System.Drawing.FontStyle.Bold),
+                    Margin = new Padding(12, 0, 0, 0)
                 };
                 _btnPrintFooter.Click += btnPrintCert_Click;
             }
@@ -502,23 +506,30 @@ namespace CROMS.Forms
                 Padding = new Padding(20, 16, 20, 12),
                 BackColor = UiTheme.PageBg
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 120));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             root.Controls.Add(pnlHeader, 0, 0);
             root.Controls.Add(cardForm, 0, 1);
             root.Controls.Add(footer, 0, 2);
+            _entryRoot = root;
 
+            // Fill most of the usable screen (92%, 97% on a short one), centred, and never ask
+            // for more than the screen has. Below the floor the popup scrolls rather than squashing.
+            System.Drawing.Rectangle wa = Screen.FromControl(this).WorkingArea;
+            System.Drawing.Size want = EntryDialogSize(wa);
             var dlg = new Form
             {
                 Text = "Birth Registration - Municipal Form 102",
                 StartPosition = FormStartPosition.CenterParent,
-                ClientSize = new System.Drawing.Size(1245, 900),
-                MinimumSize = new System.Drawing.Size(1040, 720),
+                ClientSize = want,
+                MinimumSize = new System.Drawing.Size(Math.Min(900, wa.Width), Math.Min(560, wa.Height)),
                 MaximizeBox = true,
                 MinimizeBox = true,
                 ShowIcon = false,
-                BackColor = UiTheme.PageBg
+                BackColor = UiTheme.PageBg,
+                AutoScroll = true,
+                AutoScrollMinSize = new System.Drawing.Size(1120, 650)
             };
             dlg.Controls.Add(root);
             _entryDialog = dlg;
@@ -527,6 +538,13 @@ namespace CROMS.Forms
             // has to style itself, same convention as every other dialog in Forms/
             // (MarriageLicenseForm, DelayedBirthCaseForm).
             UiTheme.Polish(dlg);
+            // Readable type, measured input height, tier spacing - after Polish, which would
+            // otherwise have the last word on fonts.
+            ApplyEntryFontsOnce();
+            _appliedKey = -1;
+            ApplyEntryTier();
+            dlg.Resize += delegate { ApplyEntryTier(); };
+            dlg.Shown += delegate { _appliedKey = -1; ApplyEntryTier(); };
             StartAutoSave();
 
             dlg.ShowDialog(this);
@@ -1062,6 +1080,7 @@ namespace CROMS.Forms
                 "FROM births WHERE status <> 'Pending Approval' ORDER BY id DESC");
             dgvBirths.DataSource = dt;
             if (dgvBirths.Columns.Contains("id")) dgvBirths.Columns["id"].Visible = false;
+            if (_listStyled) ReapplyListGrids();
             ApplySearchFilter();
 
             LoadPendingBirths();
@@ -1149,6 +1168,7 @@ namespace CROMS.Forms
                 "FROM births WHERE status = 'Pending Approval' ORDER BY id DESC");
             _dgvPending.DataSource = dt;
             if (_dgvPending.Columns.Contains("id")) _dgvPending.Columns["id"].Visible = false;
+            if (_listStyled) ReapplyListGrids();
             _btnApprovePending.Enabled = false;
         }
 
@@ -1986,49 +2006,40 @@ namespace CROMS.Forms
 
         private bool ValidateChild()
         {
-            if (string.IsNullOrWhiteSpace(txtFirstName.Text) ||
-                string.IsNullOrWhiteSpace(txtLastName.Text) ||
-                cboSex.SelectedItem == null)
+            // Every problem is written under its own field at once; the clerk is taken to the first.
+            ClearAllFieldMessages();
+            Control first = null;
+            TabPage firstTab = null;
+            Action<Control, TabPage, string[]> flag = (c, tab, text) =>
             {
-                MessageBox.Show("Child's first name, last name and sex are required.",
-                    "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                tabControl.SelectedTab = tabChild;
-                return false;
-            }
+                ShowFieldMessage(c, text);
+                if (first == null) { first = c; firstTab = tab; }
+            };
+
+            if (string.IsNullOrWhiteSpace(txtFirstName.Text))
+                flag(txtFirstName, tabChild, new[] { "Please enter the child's first name.", "Enter the first name." });
+            if (string.IsNullOrWhiteSpace(txtLastName.Text))
+                flag(txtLastName, tabChild, new[] { "Please enter the child's last name.", "Enter the last name." });
+            if (cboSex.SelectedItem == null)
+                flag(cboSex, tabChild, new[] { "Please select the child's sex.", "Select the sex." });
             if (dtpDob.Value.Date > DateTime.Today)
-            {
-                MessageBox.Show("The date of birth is in the future. A child cannot be registered before being born.",
-                    "Invalid date of birth", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                tabControl.SelectedTab = tabChild;
-                dtpDob.Focus();
-                return false;
-            }
+                flag(dtpDob, tabChild, new[] { "The date of birth cannot be in the future.", "Date is in the future." });
             // Covers a form left open past midnight, when MaxDate is stale.
             if (tglParentsMarried.Checked && dtpMarrDate.Checked && dtpMarrDate.Value.Date > DateTime.Today)
-            {
-                MessageBox.Show("The parents' date of marriage is in the future.",
-                    "Invalid date of marriage", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                tabControl.SelectedTab = tabMarriage;
-                dtpMarrDate.Focus();
-                return false;
-            }
+                flag(dtpMarrDate, tabMarriage, new[] { "The parents' date of marriage cannot be in the future.", "Date is in the future." });
             // Same stale-MaxDate guard for the certification dates (form left open past midnight).
             var signed = new[]
             {
-                (dtpAttDate, "attendant", tabAttendant), (dtpInfDate, "informant", tabInformant),
-                (dtpPreparedDate, "prepared by", tabCert), (dtpReceivedDate, "received by", tabCert),
-                (dtpRegisteredDate, "registered by", tabCert),
+                (dtpAttDate, tabAttendant), (dtpInfDate, tabInformant),
+                (dtpPreparedDate, tabCert), (dtpReceivedDate, tabCert), (dtpRegisteredDate, tabCert),
             };
-            foreach (var (dtp, label, tab) in signed)
+            foreach (var (dtp, tab) in signed)
                 if (dtp.Checked && dtp.Value.Date > DateTime.Today)
-                {
-                    MessageBox.Show("The " + label + " date signed is in the future.",
-                        "Invalid date", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    tabControl.SelectedTab = tab;
-                    dtp.Focus();
-                    return false;
-                }
-            return true;
+                    flag(dtp, tab, new[] { "The date signed cannot be in the future.", "Date is in the future." });
+
+            if (first == null) return true;
+            FocusField(first, firstTab);
+            return false;
         }
 
         /// <summary>Common titles / positions of whoever attended the birth (Form 102 item 21b / 19b).</summary>
@@ -2089,6 +2100,7 @@ namespace CROMS.Forms
 
             _dateRegistered = null;   // a fresh entry is registered today, not on some past date
             RecomputeDelayed();       // sets the box from the (now reset) date of birth
+            ClearAllFieldMessages();  // a fresh form carries no complaints from the last one
         }
 
         private IEnumerable<Control> EnumerateInputs(Control parent)
@@ -2331,9 +2343,14 @@ namespace CROMS.Forms
             tabRequirements = new TabPage("Requirements");
             _reqHost = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(20), BackColor = System.Drawing.Color.White };
             tabRequirements.Controls.Add(_reqHost);
-            tabControl.TabPages.Insert(tabControl.TabPages.IndexOf(tabCert), tabRequirements);
+            // TabPages.Insert before the control's handle exists adds the page to Controls but not
+            // to TabPages, so the strip had 8 steps and the tabs 7 and "Requirements" opened
+            // Certification. Controls.Add (what the Designer itself uses) works without a handle.
+            tabControl.Controls.Remove(tabCert);
+            tabControl.Controls.Add(tabRequirements);
+            tabControl.Controls.Add(tabCert);
 
-            _stepStrip = new StepStrip(true);
+            _stepStrip = new StepStrip(true) { Large = true, Height = 76 };
             string[] subs =
             {
                 "child's own particulars",
@@ -2347,7 +2364,12 @@ namespace CROMS.Forms
             };
             var pages = new[] { tabChild, tabMother, tabFather, tabMarriage, tabAttendant, tabInformant, tabRequirements, tabCert };
             for (int i = 0; i < pages.Length; i++)
-                _stepStrip.AddStep(pages[i].Text, i < subs.Length ? subs[i] : "");
+            {
+                // "Marriage of Parents" will not fit a step on a narrow screen; the strip is
+                // navigation, so it carries the short name and the full wording stays in the sub-line.
+                string title = pages[i] == tabMarriage ? "Marriage" : pages[i].Text;
+                _stepStrip.AddStep(title, i < subs.Length ? subs[i] : "");
+            }
             _reqStepIndex = Array.IndexOf(pages, tabRequirements);
             _stepStrip.StepClicked += i => GoToStep(i);
             tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); };
@@ -2370,6 +2392,7 @@ namespace CROMS.Forms
             wizardBody.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
             wizardBody.Controls.Add(_tabHost, 0, 0);
             wizardBody.Controls.Add(_railPanel, 1, 0);
+            _wizardBody = wizardBody;
 
             // An explicit row (not a Dock=Top/Fill stack) so the step strip's own 54px
             // height is never squeezed by however Dock stacking resolves add order -
@@ -2379,6 +2402,7 @@ namespace CROMS.Forms
             wizardRoot.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             wizardRoot.Controls.Add(_stepStrip, 0, 0);
             wizardRoot.Controls.Add(wizardBody, 0, 1);
+            _wizardRoot = wizardRoot;
 
             _wizardHost = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
             _wizardHost.Controls.Add(wizardRoot);
@@ -2437,45 +2461,54 @@ namespace CROMS.Forms
             _railPanel.Controls.Clear();
 
             var items = new List<Control>();
-            items.Add(MUi.Cap("Registration at a glance"));
-            items.Add(MUi.Kv("Registry No.", string.IsNullOrWhiteSpace(txtRegNo.Text) ? "(assigned on save)" : txtRegNo.Text));
+            items.Add(RailCap("Registration at a glance"));
+            items.Add(RailKv("Registry No.", string.IsNullOrWhiteSpace(txtRegNo.Text) ? "(on save)" : txtRegNo.Text));
 
             string childName = ((txtLastName.Text ?? "").Trim() + ", " + (txtFirstName.Text ?? "").Trim()).Trim(' ', ',');
-            items.Add(MUi.Kv("Child", string.IsNullOrWhiteSpace(childName) ? "-" : childName));
-            items.Add(MUi.Kv("Date of birth", dtpDob.Value.ToString("dd MMM yyyy")));
-            items.Add(MUi.Kv("Delayed?", chkDelayed.Checked ? "Yes" : "No"));
+            items.Add(RailKv("Child", string.IsNullOrWhiteSpace(childName) ? "-" : childName));
+            items.Add(RailKv("Date of birth", dtpDob.Value.ToString("dd MMM yyyy")));
+            items.Add(RailKv("Delayed?", chkDelayed.Checked ? "Yes" : "No"));
 
-            var stage = new FlowLayoutPanel { Height = 34, BackColor = System.Drawing.Color.Transparent, Padding = new Padding(0, 6, 0, 0), Dock = DockStyle.Top };
-            stage.Controls.Add(MUi.Txt("Current status", 9F, System.Drawing.FontStyle.Regular, UiTheme.Muted));
-            stage.Controls.Add(MUi.Pill((cboStatus.Text ?? "Draft").ToUpperInvariant(), cboStatus.Text));
+            var stage = new FlowLayoutPanel { Height = 44, BackColor = System.Drawing.Color.Transparent, Padding = new Padding(0, 8, 0, 0), Dock = DockStyle.Top };
+            var stageKey = MUi.Txt("Current status", 9F, System.Drawing.FontStyle.Regular, UiTheme.Muted);
+            stageKey.Font = Px(17f);
+            stageKey.Margin = new Padding(0, 5, 8, 0);
+            stage.Controls.Add(stageKey);
+            StatusPill pill = MUi.Pill((cboStatus.Text ?? "Draft").ToUpperInvariant(), cboStatus.Text);
+            pill.Font = Px(15f, System.Drawing.FontStyle.Bold);
+            stage.Controls.Add(pill);
             items.Add(stage);
 
-            if (tabControl.SelectedIndex >= 0)
+            // The strip already says which step this is; on a short screen the line is the first thing to go.
+            if (tabControl.SelectedIndex >= 0 && _appliedKey / 10 != 2)
             {
-                var stepLine = new FlowLayoutPanel { Height = 22, BackColor = System.Drawing.Color.Transparent, Dock = DockStyle.Top };
+                var stepLine = new FlowLayoutPanel { Height = 34, BackColor = System.Drawing.Color.Transparent, Dock = DockStyle.Top };
                 int stepNo = tabControl.SelectedIndex + 1, stepTotal = tabControl.TabPages.Count;
-                stepLine.Controls.Add(MUi.Txt("Step " + stepNo + " of " + stepTotal + " - " + tabControl.TabPages[tabControl.SelectedIndex].Text,
-                    9F, System.Drawing.FontStyle.Regular, UiTheme.Muted));
+                var stepTxt = MUi.Txt("Step " + stepNo + " of " + stepTotal + " - " + tabControl.TabPages[tabControl.SelectedIndex].Text,
+                    9F, System.Drawing.FontStyle.Regular, UiTheme.Muted);
+                stepTxt.Font = Px(17f);
+                stepLine.Controls.Add(stepTxt);
                 items.Add(stepLine);
             }
 
-            items.Add(MUi.Cap("Outstanding"));
+            items.Add(RailCap("Outstanding"));
             List<RuleIssue> issues = OutstandingIssues();
 
-            var issueList = new IssueList { Height = 190, Dock = DockStyle.Top };
+            // The list takes what is left of the rail after the fixed rows above and the banner below.
+            int listH = Math.Max(120, Math.Min(300, _railPanel.ClientSize.Height - 400));
+            var issueList = new IssueList { Large = true, Height = listH, Dock = DockStyle.Top };
             issueList.FixRequested += tabName => { int idx = TabIndexByText(tabName); if (idx >= 0) GoToStep(idx); };
             issueList.SetIssues(issues, "Every required field for this record is filled in.");
-            items.Add(issueList);
-
             int blocking = 0;
             foreach (RuleIssue i in issues) if (i.Severity == RuleSeverity.Blocking) blocking++;
 
-            var banner = new Banner();
+            var banner = new Banner { Large = true };
             if (blocking == 0 && issues.Count == 0) banner.Set(RuleSeverity.Info, "Ready to save.", "All checks pass.", true);
             else if (blocking == 0) banner.Set(RuleSeverity.Warning, "Recommended fields missing.", "Can still be saved as a draft.");
             else banner.Set(RuleSeverity.Blocking, blocking + " REQUIRED FIELD" + (blocking == 1 ? "" : "S") + " MISSING", "Submit for Approval will be refused.");
-            items.Add(new Panel { Height = 10, BackColor = System.Drawing.Color.Transparent, Dock = DockStyle.Top });
+            // The verdict sits ABOVE the list so it is never scrolled out of sight on a short screen.
             items.Add(banner);
+            items.Add(issueList);
 
             StackRail(_railPanel, items.ToArray());
             _railPanel.ResumeLayout();
@@ -2725,10 +2758,12 @@ namespace CROMS.Forms
                               : string.IsNullOrWhiteSpace(txtLastName.Text) ? txtLastName : null;
                 if (empty != null)
                 {
-                    MessageBox.Show("Fill in the child's first name and last name before going to the next step.",
-                        "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    tabControl.SelectedTab = tabChild;
-                    empty.Focus();
+                    ClearAllFieldMessages();
+                    if (string.IsNullOrWhiteSpace(txtFirstName.Text))
+                        ShowFieldMessage(txtFirstName, "Please enter the child's first name.", "Enter the first name.");
+                    if (string.IsNullOrWhiteSpace(txtLastName.Text))
+                        ShowFieldMessage(txtLastName, "Please enter the child's last name.", "Enter the last name.");
+                    FocusField(empty, tabChild);
                     return;
                 }
             }
@@ -2784,7 +2819,8 @@ namespace CROMS.Forms
                 Margin = tb.Margin,
                 Anchor = tb.Anchor,
                 Height = captioned ? 43 : 25,
-                BackColor = System.Drawing.Color.Transparent
+                BackColor = System.Drawing.Color.Transparent,
+                Tag = captioned ? LookupCaptioned : LookupPlain   // the layout pass resizes by this
             };
             // A placeholder anchored Left only is a deliberately narrow field (an age, a birth
             // order); one anchored to both sides is meant to fill its column.
@@ -2919,9 +2955,14 @@ namespace CROMS.Forms
                 dtp.Value = DateTime.Today.Add(ts);
         }
 
-        private static void Fail(Exception ex) =>
-            MessageBox.Show("Operation failed: " + ex.Message, "Error",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        /// <summary>
+        /// A failed save or load: one short sentence for the clerk, the technical detail in
+        /// %TEMP%\croms-error.log (see <see cref="ErrorLog"/>). Never the exception text.
+        /// </summary>
+        private static void Fail(Exception ex)
+        {
+            ErrorLog.Report(null, "BirthRegistrationForm", ex, "save");
+        }
 
     }
 }

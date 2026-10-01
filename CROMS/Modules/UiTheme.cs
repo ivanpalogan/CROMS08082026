@@ -172,7 +172,7 @@ namespace CROMS.Modules
 
             float size = BodySize(c, f.Size);
             if (fam == BaseFamily && size == f.Size) return;
-            c.Font = new Font(BaseFamily, size, f.Style);
+            c.Font = new Font(BaseFamily, size, f.Style, f.Unit);
         }
 
         /// <summary>Every field label on every screen.</summary>
@@ -240,7 +240,7 @@ namespace CROMS.Modules
             b.UseVisualStyleBackColor = false;
             b.FlatStyle = FlatStyle.Flat;
             b.FlatAppearance.BorderSize = 0;                 // no border → clean rounded corners
-            b.Font = new Font("Segoe UI", b.Font.Size, FontStyle.Bold);
+            b.Font = new Font("Segoe UI", b.Font.Size, FontStyle.Bold, b.Font.Unit);   // keep the unit: a 22px font must not become 22pt
 
             Color bg = b.BackColor;
             bool neutral = bg == Color.Empty || bg == SystemColors.Control || bg == Color.White

@@ -559,6 +559,21 @@ namespace CROMS.Forms
         // the title (seen in the Form 90 posting render).
         private bool _hasBody;
 
+        /// <summary>Pixel-sized type for screens that run the larger, easier-to-read scale.</summary>
+        public bool Large
+        {
+            get { return _large; }
+            set
+            {
+                _large = value;
+                _title.Font = value ? new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Pixel) : MUi.F(9.25F, FontStyle.Bold);
+                _body.Font = value ? new Font("Segoe UI", 16F, FontStyle.Regular, GraphicsUnit.Pixel) : MUi.F(9F);
+                Padding = value ? new Padding(18, 12, 14, 12) : new Padding(16, 9, 12, 9);
+                Reflow();
+            }
+        }
+        private bool _large;
+
         public Banner()
         {
             Dock = DockStyle.Top; Padding = new Padding(16, 9, 12, 9); Margin = new Padding(0, 0, 0, 10);
@@ -621,6 +636,10 @@ namespace CROMS.Forms
     {
         public event Action<string> FixRequested;
 
+        /// <summary>Pixel-sized type for screens that run the larger, easier-to-read scale.</summary>
+        public bool Large { get; set; }
+        private int Off { get { return Large ? 76 : 52; } }
+
         public IssueList()
         {
             FlowDirection = FlowDirection.TopDown; WrapContents = false; AutoScroll = true;
@@ -637,6 +656,7 @@ namespace CROMS.Forms
             if (list.Count == 0 && emptyText != null)
             {
                 var ok = MUi.Txt("✓  " + emptyText, 9F, FontStyle.Bold, UiTheme.Success);
+                if (Large) ok.Font = new Font("Segoe UI", 17F, FontStyle.Bold, GraphicsUnit.Pixel);
                 Controls.Add(ok); Fit(ok);
             }
             foreach (RuleIssue i in list) Controls.Add(Row(i));
@@ -650,13 +670,20 @@ namespace CROMS.Forms
                        : i.Severity == RuleSeverity.Warning ? "CHECK" : "NOTE";
             Color ink = i.Severity == RuleSeverity.Warning ? UiTheme.Warning : i.Severity == RuleSeverity.Info ? UiTheme.Accent : UiTheme.Danger;
             var t = MUi.Txt(tag, 7.5F, FontStyle.Bold, ink); t.Location = new Point(0, 2);
-            var m = MUi.Txt(i.Message, 9F); m.Location = new Point(52, 0);
+            var m = MUi.Txt(i.Message, 9F); m.Location = new Point(Off, 0);
+            if (Large)
+            {
+                t.Font = new Font("Segoe UI", 13F, FontStyle.Bold, GraphicsUnit.Pixel); t.Location = new Point(0, 3);
+                m.Font = new Font("Segoe UI", 17F, FontStyle.Regular, GraphicsUnit.Pixel);
+            }
             p.Controls.Add(t); p.Controls.Add(m);
             if (!string.IsNullOrEmpty(i.FixWhere))
             {
                 var link = new LinkLabel
                 {
-                    Text = "Open " + i.FixWhere, AutoSize = true, Font = MUi.F(8.5F, FontStyle.Bold), LinkColor = UiTheme.Accent,
+                    Text = "Open " + i.FixWhere, AutoSize = true,
+                    Font = Large ? new Font("Segoe UI", 15F, FontStyle.Bold, GraphicsUnit.Pixel) : MUi.F(8.5F, FontStyle.Bold),
+                    LinkColor = UiTheme.Accent,
                     ActiveLinkColor = UiTheme.AccentHover, BackColor = Color.Transparent, UseMnemonic = false, Tag = i.FixWhere
                 };
                 link.LinkClicked += (s, e) => { var h = FixRequested; if (h != null) h((string)link.Tag); };
@@ -674,9 +701,9 @@ namespace CROMS.Forms
             Label msg = row.Controls.OfType<Label>().Skip(1).FirstOrDefault();
             LinkLabel link = row.Controls.OfType<LinkLabel>().FirstOrDefault();
             if (msg == null) return;
-            msg.MaximumSize = new Size(Math.Max(60, w - 56), 0);
+            msg.MaximumSize = new Size(Math.Max(60, w - Off - 4), 0);
             int bottom = msg.Bottom;
-            if (link != null) { link.Location = new Point(52, msg.Bottom + 1); bottom = link.Bottom; }
+            if (link != null) { link.Location = new Point(Off, msg.Bottom + 1); bottom = link.Bottom; }
             row.Height = bottom + 2;
         }
     }
@@ -696,6 +723,69 @@ namespace CROMS.Forms
         private readonly bool _numbered;
         private int _hover = -1;
         public event Action<int> StepClicked;
+
+        /// <summary>
+        /// Larger pixel-sized type for screens that run the readable scale (Birth Registration).
+        /// The caller also sets <see cref="Control.Height"/>. The small one-line caption under each
+        /// title is dropped when a step is too narrow to show it without cutting it off, so a
+        /// title is never truncated to make room for a hint.
+        /// </summary>
+        public bool Large { get; set; }
+
+        private static readonly Font LgTitle = new Font("Segoe UI", 18F, FontStyle.Bold, GraphicsUnit.Pixel);
+        private static readonly Font LgTitleNarrow = new Font("Segoe UI", 16F, FontStyle.Bold, GraphicsUnit.Pixel);
+        private static readonly Font LgSub = new Font("Segoe UI", 14F, FontStyle.Regular, GraphicsUnit.Pixel);
+        private static readonly Font LgNum = new Font("Segoe UI", 15F, FontStyle.Bold, GraphicsUnit.Pixel);
+
+        private void PaintLarge(Graphics g)
+        {
+            using (var line = new Pen(UiTheme.CardLine))
+            {
+                int cellW = Width / Math.Max(1, _titles.Count);
+                bool showSub = cellW >= 205;
+                // A narrow step gives up a little dot and padding so the title is not cut off.
+                bool narrow = cellW < 190;
+                int dotD = narrow ? 26 : 30;
+                Font titleFont = narrow ? LgTitleNarrow : LgTitle;
+                for (int i = 0; i < _titles.Count; i++)
+                {
+                    Rectangle r = Cell(i);
+                    State st = _states[i];
+                    if (st == State.Current) using (var b = new SolidBrush(Color.White)) g.FillRectangle(b, r);
+                    else if (i == _hover) using (var b = new SolidBrush(Color.FromArgb(243, 246, 251))) g.FillRectangle(b, r);
+                    if (i < _titles.Count - 1) g.DrawLine(line, r.Right - 1, 10, r.Right - 1, r.Bottom - 10);
+
+                    int x = r.X + (narrow ? 9 : 14);
+                    Color ink = st == State.Locked ? UiTheme.Faint : UiTheme.Ink;
+                    var dot = new Rectangle(x, (Height - dotD) / 2 - 1, dotD, dotD);
+                    Color fill = st == State.Done ? UiTheme.Success : st == State.Current ? UiTheme.Accent : UiTheme.Chrome;
+                    using (var b = new SolidBrush(fill)) g.FillEllipse(b, dot);
+                    TextRenderer.DrawText(g, st == State.Done ? "✓" : (i + 1).ToString(), LgNum, dot,
+                        st == State.Done || st == State.Current ? Color.White : UiTheme.Muted,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                    x = dot.Right + (narrow ? 7 : 10);
+
+                    int right = r.Right - (_badges[i] > 0 ? 44 : (narrow ? 4 : 10));
+                    Color tcol = st == State.Current ? UiTheme.Accent : ink;
+                    int titleY = showSub ? 14 : (Height - 26) / 2 - 1;
+                    TextRenderer.DrawText(g, _titles[i], titleFont, new Rectangle(x, titleY, Math.Max(10, right - x), 26), tcol,
+                        TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+                    if (showSub)
+                        TextRenderer.DrawText(g, _subs[i] ?? "", LgSub, new Rectangle(x, 41, Math.Max(10, right - x), 22), UiTheme.Faint,
+                            TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding);
+                    if (_badges[i] > 0)
+                    {
+                        var bd = new Rectangle(r.Right - 38, (Height - 24) / 2, 26, 24);
+                        using (GraphicsPath p = CardPanel.Pill(bd)) using (var b = new SolidBrush(UiTheme.Danger)) g.FillPath(b, p);
+                        TextRenderer.DrawText(g, _badges[i].ToString(), LgNum, bd, Color.White,
+                            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                    }
+                    if (st == State.Current)
+                        using (var b = new SolidBrush(UiTheme.Accent)) g.FillRectangle(b, r.X, r.Bottom - 4, r.Width, 4);
+                }
+                g.DrawLine(line, 0, Height - 1, Width, Height - 1);
+            }
+        }
 
         public StepStrip(bool numbered)
         {
@@ -737,6 +827,7 @@ namespace CROMS.Forms
             Graphics g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(BackColor);
+            if (Large) { PaintLarge(g); return; }
             using (var line = new Pen(UiTheme.CardLine))
             {
                 for (int i = 0; i < _titles.Count; i++)

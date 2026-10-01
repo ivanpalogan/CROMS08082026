@@ -209,6 +209,9 @@
     <Compile Include="Forms\BirthRegistrationForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\BirthRegistrationForm.Layout.cs">
+      <DependentUpon>BirthRegistrationForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\BirthRegistrationForm.Designer.cs">
       <DependentUpon>BirthRegistrationForm.cs</DependentUpon>
     </Compile>
@@ -539,6 +542,7 @@
       <DependentUpon>CollectionsReportForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Data\Db.cs" />
+    <Compile Include="Data\ErrorLog.cs" />
     <Compile Include="Data\RegistryNumber.cs" />
     <Compile Include="Data\MarriageRules.cs" />
     <Compile Include="Data\MarriageService.cs" />
