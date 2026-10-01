@@ -275,6 +275,7 @@ namespace CROMS.Forms
                         empty.Focus();
                         return;
                     }
+                    if (WarnIfUnderage()) { ShowTab(0); return; }
                 }
                 ShowTab(i);
             };
@@ -1593,6 +1594,27 @@ namespace CROMS.Forms
             return v;
         }
 
+        /// <summary>RA 11596 hard stop: a party under 18 on the marriage date (today when no date is
+        /// entered yet) cannot be registered. Shows the warning, focuses that party's date of birth and
+        /// returns true when it blocks.</summary>
+        private bool WarnIfUnderage()
+        {
+            MarriageFacts m = UiFacts();
+            DateTime on = m.DateOfMarriage ?? DateTime.Today;
+            foreach (var pair in new[] { Tuple.Create(_h, m.Husband, "husband"), Tuple.Create(_w, m.Wife, "wife") })
+            {
+                if (!pair.Item2.Dob.HasValue || pair.Item2.Dob.Value.Date > on.Date) continue;
+                int a = MarriageRules.AgeOn(pair.Item2.Dob.Value, on);
+                if (a >= 18) continue;
+                MessageBox.Show(this, "The " + pair.Item3 + " is only " + a + " years old" + (m.DateOfMarriage.HasValue ? " on the date of marriage" : " today") +
+                    ".\n\nA party must be at least 18 to marry (RA 11596; Family Code Art. 5). Check the date of birth - if it was mistyped, correct it; otherwise this marriage cannot proceed.",
+                    "Cannot proceed - under 18", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                pair.Item1.Dob.Focus();
+                return true;
+            }
+            return false;
+        }
+
         private bool Save(string status)
         {
             if (string.IsNullOrWhiteSpace(_h.Last.Text) && string.IsNullOrWhiteSpace(_w.Last.Text))
@@ -1601,6 +1623,7 @@ namespace CROMS.Forms
                 ShowTab(0);
                 return false;
             }
+            if (WarnIfUnderage()) { ShowTab(0); return false; }
             try
             {
                 _id = MarriageService.SaveMarriage(_id, Values(status ?? (_status == "Registered" ? null : _status)));
@@ -1816,7 +1839,9 @@ namespace CROMS.Forms
                 if (pair.Item2.Dob.HasValue)
                 {
                     int a = MarriageRules.AgeOn(pair.Item2.Dob.Value, on);
-                    pair.Item1.Age.Text = a + " years" + (m.DateOfMarriage.HasValue ? " on " + MUi.Short(m.DateOfMarriage) : " (today - enter marriage date)");
+                    pair.Item1.Age.Text = a < 18
+                        ? a + " years - UNDER 18, cannot proceed"
+                        : a + " years" + (m.DateOfMarriage.HasValue ? " on " + MUi.Short(m.DateOfMarriage) : " (as of today)");
                     pair.Item1.Age.ForeColor = a < 18 ? UiTheme.Danger : UiTheme.Ink;
                 }
                 else { pair.Item1.Age.Text = "- enter date of birth"; pair.Item1.Age.ForeColor = UiTheme.Faint; }
