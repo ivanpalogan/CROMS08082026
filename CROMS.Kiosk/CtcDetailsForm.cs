@@ -25,6 +25,7 @@ namespace CROMS.Kiosk
     public sealed partial class CtcDetailsForm : Form, IMessageFilter
     {
         private readonly KioskSession _session;
+        private readonly TextBox _purposeSpecify, _relationshipSpecify;
         private Timer _idle;
         private Action _resetIdle;
         // Set by every DELIBERATE close so OnFormClosing can tell navigation from a real quit
@@ -36,7 +37,10 @@ namespace CROMS.Kiosk
             _session = session;
             InitializeComponent();
             SetupGeo();
-            OthersBox.AttachInline(_purpose, 80);
+            // "Other" / "Others" opens a "Please specify" box beside the dropdown; it is stored as
+            // "Other - <detail>" (the 80 is the column width, so the whole value always fits).
+            _purposeSpecify = OthersBox.AttachInline(_purpose, 80);
+            _relationshipSpecify = OthersBox.AttachInline(_relationship, 80);
             // One name rule for every name box (see NameField). A full stop is kept because "Ma.
             // Cristina" (first name), "A." (middle initial) and "Jr." (suffix) are all normal. The
             // middle name may be left blank. AutoCaps only capitalises the first letter of a word.
@@ -131,6 +135,18 @@ namespace CROMS.Kiosk
                 _document.Focus();
                 return;
             }
+            if (OthersBox.IsOthers(_relationship.Text) && string.IsNullOrWhiteSpace(_relationshipSpecify.Text))
+            {
+                Warn("Please specify your relationship to the record owner.");
+                _relationshipSpecify.Focus();
+                return;
+            }
+            if (OthersBox.IsOthers(_purpose.Text) && string.IsNullOrWhiteSpace(_purposeSpecify.Text))
+            {
+                Warn("Please specify the purpose of your request.");
+                _purposeSpecify.Focus();
+                return;
+            }
             if (!NameField.HasLetter(_ownerFirst.Text) || !NameField.HasLetter(_ownerLast.Text))
             {
                 Warn(_document.SelectedItem as string == "Marriage"
@@ -164,7 +180,7 @@ namespace CROMS.Kiosk
             if (!string.IsNullOrWhiteSpace(_session.CtcDocumentType)) _document.SelectedItem = _session.CtcDocumentType;
             _copies.SelectedItem = Math.Max(1, Math.Min(10, _session.CtcCopies)).ToString();
             OthersBox.SetValue(_purpose, _session.CtcPurpose);
-            _relationship.Text = _session.CtcRelationship ?? "";
+            OthersBox.SetValue(_relationship, _session.CtcRelationship);
             _registryNo.Text = _session.CtcRegistryNo ?? "";
             _ownerFirst.Text = _session.CtcOwnerFirst ?? "";
             _ownerMiddle.Text = _session.CtcOwnerMiddle ?? "";
@@ -186,7 +202,7 @@ namespace CROMS.Kiosk
             int copies;
             _session.CtcCopies = int.TryParse(_copies.SelectedItem as string, out copies) ? copies : 1;
             _session.CtcPurpose = Trim(OthersBox.Value(_purpose));
-            _session.CtcRelationship = Trim(_relationship.Text);
+            _session.CtcRelationship = Trim(OthersBox.Value(_relationship));
             _session.CtcRegistryNo = Trim(_registryNo.Text);
             _session.CtcOwnerFirst = Trim(NameField.Clean(_ownerFirst.Text, true));
             _session.CtcOwnerMiddle = Trim(NameField.Clean(_ownerMiddle.Text, true));

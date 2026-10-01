@@ -151,22 +151,23 @@ namespace CROMS.Kiosk
             _document.DropDownStyle = ComboBoxStyle.DropDownList;
             _document.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });
             _document.SelectedIndexChanged += new EventHandler(Document_SelectedIndexChanged);
-            Row(Field("Document type *", _document), 0, 4);
+            Row(Field("Document Type *", _document), 0, 3);
 
             _copies.DropDownStyle = ComboBoxStyle.DropDownList;
             for (int i = 1; i <= 10; i++) _copies.Items.Add(i.ToString());
-            Cell(Field("Copies", _copies), 4, 2);
+            Cell(Field("Number of Copies", _copies), 3, 3);
 
             _purpose.Items.AddRange(KioskCore.CtcPurposes);
-            Cell(Field("Purpose", _purpose), 6, 6);
+            Cell(Field("Purpose of Request", _purpose), 6, 6);
 
             // --- whose record -------------------------------------------------
             _ownerCaption.Text = "WHOSE RECORD";
             Row(Section(_ownerCaption), 0, GridCols);
 
             Row(Field("Registry number (if you know it)", _registryNo), 0, 4);
+            _relationship.DropDownStyle = ComboBoxStyle.DropDownList;   // pick one; "Other" opens a specify box
             _relationship.Items.AddRange(KioskCore.CtcRelationships);
-            Cell(Field("You are the record owner's...", _relationship), 4, 8);
+            Cell(Field("Relationship to Record Owner", _relationship), 4, 8);
 
             // Name rows: First 4 | Middle 3 | Last 3 | Suffix 2 of 12 columns.
             _ownerFirstCap.Text = "First name *"; _ownerMiddleCap.Text = "Middle name"; _ownerLastCap.Text = "Last name *";

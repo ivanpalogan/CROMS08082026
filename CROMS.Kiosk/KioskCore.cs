@@ -564,7 +564,11 @@ namespace CROMS.Kiosk
         // report. Declared AFTER the arrays they alias: a static field initialiser that reads a
         // field declared further down runs first and reads null.
         public static readonly string[] CtcPurposes = BreqsPurposes;
-        public static readonly string[] CtcRelationships = BreqsRelationships;
+        // The requester's relationship to the owner of the record. Its own short list (not the PSA copy
+        // one): the office asked for exactly these. "Other" opens a specify box on the form and is
+        // stored as "Other - <detail>".
+        public static readonly string[] CtcRelationships =
+            { "Self", "Parent", "Child", "Spouse", "Authorized Representative", "Other" };
 
         /// <summary>What is still missing from a PSA copy request, in the client's words; null when complete.</summary>
         public static string BreqsProblem(KioskSession s)
