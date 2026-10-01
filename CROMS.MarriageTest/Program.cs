@@ -72,6 +72,14 @@ namespace CROMS.MarriageTest
                 Console.WriteLine("PASSED " + _pass + "   FAILED " + _fail);
                 return _fail;
             }
+            if (args.Length > 1 && args[0] == "--parentres")
+            {
+                try { Cleanup(); LoginAs("Admin"); ParentResidence(args[1]); }
+                catch (Exception ex) { _fail++; Console.WriteLine("CRASH: " + ex); }
+                finally { Cleanup(); int left = Leftovers(); Check("zero strays after cleanup", left == 0, left + " left"); }
+                Console.WriteLine("PASSED " + _pass + "   FAILED " + _fail);
+                return _fail;
+            }
             if (args.Length > 1 && args[0] == "--form90")
             {
                 try { Cleanup(); LoginAs("Admin"); Form90Blocks(args[1]); }
@@ -685,6 +693,138 @@ namespace CROMS.MarriageTest
             Check("a 30/30 couple needs neither consent nor advice",
                 !MarriageRules.InConsentBand(none.Husband, on2, s) && !MarriageRules.InConsentBand(none.Wife, on2, s) &&
                 !MarriageRules.InAdviceBand(none.Husband, on2, s) && !MarriageRules.InAdviceBand(none.Wife, on2, s));
+        }
+
+        // ------------------------------------------------------------ parent / consent residence (migration 78)
+        /// <summary>
+        /// Father / mother / consent-person residence as four cells (Form 90) and the consent
+        /// person's residence on Form 97: saved through the services, read back RAW from the
+        /// tables, then the real Form 90 window driven and rendered.
+        /// </summary>
+        private static void ParentResidence(string dir)
+        {
+            DataTable g = Db.Pull("SELECT p.name AS prov, m.name AS muni, b.name AS brgy FROM barangays b " +
+                                  "JOIN municipalities m ON m.id = b.municipality_id JOIN provinces p ON p.id = m.province_id " +
+                                  "WHERE p.name = 'Cagayan' ORDER BY b.id LIMIT 1");
+            Check("a real Cagayan barangay exists to test with", g.Rows.Count == 1);
+            string prov = g.Rows[0]["prov"].ToString(), muni = g.Rows[0]["muni"].ToString(), brgy = g.Rows[0]["brgy"].ToString();
+            const string house = "Block 5, Lot 12, Avocado St.";   // commas on purpose: cannot be split back from a joined string
+
+            Func<Addr> mk = () => new Addr { Province = prov, Municipality = muni, Barangay = brgy, House = house };
+            LicenseFacts l = Couple(30, 30);
+            l.Husband.FatherAddr = mk(); l.Husband.MotherAddr = mk(); l.Husband.ConsentAddr = mk();
+            l.Husband.FatherFirst = "Jose"; l.Husband.FatherLast = "Dela Cruz";
+            l.Husband.FatherResidence = l.Husband.FatherAddr.Joined; l.Husband.MotherResidence = l.Husband.MotherAddr.Joined; l.Husband.ConsentResidence = l.Husband.ConsentAddr.Joined;
+            // Wife: only a province, no house - blanks must stay NULL, not "".
+            l.Wife.FatherAddr = new Addr { Province = prov };
+            l.Wife.FatherResidence = l.Wife.FatherAddr.Joined;
+            int id = MarriageService.SaveLicense(l);
+            DataRow r = Db.Pull("SELECT * FROM marriage_licenses WHERE id = @id", new MySqlParameter("@id", id)).Rows[0];
+            Func<string, string> s = c => r[c] == DBNull.Value ? null : r[c].ToString();
+            int bad = 0;
+            foreach (string who in new[] { "father", "mother", "consent" })
+            {
+                var exp = new Dictionary<string, string>
+                {
+                    { "husband_" + who + "_res_province", prov }, { "husband_" + who + "_res_municipality", muni },
+                    { "husband_" + who + "_res_barangay", brgy }, { "husband_" + who + "_res_house", house },
+                    { "husband_" + who + "_residence", house + ", " + brgy + ", " + muni + ", " + prov },
+                };
+                foreach (var kv in exp) if (s(kv.Key) != kv.Value) { bad++; Check("column " + kv.Key, false, "got '" + s(kv.Key) + "' expected '" + kv.Value + "'"); }
+            }
+            Check("husband's father / mother / consent residence: 15 columns read back as saved", bad == 0, bad + " wrong");
+            Check("wife's father province saved, the other three cells NULL (not empty strings)",
+                  s("wife_father_res_province") == prov && s("wife_father_res_municipality") == null && s("wife_father_res_barangay") == null && s("wife_father_res_house") == null);
+            Check("wife's father joined residence = the province alone", s("wife_father_residence") == prov, s("wife_father_residence"));
+
+            LicenseFacts back = MarriageService.LoadLicense(id);
+            Check("LoadLicense round-trips the four cells with the comma-bearing street intact",
+                  back.Husband.FatherAddr.House == house && back.Husband.ConsentAddr.Barangay == brgy && back.Husband.MotherAddr.Municipality == muni);
+
+            // A licence filed before migration 78 holds only the joined text.
+            LicenseFacts old = Couple(31, 31);
+            old.Husband.FatherFirst = "Pedro"; old.Husband.FatherLast = "Old"; old.Husband.FatherResidence = "Callao, Penablanca, Cagayan";
+            int oldId = MarriageService.SaveLicense(old);
+
+            // ---- the real Form 90 window
+            System.IO.Directory.CreateDirectory(dir);
+            System.Windows.Forms.Application.EnableVisualStyles();
+            var asm = typeof(MarriageService).Assembly;
+            var bf = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public;
+            var f = (System.Windows.Forms.Form)Activator.CreateInstance(asm.GetType("CROMS.Forms.MarriageLicenseForm", true), bf, null, new object[] { (int?)id }, null);
+            f.StartPosition = System.Windows.Forms.FormStartPosition.Manual; f.Location = new System.Drawing.Point(-4000, -4000); f.ShowInTaskbar = false;
+            f.Show();
+            Invoke(f, "ShowStep", 0);
+            for (int i = 0; i < 5; i++) System.Windows.Forms.Application.DoEvents();
+            object hb = f.GetType().GetField("_h", bf).GetValue(f), wb = f.GetType().GetField("_w", bf).GetValue(f);
+            Func<object, string, object> fld = (o, n) => o.GetType().GetField(n).GetValue(o);
+            Func<object, string, string, string> box = (party, which, cell) =>
+            {
+                object addr = fld(party, which);
+                return ((System.Windows.Forms.Control)fld(addr, cell)).Text;
+            };
+            foreach (string which in new[] { "FAddr", "MAddr", "CAddr" })
+                Check("screen: husband " + which + " loads province / city / barangay / house into their own cells",
+                      box(hb, which, "Prov") == prov && box(hb, which, "Muni") == muni && box(hb, which, "Brgy") == brgy && box(hb, which, "House") == house,
+                      box(hb, which, "Prov") + " | " + box(hb, which, "Muni") + " | " + box(hb, which, "Brgy") + " | " + box(hb, which, "House"));
+            Check("screen: wife's father shows the province and blanks elsewhere",
+                  box(wb, "FAddr", "Prov") == prov && box(wb, "FAddr", "Muni") == "" && box(wb, "FAddr", "House") == "");
+            Check("screen: the municipality list is the province's, not the country's",
+                  ((System.Windows.Forms.ComboBox)fld(fld(hb, "FAddr"), "Muni")).Items.Count < 200);
+
+            // What the window hands to the service: cells read, joined string derived from them.
+            LicenseFacts cur = (LicenseFacts)f.GetType().GetMethod("Current", bf).Invoke(f, null);
+            Check("screen -> facts: father cells + derived joined residence",
+                  cur.Husband.FatherAddr.House == house && cur.Husband.FatherResidence == house + ", " + brgy + ", " + muni + ", " + prov, cur.Husband.FatherResidence);
+            Check("screen -> facts: a blank residence stays null",
+                  cur.Wife.MotherAddr.Joined == null && cur.Wife.MotherResidence == null);
+
+            int partyH = (int)f.GetType().GetField("_partyHeight", bf).GetValue(f);
+            Console.WriteLine("  info  measured party card height = " + partyH);
+            SnapOpen(f, 1220, partyH + 420, dir + "\\f90_parents_residence.png");
+            f.Close();
+
+            // Legacy licence: the old joined text appears whole in House / street.
+            var f2 = (System.Windows.Forms.Form)Activator.CreateInstance(asm.GetType("CROMS.Forms.MarriageLicenseForm", true), bf, null, new object[] { (int?)oldId }, null);
+            f2.StartPosition = System.Windows.Forms.FormStartPosition.Manual; f2.Location = new System.Drawing.Point(-4000, -4000); f2.ShowInTaskbar = false;
+            f2.Show();
+            for (int i = 0; i < 5; i++) System.Windows.Forms.Application.DoEvents();
+            object ohb = f2.GetType().GetField("_h", bf).GetValue(f2);
+            Check("legacy licence: old joined residence shown whole in House / street, cells blank",
+                  box(ohb, "FAddr", "House") == "Callao, Penablanca, Cagayan" && box(ohb, "FAddr", "Prov") == "" && box(ohb, "FAddr", "Brgy") == "");
+            f2.Close();
+
+            // ---- Form 97: the consent person's residence
+            LicenseFacts l97 = Couple(32, 31);
+            int lid = MarriageService.SaveLicense(l97);
+            LicenseFacts lic = MarriageService.LoadLicense(lid);
+            var v = Form97(lic, Today.AddDays(-5), Today.AddDays(-1), "Exempt");
+            v["husband_consent_name"] = "Ramon Pascua"; v["husband_consent_res_province"] = prov; v["husband_consent_res_municipality"] = muni;
+            v["husband_consent_res_barangay"] = brgy; v["husband_consent_res_house"] = house;
+            v["husband_consent_residence"] = house + ", " + brgy + ", " + muni + ", " + prov;
+            int mid = MarriageService.SaveMarriage(null, v);
+            DataRow mr = Db.Pull("SELECT * FROM marriages WHERE id = @id", new MySqlParameter("@id", mid)).Rows[0];
+            Check("Form 97: husband's consent residence cells saved",
+                  mr["husband_consent_res_province"].ToString() == prov && mr["husband_consent_res_municipality"].ToString() == muni &&
+                  mr["husband_consent_res_barangay"].ToString() == brgy && mr["husband_consent_res_house"].ToString() == house);
+            Check("Form 97: wife's consent cells stay NULL when nothing is typed", mr["wife_consent_res_province"] == DBNull.Value && mr["wife_consent_res_house"] == DBNull.Value);
+            DataRow vr = Db.Pull("SELECT husband_consent_residence FROM v_marriage_certificate WHERE record_id = @id", new MySqlParameter("@id", mid)).Rows[0];
+            Check("Form 97: certificate view still carries the joined residence (print maps unchanged)",
+                  vr[0].ToString() == house + ", " + brgy + ", " + muni + ", " + prov, vr[0].ToString());
+
+            // The real Form 97 window loads the cells back.
+            var f97 = (System.Windows.Forms.Form)Activator.CreateInstance(asm.GetType("CROMS.Forms.MarriageEntryForm", true), bf, null, new object[] { (int?)mid }, null);
+            f97.StartPosition = System.Windows.Forms.FormStartPosition.Manual; f97.Location = new System.Drawing.Point(-4000, -4000); f97.ShowInTaskbar = false;
+            f97.Show();
+            for (int i = 0; i < 5; i++) System.Windows.Forms.Application.DoEvents();
+            object eh = f97.GetType().GetField("_h", bf).GetValue(f97);
+            Check("Form 97 window: consent residence loads into province / city / barangay / house",
+                  box(eh, "ConsentAddr", "Prov") == prov && box(eh, "ConsentAddr", "Muni") == muni && box(eh, "ConsentAddr", "Brgy") == brgy && box(eh, "ConsentAddr", "House") == house,
+                  box(eh, "ConsentAddr", "Prov") + " | " + box(eh, "ConsentAddr", "Muni") + " | " + box(eh, "ConsentAddr", "Brgy") + " | " + box(eh, "ConsentAddr", "House"));
+            Invoke(f97, "ShowTab", 1);
+            for (int i = 0; i < 5; i++) System.Windows.Forms.Application.DoEvents();
+            SnapOpen(f97, 1220, 760, dir + "\\f97_consent_residence.png");
+            f97.Close();
         }
 
         // ------------------------------------------------------------ Form 90 blocks (migration 38)

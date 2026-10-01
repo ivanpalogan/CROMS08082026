@@ -736,6 +736,76 @@ namespace CROMS.Forms
         }
     }
 
+    /// <summary>
+    /// A residence asked the way the rest of the app asks it: Province, City / municipality,
+    /// Barangay (the GeoLookup cascade, each narrowing the next) and a typed House no. / street.
+    /// One implementation for every parent / consent-person residence on Form 90 and Form 97
+    /// (migration 78); the applicant's own residence uses the same four controls.
+    /// <para/>
+    /// Built and wired in the constructor, BEFORE the caller attaches its change handlers - a
+    /// handler that reads other half-built boxes must not fire while the lists load.
+    /// </summary>
+    internal sealed class AddrBox
+    {
+        public readonly ComboBox Prov = MUi.Combo(true), Muni = MUi.Combo(true), Brgy = MUi.Combo(true);
+        public readonly TextBox House = MUi.Box();
+
+        public AddrBox()
+        {
+            GeoLookup.LoadProvinces(Prov);
+            GeoLookup.CascadeAddress(Prov, Muni, Brgy);
+        }
+
+        /// <summary>Every input, for the read-only switch and the caller's change handlers.</summary>
+        public Control[] Inputs { get { return new Control[] { Prov, Muni, Brgy, House }; } }
+
+        /// <summary>Province | City / municipality. <paramref name="provCaption"/> says whose residence it is.</summary>
+        public TableLayoutPanel RowA(string provCaption)
+        {
+            TableLayoutPanel g = MUi.Grid(2, 1, 56);
+            g.Controls.Add(MUi.Field(provCaption, Prov), 0, 0);
+            g.Controls.Add(MUi.Field("City / municipality", Muni), 1, 0);
+            return g;
+        }
+
+        /// <summary>Barangay | House no. / street (optional - some clients know the street only).</summary>
+        public TableLayoutPanel RowB(string houseCaption = "House no. / street (optional)")
+        {
+            TableLayoutPanel g = MUi.Grid(2, 1, 56);
+            g.Controls.Add(MUi.Field("Barangay", Brgy), 0, 0);
+            g.Controls.Add(MUi.Field(houseCaption, House), 1, 0);
+            return g;
+        }
+
+        /// <summary>
+        /// Show a stored residence. A record filed before the cells existed holds only the old
+        /// joined text: it goes in House / street whole so nothing on file is hidden, never guessed
+        /// apart into the cells.
+        /// </summary>
+        public void Set(Addr a, string legacyJoined)
+        {
+            if (a != null && a.HasParts)
+            {
+                // Province first - it rebuilds the municipality list, which rebuilds the barangay list.
+                GeoLookup.SetAddress(Prov, Muni, Brgy, a.Province, a.Municipality, a.Barangay);
+                House.Text = a.House ?? "";
+            }
+            else
+            {
+                GeoLookup.SetAddress(Prov, Muni, Brgy, null, null, null);
+                House.Text = legacyJoined ?? "";
+            }
+        }
+
+        /// <summary>The cells as typed (blank = null).</summary>
+        public void Read(Addr a)
+        {
+            a.Province = N(Prov.Text); a.Municipality = N(Muni.Text); a.Barangay = N(Brgy.Text); a.House = N(House.Text);
+        }
+
+        private static string N(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
+    }
+
     internal static class MUiFonts
     {
         public static readonly Font Bold8 = new Font("Segoe UI", 8F, FontStyle.Bold);

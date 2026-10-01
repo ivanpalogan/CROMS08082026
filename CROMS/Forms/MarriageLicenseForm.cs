@@ -37,7 +37,9 @@ namespace CROMS.Forms
 
             // Form 90's parent, consent/advice and previously-married blocks (migration 38).
             // Names are three cells, as the form prints them - never one joined box.
-            public TextBox FFirst, FMiddle, FLast, FRes, MFirst, MMiddle, MLast, MRes, CFirst, CMiddle, CLast, CRes;
+            public TextBox FFirst, FMiddle, FLast, MFirst, MMiddle, MLast, CFirst, CMiddle, CLast;
+            // Father's / mother's / consent person's residence: four cells each (migration 78).
+            public AddrBox FAddr, MAddr, CAddr;
             public ComboBox FCit, MCit, CCit, CRel;
             public ComboBox PrevHow, PrevProvince, PrevMunicipality;
             public DateTimePicker PrevDate;
@@ -50,9 +52,11 @@ namespace CROMS.Forms
             {
                 get
                 {
-                    return new Control[] { First, Middle, Last, Dob, Sex, Country, Province, Municipality, ResProv, ResMuni, ResBrgy, ResHouse, Cit, Civil, Religion,
-                                           FFirst, FMiddle, FLast, FCit, FRes, MFirst, MMiddle, MLast, MCit, MRes,
-                                           CFirst, CMiddle, CLast, CRel, CCit, CRes };
+                    var all = new List<Control> { First, Middle, Last, Dob, Sex, Country, Province, Municipality, ResProv, ResMuni, ResBrgy, ResHouse, Cit, Civil, Religion,
+                                                  FFirst, FMiddle, FLast, FCit, MFirst, MMiddle, MLast, MCit,
+                                                  CFirst, CMiddle, CLast, CRel, CCit };
+                    all.AddRange(FAddr.Inputs); all.AddRange(MAddr.Inputs); all.AddRange(CAddr.Inputs);
+                    return all.ToArray();
                 }
             }
         }
@@ -194,11 +198,11 @@ namespace CROMS.Forms
             // House / Street so nothing on file is hidden - never guessed apart into the cells.
             b.ResHouse.Text = hasParts ? p.ResHouse : p.Residence;
             b.FFirst.Text = p.FatherFirst; b.FMiddle.Text = p.FatherMiddle; b.FLast.Text = p.FatherLast;
-            b.FCit.Text = p.FatherCitizenship ?? ""; b.FRes.Text = p.FatherResidence;
+            b.FCit.Text = p.FatherCitizenship ?? ""; b.FAddr.Set(p.FatherAddr, p.FatherResidence);
             b.MFirst.Text = p.MotherFirst; b.MMiddle.Text = p.MotherMiddle; b.MLast.Text = p.MotherLast;
-            b.MCit.Text = p.MotherCitizenship ?? ""; b.MRes.Text = p.MotherResidence;
+            b.MCit.Text = p.MotherCitizenship ?? ""; b.MAddr.Set(p.MotherAddr, p.MotherResidence);
             b.CFirst.Text = p.ConsentFirst; b.CMiddle.Text = p.ConsentMiddle; b.CLast.Text = p.ConsentLast;
-            b.CRel.Text = p.ConsentRelationship ?? ""; b.CCit.Text = p.ConsentCitizenship ?? ""; b.CRes.Text = p.ConsentResidence;
+            b.CRel.Text = p.ConsentRelationship ?? ""; b.CCit.Text = p.ConsentCitizenship ?? ""; b.CAddr.Set(p.ConsentAddr, p.ConsentResidence);
             // Country first - it rebuilds the province list the next two select into.
             GeoLookup.SetCountryPlace(b.Country, b.Province, b.Municipality,
                                       p.BirthCountry, ProvinceOf(p.PlaceOfBirth), MunicipalityOf(p.PlaceOfBirth));
@@ -229,11 +233,15 @@ namespace CROMS.Forms
             p.Sex = b.Sex.SelectedItem as string;
 
             p.FatherFirst = N(b.FFirst.Text); p.FatherMiddle = N(b.FMiddle.Text); p.FatherLast = N(b.FLast.Text);
-            p.FatherCitizenship = N(b.FCit.Text); p.FatherResidence = N(b.FRes.Text);
+            p.FatherCitizenship = N(b.FCit.Text);
             p.MotherFirst = N(b.MFirst.Text); p.MotherMiddle = N(b.MMiddle.Text); p.MotherLast = N(b.MLast.Text);
-            p.MotherCitizenship = N(b.MCit.Text); p.MotherResidence = N(b.MRes.Text);
+            p.MotherCitizenship = N(b.MCit.Text);
             p.ConsentFirst = N(b.CFirst.Text); p.ConsentMiddle = N(b.CMiddle.Text); p.ConsentLast = N(b.CLast.Text);
-            p.ConsentRelationship = N(b.CRel.Text); p.ConsentCitizenship = N(b.CCit.Text); p.ConsentResidence = N(b.CRes.Text);
+            p.ConsentRelationship = N(b.CRel.Text); p.ConsentCitizenship = N(b.CCit.Text);
+            // The joined string is what the printed forms read; derived from the four cells, never typed.
+            b.FAddr.Read(p.FatherAddr); p.FatherResidence = p.FatherAddr.Joined;
+            b.MAddr.Read(p.MotherAddr); p.MotherResidence = p.MotherAddr.Joined;
+            b.CAddr.Read(p.ConsentAddr); p.ConsentResidence = p.ConsentAddr.Joined;
             // Joined only for what reads one string (Form 97's copy, the printed licence).
             p.Father = MarriageRules.JoinName(p.FatherFirst, p.FatherMiddle, p.FatherLast);
             p.Mother = MarriageRules.JoinName(p.MotherFirst, p.MotherMiddle, p.MotherLast);

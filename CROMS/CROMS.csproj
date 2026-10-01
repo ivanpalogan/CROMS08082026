@@ -920,6 +920,7 @@
     <None Include="Database\75_seed_causes_of_death.sql" />
     <None Include="Database\76_kiosk_marriage_app_names.sql" />
     <None Include="Database\77_license_residence_parts.sql" />
+    <None Include="Database\78_parent_consent_residence_parts.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />

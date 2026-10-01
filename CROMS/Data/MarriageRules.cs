@@ -97,6 +97,25 @@ namespace CROMS.Data
     }
 
     /// <summary>One contracting party / applicant, as far as the rules need to know them.</summary>
+    /// <summary>A residence in the four cells the app asks for everywhere: province, city /
+    /// municipality, barangay, house no. / street (optional).</summary>
+    public sealed class Addr
+    {
+        public string Province, Municipality, Barangay, House;
+
+        public bool HasParts
+        {
+            get
+            {
+                return !string.IsNullOrWhiteSpace(Province) || !string.IsNullOrWhiteSpace(Municipality)
+                    || !string.IsNullOrWhiteSpace(Barangay) || !string.IsNullOrWhiteSpace(House);
+            }
+        }
+
+        /// <summary>"House, Barangay, Municipality, Province", blanks dropped; null when all four are blank.</summary>
+        public string Joined { get { return Party.JoinResidence(House, Barangay, Municipality, Province); } }
+    }
+
     public sealed class Party
     {
         public string Role;           // "Husband" / "Wife"
@@ -139,6 +158,13 @@ namespace CROMS.Data
 
         /// <summary>"Person who gave consent or advice" - ONE slot per party, as on the form.</summary>
         public string ConsentFirst, ConsentMiddle, ConsentLast, ConsentRelationship, ConsentCitizenship, ConsentResidence;
+
+        /// <summary>
+        /// The father's / mother's / consent person's residence as the four cells the screen asks
+        /// for (migration 78). The joined <c>*Residence</c> string above is derived from these on
+        /// save and is what the printed forms read.
+        /// </summary>
+        public Addr FatherAddr = new Addr(), MotherAddr = new Addr(), ConsentAddr = new Addr();
 
         /// <summary>"If previously married" - only meaningful when <see cref="MarriageRules.IsPreviouslyMarried"/>.</summary>
         public string PrevDissolution, PrevDissolvedMunicipality, PrevDissolvedProvince;

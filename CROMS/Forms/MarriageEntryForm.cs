@@ -34,7 +34,10 @@ namespace CROMS.Forms
     {
         private sealed class SP
         {
-            public TextBox First, Middle, Last, Father, Mother, ConsentName, ConsentRel, ConsentRes;
+            public TextBox First, Middle, Last, Father, Mother, ConsentName, ConsentRel;
+            // The consent / advice person's residence: Province / City-Municipality / Barangay /
+            // House No.-Street (migration 78), the same four cells as everywhere else.
+            public AddrBox ConsentAddr;
             public ComboBox Sex, FatherCit, MotherCit;
             public DateTimePicker Dob;
             public Label Age;
@@ -448,23 +451,27 @@ namespace CROMS.Forms
                 var inner = new Panel { Padding = new Padding(12, 6, 2, 6), BackColor = Color.Transparent };
                 p.Father = MUi.Box(); p.Mother = MUi.Box();
                 p.FatherCit = MUi.Combo(true, nations); p.MotherCit = MUi.Combo(true, nations);
-                p.ConsentName = MUi.Box(); p.ConsentRel = MUi.Box(); p.ConsentRes = MUi.Box();
+                p.ConsentName = MUi.Box(); p.ConsentRel = MUi.Box(); p.ConsentAddr = new AddrBox();
                 TableLayoutPanel g1 = MUi.Grid(2, 1, 56);
                 g1.Controls.Add(MUi.Field("Name of father", p.Father), 0, 0); g1.Controls.Add(MUi.Field("Father's citizenship", p.FatherCit), 1, 0);
                 TableLayoutPanel g2 = MUi.Grid(2, 1, 56);
                 g2.Controls.Add(MUi.Field("Maiden name of mother", p.Mother), 0, 0); g2.Controls.Add(MUi.Field("Mother's citizenship", p.MotherCit), 1, 0);
                 // "Persons who gave consent or advice": ONE person per party, as on the sheet and Form 90.
                 TableLayoutPanel g3 = MUi.Grid(1, 1, 56); g3.Controls.Add(MUi.Field("Person who gave consent or advice (name)", p.ConsentName), 0, 0);
-                TableLayoutPanel g4 = MUi.Grid(2, 1, 56);
-                g4.Controls.Add(MUi.Field("Relationship", p.ConsentRel), 0, 0); g4.Controls.Add(MUi.Field("Residence", p.ConsentRes), 1, 0);
-                Stack(inner, g1, g2, g3, g4);
+                TableLayoutPanel g4 = MUi.Grid(1, 1, 56);
+                g4.Controls.Add(MUi.Field("Relationship", p.ConsentRel), 0, 0);
+                Stack(inner, g1, g2, g3, g4, p.ConsentAddr.RowA("Residence - province"), p.ConsentAddr.RowB("House no. / street"));
                 _keyControls[pre + "FatherName"] = p.Father; _keyControls[pre + "MotherName"] = p.Mother;
-                foreach (Control c in new Control[] { p.Father, p.Mother, p.FatherCit, p.MotherCit, p.ConsentName, p.ConsentRel, p.ConsentRes })
+                var changing = new List<Control> { p.Father, p.Mother, p.FatherCit, p.MotherCit, p.ConsentName, p.ConsentRel };
+                changing.AddRange(p.ConsentAddr.Inputs);
+                foreach (Control c in changing)
                     c.TextChanged += (s, e) => Changed(c);
                 AutoCaps.Attach(p.Father, p.Mother, p.ConsentName);
                 return inner;
             };
-            var cols = TwoColumns(250,
+            // 366, not 250: the consent person's residence grew from one box (shared with
+            // Relationship) to two 56px rows - province/city, then barangay/house.
+            var cols = TwoColumns(366,
                 SpouseCard("HUSBAND'S PARENTS", UiTheme.AccentTint, Color.FromArgb(27, 62, 158), par(_h, "Husband")),
                 SpouseCard("WIFE'S PARENTS", Color.FromArgb(245, 237, 251), Color.FromArgb(107, 48, 150), par(_w, "Wife")));
             Stack(pg, Section("Parents of the contracting parties", "Items 9-12, and the person who gave consent or advice."), cols);
@@ -1487,7 +1494,13 @@ namespace CROMS.Forms
                 p.Sex.SelectedItem = SC(pre + "_sex") == "" ? null : SC(pre + "_sex");
                 p.FatherCit.Text = SC(pre + "_father_citizenship"); p.MotherCit.Text = SC(pre + "_mother_citizenship");
                 p.ConsentName.Text = SC(pre + "_consent_name"); p.ConsentRel.Text = SC(pre + "_consent_relationship");
-                p.ConsentRes.Text = SC(pre + "_consent_residence");
+                // Migration 78: the four cells; a record filed before it shows the old joined
+                // residence whole in House / Street (never guessed apart).
+                p.ConsentAddr.Set(new Addr
+                {
+                    Province = SC(pre + "_consent_res_province"), Municipality = SC(pre + "_consent_res_municipality"),
+                    Barangay = SC(pre + "_consent_res_barangay"), House = SC(pre + "_consent_res_house")
+                }, SC(pre + "_consent_residence"));
             }
             _settle.SelectedItem = dt.Columns.Contains("marriage_settlement") && S("marriage_settlement") != "" ? S("marriage_settlement") : null;
             MUi.Put(_dom, D("date_of_marriage")); _tom.Text = S("time_of_marriage");
@@ -1638,7 +1651,11 @@ namespace CROMS.Forms
                 v[pre + "_sex"] = p.Sex.SelectedItem as string;
                 v[pre + "_father_citizenship"] = Nz(p.FatherCit.Text); v[pre + "_mother_citizenship"] = Nz(p.MotherCit.Text);
                 v[pre + "_consent_name"] = Nz(p.ConsentName.Text); v[pre + "_consent_relationship"] = Nz(p.ConsentRel.Text);
-                v[pre + "_consent_residence"] = Nz(p.ConsentRes.Text);
+                // The four cells, plus the joined string the certificate view and print maps read.
+                var ca = new Addr(); p.ConsentAddr.Read(ca);
+                v[pre + "_consent_res_province"] = ca.Province; v[pre + "_consent_res_municipality"] = ca.Municipality;
+                v[pre + "_consent_res_barangay"] = ca.Barangay; v[pre + "_consent_res_house"] = ca.House;
+                v[pre + "_consent_residence"] = ca.Joined;
             }
             v["marriage_settlement"] = _settle.SelectedItem as string;
             if (_scanImage != null) v["scan_image"] = _scanImage;

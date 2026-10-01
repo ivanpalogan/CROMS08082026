@@ -193,9 +193,11 @@ namespace CROMS.Forms
             resB.Controls.Add(MUi.Field("Barangay", p.ResBrgy), 0, 0);
             resB.Controls.Add(MUi.Field("House no. / street (optional)", p.ResHouse), 1, 0);
             // ---- Form 90's parent / consent / previously-married blocks, in the form's order.
-            p.FFirst = MUi.Box(); p.FMiddle = MUi.Box(); p.FLast = MUi.Box(); p.FRes = MUi.Box(); p.FCit = MUi.Combo(true, _nationalities);
-            p.MFirst = MUi.Box(); p.MMiddle = MUi.Box(); p.MLast = MUi.Box(); p.MRes = MUi.Box(); p.MCit = MUi.Combo(true, _nationalities);
-            p.CFirst = MUi.Box(); p.CMiddle = MUi.Box(); p.CLast = MUi.Box(); p.CRes = MUi.Box(); p.CCit = MUi.Combo(true, _nationalities);
+            // Father's / mother's / consent person's residence: the same four cells as the applicant's
+            // own (migration 78). AddrBox wires its own province -> municipality -> barangay cascade.
+            p.FFirst = MUi.Box(); p.FMiddle = MUi.Box(); p.FLast = MUi.Box(); p.FAddr = new AddrBox(); p.FCit = MUi.Combo(true, _nationalities);
+            p.MFirst = MUi.Box(); p.MMiddle = MUi.Box(); p.MLast = MUi.Box(); p.MAddr = new AddrBox(); p.MCit = MUi.Combo(true, _nationalities);
+            p.CFirst = MUi.Box(); p.CMiddle = MUi.Box(); p.CLast = MUi.Box(); p.CAddr = new AddrBox(); p.CCit = MUi.Combo(true, _nationalities);
             p.CRel = MUi.Combo(true, MarriageRules.ConsentRelationships);
             AutoCaps.Attach(p.First, p.Middle, p.Last,
                 p.FFirst, p.FMiddle, p.FLast, p.MFirst, p.MMiddle, p.MLast,
@@ -219,8 +221,12 @@ namespace CROMS.Forms
                 return g;
             };
 
-            TableLayoutPanel cRes = MUi.Grid(1, 1, 56);
-            cRes.Controls.Add(MUi.Field("Residence", p.CRes), 0, 0);
+            Func<string, Control, TableLayoutPanel> oneRow = (cap, ctl) =>
+            {
+                TableLayoutPanel g = MUi.Grid(1, 1, 56);
+                g.Controls.Add(MUi.Field(cap, ctl), 0, 0);
+                return g;
+            };
             TableLayoutPanel prevA = pairRow("How it was dissolved", p.PrevHow, "Date dissolved", p.PrevDate);
             // Province before city, the order the two pickers cascade in - same as place of birth.
             TableLayoutPanel prevB = pairRow("Province dissolved", p.PrevProvince, "City / municipality", p.PrevMunicipality);
@@ -229,10 +235,13 @@ namespace CROMS.Forms
 
             var stack = new List<Control> { names, dob, place, city, cit, rel,
                 SubHead("Residence", null), resA, resB,
-                SubHead("Father", null), nameRow(p.FFirst, p.FMiddle, p.FLast, "Last name"), pairRow("Citizenship", p.FCit, "Residence", p.FRes),
-                SubHead("Mother", null), nameRow(p.MFirst, p.MMiddle, p.MLast, "Last name"), pairRow("Citizenship", p.MCit, "Residence", p.MRes),
+                SubHead("Father", null), nameRow(p.FFirst, p.FMiddle, p.FLast, "Last name"), oneRow("Citizenship", p.FCit),
+                p.FAddr.RowA("Residence - province"), p.FAddr.RowB(),
+                SubHead("Mother", null), nameRow(p.MFirst, p.MMiddle, p.MLast, "Last name"), oneRow("Citizenship", p.MCit),
+                p.MAddr.RowA("Residence - province"), p.MAddr.RowB(),
                 SubHead("Person who gave consent or advice", null), nameRow(p.CFirst, p.CMiddle, p.CLast, "Last name"),
-                pairRow("Relationship", p.CRel, "Citizenship", p.CCit), cRes,
+                pairRow("Relationship", p.CRel, "Citizenship", p.CCit),
+                p.CAddr.RowA("Residence - province"), p.CAddr.RowB(),
                 SubHead("If previously married", p.PrevNote), prevA, prevB };
             Stack(inner, stack.ToArray());
             card.Controls.Add(inner); card.Controls.Add(head);
@@ -262,11 +271,13 @@ namespace CROMS.Forms
             // Initial grey-out, still before any handler listens (see the trap noted above).
             ApplyPrevMarried(p);
 
-            foreach (Control c in new Control[] { p.First, p.Middle, p.Last, p.ResProv, p.ResMuni, p.ResBrgy, p.ResHouse,
-                                                  p.Cit, p.Civil, p.Religion, p.Country, p.Province, p.Municipality,
-                                                  p.FFirst, p.FMiddle, p.FLast, p.FCit, p.FRes, p.MFirst, p.MMiddle, p.MLast, p.MCit, p.MRes,
-                                                  p.CFirst, p.CMiddle, p.CLast, p.CRel, p.CCit, p.CRes,
-                                                  p.PrevHow, p.PrevProvince, p.PrevMunicipality })
+            var touched = new List<Control> { p.First, p.Middle, p.Last, p.ResProv, p.ResMuni, p.ResBrgy, p.ResHouse,
+                                              p.Cit, p.Civil, p.Religion, p.Country, p.Province, p.Municipality,
+                                              p.FFirst, p.FMiddle, p.FLast, p.FCit, p.MFirst, p.MMiddle, p.MLast, p.MCit,
+                                              p.CFirst, p.CMiddle, p.CLast, p.CRel, p.CCit,
+                                              p.PrevHow, p.PrevProvince, p.PrevMunicipality };
+            touched.AddRange(p.FAddr.Inputs); touched.AddRange(p.MAddr.Inputs); touched.AddRange(p.CAddr.Inputs);
+            foreach (Control c in touched)
                 c.TextChanged += (s, e) => Touched();
             p.PrevDate.ValueChanged += (s, e) => Touched();
             // Grey-out BEFORE Touched, so the refresh that follows reads an already-cleared block.

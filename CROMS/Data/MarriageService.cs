@@ -418,6 +418,18 @@ namespace CROMS.Data
             return l;
         }
 
+        private static void FillAddr(Addr a, DataRow r, string who)
+        {
+            a.Province = Col(r, who + "_res_province"); a.Municipality = Col(r, who + "_res_municipality");
+            a.Barangay = Col(r, who + "_res_barangay"); a.House = Col(r, who + "_res_house");
+        }
+
+        private static void AddAddr(List<string> cols, List<string> vals, List<MySql.Data.MySqlClient.MySqlParameter> ps, string who, Addr a)
+        {
+            AddCol(cols, vals, ps, who + "_res_province", a.Province); AddCol(cols, vals, ps, who + "_res_municipality", a.Municipality);
+            AddCol(cols, vals, ps, who + "_res_barangay", a.Barangay); AddCol(cols, vals, ps, who + "_res_house", a.House);
+        }
+
         private static void FillParty(Party p, DataRow r, string pre)
         {
             p.First = Col(r, pre + "_first_name"); p.Middle = Col(r, pre + "_middle_name"); p.Last = Col(r, pre + "_last_name");
@@ -438,6 +450,8 @@ namespace CROMS.Data
             p.ConsentFirst = Col(r, pre + "_consent_first_name"); p.ConsentMiddle = Col(r, pre + "_consent_middle_name");
             p.ConsentLast = Col(r, pre + "_consent_last_name"); p.ConsentRelationship = Col(r, pre + "_consent_relationship");
             p.ConsentCitizenship = Col(r, pre + "_consent_citizenship"); p.ConsentResidence = Col(r, pre + "_consent_residence");
+            // Migration 78: father / mother / consent person residence as four cells.
+            FillAddr(p.FatherAddr, r, pre + "_father"); FillAddr(p.MotherAddr, r, pre + "_mother"); FillAddr(p.ConsentAddr, r, pre + "_consent");
             p.PrevDissolution = Col(r, pre + "_prev_dissolution");
             p.PrevDissolvedMunicipality = Col(r, pre + "_prev_dissolved_municipality");
             p.PrevDissolvedProvince = Col(r, pre + "_prev_dissolved_province");
@@ -550,6 +564,9 @@ namespace CROMS.Data
                 AddCol(cols, vals, ps, pre + "_consent_first_name", p.ConsentFirst); AddCol(cols, vals, ps, pre + "_consent_middle_name", p.ConsentMiddle);
                 AddCol(cols, vals, ps, pre + "_consent_last_name", p.ConsentLast); AddCol(cols, vals, ps, pre + "_consent_relationship", p.ConsentRelationship);
                 AddCol(cols, vals, ps, pre + "_consent_citizenship", p.ConsentCitizenship); AddCol(cols, vals, ps, pre + "_consent_residence", p.ConsentResidence);
+                // Migration 78: the same three residences as four cells each (the joined strings above stay).
+                AddAddr(cols, vals, ps, pre + "_father", p.FatherAddr); AddAddr(cols, vals, ps, pre + "_mother", p.MotherAddr);
+                AddAddr(cols, vals, ps, pre + "_consent", p.ConsentAddr);
 
                 // Belt and braces with the greyed block on screen: a previous-marriage entry is
                 // never written for a party whose civil status says there was none to dissolve.
@@ -813,6 +830,8 @@ namespace CROMS.Data
             "wife_father_citizenship", "wife_mother_citizenship",
             "husband_consent_name", "husband_consent_relationship", "husband_consent_residence",
             "wife_consent_name", "wife_consent_relationship", "wife_consent_residence", "marriage_settlement",
+            "husband_consent_res_province", "husband_consent_res_municipality", "husband_consent_res_barangay", "husband_consent_res_house",
+            "wife_consent_res_province", "wife_consent_res_municipality", "wife_consent_res_barangay", "wife_consent_res_house",
             "wife_first_name", "wife_middle_name", "wife_last_name", "wife_age", "wife_date_of_birth",
             "wife_place_of_birth", "wife_birth_country", "wife_citizenship_id", "wife_religion_id", "wife_civil_status", "wife_residence_id",
             "wife_father_name", "wife_mother_name",
