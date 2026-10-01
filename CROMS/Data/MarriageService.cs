@@ -425,6 +425,9 @@ namespace CROMS.Data
             p.Sex = Col(r, pre + "_sex"); p.BirthCountry = Col(r, pre + "_birth_country");
             p.Citizenship = Col(r, pre + "_citizenship"); p.CivilStatus = Col(r, pre + "_civil_status");
             p.Religion = Col(r, pre + "_religion"); p.Residence = Col(r, pre + "_residence");
+            // Migration 77: the residence as its four cells. Col() tolerates a missing column.
+            p.ResProvince = Col(r, pre + "_res_province"); p.ResMunicipality = Col(r, pre + "_res_municipality");
+            p.ResBarangay = Col(r, pre + "_res_barangay"); p.ResHouse = Col(r, pre + "_res_house");
 
             p.FatherFirst = Col(r, pre + "_father_first_name"); p.FatherMiddle = Col(r, pre + "_father_middle_name");
             p.FatherLast = Col(r, pre + "_father_last_name");
@@ -534,6 +537,8 @@ namespace CROMS.Data
                 AddCol(cols, vals, ps, pre + "_citizenship", p.Citizenship);
                 AddCol(cols, vals, ps, pre + "_civil_status", p.CivilStatus); AddCol(cols, vals, ps, pre + "_religion", p.Religion);
                 AddCol(cols, vals, ps, pre + "_residence", p.Residence);
+                AddCol(cols, vals, ps, pre + "_res_province", p.ResProvince); AddCol(cols, vals, ps, pre + "_res_municipality", p.ResMunicipality);
+                AddCol(cols, vals, ps, pre + "_res_barangay", p.ResBarangay); AddCol(cols, vals, ps, pre + "_res_house", p.ResHouse);
                 // The joined _father_name / _mother_name columns are retired (migration 38):
                 // not written, so a legacy value stays exactly as it was filed.
                 AddCol(cols, vals, ps, pre + "_father_first_name", p.FatherFirst); AddCol(cols, vals, ps, pre + "_father_middle_name", p.FatherMiddle);

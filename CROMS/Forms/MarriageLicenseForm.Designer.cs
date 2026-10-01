@@ -149,7 +149,8 @@ namespace CROMS.Forms
             p.First = MUi.Box(); p.Middle = MUi.Box(); p.Last = MUi.Box();
             p.Dob = MUi.Date(true); p.Age = MUi.Txt("-", 10F, FontStyle.Bold, UiTheme.Muted);
             p.Dob.MaxDate = DateTime.Today; // a birth date cannot be in the future
-            p.Residence = MUi.Box();
+            p.ResProv = MUi.Combo(true); p.ResMuni = MUi.Combo(true); p.ResBrgy = MUi.Combo(true);
+            p.ResHouse = MUi.Box();
             p.Country = MUi.Combo(true); p.Province = MUi.Combo(true); p.Municipality = MUi.Combo(true);
             p.Cit = MUi.Combo(true, _nationalities); p.Civil = MUi.Combo(false, MarriageRules.CivilStatuses);
             p.Religion = MUi.Combo(true, Lookup("religions"));
@@ -181,8 +182,16 @@ namespace CROMS.Forms
             city.Controls.Add(MUi.Field("City / municipality of birth", p.Municipality), 0, 0);
             TableLayoutPanel cit = MUi.Grid(2, 1, 56);
             cit.Controls.Add(MUi.Field("Citizenship", p.Cit), 0, 0); cit.Controls.Add(MUi.Field("Civil status", p.Civil), 1, 0);
-            TableLayoutPanel rel = MUi.Grid(2, 1, 56);
-            rel.Controls.Add(MUi.Field("Religion", p.Religion), 0, 0); rel.Controls.Add(MUi.Field("Residence", p.Residence), 1, 0);
+            TableLayoutPanel rel = MUi.Grid(1, 1, 56);
+            rel.Controls.Add(MUi.Field("Religion", p.Religion), 0, 0);
+            // Residence, in the order the pickers cascade: province -> city / municipality -> barangay,
+            // then the typed house number / street (optional - some clients know the street only).
+            TableLayoutPanel resA = MUi.Grid(2, 1, 56);
+            resA.Controls.Add(MUi.Field("Province", p.ResProv), 0, 0);
+            resA.Controls.Add(MUi.Field("City / municipality", p.ResMuni), 1, 0);
+            TableLayoutPanel resB = MUi.Grid(2, 1, 56);
+            resB.Controls.Add(MUi.Field("Barangay", p.ResBrgy), 0, 0);
+            resB.Controls.Add(MUi.Field("House no. / street (optional)", p.ResHouse), 1, 0);
             // ---- Form 90's parent / consent / previously-married blocks, in the form's order.
             p.FFirst = MUi.Box(); p.FMiddle = MUi.Box(); p.FLast = MUi.Box(); p.FRes = MUi.Box(); p.FCit = MUi.Combo(true, _nationalities);
             p.MFirst = MUi.Box(); p.MMiddle = MUi.Box(); p.MLast = MUi.Box(); p.MRes = MUi.Box(); p.MCit = MUi.Combo(true, _nationalities);
@@ -219,6 +228,7 @@ namespace CROMS.Forms
             p.PrevNote = MUi.Txt("", 8.5F, FontStyle.Regular, UiTheme.Muted);
 
             var stack = new List<Control> { names, dob, place, city, cit, rel,
+                SubHead("Residence", null), resA, resB,
                 SubHead("Father", null), nameRow(p.FFirst, p.FMiddle, p.FLast, "Last name"), pairRow("Citizenship", p.FCit, "Residence", p.FRes),
                 SubHead("Mother", null), nameRow(p.MFirst, p.MMiddle, p.MLast, "Last name"), pairRow("Citizenship", p.MCit, "Residence", p.MRes),
                 SubHead("Person who gave consent or advice", null), nameRow(p.CFirst, p.CMiddle, p.CLast, "Last name"),
@@ -245,10 +255,14 @@ namespace CROMS.Forms
             // dissolved-marriage place is never assumed.
             GeoLookup.LoadProvinces(p.PrevProvince);
             GeoLookup.CascadePlace(p.PrevProvince, p.PrevMunicipality);
+            // Residence: the full province -> city/municipality -> barangay cascade. No default
+            // picked - a residence is never assumed.
+            GeoLookup.LoadProvinces(p.ResProv);
+            GeoLookup.CascadeAddress(p.ResProv, p.ResMuni, p.ResBrgy);
             // Initial grey-out, still before any handler listens (see the trap noted above).
             ApplyPrevMarried(p);
 
-            foreach (Control c in new Control[] { p.First, p.Middle, p.Last, p.Residence,
+            foreach (Control c in new Control[] { p.First, p.Middle, p.Last, p.ResProv, p.ResMuni, p.ResBrgy, p.ResHouse,
                                                   p.Cit, p.Civil, p.Religion, p.Country, p.Province, p.Municipality,
                                                   p.FFirst, p.FMiddle, p.FLast, p.FCit, p.FRes, p.MFirst, p.MMiddle, p.MLast, p.MCit, p.MRes,
                                                   p.CFirst, p.CMiddle, p.CLast, p.CRel, p.CCit, p.CRes,

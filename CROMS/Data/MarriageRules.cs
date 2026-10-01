@@ -105,7 +105,26 @@ namespace CROMS.Data
         public string Sex;
         /// <summary>Country of birth. Its own field, never folded into <see cref="PlaceOfBirth"/>.</summary>
         public string BirthCountry;
-        public string PlaceOfBirth, Citizenship, CivilStatus, Religion, Residence;
+        public string PlaceOfBirth, Citizenship, CivilStatus, Religion;
+
+        /// <summary>
+        /// Residence as ONE string ("House, Barangay, Municipality, Province"): what the printed
+        /// Form 90, the consent form and the Form 97 copy read. Built from the four cells below
+        /// on save (migration 77); for a licence filed before that it is the free text it was
+        /// saved with.
+        /// </summary>
+        public string Residence;
+        /// <summary>The residence cells as the screen asks for them. House / street is optional.</summary>
+        public string ResProvince, ResMunicipality, ResBarangay, ResHouse;
+
+        /// <summary>"House, Barangay, Municipality, Province", blanks dropped; null when all four are blank.</summary>
+        public static string JoinResidence(string house, string barangay, string municipality, string province)
+        {
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (string s in new[] { house, barangay, municipality, province })
+                if (!string.IsNullOrWhiteSpace(s)) parts.Add(s.Trim());
+            return parts.Count == 0 ? null : string.Join(", ", parts);
+        }
 
         /// <summary>
         /// Father's / mother's name as ONE string - what Form 97 prints and what a licence hands

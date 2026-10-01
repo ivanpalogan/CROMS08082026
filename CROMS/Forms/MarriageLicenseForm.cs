@@ -25,10 +25,13 @@ namespace CROMS.Forms
     {
         private sealed class PartyBox
         {
-            public TextBox First, Middle, Last, Residence;
+            public TextBox First, Middle, Last;
             public DateTimePicker Dob;
             public Label Age;
             public ComboBox Cit, Civil, Religion, Sex;
+            // Residence: province -> city/municipality -> barangay cascade, then a typed house / street.
+            public ComboBox ResProv, ResMuni, ResBrgy;
+            public TextBox ResHouse;
             // Place of birth: country + province + city/municipality, not one free textbox.
             public ComboBox Country, Province, Municipality;
 
@@ -47,7 +50,7 @@ namespace CROMS.Forms
             {
                 get
                 {
-                    return new Control[] { First, Middle, Last, Dob, Sex, Country, Province, Municipality, Residence, Cit, Civil, Religion,
+                    return new Control[] { First, Middle, Last, Dob, Sex, Country, Province, Municipality, ResProv, ResMuni, ResBrgy, ResHouse, Cit, Civil, Religion,
                                            FFirst, FMiddle, FLast, FCit, FRes, MFirst, MMiddle, MLast, MCit, MRes,
                                            CFirst, CMiddle, CLast, CRel, CCit, CRes };
                 }
@@ -183,7 +186,13 @@ namespace CROMS.Forms
         {
             b.First.Text = p.First; b.Middle.Text = p.Middle; b.Last.Text = p.Last;
             MUi.Put(b.Dob, p.Dob);
-            b.Residence.Text = p.Residence;
+            // Province first - it rebuilds the municipality list, which rebuilds the barangay list.
+            bool hasParts = !string.IsNullOrWhiteSpace(p.ResProvince) || !string.IsNullOrWhiteSpace(p.ResMunicipality)
+                         || !string.IsNullOrWhiteSpace(p.ResBarangay) || !string.IsNullOrWhiteSpace(p.ResHouse);
+            GeoLookup.SetAddress(b.ResProv, b.ResMuni, b.ResBrgy, p.ResProvince, p.ResMunicipality, p.ResBarangay);
+            // A licence filed before migration 77 holds only the old free-text residence: show it in
+            // House / Street so nothing on file is hidden - never guessed apart into the cells.
+            b.ResHouse.Text = hasParts ? p.ResHouse : p.Residence;
             b.FFirst.Text = p.FatherFirst; b.FMiddle.Text = p.FatherMiddle; b.FLast.Text = p.FatherLast;
             b.FCit.Text = p.FatherCitizenship ?? ""; b.FRes.Text = p.FatherResidence;
             b.MFirst.Text = p.MotherFirst; b.MMiddle.Text = p.MotherMiddle; b.MLast.Text = p.MotherLast;
@@ -212,7 +221,10 @@ namespace CROMS.Forms
             p.Dob = MUi.Val(b.Dob);
             p.PlaceOfBirth = JoinPlace(b.Municipality.Text, b.Province.Text);
             p.BirthCountry = N(b.Country.Text);
-            p.Residence = N(b.Residence.Text);
+            p.ResProvince = N(b.ResProv.Text); p.ResMunicipality = N(b.ResMuni.Text);
+            p.ResBarangay = N(b.ResBrgy.Text); p.ResHouse = N(b.ResHouse.Text);
+            // The joined string is what the printed forms read; derived, never typed.
+            p.Residence = Party.JoinResidence(p.ResHouse, p.ResBarangay, p.ResMunicipality, p.ResProvince);
             p.Citizenship = N(b.Cit.Text); p.Religion = N(b.Religion.Text); p.CivilStatus = b.Civil.SelectedItem as string;
             p.Sex = b.Sex.SelectedItem as string;
 
