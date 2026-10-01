@@ -915,6 +915,8 @@ namespace CROMS
                 release.PrepareFromQueueTicket(ticketId);
             else if (form is Forms.BreqsForm breqs)
                 breqs.PrepareFromQueueTicket(ticketId);
+            else if (form is Forms.PetitionsForm petitions)
+                petitions.PrepareForQueueTicket(ticketId, ticketCode, serviceCode);
             else if (key == "marriage" && form is Forms.MarriageRegistrationForm marriageDesk)
             {
                 // A queue ticket for MARRIAGE/MARRIAGE_APP/MARRIAGE_REG opens the Marriage

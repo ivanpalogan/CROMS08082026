@@ -438,6 +438,8 @@ namespace CROMS.Forms
                 rel.PrepareFromQueueTicket(ticketId);
             else if (key == "breqs" && form is BreqsForm breqs)
                 breqs.PrepareFromQueueTicket(ticketId);
+            else if (key == "petitions" && form is PetitionsForm petitions)
+                petitions.PrepareForQueueTicket(ticketId, ticketCode, serviceCode);
             else if (form is MarriageRegistrationForm marriage)
             {
                 if (serviceCode.Equals("MARRIAGE_APP", StringComparison.OrdinalIgnoreCase))

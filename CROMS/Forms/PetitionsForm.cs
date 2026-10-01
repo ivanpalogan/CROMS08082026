@@ -94,6 +94,51 @@ namespace CROMS.Forms
 
         public void RefreshData() => LoadGrid();
 
+        /// <summary>
+        /// Called when a petition/case ticket is opened from the queue: starts a fresh case and
+        /// pre-fills what the client typed at the kiosk (name -> requester, contact in the hint)
+        /// plus the case type the chosen kiosk service implies. Relationship, record and remarks
+        /// stay for staff - the kiosk never asks them. PETITION (correction) is left without a
+        /// type: RA 9048 vs RA 10172 is staff's call, not something to guess.
+        /// </summary>
+        public void PrepareForQueueTicket(int ticketId, string ticketCode, string serviceCode)
+        {
+            ClearForm();
+            try
+            {
+                DataTable dt = Db.Pull(
+                    "SELECT full_name, contact_no, purpose FROM queue_tickets WHERE id = @id",
+                    new MySqlParameter("@id", ticketId));
+                string contact = "";
+                if (dt.Rows.Count > 0)
+                {
+                    txtRequester.Text = Str(dt.Rows[0]["full_name"]);
+                    contact = Str(dt.Rows[0]["contact_no"]);
+                    string note = Str(dt.Rows[0]["purpose"]);
+                    if (note.Length > 0) txtRemarks.Text = note;
+                }
+
+                string typeCode = null;
+                switch ((serviceCode ?? "").ToUpperInvariant())
+                {
+                    case "LEGITIMATION": case "LEGITIMATION_RA9255": typeCode = "Legitimation"; break;
+                    case "SUPPLEMENTAL": case "SUPPLEMENTAL_REPORT": typeCode = "SupplementalReport"; break;
+                    case "LEGAL_INSTRUMENTS": typeCode = "LegalInstrument"; break;
+                    case "COURT_ORDER": typeCode = "CourtOrder"; break;
+                }
+                if (typeCode != null) cboType.SelectedIndex = Array.IndexOf(TypeCodes, typeCode);
+
+                lblContextHint.Text = "From queue ticket " + ticketCode +
+                    (contact.Length > 0 ? "  ·  " + contact : "") +
+                    ". Requester filled from the kiosk — choose the case type/record and Save.";
+            }
+            catch (Exception ex)
+            {
+                lblContextHint.Text = "Queue ticket " + ticketCode + " — could not read kiosk details: " + ex.Message;
+            }
+            txtRelationship.Focus();
+        }
+
         // ================================================================ layout
         private void BuildLayout()
         {
