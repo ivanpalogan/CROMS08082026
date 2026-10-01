@@ -76,6 +76,7 @@ namespace CROMS.Kiosk
             KioskButtons.Style(_btnPersonB, KioskButtonKind.Secondary);
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
             OthersBox.AttachInline(_cboIdType, 60);
+            IdNumberMask.Attach(_txtIdNo, _cboIdType);
             AutoCaps.Attach(_txtFirst, _txtMiddle, _txtLast, _txtFirst2, _txtMiddle2, _txtLast2);
             _txtContact.MaxLength = 20;
             _txtContact.KeyPress += ContactKeyPress;

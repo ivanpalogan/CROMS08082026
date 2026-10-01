@@ -46,6 +46,7 @@ namespace CROMS.Kiosk
             _cboIdType.Items.AddRange(KioskCore.IdTypes);
             OthersBox.AttachInline(_cboPurpose, 80);
             OthersBox.AttachInline(_cboIdType, 60);
+            IdNumberMask.Attach(_txtIdNo, _cboIdType);
             AutoCaps.Attach(_txtOwnerFirst, _txtOwnerMiddle, _txtOwnerLast,
                 _txtSpouseFirst, _txtSpouseMiddle, _txtSpouseLast, _txtFather, _txtMother);
 

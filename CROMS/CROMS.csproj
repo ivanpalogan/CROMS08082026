@@ -589,6 +589,7 @@
     <Compile Include="Data\BreqsService.cs" />
     <Compile Include="Data\PaymentService.cs" />
     <Compile Include="Data\GovIds.cs" />
+    <Compile Include="Data\IdNumberMask.cs" />
     <Compile Include="Forms\BreqsForm.cs">
       <SubType>Form</SubType>
     </Compile>

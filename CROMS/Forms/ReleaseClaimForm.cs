@@ -795,6 +795,7 @@ namespace CROMS.Forms
             AddFieldRow(_repBlock, lblIdType, txtIdType);
             OthersBox.AttachInline(txtIdType, 50);
             AddFieldRow(_repBlock, lblIdNum, txtIdNum);
+            CROMS.Data.IdNumberMask.Attach(txtIdNum, txtIdType);   // auto-space + cap to the picked ID's format
             _repRow = t.RowCount;
             AddStack(t, _repBlock, 0);   // 0 until the box is ticked (see ShowRepFields)
             chkRep.CheckedChanged += (s, e) => ShowRepFields(chkRep.Checked);
