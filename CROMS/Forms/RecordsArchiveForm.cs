@@ -406,12 +406,13 @@ namespace CROMS.Forms
 
         /// <summary>
         /// Certificate Request's "Find Record": opens the Birth / Marriage / Death Record
-        /// section of this screen in pick mode — its own search bar over every book, plus a
+        /// section of this screen in pick mode — filtered to the client's own details (see
+        /// <see cref="RecordCriteria"/>), with its own search bar over every book to widen it, plus a
         /// "Use This Record" button. The chosen record (id + a one-line label) goes to
         /// <paramref name="onPicked"/>; "← Cancel" calls <paramref name="onCancelled"/>.
         /// Returns false when the section could not be opened.
         /// </summary>
-        public bool BeginRecordPick(string recordType, string searchText,
+        public bool BeginRecordPick(string recordType, RecordCriteria criteria,
                                     Action<int, string> onPicked, Action onCancelled)
         {
             Form workbench;
@@ -423,9 +424,9 @@ namespace CROMS.Forms
                 default: return false;
             }
 
-            if (workbench is OldBirthRecordsForm b) b.BeginPick(searchText, onPicked, onCancelled);
-            else if (workbench is OldMarriageRecordsForm m) m.BeginPick(searchText, onPicked, onCancelled);
-            else if (workbench is OldDeathRecordsForm d) d.BeginPick(searchText, onPicked, onCancelled);
+            if (workbench is OldBirthRecordsForm b) b.BeginPick(criteria, onPicked, onCancelled);
+            else if (workbench is OldMarriageRecordsForm m) m.BeginPick(criteria, onPicked, onCancelled);
+            else if (workbench is OldDeathRecordsForm d) d.BeginPick(criteria, onPicked, onCancelled);
             else return false;
             return true;
         }

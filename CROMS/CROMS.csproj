@@ -565,6 +565,7 @@
     <Compile Include="Data\GeoLookup.cs" />
     <Compile Include="Data\OfficeAssets.cs" />
     <Compile Include="Data\CertificateReport.cs" />
+    <Compile Include="Data\RecordMatch.cs" />
     <Compile Include="Data\CrystalRunner.cs" />
     <Compile Include="Data\CertTemplate.cs" />
     <Compile Include="Data\TemplateStore.cs" />

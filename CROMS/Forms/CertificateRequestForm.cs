@@ -28,7 +28,7 @@ namespace CROMS.Forms
         private int _pickedId;
         private string _pickedName;
         private string _findHint;      // the kiosk client's name, shown beside the button
-        private string _findSearch;    // what the archive search bar starts with (the surname)
+        private RecordCriteria _criteria;  // everything the kiosk already captured about the record
 
         public void RefreshData() => LoadRequests();
 
@@ -84,7 +84,8 @@ namespace CROMS.Forms
             try
             {
                 System.Data.DataTable c = Db.Pull(
-                    "SELECT doc_type, copies, purpose, registry_no, owner_first, owner_middle, owner_last " +
+                    "SELECT doc_type, copies, purpose, registry_no, owner_first, owner_middle, owner_last, " +
+                    "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province " +
                     "FROM ctc_requests WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
                     new MySqlParameter("@id", ticketId));
                 if (c.Rows.Count == 0) return;
@@ -106,9 +107,21 @@ namespace CROMS.Forms
                 string owner = string.Join(" ", new[] { Text2(r["owner_last"]), Text2(r["owner_first"]) }
                     .Where(p => p.Length > 0));
                 _findHint = owner;
-                // The archive search matches one name column at a time, so "Last First" would
-                // find nothing; the surname alone finds the family and the clerk narrows it.
-                _findSearch = Text2(r["owner_last"]);
+
+                // Handed to Records Archive by Find Record so it opens already filtered to the
+                // client's likely record - never the whole register.
+                DateTime ev;
+                _criteria = new RecordCriteria
+                {
+                    DocType = doc,
+                    RegistryNo = Text2(r["registry_no"]),
+                    First = Text2(r["owner_first"]), Middle = Text2(r["owner_middle"]), Last = Text2(r["owner_last"]),
+                    SpouseFirst = Text2(r["spouse_first"]), SpouseMiddle = Text2(r["spouse_middle"]),
+                    SpouseLast = Text2(r["spouse_last"]),
+                    EventDate = r["event_date"] != DBNull.Value && DateTime.TryParse(r["event_date"].ToString(), out ev)
+                        ? (DateTime?)ev : null,
+                    City = Text2(r["event_city"]), Province = Text2(r["event_province"])
+                };
                 UpdateFindState();
             }
             catch { /* no ctc_requests table yet, or a counter-created request */ }
@@ -307,7 +320,7 @@ namespace CROMS.Forms
                 return;
             }
 
-            bool opened = archive.BeginRecordPick(type, _findSearch,
+            bool opened = archive.BeginRecordPick(type, _criteria,
                 (id, label) =>
                 {
                     shell.GoToModule("certrequest");
@@ -483,7 +496,7 @@ namespace CROMS.Forms
             cboCertType.SelectedItem = "CTC";
             cboRecordType.SelectedIndex = -1;
             _findHint = null;
-            _findSearch = null;
+            _criteria = null;
             ClearPick();
             txtCopies.Text = "1";
             txtPurpose.Clear();

@@ -170,12 +170,15 @@ namespace CROMS.Forms
         private Action<int, string> _pickCallback;
         private Action _pickCancelled;
         private bool _allBooks;
+        private RecordCriteria _criteria;   // what the client already told the kiosk
+
+        private const string PickType = "Birth";
 
         public bool PickMode => _pickCallback != null;
 
         private string PickHeader() => "Choose the record for the certificate request — all books";
 
-        public void BeginPick(string searchText, Action<int, string> onPicked, Action onCancelled)
+        public void BeginPick(RecordCriteria criteria, Action<int, string> onPicked, Action onCancelled)
         {
             _pickCallback = onPicked;
             _pickCancelled = onCancelled;
@@ -184,7 +187,11 @@ namespace CROMS.Forms
             _bookVolDisplay = null;
             _bookIsNullGroup = false;
             ApplyPickChrome();
-            txtSearch.Text = searchText ?? "";
+            _criteria = criteria;
+            txtSearch.Text = "";
+            RecordMatch.Cue(txtSearch, RecordMatch.Applies(PickType, criteria)
+                ? "Client's matches shown — type to search wider"
+                : "Search every book by name or registry number");
             ShowListView();
             LoadGrid();
             txtSearch.Focus();
@@ -206,7 +213,9 @@ namespace CROMS.Forms
             _pickCallback = null;
             _pickCancelled = null;
             _allBooks = false;
+            _criteria = null;
             ApplyPickChrome();
+            RecordMatch.Cue(txtSearch, "");
             txtSearch.Text = "";
             ShowBooksGallery();
         }
@@ -216,6 +225,38 @@ namespace CROMS.Forms
             Action cancelled = _pickCancelled;
             EndPick();
             if (cancelled != null) cancelled();
+        }
+
+        /// <summary>
+        /// Pick mode with the client's kiosk details: tries the tightest match first (registry
+        /// number, then every name given, then same surname / sounds alike) and shows the first
+        /// level that finds anything - a handful of likely records, not the whole register.
+        /// Anything typed in the search bar replaces this with a plain search.
+        /// </summary>
+        private void LoadCriteriaMatches(string baseSql)
+        {
+            DataTable dt = null;
+            int used = RecordMatch.LevelSurname;
+            foreach (int level in RecordMatch.Levels(PickType, _criteria))
+            {
+                string where = RecordMatch.Where(PickType, _criteria, level);
+                if (where == null) continue;
+                string sql = baseSql + " AND " + where +
+                             " ORDER BY " + RecordMatch.OrderBy(PickType, _criteria) + " LIMIT 100";
+                dt = Db.Pull(sql, RecordMatch.Params(PickType, _criteria).ToArray());
+                used = level;
+                if (dt.Rows.Count > 0) break;
+            }
+            if (dt == null) dt = new DataTable();
+
+            dgv.DataSource = dt;
+            if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
+            string summary = _criteria.Summary(PickType);
+            lblListHeader.Text = dt.Rows.Count == 0
+                ? "No record matches what the client asked for (" + summary + ") — type in the search bar to search wider."
+                : "The client asked for: " + summary + "  —  " + RecordMatch.Describe(used) +
+                  "  ·  " + dt.Rows.Count + " record(s)";
+            UpdateListButtons();
         }
 
         private string Cell(string column)
@@ -353,6 +394,11 @@ namespace CROMS.Forms
                 "status AS Status, " +
                 "CASE WHEN record_source = '" + BacklogSource + "' THEN 'Digitized' ELSE 'Registered' END AS Source " +
                 "FROM births WHERE 1 = 1";
+            if (_allBooks && term.Length == 0 && RecordMatch.Applies(PickType, _criteria))
+            {
+                LoadCriteriaMatches(sql);   // the client's own details, until staff type something else
+                return;
+            }
             var ps = new List<MySqlParameter>();
             if (!_allBooks)   // pick mode searches every book at once
             {
