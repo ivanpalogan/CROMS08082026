@@ -367,6 +367,7 @@ namespace CROMS.Forms
             foreach (DateTimePicker p in new[] { dtpAttDate, dtpInfDate, dtpPreparedDate, dtpReceivedDate, dtpRegisteredDate })
                 p.MaxDate = DateTime.Today;
             txtAttTitle.Items.AddRange(AttendantTitles);
+            txtPreparedTitle.Items.AddRange(OfficeTitles);
 
             // Subscribe after initialization and data loading so the initial values
             // do not trigger delayed-registration calculations during construction.
@@ -1980,6 +1981,14 @@ namespace CROMS.Forms
         }
 
         /// <summary>Common titles / positions of whoever attended the birth (Form 102 item 21b / 19b).</summary>
+        private static readonly string[] OfficeTitles =
+        {
+            "Municipal Civil Registrar", "Local Civil Registrar", "Assistant Civil Registrar",
+            "Civil Registry Clerk", "Registration Officer", "Administrative Aide",
+            "Administrative Assistant", "Administrative Officer", "Records Officer",
+            "Municipal Mayor", "Nurse",
+        };
+
         private static readonly string[] AttendantTitles =
         {
             "Physician", "Resident Physician", "Municipal Health Officer", "Nurse", "Senior Nurse",

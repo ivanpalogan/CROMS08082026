@@ -155,7 +155,7 @@ namespace CROMS.Forms
             this.lblReceivedBy = new System.Windows.Forms.Label();
             this.txtReceivedBy = new System.Windows.Forms.TextBox();
             this.lblPreparedTitle = new System.Windows.Forms.Label();
-            this.txtPreparedTitle = new System.Windows.Forms.TextBox();
+            this.txtPreparedTitle = new System.Windows.Forms.ComboBox();
             this.lblReceivedTitle = new System.Windows.Forms.Label();
             this.txtReceivedTitle = new System.Windows.Forms.TextBox();
             this.lblPreparedDate = new System.Windows.Forms.Label();
@@ -1867,6 +1867,8 @@ namespace CROMS.Forms
             // txtPreparedTitle
             // 
             this.txtPreparedTitle.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtPreparedTitle.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
+            this.txtPreparedTitle.FormattingEnabled = true;
             this.txtPreparedTitle.Location = new System.Drawing.Point(181, 141);
             this.txtPreparedTitle.Margin = new System.Windows.Forms.Padding(3, 3, 24, 3);
             this.txtPreparedTitle.Name = "txtPreparedTitle";
@@ -2446,7 +2448,7 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblAttDate;
         private System.Windows.Forms.DateTimePicker dtpAttDate;
         private System.Windows.Forms.Label lblPreparedTitle;
-        private System.Windows.Forms.TextBox txtPreparedTitle;
+        private System.Windows.Forms.ComboBox txtPreparedTitle;
         private System.Windows.Forms.Label lblReceivedTitle;
         private System.Windows.Forms.TextBox txtReceivedTitle;
         private System.Windows.Forms.Label lblPreparedDate;
