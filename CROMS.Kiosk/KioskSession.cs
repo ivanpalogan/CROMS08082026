@@ -69,10 +69,11 @@ namespace CROMS.Kiosk
         // structured fields (see migration 55).
         public string CtcDocumentType, CtcDetails, CtcPurpose, CtcRelationship, CtcRegistryNo;
         public int CtcCopies = 1;
-        public string CtcOwnerFirst, CtcOwnerMiddle, CtcOwnerLast;
-        public string CtcSpouseFirst, CtcSpouseMiddle, CtcSpouseLast;
+        // For a marriage Owner* is the HUSBAND and Spouse* the WIFE. No parent names are asked at the kiosk.
+        public string CtcOwnerFirst, CtcOwnerMiddle, CtcOwnerLast, CtcOwnerSuffix;
+        public string CtcSpouseFirst, CtcSpouseMiddle, CtcSpouseLast, CtcSpouseSuffix;
         public System.DateTime? CtcEventDate;
-        public string CtcEventCity, CtcEventProvince, CtcFatherName, CtcMotherMaidenName;
+        public string CtcEventCity, CtcEventProvince;
 
         public bool HasClaim => Selected.Contains("CLAIM");
         public bool HasBreqs => Selected.Contains("BREQS");
@@ -121,10 +122,10 @@ namespace CROMS.Kiosk
             EventCity = EventProvince = FatherName = MotherMaidenName = null;
             CtcDocumentType = CtcDetails = CtcPurpose = CtcRelationship = CtcRegistryNo = null;
             CtcCopies = 1;
-            CtcOwnerFirst = CtcOwnerMiddle = CtcOwnerLast = null;
-            CtcSpouseFirst = CtcSpouseMiddle = CtcSpouseLast = null;
+            CtcOwnerFirst = CtcOwnerMiddle = CtcOwnerLast = CtcOwnerSuffix = null;
+            CtcSpouseFirst = CtcSpouseMiddle = CtcSpouseLast = CtcSpouseSuffix = null;
             CtcEventDate = null;
-            CtcEventCity = CtcEventProvince = CtcFatherName = CtcMotherMaidenName = null;
+            CtcEventCity = CtcEventProvince = null;
         }
     }
 }

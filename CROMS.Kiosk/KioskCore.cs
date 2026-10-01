@@ -442,7 +442,12 @@ namespace CROMS.Kiosk
             if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcDocumentType))
             { error = "Please choose the civil registry document for the Certified True Copy request."; return false; }
             if (s.HasCtc && (string.IsNullOrWhiteSpace(s.CtcOwnerFirst) || string.IsNullOrWhiteSpace(s.CtcOwnerLast)))
-            { error = "Please enter the first and last name on the record you need a certified true copy of."; return false; }
+            { error = s.CtcDocumentType == "Marriage"
+                  ? "Please enter the husband's first and last name."
+                  : "Please enter the first and last name on the record you need a certified true copy of."; return false; }
+            if (s.HasCtc && s.CtcDocumentType == "Marriage"
+                && (string.IsNullOrWhiteSpace(s.CtcSpouseFirst) || string.IsNullOrWhiteSpace(s.CtcSpouseLast)))
+            { error = "Please enter the wife's first and last name."; return false; }
 
             // Returning-client pickup: a typed queue number that maps to a parked request is
             // a reclaim — link the new ticket to that transaction and jump the queue.
@@ -474,9 +479,9 @@ namespace CROMS.Kiosk
             var parts = new List<string>();
             if (!string.IsNullOrWhiteSpace(s.CtcDocumentType)) parts.Add(s.CtcDocumentType + " CTC");
             if (s.CtcCopies > 1) parts.Add(s.CtcCopies + " copies");
-            string owner = Join(s.CtcOwnerFirst, s.CtcOwnerMiddle, s.CtcOwnerLast);
+            string owner = Join(s.CtcOwnerFirst, s.CtcOwnerMiddle, s.CtcOwnerLast, s.CtcOwnerSuffix);
             if (!string.IsNullOrWhiteSpace(owner)) parts.Add(owner);
-            string spouse = Join(s.CtcSpouseFirst, s.CtcSpouseMiddle, s.CtcSpouseLast);
+            string spouse = Join(s.CtcSpouseFirst, s.CtcSpouseMiddle, s.CtcSpouseLast, s.CtcSpouseSuffix);
             if (!string.IsNullOrWhiteSpace(spouse)) parts.Add("& " + spouse);
             if (s.CtcEventDate.HasValue) parts.Add(s.CtcEventDate.Value.ToString("yyyy-MM-dd"));
             if (!string.IsNullOrWhiteSpace(s.CtcRegistryNo)) parts.Add("Reg " + s.CtcRegistryNo.Trim());
@@ -500,35 +505,49 @@ namespace CROMS.Kiosk
         /// </summary>
         public static void SaveCtcRequest(KioskSession s, long ticketId)
         {
-            bool marriage = s.CtcDocumentType == "Marriage", birth = s.CtcDocumentType == "Birth";
+            bool marriage = s.CtcDocumentType == "Marriage";
             try
             {
-                Db.Push(
-                    "INSERT INTO ctc_requests (source, queue_ticket_id, doc_type, copies, purpose, relationship, registry_no, " +
-                    "owner_first, owner_middle, owner_last, spouse_first, spouse_middle, spouse_last, " +
-                    "event_date, event_city, event_province, father_name, mother_maiden_name, remarks, status) " +
-                    "VALUES ('Kiosk', @tid, @doc, @copies, @purpose, @rel, @reg, @of, @om, @ol, @sf, @sm, @sl, " +
-                    "@ed, @ec, @ep, @fa, @mo, @rem, 'Requested')",
-                    new MySqlParameter("@tid", ticketId),
-                    new MySqlParameter("@doc", s.CtcDocumentType),
-                    new MySqlParameter("@copies", Math.Max(1, s.CtcCopies)),
-                    new MySqlParameter("@purpose", NullIfBlank(s.CtcPurpose)),
-                    new MySqlParameter("@rel", NullIfBlank(s.CtcRelationship)),
-                    new MySqlParameter("@reg", NullIfBlank(s.CtcRegistryNo)),
-                    new MySqlParameter("@of", NullIfBlank(s.CtcOwnerFirst)),
-                    new MySqlParameter("@om", NullIfBlank(s.CtcOwnerMiddle)),
-                    new MySqlParameter("@ol", NullIfBlank(s.CtcOwnerLast)),
-                    new MySqlParameter("@sf", marriage ? NullIfBlank(s.CtcSpouseFirst) : DBNull.Value),
-                    new MySqlParameter("@sm", marriage ? NullIfBlank(s.CtcSpouseMiddle) : DBNull.Value),
-                    new MySqlParameter("@sl", marriage ? NullIfBlank(s.CtcSpouseLast) : DBNull.Value),
-                    new MySqlParameter("@ed", s.CtcEventDate.HasValue ? (object)s.CtcEventDate.Value.Date : DBNull.Value),
-                    new MySqlParameter("@ec", NullIfBlank(s.CtcEventCity)),
-                    new MySqlParameter("@ep", NullIfBlank(s.CtcEventProvince)),
-                    new MySqlParameter("@fa", birth ? NullIfBlank(s.CtcFatherName) : DBNull.Value),
-                    new MySqlParameter("@mo", birth ? NullIfBlank(s.CtcMotherMaidenName) : DBNull.Value),
-                    new MySqlParameter("@rem", NullIfBlank(s.CtcDetails)));
+                try { InsertCtc(s, ticketId, marriage, true); }
+                catch (MySqlException ex) when (ex.Number == 1054)
+                {
+                    // Migration 79 (name suffix columns) not applied yet: keep the suffix by
+                    // appending it to the last name rather than dropping it.
+                    InsertCtc(s, ticketId, marriage, false);
+                }
             }
             catch { /* ticket already exists; the counter can re-ask */ }
+        }
+
+        private static void InsertCtc(KioskSession s, long ticketId, bool marriage, bool withSuffix)
+        {
+            string ownerLast = withSuffix ? s.CtcOwnerLast : Join(s.CtcOwnerLast, s.CtcOwnerSuffix);
+            string spouseLast = withSuffix ? s.CtcSpouseLast : Join(s.CtcSpouseLast, s.CtcSpouseSuffix);
+            Db.Push(
+                "INSERT INTO ctc_requests (source, queue_ticket_id, doc_type, copies, purpose, relationship, registry_no, " +
+                "owner_first, owner_middle, owner_last, " + (withSuffix ? "owner_suffix, spouse_suffix, " : "") +
+                "spouse_first, spouse_middle, spouse_last, " +
+                "event_date, event_city, event_province, remarks, status) " +
+                "VALUES ('Kiosk', @tid, @doc, @copies, @purpose, @rel, @reg, @of, @om, @ol, " + (withSuffix ? "@os, @ss, " : "") +
+                "@sf, @sm, @sl, @ed, @ec, @ep, @rem, 'Requested')",
+                new MySqlParameter("@tid", ticketId),
+                new MySqlParameter("@doc", s.CtcDocumentType),
+                new MySqlParameter("@copies", Math.Max(1, s.CtcCopies)),
+                new MySqlParameter("@purpose", NullIfBlank(s.CtcPurpose)),
+                new MySqlParameter("@rel", NullIfBlank(s.CtcRelationship)),
+                new MySqlParameter("@reg", NullIfBlank(s.CtcRegistryNo)),
+                new MySqlParameter("@of", NullIfBlank(s.CtcOwnerFirst)),
+                new MySqlParameter("@om", NullIfBlank(s.CtcOwnerMiddle)),
+                new MySqlParameter("@ol", NullIfBlank(ownerLast)),
+                new MySqlParameter("@os", NullIfBlank(s.CtcOwnerSuffix)),
+                new MySqlParameter("@ss", marriage ? NullIfBlank(s.CtcSpouseSuffix) : DBNull.Value),
+                new MySqlParameter("@sf", marriage ? NullIfBlank(s.CtcSpouseFirst) : DBNull.Value),
+                new MySqlParameter("@sm", marriage ? NullIfBlank(s.CtcSpouseMiddle) : DBNull.Value),
+                new MySqlParameter("@sl", marriage ? NullIfBlank(spouseLast) : DBNull.Value),
+                new MySqlParameter("@ed", s.CtcEventDate.HasValue ? (object)s.CtcEventDate.Value.Date : DBNull.Value),
+                new MySqlParameter("@ec", NullIfBlank(s.CtcEventCity)),
+                new MySqlParameter("@ep", NullIfBlank(s.CtcEventProvince)),
+                new MySqlParameter("@rem", NullIfBlank(s.CtcDetails)));
         }
 
         // ------------------------------------------------------------ PSA copy (BREQS)

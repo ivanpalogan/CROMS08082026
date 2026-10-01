@@ -35,8 +35,8 @@ namespace CROMS.Kiosk
             _session = session;
             InitializeComponent();
             OthersBox.AttachInline(_purpose, 80);
-            AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast,
-                _spouseFirst, _spouseMiddle, _spouseLast, _father, _mother);
+            AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast, _ownerSuffix,
+                _spouseFirst, _spouseMiddle, _spouseLast, _spouseSuffix);
 
             _idle = new Timer { Interval = 1000 };
             int ticks = 0;
@@ -79,25 +79,30 @@ namespace CROMS.Kiosk
 
 
         /// <summary>
-        /// A marriage has a second spouse and no parent block; a birth has parents and no spouse;
-        /// a death has neither. Hiding the block that does not apply is the point of asking the
-        /// document type first — a death certificate request should never show an empty
-        /// "the other spouse" section for the client to wonder about.
+        /// The fields follow the document. A birth or a death asks for ONE person and the event;
+        /// a marriage asks for the husband and the wife and the event. No parent information is
+        /// asked at the kiosk - staff verify anything further at the counter. Hiding the wife's
+        /// row is the point of asking the document type first: a birth request should never
+        /// show a "wife" row for the client to wonder about.
         /// </summary>
         private void ApplyDocType()
         {
             string doc = _document.SelectedItem as string;
-            bool marriage = doc == "Marriage", birth = doc == "Birth";
+            bool marriage = doc == "Marriage", birth = doc == "Birth", death = doc == "Death";
 
-            // Each block member is a caption whose paired input hangs off its Tag (see Field),
-            // so one pass hides the label AND the box under it.
-            foreach (Control c in _spouseBlock) { c.Visible = marriage; if (c.Tag is Control i) i.Visible = marriage; }
-            foreach (Control c in _parentBlock) { c.Visible = birth; if (c.Tag is Control i) i.Visible = birth; }
+            foreach (Control c in _spouseBlock) c.Visible = marriage;
 
-            _ownerCaption.Text = marriage ? "WHOSE RECORD — ONE SPOUSE" : birth ? "WHOSE RECORD — THE CHILD"
-                : doc == "Death" ? "WHOSE RECORD — THE DECEASED" : "WHOSE RECORD";
-            _eventCaption.Text = marriage ? "Date of marriage" : birth ? "Date of birth"
-                : doc == "Death" ? "Date of death" : "Date of the event";
+            string who = marriage ? "Husband's " : "";
+            _ownerFirstCap.Text = who + (marriage ? "first name *" : "First name *");
+            _ownerMiddleCap.Text = who + (marriage ? "middle name" : "Middle name");
+            _ownerLastCap.Text = who + (marriage ? "last name *" : "Last name *");
+
+            _ownerCaption.Text = marriage ? "WHOSE RECORD — THE COUPLE" : birth ? "WHOSE RECORD — THE CHILD"
+                : death ? "WHOSE RECORD — THE DECEASED" : "WHOSE RECORD";
+            string ev = marriage ? "marriage" : birth ? "birth" : death ? "death" : null;
+            _eventCaption.Text = ev == null ? "Date of the event" : "Date of " + ev;
+            _provinceCaption.Text = ev == null ? "Province" : "Province of " + ev;
+            _cityCaption.Text = ev == null ? "City / Municipality" : "City / Municipality of " + ev;
             SizeCard();
         }
 
@@ -111,8 +116,17 @@ namespace CROMS.Kiosk
             }
             if (string.IsNullOrWhiteSpace(_ownerFirst.Text) || string.IsNullOrWhiteSpace(_ownerLast.Text))
             {
-                Warn("Please enter the first and last name on the record you need a copy of.");
+                Warn(_document.SelectedItem as string == "Marriage"
+                    ? "Please enter the husband's first and last name."
+                    : "Please enter the first and last name on the record you need a copy of.");
                 (string.IsNullOrWhiteSpace(_ownerFirst.Text) ? _ownerFirst : _ownerLast).Focus();
+                return;
+            }
+            if (_document.SelectedItem as string == "Marriage"
+                && (string.IsNullOrWhiteSpace(_spouseFirst.Text) || string.IsNullOrWhiteSpace(_spouseLast.Text)))
+            {
+                Warn("Please enter the wife's first and last name.");
+                (string.IsNullOrWhiteSpace(_spouseFirst.Text) ? _spouseFirst : _spouseLast).Focus();
                 return;
             }
             SaveToSession();
@@ -137,15 +151,15 @@ namespace CROMS.Kiosk
             _ownerFirst.Text = _session.CtcOwnerFirst ?? "";
             _ownerMiddle.Text = _session.CtcOwnerMiddle ?? "";
             _ownerLast.Text = _session.CtcOwnerLast ?? "";
+            _ownerSuffix.Text = _session.CtcOwnerSuffix ?? "";
             _spouseFirst.Text = _session.CtcSpouseFirst ?? "";
             _spouseMiddle.Text = _session.CtcSpouseMiddle ?? "";
             _spouseLast.Text = _session.CtcSpouseLast ?? "";
+            _spouseSuffix.Text = _session.CtcSpouseSuffix ?? "";
             if (_session.CtcEventDate.HasValue) { _eventDate.Value = _session.CtcEventDate.Value; _eventDate.Checked = true; }
             else _eventDate.Checked = false;
             _city.Text = _session.CtcEventCity ?? "";
             _province.Text = _session.CtcEventProvince ?? "";
-            _father.Text = _session.CtcFatherName ?? "";
-            _mother.Text = _session.CtcMotherMaidenName ?? "";
             _remarks.Text = _session.CtcDetails ?? "";
         }
 
@@ -160,16 +174,16 @@ namespace CROMS.Kiosk
             _session.CtcOwnerFirst = Trim(_ownerFirst.Text);
             _session.CtcOwnerMiddle = Trim(_ownerMiddle.Text);
             _session.CtcOwnerLast = Trim(_ownerLast.Text);
+            _session.CtcOwnerSuffix = Trim(_ownerSuffix.Text);
 
             // A block that is not on screen must not contribute to the request — switching
             // Marriage to Death after typing a spouse would otherwise file a death record
             // with a spouse name nobody ever saw.
-            bool marriage = _session.CtcDocumentType == "Marriage", birth = _session.CtcDocumentType == "Birth";
+            bool marriage = _session.CtcDocumentType == "Marriage";
             _session.CtcSpouseFirst = marriage ? Trim(_spouseFirst.Text) : null;
             _session.CtcSpouseMiddle = marriage ? Trim(_spouseMiddle.Text) : null;
             _session.CtcSpouseLast = marriage ? Trim(_spouseLast.Text) : null;
-            _session.CtcFatherName = birth ? Trim(_father.Text) : null;
-            _session.CtcMotherMaidenName = birth ? Trim(_mother.Text) : null;
+            _session.CtcSpouseSuffix = marriage ? Trim(_spouseSuffix.Text) : null;
 
             _session.CtcEventDate = _eventDate.Checked ? _eventDate.Value.Date : (DateTime?)null;
             _session.CtcEventCity = Trim(_city.Text);
@@ -218,9 +232,9 @@ namespace CROMS.Kiosk
 
                 int inputH = Math.Max(40, _eventDate.Height);
                 string doc = _document.SelectedItem as string;
-                bool block = doc == "Marriage" || doc == "Birth";
-                int fieldRows = 5 + (block ? 1 : 0);
-                int sections = 2 + (block ? 1 : 0);
+                bool marriage = doc == "Marriage";
+                int fieldRows = 5 + (marriage ? 1 : 0);
+                int sections = 2;
 
                 Tier t = Tiers[Tiers.Length - 1];
                 int avail = 0, needed = 0;

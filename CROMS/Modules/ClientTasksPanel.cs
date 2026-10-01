@@ -632,12 +632,20 @@ namespace CROMS.Modules
             _details.Clear();
             try
             {
-                DataTable c = Db.Pull(
-                    "SELECT doc_type, copies, purpose, relationship, registry_no, owner_first, owner_middle, owner_last, " +
-                    "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province, " +
-                    "father_name, mother_maiden_name, remarks FROM ctc_requests " +
-                    "WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
-                    new MySqlParameter("@id", _ticketId));
+                const string tail = "father_name, mother_maiden_name, remarks FROM ctc_requests " +
+                                    "WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1";
+                const string head = "SELECT doc_type, copies, purpose, relationship, registry_no, owner_first, owner_middle, owner_last, " +
+                                    "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province, ";
+                DataTable c;
+                try
+                {
+                    // owner_suffix / spouse_suffix arrive with migration 79.
+                    c = Db.Pull(head + "owner_suffix, spouse_suffix, " + tail, new MySqlParameter("@id", _ticketId));
+                }
+                catch (MySqlException ex) when (ex.Number == 1054)
+                {
+                    c = Db.Pull(head + tail, new MySqlParameter("@id", _ticketId));
+                }
                 if (c.Rows.Count > 0) _details["CTC"] = CtcLines(c.Rows[0]);
             }
             catch { }
@@ -667,10 +675,10 @@ namespace CROMS.Modules
             int copies = r["copies"] == DBNull.Value ? 1 : Convert.ToInt32(r["copies"]);
             lines.Add(doc + " certificate  ·  " + copies + (copies == 1 ? " copy" : " copies"));
 
-            string owner = JoinNames(Cell(r, "owner_first"), Cell(r, "owner_middle"), Cell(r, "owner_last"));
-            if (owner != null) lines.Add((doc == "Death" ? "Deceased: " : doc == "Marriage" ? "Spouse 1: " : "Name: ") + owner);
-            string spouse = JoinNames(Cell(r, "spouse_first"), Cell(r, "spouse_middle"), Cell(r, "spouse_last"));
-            if (spouse != null) lines.Add("Spouse 2: " + spouse);
+            string owner = JoinNames(Cell(r, "owner_first"), Cell(r, "owner_middle"), Cell(r, "owner_last"), Cell(r, "owner_suffix"));
+            if (owner != null) lines.Add((doc == "Death" ? "Deceased: " : doc == "Marriage" ? "Husband: " : "Name: ") + owner);
+            string spouse = JoinNames(Cell(r, "spouse_first"), Cell(r, "spouse_middle"), Cell(r, "spouse_last"), Cell(r, "spouse_suffix"));
+            if (spouse != null) lines.Add("Wife: " + spouse);
 
             string reg = Cell(r, "registry_no");
             if (reg != null) lines.Add("Registry no: " + reg);

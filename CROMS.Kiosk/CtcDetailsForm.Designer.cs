@@ -20,32 +20,33 @@ namespace CROMS.Kiosk
         private readonly ComboBox _purpose = new ComboBox();
         private readonly ComboBox _relationship = new ComboBox();
 
-        // Whose record
+        // Whose record. For a marriage the "owner" boxes are the HUSBAND and the "spouse" boxes
+        // the WIFE; only the captions change (see ApplyDocType).
         private readonly TextBox _registryNo = new TextBox();
         private readonly TextBox _ownerFirst = new TextBox();
         private readonly TextBox _ownerMiddle = new TextBox();
         private readonly TextBox _ownerLast = new TextBox();
+        private readonly TextBox _ownerSuffix = new TextBox();
         private readonly DateTimePicker _eventDate = new DateTimePicker();
-        private readonly TextBox _city = new TextBox();
         private readonly TextBox _province = new TextBox();
+        private readonly TextBox _city = new TextBox();
 
-        // Conditional blocks
-        private readonly Label _lblSpouse = new Label();
+        // Marriage only: the wife's name.
         private readonly TextBox _spouseFirst = new TextBox();
         private readonly TextBox _spouseMiddle = new TextBox();
         private readonly TextBox _spouseLast = new TextBox();
-        private readonly Label _lblParents = new Label();
-        private readonly TextBox _father = new TextBox();
-        private readonly TextBox _mother = new TextBox();
+        private readonly TextBox _spouseSuffix = new TextBox();
 
         private readonly TextBox _remarks = new TextBox();
         private readonly Label _ownerCaption = new Label();
         private readonly Label _eventCaption = new Label();
+        private readonly Label _provinceCaption = new Label();
+        private readonly Label _cityCaption = new Label();
+        private readonly Label _ownerFirstCap = new Label(), _ownerMiddleCap = new Label(), _ownerLastCap = new Label();
 
-        // Every member of a block is one control (a field panel or a section heading), so
-        // hiding the block is one Visible flag per member and its table row collapses to 0.
+        // Each member of the wife's row is one field panel, so hiding the block is one Visible
+        // flag per member and its table row collapses to 0.
         private readonly List<Control> _spouseBlock = new List<Control>();
-        private readonly List<Control> _parentBlock = new List<Control>();
 
         // Everything that carries a font which follows the card size (see SizeCard).
         private readonly List<Label> _captions = new List<Label>();
@@ -54,7 +55,7 @@ namespace CROMS.Kiosk
         private readonly List<Panel> _fieldPanels = new List<Panel>();
 
         // Designed (1x) sizes; SizeCard multiplies them by the card's scale.
-        private const int GridCols = 6;
+        private const int GridCols = 12;
 
         // Sizes are in PIXELS (GraphicsUnit.Pixel), so they read the same on every display
         // scaling. Chosen for elderly and low-vision clients at arm's length: title 32,
@@ -145,65 +146,50 @@ namespace CROMS.Kiosk
             _document.DropDownStyle = ComboBoxStyle.DropDownList;
             _document.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });
             _document.SelectedIndexChanged += new EventHandler(Document_SelectedIndexChanged);
-            Row(Field("Document type *", _document), 0, 2, true);
+            Row(Field("Document type *", _document), 0, 4);
 
             _copies.DropDownStyle = ComboBoxStyle.DropDownList;
             for (int i = 1; i <= 10; i++) _copies.Items.Add(i.ToString());
-            Field("Copies", _copies, out Panel pCopies);
-            _grid.Controls.Add(pCopies, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pCopies, 1);
+            Cell(Field("Copies", _copies), 4, 2);
 
             _purpose.Items.AddRange(KioskCore.CtcPurposes);
-            Field("Purpose", _purpose, out Panel pPurpose);
-            _grid.Controls.Add(pPurpose, 3, _grid.RowCount - 1); _grid.SetColumnSpan(pPurpose, 3);
+            Cell(Field("Purpose", _purpose), 6, 6);
 
             // --- whose record -------------------------------------------------
             _ownerCaption.Text = "WHOSE RECORD";
             Row(Section(_ownerCaption), 0, GridCols);
 
-            Row(Field("Registry number (if you know it)", _registryNo), 0, 2, true);
+            Row(Field("Registry number (if you know it)", _registryNo), 0, 4);
             _relationship.Items.AddRange(KioskCore.CtcRelationships);
-            Field("You are the record owner's...", _relationship, out Panel pRel);
-            _grid.Controls.Add(pRel, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pRel, 4);
+            Cell(Field("You are the record owner's...", _relationship), 4, 8);
 
-            Row(Field("First name *", _ownerFirst), 0, 2, true);
-            Field("Middle name", _ownerMiddle, out Panel pMid);
-            _grid.Controls.Add(pMid, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pMid, 2);
-            Field("Last name *", _ownerLast, out Panel pLast);
-            _grid.Controls.Add(pLast, 4, _grid.RowCount - 1); _grid.SetColumnSpan(pLast, 2);
+            // Name rows: First 4 | Middle 3 | Last 3 | Suffix 2 of 12 columns.
+            _ownerFirstCap.Text = "First name *"; _ownerMiddleCap.Text = "Middle name"; _ownerLastCap.Text = "Last name *";
+            Row(Field(_ownerFirstCap, _ownerFirst), 0, 4);
+            Cell(Field(_ownerMiddleCap, _ownerMiddle), 4, 3);
+            Cell(Field(_ownerLastCap, _ownerLast), 7, 3);
+            Cell(Field("Suffix (if any)", _ownerSuffix), 10, 2);
 
+            // The wife's row - marriage only.
+            Panel w1 = Field("Wife's first name *", _spouseFirst);
+            Row(w1, 0, 4);
+            Panel w2 = Field("Wife's middle name", _spouseMiddle); Cell(w2, 4, 3);
+            Panel w3 = Field("Wife's last name *", _spouseLast); Cell(w3, 7, 3);
+            Panel w4 = Field("Suffix (if any)", _spouseSuffix); Cell(w4, 10, 2);
+            _spouseBlock.AddRange(new Control[] { w1, w2, w3, w4 });
+
+            // The event: date, province, city - captioned per document ("Date of birth",
+            // "Province of marriage"...), see ApplyDocType.
             _eventDate.Format = DateTimePickerFormat.Custom;   // no weekday: it only crowds the field
             _eventDate.CustomFormat = "d MMMM yyyy";
             _eventDate.ShowCheckBox = true;   // unticked = "the client does not know the date"
             _eventDate.Checked = false;
             _eventCaption.Text = "Date of the event";
-            Row(Field(_eventCaption, _eventDate), 0, 2, true);
-            Field("City / Municipality", _city, out Panel pCity);
-            _grid.Controls.Add(pCity, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pCity, 2);
-            Field("Province", _province, out Panel pProv);
-            _grid.Controls.Add(pProv, 4, _grid.RowCount - 1); _grid.SetColumnSpan(pProv, 2);
-
-            // --- conditional block (marriage: spouse | birth: parents) --------
-            _lblSpouse.Text = "THE OTHER SPOUSE";
-            Label spouseHead = Section(_lblSpouse);
-            Row(spouseHead, 0, GridCols);
-            _spouseBlock.Add(spouseHead);
-            Panel s1 = Field("First name", _spouseFirst);
-            Row(s1, 0, 2, true);
-            _spouseBlock.Add(s1);
-            Field("Middle name", _spouseMiddle, out Panel s2);
-            _grid.Controls.Add(s2, 2, _grid.RowCount - 1); _grid.SetColumnSpan(s2, 2); _spouseBlock.Add(s2);
-            Field("Last name", _spouseLast, out Panel s3);
-            _grid.Controls.Add(s3, 4, _grid.RowCount - 1); _grid.SetColumnSpan(s3, 2); _spouseBlock.Add(s3);
-
-            _lblParents.Text = "PARENTS ON THE RECORD";
-            Label parentHead = Section(_lblParents);
-            Row(parentHead, 0, GridCols);
-            _parentBlock.Add(parentHead);
-            Panel p1 = Field("Father's full name", _father);
-            Row(p1, 0, 3, true);
-            _parentBlock.Add(p1);
-            Field("Mother's maiden name", _mother, out Panel p2);
-            _grid.Controls.Add(p2, 3, _grid.RowCount - 1); _grid.SetColumnSpan(p2, 3); _parentBlock.Add(p2);
+            _provinceCaption.Text = "Province";
+            _cityCaption.Text = "City / Municipality";
+            Row(Field(_eventCaption, _eventDate), 0, 4);
+            Cell(Field(_provinceCaption, _province), 4, 4);
+            Cell(Field(_cityCaption, _city), 8, 4);
 
             // --- remarks ------------------------------------------------------
             _remarks.MaxLength = 255;
@@ -240,23 +226,26 @@ namespace CROMS.Kiosk
             _card.Controls.Add(root);
         }
 
-        /// <summary>Starts a new grid row and puts <paramref name="c"/> in it. When
-        /// <paramref name="keepOpen"/> is true the caller adds more cells to the SAME row.</summary>
-        private void Row(Control c, int col, int span, bool keepOpen = false)
+        /// <summary>Starts a new grid row and puts <paramref name="c"/> in it; follow with
+        /// <see cref="Cell"/> for the other cells of the same row.</summary>
+        private void Row(Control c, int col, int span)
         {
             _grid.RowCount += 1;
             _grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             _grid.Controls.Add(c, col, _grid.RowCount - 1);
             _grid.SetColumnSpan(c, span);
-            // keepOpen: later cells of this row use _grid.RowCount - 1 as their row. A row that
-            // is not kept open is simply never added to again.
+        }
+
+        /// <summary>Adds a cell to the row <see cref="Row"/> just started.</summary>
+        private void Cell(Control c, int col, int span)
+        {
+            _grid.Controls.Add(c, col, _grid.RowCount - 1);
+            _grid.SetColumnSpan(c, span);
         }
 
         /// <summary>One field = a transparent panel holding the bold caption over the input.
         /// It is a single control, so hiding it hides both and its row collapses.</summary>
         private Panel Field(string caption, Control input) => Field(new Label { Text = caption }, input);
-
-        private void Field(string caption, Control input, out Panel panel) => panel = Field(new Label { Text = caption }, input);
 
         /// <summary>Overload taking a caption Label the caller keeps a reference to, so its text
         /// can follow the chosen document type ("Date of birth" / "Date of marriage").</summary>

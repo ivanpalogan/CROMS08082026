@@ -137,15 +137,14 @@ namespace CROMS.Kiosk
             {
                 Section("CERTIFIED TRUE COPY");
                 Row("Document", _session.CtcDocumentType + "  ·  Copies: " + Math.Max(1, _session.CtcCopies));
-                Row("Record owner", Join(_session.CtcOwnerFirst, _session.CtcOwnerMiddle, _session.CtcOwnerLast));
+                bool marr = _session.CtcDocumentType == "Marriage";
+                Row(marr ? "Husband" : "Record owner", Join(_session.CtcOwnerFirst, _session.CtcOwnerMiddle, _session.CtcOwnerLast, _session.CtcOwnerSuffix));
                 if (!string.IsNullOrWhiteSpace(_session.CtcSpouseLast))
-                    Row("Other spouse", Join(_session.CtcSpouseFirst, _session.CtcSpouseMiddle, _session.CtcSpouseLast));
+                    Row("Wife", Join(_session.CtcSpouseFirst, _session.CtcSpouseMiddle, _session.CtcSpouseLast, _session.CtcSpouseSuffix));
                 if (!string.IsNullOrWhiteSpace(_session.CtcRegistryNo)) Row("Registry number", _session.CtcRegistryNo);
                 if (_session.CtcEventDate.HasValue) Row("Date of event", _session.CtcEventDate.Value.ToString("MMMM d, yyyy"));
                 string place = Join(_session.CtcEventCity, _session.CtcEventProvince);
                 if (!string.IsNullOrWhiteSpace(place)) Row("Place of event", place);
-                if (!string.IsNullOrWhiteSpace(_session.CtcFatherName)) Row("Father", _session.CtcFatherName);
-                if (!string.IsNullOrWhiteSpace(_session.CtcMotherMaidenName)) Row("Mother (maiden)", _session.CtcMotherMaidenName);
                 if (!string.IsNullOrWhiteSpace(_session.CtcPurpose)) Row("Purpose", _session.CtcPurpose);
                 if (!string.IsNullOrWhiteSpace(_session.CtcRelationship)) Row("Requester is the", _session.CtcRelationship);
                 if (!string.IsNullOrWhiteSpace(_session.CtcDetails)) Row("Notes", _session.CtcDetails);
