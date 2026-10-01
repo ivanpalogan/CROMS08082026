@@ -51,6 +51,7 @@ namespace CROMS.Kiosk
             NameField.Attach(_spouseSuffix, true, "Jr., Sr., III");
             AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast, _ownerSuffix,
                 _spouseFirst, _spouseMiddle, _spouseLast, _spouseSuffix);
+            WireErrorClearing();
 
             _idle = new Timer { Interval = 1000 };
             int ticks = 0;
@@ -105,6 +106,7 @@ namespace CROMS.Kiosk
             string doc = _document.SelectedItem as string;
             bool marriage = doc == "Marriage", birth = doc == "Birth", death = doc == "Death";
 
+            ClearAllErrors();
             foreach (Control c in _spouseBlock) c.Visible = marriage;
 
             string who = marriage ? "Husband's " : "";
@@ -127,51 +129,122 @@ namespace CROMS.Kiosk
             SizeCard();
         }
 
+        // ------------------------------------------------------------------ validation
+        // Only the required fields are checked: document type, the record owner's first and last
+        // name (the husband's and the wife's for a marriage), and the province and city or
+        // municipality. Each problem is a short sentence directly under its own field; nothing
+        // else is checked, and nothing technical is ever shown. Everything optional (middle name,
+        // suffix, date, registry number, purpose, relationship, notes) may be left blank - except
+        // that choosing "Other" asks for the specifying words.
+        private readonly HashSet<Panel> _errPanels = new HashSet<Panel>();
+
+        private Panel PanelOf(Control c)
+        {
+            for (; c != null; c = c.Parent)
+            {
+                var p = c as Panel;
+                if (p != null && _fieldPanels.Contains(p)) return p;
+            }
+            return null;
+        }
+
+        private bool HasError(Control c) { Panel p = PanelOf(c); return p != null && _errPanels.Contains(p); }
+
+        /// <summary>Shows the first wording that fits under the field - the full sentence when there is
+        /// room, a shorter one in a narrow column (the caption above already says whose name it is).</summary>
+        private void SetError(Control c, params string[] wordings)
+        {
+            Panel p = PanelOf(c);
+            var lbl = p == null ? null : p.Tag as Label;
+            if (lbl == null) return;
+            string message = wordings[wordings.Length - 1];
+            int room = Math.Max(0, p.Width - 6);
+            foreach (string w in wordings)
+                if (TextRenderer.MeasureText(w, lbl.Font, new Size(int.MaxValue, lbl.Height),
+                        TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix).Width <= room)
+                { message = w; break; }
+            lbl.Text = message;
+            lbl.Visible = true;
+            _errPanels.Add(p);
+        }
+
+        private void ClearError(Control c)
+        {
+            Panel p = PanelOf(c);
+            if (p == null || !_errPanels.Remove(p)) return;
+            ((Label)p.Tag).Visible = false;
+            SizeCard();
+        }
+
+        private void ClearAllErrors()
+        {
+            foreach (Panel p in _errPanels) ((Label)p.Tag).Visible = false;
+            _errPanels.Clear();
+        }
+
+        /// <summary>A message goes away the moment the client starts fixing that field.</summary>
+        private void WireErrorClearing()
+        {
+            foreach (Control c in new Control[] { _document, _ownerFirst, _ownerLast, _spouseFirst, _spouseLast,
+                _province, _city, _relationship, _purpose, _relationshipSpecify, _purposeSpecify })
+            {
+                Control field = c;
+                field.TextChanged += (s, e) => ClearError(field);
+            }
+            _document.SelectedIndexChanged += (s, e) => ClearError(_document);
+        }
+
         private void Continue_Click(object sender, EventArgs e)
         {
-            if (_document.SelectedItem == null)
+            ClearAllErrors();
+            Control first = null;
+            Action<Control, string[]> need = (c, wordings) =>
             {
-                Warn("Please choose Birth, Marriage, or Death.");
-                _document.Focus();
-                return;
+                if (!HasError(c)) SetError(c, wordings);   // keep a more specific message set earlier
+                if (first == null) first = c;
+            };
+
+            string doc = _document.SelectedItem as string;
+            bool marriage = doc == "Marriage";
+            if (doc == null) need(_document, new[] { "Please choose a document type." });
+
+            string who = marriage ? "husband's" : "record owner's";
+            if (!NameField.HasLetter(_ownerFirst.Text)) need(_ownerFirst, new[] { "Please enter the " + who + " first name.", "Please enter the first name." });
+            if (!NameField.HasLetter(_ownerLast.Text)) need(_ownerLast, new[] { "Please enter the " + who + " last name.", "Please enter the last name." });
+            if (marriage)
+            {
+                if (!NameField.HasLetter(_spouseFirst.Text)) need(_spouseFirst, new[] { "Please enter the wife's first name.", "Please enter the first name." });
+                if (!NameField.HasLetter(_spouseLast.Text)) need(_spouseLast, new[] { "Please enter the wife's last name.", "Please enter the last name." });
             }
+
+            if (doc != null)
+            {
+                CheckProvince();   // snaps a typed name to the list, or clears and flags a wrong one
+                CheckCity();
+                if (string.IsNullOrWhiteSpace(_province.Text))
+                    need(_province, new[] { _geoOffline ? "Please enter the province." : "Please select a province." });
+                else if (string.IsNullOrWhiteSpace(_city.Text) || !_city.Enabled)
+                    need(_city, new[] { _geoOffline ? "Please enter the city or municipality." : "Please select a city or municipality.", "Please select a city." });
+            }
+
             if (OthersBox.IsOthers(_relationship.Text) && string.IsNullOrWhiteSpace(_relationshipSpecify.Text))
-            {
-                Warn("Please specify your relationship to the record owner.");
-                _relationshipSpecify.Focus();
-                return;
-            }
+                need(_relationshipSpecify, new[] { "Please specify your relationship to the record owner.", "Please specify the relationship." });
             if (OthersBox.IsOthers(_purpose.Text) && string.IsNullOrWhiteSpace(_purposeSpecify.Text))
+                need(_purposeSpecify, new[] { "Please specify the purpose of your request.", "Please specify the purpose." });
+
+            if (first != null)
             {
-                Warn("Please specify the purpose of your request.");
-                _purposeSpecify.Focus();
+                SizeCard();
+                Panel p = PanelOf(first);
+                if (p != null) _body.ScrollControlIntoView(p);
+                first.Focus();
                 return;
             }
-            if (!NameField.HasLetter(_ownerFirst.Text) || !NameField.HasLetter(_ownerLast.Text))
-            {
-                Warn(_document.SelectedItem as string == "Marriage"
-                    ? "Please enter the husband's first and last name."
-                    : "Please enter the first and last name on the record you need a copy of.");
-                (!NameField.HasLetter(_ownerFirst.Text) ? _ownerFirst : _ownerLast).Focus();
-                return;
-            }
-            if (_document.SelectedItem as string == "Marriage"
-                && (!NameField.HasLetter(_spouseFirst.Text) || !NameField.HasLetter(_spouseLast.Text)))
-            {
-                Warn("Please enter the wife's first and last name.");
-                (!NameField.HasLetter(_spouseFirst.Text) ? _spouseFirst : _spouseLast).Focus();
-                return;
-            }
-            if (!PlaceIsValid()) return;
+
             SaveToSession();
             _navigating = true;
             DialogResult = DialogResult.OK;
             Close();
-        }
-
-        private static void Warn(string text)
-        {
-            MessageBox.Show(text, "Please check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
 
         // ------------------------------------------------------- session <-> fields
@@ -233,7 +306,6 @@ namespace CROMS.Kiosk
         // box stays locked ("Select Province First") until a province is chosen, and then lists
         // only that province's cities and municipalities. Both boxes search as the client types.
         private const string CityLocked = "Select Province First";
-        private readonly ToolTip _geoTip = new ToolTip { IsBalloon = false, AutoPopDelay = 3500 };
         private bool _geoOffline;      // lists could not be loaded: both boxes fall back to plain typing
 
         private void SetupGeo()
@@ -284,7 +356,8 @@ namespace CROMS.Kiosk
             if (idx >= 0) { if (_province.SelectedIndex != idx) _province.SelectedIndex = idx; return; }
             _province.Text = "";
             LockCity();
-            _geoTip.Show("Please pick a province from the list.", _province, 0, _province.Height + 2, 3000);
+            SetError(_province, "Please select a province from the list.", "Please select a province.");
+            SizeCard();
         }
 
         private void CheckCity()
@@ -293,7 +366,8 @@ namespace CROMS.Kiosk
             int idx = FindListed(_city, _city.Text);
             if (idx >= 0) { if (_city.SelectedIndex != idx) _city.SelectedIndex = idx; return; }
             _city.Text = "";
-            _geoTip.Show("Please pick a city or municipality from the list.", _city, 0, _city.Height + 2, 3000);
+            SetError(_city, "Please select a city or municipality from the list.", "Please select a city.");
+            SizeCard();
         }
 
         private static int FindListed(ComboBox cb, string text)
@@ -315,13 +389,6 @@ namespace CROMS.Kiosk
                 int c = FindListed(_city, city);
                 if (c >= 0) _city.SelectedIndex = c; else _city.Text = city;
             }
-        }
-
-        private bool PlaceIsValid()
-        {
-            CheckProvince();
-            CheckCity();
-            return true;
         }
 
         private bool _sizing;
@@ -372,7 +439,7 @@ namespace CROMS.Kiosk
                 foreach (Tier c in Tiers)
                 {
                     avail = h - c.PadV * 2 - TitleH - (c.Sub ? SubtitleH : 0) - c.BarH - 8 - 12;
-                    needed = fieldRows * (CaptionH + inputH + c.Gap) + sections * (c.SecH + 8);
+                    needed = fieldRows * (CaptionH + inputH + c.Gap) + sections * (c.SecH + 8) + _errPanels.Count * ErrH;
                     t = c;
                     if (needed <= avail) break;
                 }
@@ -383,7 +450,7 @@ namespace CROMS.Kiosk
                 _subtitle.Visible = t.Sub;
                 foreach (var sec in _sections) sec.Height = t.SecH;
                 foreach (var inp in _inputs) SetInputHeight(inp, inputH);
-                foreach (var fp in _fieldPanels) fp.Height = CaptionH + inputH + t.Gap + extra;
+                foreach (var fp in _fieldPanels) fp.Height = CaptionH + inputH + t.Gap + extra + (_errPanels.Contains(fp) ? ErrH : 0);
 
                 _card.Location = new Point(
                     Math.Max(0, (ClientSize.Width - _card.Width) / 2),

@@ -448,6 +448,10 @@ namespace CROMS.Kiosk
             if (s.HasCtc && s.CtcDocumentType == "Marriage"
                 && (string.IsNullOrWhiteSpace(s.CtcSpouseFirst) || string.IsNullOrWhiteSpace(s.CtcSpouseLast)))
             { error = "Please enter the wife's first and last name."; return false; }
+            if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcEventProvince))
+            { error = "Please select a province."; return false; }
+            if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcEventCity))
+            { error = "Please select a city or municipality."; return false; }
 
             // Returning-client pickup: a typed queue number that maps to a parked request is
             // a reclaim — link the new ticket to that transaction and jump the queue.
@@ -474,6 +478,18 @@ namespace CROMS.Kiosk
         /// the client actually gave, so a sparse request stays short rather than padding with
         /// empty separators.
         /// </summary>
+        /// <summary>Writes a technical error to a log file next to the temp folder. Never shown to a
+        /// client and never throws - a failure to log must not make things worse.</summary>
+        public static void LogError(Exception ex)
+        {
+            try
+            {
+                System.IO.File.AppendAllText(System.IO.Path.Combine(System.IO.Path.GetTempPath(), "croms-kiosk-error.log"),
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + ex + Environment.NewLine + Environment.NewLine);
+            }
+            catch { }
+        }
+
         public static string CtcSummary(KioskSession s)
         {
             var parts = new List<string>();

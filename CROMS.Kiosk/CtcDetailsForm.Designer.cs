@@ -66,7 +66,8 @@ namespace CROMS.Kiosk
         // scaling. Chosen for elderly and low-vision clients at arm's length: title 32,
         // section headings 24, labels 19, input text 20, button text 24.
         private const int TitlePx = 32, SubtitlePx = 18, SectionPx = 24, LabelPx = 19, InputPx = 20, ButtonPx = 24;
-        private const int CaptionH = 28, TitleH = 44, SubtitleH = 28;
+        private const int CaptionH = 28, TitleH = 44, SubtitleH = 28, ErrH = 24;
+        private static readonly Color ErrorColor = Color.FromArgb(198, 50, 63);   // #C6323F
 
         private static Font Px(float px, FontStyle style = FontStyle.Regular)
             => new Font("Segoe UI", px, style, GraphicsUnit.Pixel);
@@ -284,7 +285,22 @@ namespace CROMS.Kiosk
                 Margin = new Padding(0, 0, 16, 0),
                 BackColor = Color.Transparent,
             };
-            p.Controls.Add(input);      // Dock=Top: added first = below the caption
+            // The line shown BELOW the field when it fails validation. Added first so it docks last
+            // (lowest); hidden until needed, and the panel only grows by ErrH while it shows.
+            var err = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = ErrH,
+                ForeColor = ErrorColor,
+                Font = Px(16, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                UseMnemonic = false,
+                AutoEllipsis = true,
+                Visible = false,
+            };
+            p.Tag = err;
+            p.Controls.Add(err);
+            p.Controls.Add(input);      // Dock=Top: added after err = above it, below the caption
             p.Controls.Add(caption);
 
             _captions.Add(caption);

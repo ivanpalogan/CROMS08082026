@@ -184,8 +184,11 @@ namespace CROMS.Kiosk
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Sorry, your request could not be submitted:\n" + ex.Message,
-                    "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // The technical detail goes to a log for whoever maintains the kiosk, never to the client.
+                KioskCore.LogError(ex);
+                MessageBox.Show("Sorry, we could not issue your queue number just now.\n\n" +
+                    "Please try again, or ask the staff for help.",
+                    "Please try again", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 _confirm.Enabled = true;
             }
         }
