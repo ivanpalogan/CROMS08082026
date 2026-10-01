@@ -444,7 +444,11 @@ namespace CROMS.Forms
             {
                 if (serviceCode.Equals("MARRIAGE_APP", StringComparison.OrdinalIgnoreCase))
                 {
-                    using (var entry = new MarriageLicenseForm(null)) entry.ShowDialog(shell);
+                    using (var entry = new MarriageLicenseForm(null))
+                    {
+                        entry.PrepareForQueueTicket(ticketId, ticketCode);
+                        entry.ShowDialog(shell);
+                    }
                     marriage.RefreshData();
                 }
                 else if (serviceCode.Equals("MARRIAGE_REG", StringComparison.OrdinalIgnoreCase))

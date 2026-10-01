@@ -928,7 +928,11 @@ namespace CROMS
                 if (string.Equals(serviceCode, "MARRIAGE_APP", StringComparison.OrdinalIgnoreCase))
                 {
                     // Marriage APPLICATION = Form 90 licence, not the Form 97 registration.
-                    using (var lic = new Forms.MarriageLicenseForm(null)) lic.ShowDialog(this);
+                    using (var lic = new Forms.MarriageLicenseForm(null))
+                    {
+                        lic.PrepareForQueueTicket(ticketId, ticketCode);
+                        lic.ShowDialog(this);
+                    }
                 }
                 else
                 {

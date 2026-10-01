@@ -378,6 +378,25 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@label", joined),
                 new MySqlParameter("@priority", priority));
 
+            // Marriage Application: keep both applicants' three name cells as typed so staff's
+            // Form 90 window auto-fills them (migration 76). A separate UPDATE so the ticket
+            // itself still saves on a database that has not applied the migration yet.
+            if (s.HasMarriageApp)
+            {
+                try
+                {
+                    Db.Push(
+                        "UPDATE queue_tickets SET app_h_first=@hf, app_h_middle=@hm, app_h_last=@hl, " +
+                        "app_w_first=@wf, app_w_middle=@wm, app_w_last=@wl WHERE id=@id",
+                        new MySqlParameter("@hf", NullIfBlank(s.First)), new MySqlParameter("@hm", NullIfBlank(s.Middle)),
+                        new MySqlParameter("@hl", NullIfBlank(s.Last)),
+                        new MySqlParameter("@wf", NullIfBlank(s.First2)), new MySqlParameter("@wm", NullIfBlank(s.Middle2)),
+                        new MySqlParameter("@wl", NullIfBlank(s.Last2)),
+                        new MySqlParameter("@id", ticketId));
+                }
+                catch (MySqlException ex) when (ex.Number == 1054) { /* migration 76 not applied */ }
+            }
+
             foreach (string c in s.Selected)
             {
                 Service svc = Find(c);

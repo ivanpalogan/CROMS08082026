@@ -87,6 +87,50 @@ namespace CROMS.Forms
         }
 
         /// <summary>
+        /// Auto-fills a NEW application from what the client typed at the kiosk: both applicants'
+        /// First / Middle / Last name (kept as three cells by migration 76), and the ticket number
+        /// + contact number in Remarks (Form 90 has no contact field). Called by Queue Management
+        /// when a MARRIAGE_APP ticket is opened. Anything the kiosk did not collect (date of
+        /// birth, residence, civil status...) stays blank for staff. A ticket issued before the
+        /// migration holds only a joined name, shown WHOLE in the Last name box for staff to
+        /// split - never guessed apart (a two-word surname would be mangled).
+        /// </summary>
+        public void PrepareForQueueTicket(int ticketId, string ticketCode)
+        {
+            DataTable dt;
+            try
+            {
+                dt = Db.Pull("SELECT full_name, spouse_full_name, contact_no, app_h_first, app_h_middle, app_h_last, " +
+                             "app_w_first, app_w_middle, app_w_last FROM queue_tickets WHERE id=@id",
+                    new MySql.Data.MySqlClient.MySqlParameter("@id", ticketId));
+            }
+            catch (MySql.Data.MySqlClient.MySqlException ex) when (ex.Number == 1054)
+            {
+                dt = Db.Pull("SELECT full_name, spouse_full_name, contact_no FROM queue_tickets WHERE id=@id",
+                    new MySql.Data.MySqlClient.MySqlParameter("@id", ticketId));
+            }
+            if (dt.Rows.Count == 0) return;
+            DataRow r = dt.Rows[0];
+            Func<string, string> g = c => dt.Columns.Contains(c) && r[c] != DBNull.Value ? r[c].ToString() : null;
+
+            bool wasLoading = _loading; _loading = true;
+            if (g("app_h_first") != null || g("app_h_last") != null || g("app_w_first") != null || g("app_w_last") != null)
+            {
+                _h.First.Text = g("app_h_first"); _h.Middle.Text = g("app_h_middle"); _h.Last.Text = g("app_h_last");
+                _w.First.Text = g("app_w_first"); _w.Middle.Text = g("app_w_middle"); _w.Last.Text = g("app_w_last");
+            }
+            else
+            {
+                _h.Last.Text = g("full_name"); _w.Last.Text = g("spouse_full_name");
+            }
+            string contact = g("contact_no");
+            _remarks.Text = "Kiosk ticket " + ticketCode + (string.IsNullOrWhiteSpace(contact) ? "" : " - contact " + contact);
+            _loading = wasLoading;
+            _dirty = true;
+            RefreshAll();
+        }
+
+        /// <summary>
         /// "If previously married" applies only to a Widowed / Annulled / Divorced party. Otherwise
         /// the block is GREYED and CLEARED, not merely left blank: a blank box reads as one nobody
         /// filled in, a greyed one says the question does not apply (Birth's parents-married
