@@ -71,23 +71,22 @@ namespace CROMS.Forms
         {
             InitializeComponent();
             // Every death-side date is something that already happened: no future dates.
-            foreach (DateTimePicker d in new[] { dtpDod, dtpDispDate, dtpCInfDate, dtpCPrepDate, dtpCRecvDate, dtpCRegDate })
+            foreach (DateTimePicker d in new[] { dtpDob, dtpDod, dtpDispDate, dtpCInfDate, dtpCPrepDate, dtpCRecvDate, dtpCRegDate })
                 d.MaxDate = DateTime.Today;
             tabControl.TabPages.Add(_extras.Page);
-            // Going forward to another tab needs the deceased's first and last name; going back is always allowed.
-            tabControl.Selecting += (s, e) =>
-            {
-                if (e.TabPageIndex <= tabControl.SelectedIndex) return;
-                TextBox empty = string.IsNullOrWhiteSpace(txtFirstName.Text) ? txtFirstName
-                              : string.IsNullOrWhiteSpace(txtLastName.Text) ? txtLastName : null;
-                if (empty == null) return;
-                e.Cancel = true;
-                MessageBox.Show("Fill in the deceased's first name and last name before going to the next tab.",
-                    "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                empty.Focus();
-            };
+            // Age is computed from the two dates whenever a date of birth is given.
+            dtpDob.ValueChanged += (s, e) => RecomputeAge();
+            dtpDod.ValueChanged += (s, e) => RecomputeAge();
+            // Ticking / unticking the box is not always reported as a value change.
+            dtpDob.MouseUp += (s, e) => RecomputeAge((txtAge.Text ?? "").Trim().Length == 0);
+            dtpDob.KeyUp += (s, e) => RecomputeAge((txtAge.Text ?? "").Trim().Length == 0);
+            RecomputeAge();
             LoadCombos();
             BuildLookups();
+            // Numbered step strip + at-a-glance rail + the per-step required-field gate
+            // (replaces the old "first and last name" check on the tab headers).
+            InitializeWizardChrome();
+            btnDeleteSelected.Visible = Session.IsAdmin;
             LoadDeaths();
             LearningLibrary.Attach(txtLastName, LearningLibrary.Surname);
             LearningLibrary.Attach(txtFirstName, LearningLibrary.GivenName);
@@ -124,6 +123,8 @@ namespace CROMS.Forms
         {
             cardForm.Visible = true;
             lblSubtitle.Text = "MUNICIPAL FORM 103  •  CERTIFICATE OF DEATH";
+            tabControl.SelectedIndex = 0;   // every entry starts on the first step
+            UpdateStepNavigation();
             OpenEntryDialog();
         }
 
@@ -155,12 +156,15 @@ namespace CROMS.Forms
             root.Controls.Add(pnlHeader, 0, 0);
             root.Controls.Add(cardForm, 0, 1);
 
+            // Wide enough for the 1,116 px field grid beside the 270 px rail, but never
+            // larger than the screen: a narrower window scrolls each step instead.
+            Rectangle wa = Screen.FromControl(this).WorkingArea;
             var dlg = new Form
             {
                 Text = "Death Registration - Municipal Form 103",
                 StartPosition = FormStartPosition.CenterParent,
-                ClientSize = new Size(1400, 620),
-                MinimumSize = new Size(1100, 560),
+                ClientSize = new Size(Math.Min(1560, wa.Width - 40), Math.Min(820, wa.Height - 80)),
+                MinimumSize = new Size(Math.Min(1000, wa.Width - 40), Math.Min(600, wa.Height - 80)),
                 MaximizeBox = true,
                 MinimizeBox = true,
                 ShowIcon = false,
@@ -577,8 +581,12 @@ namespace CROMS.Forms
             txtSearch.Focus();
         }
 
-        // ---------- CREATE ----------
-        private void btnSave_Click(object sender, EventArgs e) { Register(); }
+        // ---------- SAVE (one button: registers a new death, or saves changes to an open record) ----------
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null) Register();   // Register runs the full required-entry check itself
+            else UpdateRecord();
+        }
 
         /// <summary>
         /// Register the death on the form.
@@ -591,7 +599,7 @@ namespace CROMS.Forms
         /// </summary>
         private long? Register(bool keepOpen = false)
         {
-            if (!ValidateName()) return null;
+            if (!ValidateAllSteps()) return null;
             string registryNo = NextRegistryNo();
             try
             {
@@ -786,11 +794,18 @@ namespace CROMS.Forms
             txtMiddleName.Text = middleN;
             txtBookVol.Text = Str(r["book_volume"]);
             txtBookPage.Text = Str(r["book_page"]);
+            _loadedRegistryNo = Str(r["registry_no"]);
             SetCombo(cboSex, r["sex"]);
             SetCombo(cboCivil, r["civil_status"]);
-            txtAge.Text = Str(r["age"]);
             SetLookup(_cboDCit, Str(r["citizenship"]));
+            // Both dates first, then the stored age: the age box recomputes on every date
+            // change, so setting it before them would be overwritten by a half-loaded pair.
+            _suspendAge = true;
             SetDate(dtpDod, r["date_of_death"]);
+            SetOptionalDate(dtpDob, dt.Columns.Contains("date_of_birth") ? r["date_of_birth"] : DBNull.Value);
+            txtAge.Text = Str(r["age"]);
+            _suspendAge = false;
+            ApplyAgeMode();
             SetTime(dtpTod, r["time_of_death"]);
             SetPod(Str(r["place_of_death"]));
             txtCInfName.Text = Str(r["informant_name"]);
@@ -820,18 +835,14 @@ namespace CROMS.Forms
             _extras.Load(r);
             _scanImage = dt.Columns.Contains("scan_image") && r["scan_image"] != DBNull.Value
                 ? (byte[])r["scan_image"] : null;
+            UpdateStepNavigation();   // Save caption + rail now describe a saved record
         }
 
-        // ---------- UPDATE ----------
-        private void btnUpdate_Click(object sender, EventArgs e)
+        // ---------- UPDATE (reached from Save Changes when a saved record is open) ----------
+        private void UpdateRecord()
         {
-            if (_editingId == null)
-            {
-                MessageBox.Show("Click a record in the list to edit it first.", "Update",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            if (!ValidateName()) return;
+            if (_editingId == null) return;
+            if (!ValidateAllSteps()) return;
             var ps = new List<MySqlParameter>(FieldParams())
             {
                 new MySqlParameter("@id", _editingId.Value)
@@ -851,33 +862,38 @@ namespace CROMS.Forms
             catch (Exception ex) { Fail(ex); }
         }
 
-        // ---------- DELETE ----------
-        private void btnDelete_Click(object sender, EventArgs e)
+        // ---------- DELETE (list screen, administrators only) ----------
+        // A registry entry is not something the person filling in a form should be able to
+        // remove from inside that form, so deleting lives on the list - where the record is
+        // visibly chosen - and is limited to the administrator. It is audited either way.
+        private void btnDeleteSelected_Click(object sender, EventArgs e)
         {
-            if (_editingId == null)
+            if (!Session.IsAdmin)
+            {
+                MessageBox.Show("Only an administrator can delete a registry entry.", "Delete",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (dgvDeaths.CurrentRow == null || !dgvDeaths.Columns.Contains("id"))
             {
                 MessageBox.Show("Click a record in the list to delete it first.", "Delete",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            if (MessageBox.Show("Delete this death record?", "Confirm delete",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            int id = Convert.ToInt32(dgvDeaths.CurrentRow.Cells["id"].Value);
+            string who = Str(dgvDeaths.CurrentRow.Cells["Deceased"].Value);
+            if (MessageBox.Show("Delete the death record of \"" + who + "\"?\n\nThis cannot be undone.",
+                "Confirm delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
             try
             {
-                Db.Push("DELETE FROM deaths WHERE id = @id",
-                    new MySqlParameter("@id", _editingId.Value));
-                Audit.Write(Audit.Delete, "deaths", _editingId.Value, null);
-                MessageBox.Show("Record deleted.", "Deleted",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                Db.Push("DELETE FROM deaths WHERE id = @id", new MySqlParameter("@id", id));
+                Audit.Write(Audit.Delete, "deaths", id, who);
+                MessageBox.Show("Record deleted.", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 LoadDeaths();
-                ShowListView();
             }
             catch (Exception ex) { Fail(ex); }
         }
-
-        // Inside the entry popup only - starts a fresh record without closing the dialog.
-        private void btnNew_Click(object sender, EventArgs e) => ClearForm();
 
         // ---------- PRINT (Certificate of Death + Burial/Transfer Permit) ----------
         private void btnPrint_Click(object sender, EventArgs e)
@@ -890,7 +906,7 @@ namespace CROMS.Forms
             // offered here instead of merely reported.
             if (_editingId == null)
             {
-                if (!ValidateName()) return;
+                if (!ValidateAllSteps()) return;
                 if (MessageBox.Show(
                         "This death has not been registered yet, and the certificate is " +
                         "printed from the saved registry entry — not from the form on " +
@@ -1076,18 +1092,18 @@ namespace CROMS.Forms
             "prepared_by, prepared_by_title, prepared_by_date, " +
             "received_by, received_by_title, received_by_date, " +
             "registered_by, registered_by_title, registered_by_date, " +
-            "form_code, form_name, full_name, book_volume, book_page, sex, civil_status, age, citizenship, date_of_death, time_of_death, place_of_death, " +
+            "form_code, form_name, full_name, book_volume, book_page, sex, civil_status, age, date_of_birth, citizenship, date_of_death, time_of_death, place_of_death, " +
             "religion_name, immediate_cause, antecedent_cause, underlying_cause, medical_certifier, " +
             "certifier_license_no, disposal_method, place_of_disposal, date_of_disposal, permit_type";
 
         private const string ValuePlaceholders =
             "@iname, @irel, @iaddr, @idate, @prep, @preptitle, @prepdate, @recv, @recvtitle, @recvdate, @regby, @regbytitle, @regbydate, " +
-            "@form_code, @form_name, @name, @bookvol, @bookpage, @sex, @civil, @age, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
+            "@form_code, @form_name, @name, @bookvol, @bookpage, @sex, @civil, @age, @dob, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
             "@lic, @disp, @dplace, @ddate, @permit";
 
         private const string SetClause =
             "form_code=@form_code, form_name=@form_name, full_name=@name, book_volume=@bookvol, book_page=@bookpage, " +
-            "sex=@sex, civil_status=@civil, age=@age, citizenship=@citizen, " +
+            "sex=@sex, civil_status=@civil, age=@age, date_of_birth=@dob, citizenship=@citizen, " +
             "informant_name=@iname, informant_relationship=@irel, informant_address=@iaddr, " +
             "informant_date=@idate, prepared_by=@prep, prepared_by_title=@preptitle, " +
             "prepared_by_date=@prepdate, received_by=@recv, received_by_title=@recvtitle, " +
@@ -1110,6 +1126,8 @@ namespace CROMS.Forms
                 new MySqlParameter("@sex", Combo(cboSex)),
                 new MySqlParameter("@civil", Combo(cboCivil)),
                 new MySqlParameter("@age", I(txtAge)),
+                // Unticked = not known: stored as NULL, never as a guessed date.
+                new MySqlParameter("@dob", Picked(dtpDob)),
                 new MySqlParameter("@citizen", ComboVal(_cboDCit)),
                 new MySqlParameter("@dod", dtpDod.Value.Date),
                 new MySqlParameter("@tod", dtpTod.Value.ToString("HH:mm")),
@@ -1296,11 +1314,14 @@ namespace CROMS.Forms
             txtMiddleName.Clear();
             txtBookVol.Clear();
             txtBookPage.Clear();
+            _loadedRegistryNo = "";
             cboSex.SelectedIndex = -1;
             cboCivil.SelectedIndex = -1;
-            txtAge.Clear();
-            SetLookup(_cboDCit, "");
+            dtpDob.Checked = false;
             dtpDod.Value = DateTime.Today;
+            txtAge.Clear();
+            RecomputeAge();
+            SetLookup(_cboDCit, "");
             SetPod("");
             OthersBox.Apply(_cboInfRel, txtCInfRelOther, lblCInfRelOther, "", SetLookup);
             foreach (DateTimePicker d in new[] { dtpCInfDate, dtpCPrepDate, dtpCRecvDate, dtpCRegDate })

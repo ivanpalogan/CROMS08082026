@@ -55,8 +55,11 @@ namespace CROMS.Forms
             this.cboSex = new System.Windows.Forms.ComboBox();
             this.lblCivil = new System.Windows.Forms.Label();
             this.cboCivil = new System.Windows.Forms.ComboBox();
+            this.lblDob = new System.Windows.Forms.Label();
+            this.dtpDob = new System.Windows.Forms.DateTimePicker();
             this.lblAge = new System.Windows.Forms.Label();
             this.txtAge = new System.Windows.Forms.TextBox();
+            this.lblAgeNote = new System.Windows.Forms.Label();
             this.lblCitizen = new System.Windows.Forms.Label();
             this.txtCitizen = new System.Windows.Forms.TextBox();
             this.lblDod = new System.Windows.Forms.Label();
@@ -128,9 +131,9 @@ namespace CROMS.Forms
             this.dtpCRegDate = new System.Windows.Forms.DateTimePicker();
 
             this.pnlRecordActions = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnDelete = new System.Windows.Forms.Button();
-            this.btnUpdate = new System.Windows.Forms.Button();
-            this.btnNew = new System.Windows.Forms.Button();
+            this.btnBack = new System.Windows.Forms.Button();
+            this.btnNext = new System.Windows.Forms.Button();
+            this.lblStepHint = new System.Windows.Forms.Label();
 
             this.cardRecords = new CROMS.Modules.CardPanel();
             this.layoutRecords = new System.Windows.Forms.TableLayoutPanel();
@@ -138,6 +141,7 @@ namespace CROMS.Forms
             this.lblRecent = new System.Windows.Forms.Label();
             this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
             this.btnNewRegistration = new System.Windows.Forms.Button();
+            this.btnDeleteSelected = new System.Windows.Forms.Button();
             this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnClearSearch = new System.Windows.Forms.Button();
@@ -402,22 +406,26 @@ namespace CROMS.Forms
             this.tblDeceased.Controls.Add(this.cboSex, 1, 2);
             this.tblDeceased.Controls.Add(this.lblCivil, 2, 2);
             this.tblDeceased.Controls.Add(this.cboCivil, 3, 2);
-            this.tblDeceased.Controls.Add(this.lblAge, 0, 3);
-            this.tblDeceased.Controls.Add(this.txtAge, 1, 3);
+            this.tblDeceased.Controls.Add(this.lblDob, 0, 3);
+            this.tblDeceased.Controls.Add(this.dtpDob, 1, 3);
             this.tblDeceased.Controls.Add(this.lblCitizen, 2, 3);
             this.tblDeceased.Controls.Add(this.txtCitizen, 3, 3);
             this.tblDeceased.Controls.Add(this.lblDod, 0, 4);
             this.tblDeceased.Controls.Add(this.dtpDod, 1, 4);
             this.tblDeceased.Controls.Add(this.lblTod, 2, 4);
             this.tblDeceased.Controls.Add(this.dtpTod, 3, 4);
-            this.tblDeceased.Controls.Add(this.lblPlace, 0, 5);
-            this.tblDeceased.Controls.Add(this.txtPlace, 1, 5);
-            this.tblDeceased.Controls.Add(this.lblReligion, 0, 6);
-            this.tblDeceased.Controls.Add(this.txtReligion, 1, 6);
+            this.tblDeceased.Controls.Add(this.lblAge, 0, 5);
+            this.tblDeceased.Controls.Add(this.txtAge, 1, 5);
+            this.tblDeceased.Controls.Add(this.lblAgeNote, 2, 5);
+            this.tblDeceased.Controls.Add(this.lblPlace, 0, 6);
+            this.tblDeceased.Controls.Add(this.txtPlace, 1, 6);
+            this.tblDeceased.Controls.Add(this.lblReligion, 0, 7);
+            this.tblDeceased.Controls.Add(this.txtReligion, 1, 7);
             this.tblDeceased.Dock = System.Windows.Forms.DockStyle.Top;
             this.tblDeceased.Location = new System.Drawing.Point(18, 14);
             this.tblDeceased.Name = "tblDeceased";
-            this.tblDeceased.RowCount = 7;
+            this.tblDeceased.RowCount = 8;
+            this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
@@ -425,7 +433,7 @@ namespace CROMS.Forms
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 64F));
             this.tblDeceased.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
-            this.tblDeceased.Size = new System.Drawing.Size(1116, 328);
+            this.tblDeceased.Size = new System.Drawing.Size(1116, 372);
             this.tblDeceased.TabIndex = 0;
             //
             // lblLastName
@@ -529,6 +537,40 @@ namespace CROMS.Forms
             this.cboCivil.Name = "cboCivil";
             this.cboCivil.Size = new System.Drawing.Size(360, 25);
             this.cboCivil.TabIndex = 9;
+            //
+            // lblDob
+            //
+            this.lblDob.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblDob.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblDob.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblDob.Name = "lblDob";
+            this.lblDob.Size = new System.Drawing.Size(172, 44);
+            this.lblDob.TabIndex = 22;
+            this.lblDob.Text = "Date of Birth";
+            this.lblDob.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            //
+            // dtpDob
+            //
+            this.dtpDob.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.dtpDob.Checked = false;
+            this.dtpDob.Format = System.Windows.Forms.DateTimePickerFormat.Short;
+            this.dtpDob.Name = "dtpDob";
+            this.dtpDob.ShowCheckBox = true;
+            this.dtpDob.Size = new System.Drawing.Size(200, 25);
+            this.dtpDob.TabIndex = 23;
+            //
+            // lblAgeNote
+            //
+            this.tblDeceased.SetColumnSpan(this.lblAgeNote, 2);
+            this.lblAgeNote.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblAgeNote.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Italic);
+            this.lblAgeNote.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblAgeNote.Name = "lblAgeNote";
+            this.lblAgeNote.Size = new System.Drawing.Size(356, 44);
+            this.lblAgeNote.TabIndex = 24;
+            this.lblAgeNote.Text = "Tick Date of Birth to compute the age automatically.";
+            this.lblAgeNote.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lblAgeNote.UseMnemonic = false;
             //
             // lblAge
             //
@@ -1323,12 +1365,9 @@ namespace CROMS.Forms
             //
             // pnlRecordActions
             //
-            this.pnlRecordActions.AutoSize = true;
-            this.pnlRecordActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.pnlRecordActions.Controls.Add(this.btnDelete);
-            this.pnlRecordActions.Controls.Add(this.btnUpdate);
-            this.pnlRecordActions.Controls.Add(this.btnNew);
-            this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlRecordActions.Controls.Add(this.btnNext);
+            this.pnlRecordActions.Controls.Add(this.btnBack);
+            this.pnlRecordActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlRecordActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlRecordActions.Location = new System.Drawing.Point(14, 12);
             this.pnlRecordActions.Margin = new System.Windows.Forms.Padding(0);
@@ -1337,45 +1376,41 @@ namespace CROMS.Forms
             this.pnlRecordActions.TabIndex = 1;
             this.pnlRecordActions.WrapContents = false;
             //
-            // btnDelete
+            // btnNext
             //
-            this.btnDelete.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnDelete.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnDelete.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
-            this.btnDelete.Location = new System.Drawing.Point(1232, 6);
-            this.btnDelete.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(100, 30);
-            this.btnDelete.TabIndex = 2;
-            this.btnDelete.Text = "Delete";
-            this.btnDelete.UseVisualStyleBackColor = true;
-            this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
+            this.btnNext.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
+            this.btnNext.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnNext.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnNext.ForeColor = System.Drawing.Color.White;
+            this.btnNext.Margin = new System.Windows.Forms.Padding(8, 6, 0, 6);
+            this.btnNext.Name = "btnNext";
+            this.btnNext.Size = new System.Drawing.Size(150, 38);
+            this.btnNext.TabIndex = 1;
+            this.btnNext.Text = "Next >";
+            this.btnNext.UseVisualStyleBackColor = false;
+            this.btnNext.Click += new System.EventHandler(this.btnNext_Click);
             //
-            // btnUpdate
+            // btnBack
             //
-            this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnUpdate.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnUpdate.Location = new System.Drawing.Point(1126, 6);
-            this.btnUpdate.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.btnUpdate.Name = "btnUpdate";
-            this.btnUpdate.Size = new System.Drawing.Size(100, 30);
-            this.btnUpdate.TabIndex = 1;
-            this.btnUpdate.Text = "Update";
-            this.btnUpdate.UseVisualStyleBackColor = true;
-            this.btnUpdate.Click += new System.EventHandler(this.btnUpdate_Click);
+            this.btnBack.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnBack.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnBack.Margin = new System.Windows.Forms.Padding(8, 6, 0, 6);
+            this.btnBack.Name = "btnBack";
+            this.btnBack.Size = new System.Drawing.Size(110, 38);
+            this.btnBack.TabIndex = 0;
+            this.btnBack.Text = "< Back";
+            this.btnBack.UseVisualStyleBackColor = true;
+            this.btnBack.Click += new System.EventHandler(this.btnBack_Click);
             //
-            // btnNew
+            // lblStepHint
             //
-            this.btnNew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnNew.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnNew.Location = new System.Drawing.Point(1020, 6);
-            this.btnNew.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.btnNew.Name = "btnNew";
-            this.btnNew.Size = new System.Drawing.Size(100, 30);
-            this.btnNew.TabIndex = 0;
-            this.btnNew.Text = "New";
-            this.btnNew.UseVisualStyleBackColor = true;
-            this.btnNew.Click += new System.EventHandler(this.btnNew_Click);
+            this.lblStepHint.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.lblStepHint.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblStepHint.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblStepHint.Name = "lblStepHint";
+            this.lblStepHint.TabIndex = 2;
+            this.lblStepHint.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lblStepHint.UseMnemonic = false;
             //
             // cardRecords
             //
@@ -1443,6 +1478,7 @@ namespace CROMS.Forms
             this.pnlListActions.AutoSize = true;
             this.pnlListActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlListActions.Controls.Add(this.btnNewRegistration);
+            this.pnlListActions.Controls.Add(this.btnDeleteSelected);
             this.pnlListActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlListActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlListActions.Location = new System.Drawing.Point(1108, 0);
@@ -1466,6 +1502,20 @@ namespace CROMS.Forms
             this.btnNewRegistration.Text = "+ New Death Registration";
             this.btnNewRegistration.UseVisualStyleBackColor = false;
             this.btnNewRegistration.Click += new System.EventHandler(this.btnNewRegistration_Click);
+            //
+            // btnDeleteSelected
+            //
+            this.btnDeleteSelected.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnDeleteSelected.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.btnDeleteSelected.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
+            this.btnDeleteSelected.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
+            this.btnDeleteSelected.Name = "btnDeleteSelected";
+            this.btnDeleteSelected.Size = new System.Drawing.Size(150, 30);
+            this.btnDeleteSelected.TabIndex = 1;
+            this.btnDeleteSelected.Text = "Delete Selected";
+            this.btnDeleteSelected.UseVisualStyleBackColor = true;
+            this.btnDeleteSelected.Visible = false;
+            this.btnDeleteSelected.Click += new System.EventHandler(this.btnDeleteSelected_Click);
             //
             // pnlSearch
             //
@@ -1604,8 +1654,11 @@ namespace CROMS.Forms
         private System.Windows.Forms.ComboBox cboSex;
         private System.Windows.Forms.Label lblCivil;
         private System.Windows.Forms.ComboBox cboCivil;
+        private System.Windows.Forms.Label lblDob;
+        private System.Windows.Forms.DateTimePicker dtpDob;
         private System.Windows.Forms.Label lblAge;
         private System.Windows.Forms.TextBox txtAge;
+        private System.Windows.Forms.Label lblAgeNote;
         private System.Windows.Forms.Label lblCitizen;
         private System.Windows.Forms.TextBox txtCitizen;
         private System.Windows.Forms.Label lblDod;
@@ -1677,9 +1730,10 @@ namespace CROMS.Forms
         private System.Windows.Forms.DateTimePicker dtpCRegDate;
 
         private System.Windows.Forms.FlowLayoutPanel pnlRecordActions;
-        private System.Windows.Forms.Button btnDelete;
-        private System.Windows.Forms.Button btnUpdate;
-        private System.Windows.Forms.Button btnNew;
+        private System.Windows.Forms.Button btnBack;
+        private System.Windows.Forms.Button btnNext;
+        private System.Windows.Forms.Label lblStepHint;
+        private System.Windows.Forms.Button btnDeleteSelected;
 
         private CROMS.Modules.CardPanel cardRecords;
         private System.Windows.Forms.TableLayoutPanel layoutRecords;
