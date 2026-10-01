@@ -38,7 +38,11 @@ namespace CROMS.Forms
             public ComboBox Sex, FatherCit, MotherCit;
             public DateTimePicker Dob;
             public Label Age;
-            public ComboBox BirthCountry, BirthProv, BirthMuni, Cit, Rel, Res, Civil;
+            public ComboBox BirthCountry, BirthProv, BirthMuni, Cit, Rel, Civil;
+            // Residence: Province / City-Municipality / Barangay cascade + free House No./Street
+            // (migration 74). Replaces the old single `residences` pick-list.
+            public ComboBox ResProv, ResMuni, ResBrgy;
+            public TextBox ResHouse;
         }
 
         private ComboBox _settle;   // marriage settlement: None / Entered (null = not stated)
@@ -357,8 +361,13 @@ namespace CROMS.Forms
             // Registration and the Marriage Licence (Form 90) - editable so a foreign locality
             // can be typed, matching every other place-of-birth field in the app (2026-09-14).
             p.BirthCountry = MUi.Combo(true); p.BirthProv = MUi.Combo(true); p.BirthMuni = MUi.Combo(true);
-            p.Cit = MUi.Combo(false); p.Rel = MUi.Combo(false); p.Res = MUi.Combo(false); p.Civil = MUi.Combo(false, MarriageRules.CivilStatuses);
-            Bind(p.Cit, Read("nationalities")); Bind(p.Rel, Read("religions")); Bind(p.Res, Read("residences"));
+            p.Cit = MUi.Combo(false); p.Rel = MUi.Combo(false); p.Civil = MUi.Combo(false, MarriageRules.CivilStatuses);
+            Bind(p.Cit, Read("nationalities")); Bind(p.Rel, Read("religions"));
+            // Residence is always a Philippine address on this form: province -> municipality ->
+            // barangay each narrow the next (GeoLookup, same lists as Birth), house/street is typed.
+            p.ResProv = MUi.Combo(true); p.ResMuni = MUi.Combo(true); p.ResBrgy = MUi.Combo(true); p.ResHouse = MUi.Box();
+            GeoLookup.LoadProvinces(p.ResProv);
+            GeoLookup.CascadeAddress(p.ResProv, p.ResMuni, p.ResBrgy);
             GeoLookup.LoadCountries(p.BirthCountry);
             GeoLookup.CascadePlace(p.BirthProv, p.BirthMuni);
             GeoLookup.CascadeCountry(p.BirthCountry, p.BirthProv, p.BirthMuni, null);
@@ -378,20 +387,25 @@ namespace CROMS.Forms
             pob2.Controls.Add(MUi.Field("City / municipality of birth", p.BirthMuni), 0, 0);
             TableLayoutPanel cr = MUi.Grid(2, 1, 56);
             cr.Controls.Add(MUi.Field("Citizenship", p.Cit), 0, 0); cr.Controls.Add(MUi.Field("Religion", p.Rel), 1, 0);
-            TableLayoutPanel cs = MUi.Grid(2, 1, 56);
-            cs.Controls.Add(MUi.Field("Civil status", p.Civil), 0, 0); cs.Controls.Add(MUi.Field("Residence", p.Res), 1, 0);
             // Sex (item on the printed sheet): pre-picked from the column - the Family Code makes the
             // husband male and the wife female - but stored and editable, never derived at print time.
             p.Sex = MUi.Combo(false, new[] { "Male", "Female" });
             p.Sex.SelectedItem = pre == "Husband" ? "Male" : "Female";
             p.Sex.SelectedIndexChanged += (s, e) => Changed(p.Sex);
-            TableLayoutPanel sx = MUi.Grid(2, 1, 56);
-            sx.Controls.Add(MUi.Field("Sex", p.Sex), 0, 0);
-            Stack(inner, names, dob, pob1, pob2, cr, cs, sx);
+            TableLayoutPanel cs = MUi.Grid(2, 1, 56);
+            cs.Controls.Add(MUi.Field("Civil status", p.Civil), 0, 0); cs.Controls.Add(MUi.Field("Sex", p.Sex), 1, 0);
+            // Residence, in the order the paper asks it: Province, City/Municipality, Barangay, House No./Street.
+            TableLayoutPanel res1 = MUi.Grid(2, 1, 56);
+            res1.Controls.Add(MUi.Field("Residence - province", p.ResProv), 0, 0); res1.Controls.Add(MUi.Field("City / municipality", p.ResMuni), 1, 0);
+            TableLayoutPanel res2 = MUi.Grid(2, 1, 56);
+            res2.Controls.Add(MUi.Field("Barangay", p.ResBrgy), 0, 0); res2.Controls.Add(MUi.Field("House No. / Street", p.ResHouse), 1, 0);
+            Stack(inner, names, dob, pob1, pob2, cr, cs, res1, res2);
 
             _keyControls[pre + "First"] = p.First; _keyControls[pre + "Middle"] = p.Middle; _keyControls[pre + "Last"] = p.Last;
             foreach (Control c in new Control[] { p.First, p.Middle, p.Last }) c.TextChanged += (s, e) => Changed(c);
-            foreach (ComboBox c in new[] { p.Cit, p.Rel, p.Res, p.Civil }) c.SelectedIndexChanged += (s, e) => Changed(c);
+            foreach (ComboBox c in new[] { p.Cit, p.Rel, p.Civil }) c.SelectedIndexChanged += (s, e) => Changed(c);
+            foreach (ComboBox c in new[] { p.ResProv, p.ResMuni, p.ResBrgy }) { c.SelectedIndexChanged += (s, e) => Changed(c); c.TextChanged += (s, e) => Changed(c); }
+            p.ResHouse.TextChanged += (s, e) => Changed(p.ResHouse);
             foreach (ComboBox c in new[] { p.BirthCountry, p.BirthProv, p.BirthMuni }) { c.SelectedIndexChanged += (s, e) => Changed(c); c.TextChanged += (s, e) => Changed(c); }
             p.Dob.ValueChanged += (s, e) => Changed(p.Dob);
             LearningLibrary.Attach(p.First, LearningLibrary.GivenName);
@@ -413,8 +427,10 @@ namespace CROMS.Forms
             // 400, not 344: the place-of-birth block grew from one 56px row (province+municipality)
             // to two (country+province, then municipality alone) when Country was added
             // 2026-09-14 - `inner` has no AutoScroll of its own, so a card shorter than its
-            // content would silently clip the Civil status/Residence row off the bottom.
-            var cols = TwoColumns(456,
+            // content would silently clip the last Residence row off the bottom.
+            // 540: eight 56px rows (residence grew from one pick-list to province/municipality/
+            // barangay/house, and Sex shares the civil-status row) + the 30px card header.
+            var cols = TwoColumns(540,
                 SpouseCard("HUSBAND / PARTY 1", UiTheme.AccentTint, Color.FromArgb(27, 62, 158), PartyInner(_h, "Husband")),
                 SpouseCard("WIFE / PARTY 2", Color.FromArgb(245, 237, 251), Color.FromArgb(107, 48, 150), PartyInner(_w, "Wife")));
             Stack(pg, Section("Contracting parties", "Read down the paper: the husband's column on the left, the wife's on the right. Age is computed from the date of birth on the marriage date."),
@@ -1441,7 +1457,22 @@ namespace CROMS.Forms
                 SP p = pair.Item1; string pre = pair.Item2;
                 p.First.Text = S(pre + "_first_name"); p.Middle.Text = S(pre + "_middle_name"); p.Last.Text = S(pre + "_last_name");
                 MUi.Put(p.Dob, D(pre + "_date_of_birth"));
-                SetId(p.Cit, r[pre + "_citizenship_id"]); SetId(p.Rel, r[pre + "_religion_id"]); SetId(p.Res, r[pre + "_residence_id"]);
+                SetId(p.Cit, r[pre + "_citizenship_id"]); SetId(p.Rel, r[pre + "_religion_id"]);
+                // Residence (migration 74). Province first - it rebuilds the municipality list, which
+                // rebuilds the barangay list - so SetAddress selects each value after its list exists.
+                string rProv = dt.Columns.Contains(pre + "_res_province") ? S(pre + "_res_province") : "";
+                string rMuni = dt.Columns.Contains(pre + "_res_municipality") ? S(pre + "_res_municipality") : "";
+                string rBrgy = dt.Columns.Contains(pre + "_res_barangay") ? S(pre + "_res_barangay") : "";
+                string rHouse = dt.Columns.Contains(pre + "_res_house") ? S(pre + "_res_house") : "";
+                if (rProv == "" && rMuni == "" && rBrgy == "" && rHouse == "" && r[pre + "_residence_id"] != DBNull.Value)
+                {
+                    // A record saved before migration 74 holds only the old pick-list entry. Show it
+                    // in the house/street box so nothing already on file is hidden; saving then keeps it.
+                    foreach (DataRow rr in Read("residences").Rows)
+                        if (Convert.ToString(rr["id"]) == Convert.ToString(r[pre + "_residence_id"])) { rHouse = Convert.ToString(rr["name"]); break; }
+                }
+                GeoLookup.SetAddress(p.ResProv, p.ResMuni, p.ResBrgy, rProv, rMuni, rBrgy);
+                p.ResHouse.Text = rHouse;
                 p.Civil.SelectedItem = MarriageRules.CivilStatuses.Contains(S(pre + "_civil_status")) ? S(pre + "_civil_status") : null;
                 // Country first - it rebuilds the province list the next two select into.
                 string place = dt.Columns.Contains(pre + "_place_of_birth") ? S(pre + "_place_of_birth") : null;
@@ -1581,7 +1612,9 @@ namespace CROMS.Forms
                 v[pre + "_age"] = dob.HasValue ? (object)MarriageRules.AgeOn(dob.Value, on) : null;
                 v[pre + "_place_of_birth"] = GeoLookup.JoinPlace(p.BirthMuni.Text, p.BirthProv.Text);
                 v[pre + "_birth_country"] = N(p.BirthCountry.Text);
-                v[pre + "_citizenship_id"] = FkVal(p.Cit); v[pre + "_religion_id"] = FkVal(p.Rel); v[pre + "_residence_id"] = FkVal(p.Res);
+                v[pre + "_citizenship_id"] = FkVal(p.Cit); v[pre + "_religion_id"] = FkVal(p.Rel);
+                v[pre + "_res_province"] = Nz(p.ResProv.Text); v[pre + "_res_municipality"] = Nz(p.ResMuni.Text);
+                v[pre + "_res_barangay"] = Nz(p.ResBrgy.Text); v[pre + "_res_house"] = Nz(p.ResHouse.Text);
                 v[pre + "_civil_status"] = p.Civil.SelectedItem as string;
                 v[pre + "_father_name"] = Nz(p.Father.Text); v[pre + "_mother_name"] = Nz(p.Mother.Text);
                 v[pre + "_sex"] = p.Sex.SelectedItem as string;

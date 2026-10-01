@@ -802,6 +802,8 @@ namespace CROMS.Data
             "husband_first_name", "husband_middle_name", "husband_last_name", "husband_age", "husband_date_of_birth",
             "husband_place_of_birth", "husband_birth_country", "husband_citizenship_id", "husband_religion_id", "husband_civil_status", "husband_residence_id",
             "husband_father_name", "husband_mother_name",
+            "husband_res_province", "husband_res_municipality", "husband_res_barangay", "husband_res_house",
+            "wife_res_province", "wife_res_municipality", "wife_res_barangay", "wife_res_house",
             "husband_sex", "wife_sex", "husband_father_citizenship", "husband_mother_citizenship",
             "wife_father_citizenship", "wife_mother_citizenship",
             "husband_consent_name", "husband_consent_relationship", "husband_consent_residence",
