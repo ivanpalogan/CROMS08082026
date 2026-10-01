@@ -60,7 +60,13 @@ namespace CROMS.Forms
         private readonly TextBox _church = MUi.Box();
         private readonly ComboBox _prov = MUi.Combo(false), _muni = MUi.Combo(false);
         // tab 5
-        private readonly TextBox _recvBy = MUi.Box(), _recvTitle = MUi.Box(), _remarks = MUi.Box(), _delay = MUi.Box();
+        private readonly TextBox _recvBy = MUi.Box(), _remarks = MUi.Box(), _delay = MUi.Box();
+        // Title of whoever received the certificate at the office: pick a standard position,
+        // or type another (editable), since small offices use varied titles.
+        private readonly ComboBox _recvTitle = MUi.Combo(true, new[] {
+            "Municipal Civil Registrar", "Local Civil Registrar", "Assistant Civil Registrar",
+            "Civil Registry Clerk", "Registration Officer", "Administrative Aide", "Administrative Assistant",
+            "Administrative Officer", "Records Officer", "Municipal Mayor" });
         private readonly DateTimePicker _recv = MUi.Date(true);
         private readonly Banner _regBanner = new Banner();
         // STEP 9 - Registration Information: what the LCRO actually wrote on the physical,

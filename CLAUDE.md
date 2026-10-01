@@ -6817,3 +6817,6 @@ Reported from the Form 97 residence cell: House No. / Street showed a value ("Ca
 
 ### 2026-10-01 - Form 97 "Church / venue" is a plain text box (was a pick-only combo)
 Asked: Church / venue on Marriage Registration (Form 97, Solemnization tab) as a text box, not a combo. `_church` is now a `TextBox`. The record still stores `church_id` (the certificate view, prints and MarriageRecordForm all join `churches`), so Save calls new `ChurchId()`: the typed name is added to the `churches` master table through `LookupStore.Ensure` if new (case/accent-insensitive dedup) and its id is stored; blank = NULL. Load reads the name back from `churches`; OCR Auto-Fill (`PlaceOfMarriage`) now just fills the text. No schema change. MSBuild clean 0 errors (temp OutputPath) - REBUILD IN VS. GUI not clicked.
+
+### 2026-10-01 - Form 97 "Received at this office by" Title / position is a combo with real titles
+`_recvTitle` (Certification and receipt block) is now an editable ComboBox (type-to-search) offering Municipal Civil Registrar, Local Civil Registrar, Assistant Civil Registrar, Civil Registry Clerk, Registration Officer, Administrative Aide/Assistant/Officer, Records Officer, Municipal Mayor; other titles can still be typed. Same `received_by_title` column, no schema change. MSBuild clean (temp OutputPath) - REBUILD IN VS. GUI not clicked.

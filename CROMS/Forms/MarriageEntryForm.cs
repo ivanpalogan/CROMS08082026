@@ -201,7 +201,8 @@ namespace CROMS.Forms
             set(_h.Father, "HusbandFatherName"); set(_h.Mother, "HusbandMotherName");
             set(_w.Father, "WifeFatherName"); set(_w.Mother, "WifeMotherName");
             set(_sol, "Solemnizer"); set(_solPos, "SolemnizerPosition"); set(_w1, "Witness1"); set(_w2, "Witness2");
-            set(_recvBy, "ReceivedByName"); set(_recvTitle, "ReceivedByTitle");
+            set(_recvBy, "ReceivedByName");
+            if (f.TryGetValue("ReceivedByTitle", out v) && !string.IsNullOrWhiteSpace(v)) _recvTitle.Text = v.Trim();
             date(_dom, "DateOfMarriage"); date(_recv, "ReceivedByDate");
             date(_h.Dob, "HusbandDateOfBirth"); date(_w.Dob, "WifeDateOfBirth");
             // Per-spouse citizenship when the scan carried one; a shared "Nationality" reading
