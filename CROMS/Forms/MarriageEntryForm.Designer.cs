@@ -57,7 +57,8 @@ namespace CROMS.Forms
         // tab 4
         private readonly DateTimePicker _dom = MUi.Date(true);
         private readonly TextBox _tom = MUi.Box(), _sol = MUi.Box(), _solPos = MUi.Box(), _w1 = MUi.Box(), _w2 = MUi.Box();
-        private readonly ComboBox _church = MUi.Combo(false), _prov = MUi.Combo(false), _muni = MUi.Combo(false);
+        private readonly TextBox _church = MUi.Box();
+        private readonly ComboBox _prov = MUi.Combo(false), _muni = MUi.Combo(false);
         // tab 5
         private readonly TextBox _recvBy = MUi.Box(), _recvTitle = MUi.Box(), _remarks = MUi.Box(), _delay = MUi.Box();
         private readonly DateTimePicker _recv = MUi.Date(true);

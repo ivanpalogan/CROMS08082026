@@ -209,7 +209,7 @@ namespace CROMS.Forms
             if (f.TryGetValue("Nationality", out v) && !string.IsNullOrWhiteSpace(v)) { SelectByName(_h.Cit, v); SelectByName(_w.Cit, v); }
             if (f.TryGetValue("HusbandCitizenship", out v) && !string.IsNullOrWhiteSpace(v)) SelectByName(_h.Cit, v);
             if (f.TryGetValue("WifeCitizenship", out v) && !string.IsNullOrWhiteSpace(v)) SelectByName(_w.Cit, v);
-            if (f.TryGetValue("PlaceOfMarriage", out v) && !string.IsNullOrWhiteSpace(v)) SelectByName(_church, v);
+            if (f.TryGetValue("PlaceOfMarriage", out v) && !string.IsNullOrWhiteSpace(v)) _church.Text = v.Trim();
             if (f.TryGetValue("LicenseNo", out v) && !string.IsNullOrWhiteSpace(v))
             {
                 _licSearch.Text = v.Trim();
@@ -559,7 +559,7 @@ namespace CROMS.Forms
         private void BuildSolemnization()
         {
             Panel pg = _pages[3];
-            Bind(_church, Read("churches")); Bind(_prov, Read("provinces")); Bind(_muni, Empty());
+            Bind(_prov, Read("provinces")); Bind(_muni, Empty());
             _prov.SelectedIndexChanged += (s, e) => { ReloadMunis(_prov, _muni); Changed(_prov); };
             TableLayoutPanel d = MUi.Grid(3, 1, 58);
             d.Controls.Add(MUi.Field("Date of marriage", _dom), 0, 0); d.Controls.Add(MUi.Field("Time", _tom), 1, 0);
@@ -581,7 +581,7 @@ namespace CROMS.Forms
             _dom.MaxDate = DateTime.Today;   // Form 97 is for a marriage that already happened - no future dates
             _dom.ValueChanged += (s, e) => Changed(_dom);
             foreach (Control c in new Control[] { _tom, _sol, _solPos, _w1, _w2 }) c.TextChanged += (s, e) => Changed(c);
-            _church.SelectedIndexChanged += (s, e) => Changed(_church); _muni.SelectedIndexChanged += (s, e) => Changed(_muni);
+            _church.TextChanged += (s, e) => Changed(_church); _muni.SelectedIndexChanged += (s, e) => Changed(_muni);
             LearningLibrary.Attach(_sol, LearningLibrary.Officer);
             AutoCaps.Attach(_sol, _w1, _w2);
             Stack(pg, Section("Solemnization", "Items 17-19: when, where, by whom, before whom."), d, p, so, wi, st, note);
@@ -1489,7 +1489,7 @@ namespace CROMS.Forms
             }
             _settle.SelectedItem = dt.Columns.Contains("marriage_settlement") && S("marriage_settlement") != "" ? S("marriage_settlement") : null;
             MUi.Put(_dom, D("date_of_marriage")); _tom.Text = S("time_of_marriage");
-            SetId(_church, r["church_id"]);
+            _church.Text = r["church_id"] == DBNull.Value ? "" : (Col1("SELECT name FROM churches WHERE id=@id", Convert.ToInt32(r["church_id"])) ?? "");
             SetPlace(_prov, _muni, r["place_municipality_id"], r["place_province_id"]);
             _sol.Text = S("solemnizer"); _solPos.Text = S("solemnizer_position"); _w1.Text = S("witness1_name"); _w2.Text = S("witness2_name");
             _recvBy.Text = S("received_by"); _recvTitle.Text = S("received_by_title"); MUi.Put(_recv, D("received_by_date"));
@@ -1561,6 +1561,25 @@ namespace CROMS.Forms
         private static object Nz(string s) { return string.IsNullOrWhiteSpace(s) ? null : s.Trim(); }
         private static object FkVal(ComboBox c) { int n = Id(c); return n == 0 ? null : (object)n; }
 
+        /// <summary>Church / venue is typed free text. The record still stores church_id (the
+        /// certificate view and prints join it), so the typed name is added to the churches
+        /// master table if new and its id returned. Blank = no venue (NULL).</summary>
+        private object ChurchId()
+        {
+            string name = _church.Text.Trim();
+            if (name.Length == 0) return null;
+            try
+            {
+                LookupStore.Ensure("churches", name);
+                string norm = LearningLibrary.Normalize(name);
+                DataTable dt = Db.Pull("SELECT id, name FROM churches");
+                foreach (DataRow r in dt.Rows)
+                    if (LearningLibrary.Normalize(r["name"].ToString()) == norm) return Convert.ToInt32(r["id"]);
+            }
+            catch { }
+            return null;
+        }
+
         private static string Col1(string sql, int id)
         {
             try
@@ -1581,7 +1600,7 @@ namespace CROMS.Forms
                 { "registry_no", Nz(_reg.Text) }, { "book_volume", Nz(_book.Text) }, { "book_page", Nz(_page.Text) },
                 { "solemnizer", Nz(_sol.Text) }, { "solemnizer_position", Nz(_solPos.Text) },
                 { "witness1_name", Nz(_w1.Text) }, { "witness2_name", Nz(_w2.Text) },
-                { "church_id", FkVal(_church) }, { "place_municipality_id", FkVal(_muni) }, { "place_province_id", FkVal(_prov) },
+                { "church_id", ChurchId() }, { "place_municipality_id", FkVal(_muni) }, { "place_province_id", FkVal(_prov) },
                 { "date_of_marriage", MUi.Val(_dom) }, { "time_of_marriage", Nz(_tom.Text) },
                 { "received_by", Nz(_recvBy.Text) }, { "received_by_title", Nz(_recvTitle.Text) }, { "received_by_date", MUi.Val(_recv) },
                 { "remarks", Nz(_remarks.Text) }, { "delay_reason", Nz(_delay.Text) },
