@@ -175,13 +175,25 @@ namespace CROMS.Data
         {
             if (box == null) return;
             EnsureSeeded();
-            // Plain typing, no search-style suggest popup; still learns on Leave.
-            box.AutoCompleteMode = AutoCompleteMode.None;
+            var src = Source(category);
+            foreach (object item in box.Items)
+            {
+                string s = item?.ToString();
+                if (!string.IsNullOrWhiteSpace(s) && !src.Contains(s)) src.Add(s);
+            }
+            box.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            box.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            box.AutoCompleteCustomSource = src;
 
             box.Leave += (s, e) =>
             {
                 string v = box.Text;
-                if (IsLearnable(v)) Learn(category, v);
+                if (IsLearnable(v))
+                {
+                    Learn(category, v);
+                    if (!box.AutoCompleteCustomSource.Contains(v.Trim()))
+                        box.AutoCompleteCustomSource.Add(v.Trim());
+                }
             };
         }
 
