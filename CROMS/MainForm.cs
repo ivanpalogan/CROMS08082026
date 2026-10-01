@@ -925,9 +925,19 @@ namespace CROMS
                 // Release/BREQS which each open their OWN embedded module, not a child dialog.
                 // Open a fresh Form 97 entry dialog linked to this ticket, same as the desk's
                 // own "Register Marriage" button, then let the operator work from there.
-                var entry = new Forms.MarriageEntryForm(null);
-                entry.PrepareForQueueTicket(ticketId, ticketCode);
-                entry.ShowDialog(this);
+                if (string.Equals(serviceCode, "MARRIAGE_APP", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Marriage APPLICATION = Form 90 licence, not the Form 97 registration.
+                    using (var lic = new Forms.MarriageLicenseForm(null)) lic.ShowDialog(this);
+                }
+                else
+                {
+                    using (var entry = new Forms.MarriageEntryForm(null))
+                    {
+                        entry.PrepareForQueueTicket(ticketId, ticketCode);
+                        entry.ShowDialog(this);
+                    }
+                }
                 marriageDesk.RefreshData();
             }
             RefreshQueueHeader();
