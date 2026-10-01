@@ -487,6 +487,7 @@ namespace CROMS.Forms
                 };
                 _btnPrintFooter.Click += btnPrintCert_Click;
             }
+            UpdatePrintVisibility();
             btnSubmit.Visible = true;
             btnSubmit.Margin = new Padding(0);
             footer.Controls.Add(btnSubmit);
@@ -2049,6 +2050,7 @@ namespace CROMS.Forms
         private void ClearForm()
         {
             _editingId = null;
+            UpdatePrintVisibility();
             RefreshRequirementsTab();
             _scanImage = null;
             _ocrScanId = null;
@@ -2458,16 +2460,7 @@ namespace CROMS.Forms
             }
 
             items.Add(MUi.Cap("Outstanding"));
-            var issues = new List<RuleIssue>();
-            if (string.IsNullOrWhiteSpace(txtFirstName.Text)) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_FIRST", "Child's first name", "Child"));
-            if (string.IsNullOrWhiteSpace(txtLastName.Text)) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_LAST", "Child's last name", "Child"));
-            if (cboSex.SelectedItem == null) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_SEX", "Child's sex", "Child"));
-            if (_pob != null && _pob.Length > 0 && string.IsNullOrWhiteSpace(_pob[0].Text))
-                issues.Add(new RuleIssue(RuleSeverity.Warning, "POB", "Place of birth (hospital/facility)", "Attendant"));
-            if (string.IsNullOrWhiteSpace(txtMFirst.Text) || string.IsNullOrWhiteSpace(txtMLast.Text))
-                issues.Add(new RuleIssue(RuleSeverity.Warning, "MOTHER", "Mother's name", "Mother"));
-            if (string.IsNullOrWhiteSpace(txtFFirst.Text) || string.IsNullOrWhiteSpace(txtFLast.Text))
-                issues.Add(new RuleIssue(RuleSeverity.Warning, "FATHER", "Father's name", "Father"));
+            List<RuleIssue> issues = OutstandingIssues();
 
             var issueList = new IssueList { Height = 190, Dock = DockStyle.Top };
             issueList.FixRequested += tabName => { int idx = TabIndexByText(tabName); if (idx >= 0) GoToStep(idx); };
@@ -2486,6 +2479,38 @@ namespace CROMS.Forms
 
             StackRail(_railPanel, items.ToArray());
             _railPanel.ResumeLayout();
+            UpdatePrintVisibility();
+        }
+
+        /// <summary>Everything the rail lists as still open - required and recommended alike.</summary>
+        private List<RuleIssue> OutstandingIssues()
+        {
+            var issues = new List<RuleIssue>();
+            if (string.IsNullOrWhiteSpace(txtFirstName.Text)) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_FIRST", "Child's first name", "Child"));
+            if (string.IsNullOrWhiteSpace(txtLastName.Text)) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_LAST", "Child's last name", "Child"));
+            if (cboSex.SelectedItem == null) issues.Add(new RuleIssue(RuleSeverity.Blocking, "CHILD_SEX", "Child's sex", "Child"));
+            if (_pob != null && _pob.Length > 0 && string.IsNullOrWhiteSpace(_pob[0].Text))
+                issues.Add(new RuleIssue(RuleSeverity.Warning, "POB", "Place of birth (hospital/facility)", "Attendant"));
+            if (string.IsNullOrWhiteSpace(txtMFirst.Text) || string.IsNullOrWhiteSpace(txtMLast.Text))
+                issues.Add(new RuleIssue(RuleSeverity.Warning, "MOTHER", "Mother's name", "Mother"));
+            if (string.IsNullOrWhiteSpace(txtFFirst.Text) || string.IsNullOrWhiteSpace(txtFLast.Text))
+                issues.Add(new RuleIssue(RuleSeverity.Warning, "FATHER", "Father's name", "Father"));
+            return issues;
+        }
+
+        /// <summary>
+        /// The certificate print buttons only exist once the registration is DONE: saved
+        /// (not an unsaved form), past Draft, and with nothing left on the Outstanding list.
+        /// Showing Print on a half-filled record invites printing a certificate the registry
+        /// cannot yet account for.
+        /// </summary>
+        private void UpdatePrintVisibility()
+        {
+            bool saved = _editingId != null;
+            bool draft = string.Equals(cboStatus.SelectedItem?.ToString() ?? cboStatus.Text ?? "", "Draft", StringComparison.OrdinalIgnoreCase);
+            bool done = saved && !draft && OutstandingIssues().Count == 0;
+            if (btnCertificate != null) btnCertificate.Visible = done;
+            if (_btnPrintFooter != null) _btnPrintFooter.Visible = done;
         }
 
         /// <summary>

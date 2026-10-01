@@ -351,6 +351,22 @@ namespace CROMS.Forms
             // Bottom-first, so Dock=Top lays them out top-to-bottom (the codebase convention).
             for (int i = items.Count - 1; i >= 0; i--) { items[i].Dock = DockStyle.Top; _railPanel.Controls.Add(items[i]); }
             _railPanel.ResumeLayout();
+            UpdatePrintVisibility();
+        }
+
+        /// <summary>
+        /// The certificate / acknowledgment print buttons only appear once the registration
+        /// is DONE: the record is saved and every required entry on steps 1-3 is filled.
+        /// Hidden in the list view, on an unsaved form, and while anything is outstanding.
+        /// </summary>
+        private void UpdatePrintVisibility()
+        {
+            // _entryDialog, not Control.Visible: Visible is EFFECTIVE visibility and reads false
+            // for anything inside a dialog that has not been shown yet.
+            bool inEntry = _entryDialog != null;
+            bool done = inEntry && _editingId != null && FirstIncompleteStepBefore(3) < 0;
+            btnCertificate.Visible = done;
+            btnAckSlip.Visible = done;
         }
 
         private int TabIndexByText(string text)

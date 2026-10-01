@@ -112,6 +112,7 @@ namespace CROMS.Forms
 
             btnSave.Visible = false;
             btnCertificate.Visible = false;
+            btnAckSlip.Visible = false;
             lblSubtitle.Text = "Search recent death registrations, or start a new one.";
 
             if (_entryDialog != null) _entryDialog.Close();
@@ -141,7 +142,7 @@ namespace CROMS.Forms
             layoutMain.Controls.Remove(pnlHeader);
             layoutMain.Controls.Remove(cardForm);
             btnSave.Visible = true;
-            btnCertificate.Visible = true;
+            UpdatePrintVisibility();
 
             var root = new TableLayoutPanel
             {
@@ -172,6 +173,8 @@ namespace CROMS.Forms
             };
             dlg.Controls.Add(root);
             _entryDialog = dlg;
+            UpdatePrintVisibility();
+            dlg.Shown += delegate { UpdateStepNavigation(); };
 
             UiTheme.Polish(dlg);
             dlg.ShowDialog(this);
@@ -781,6 +784,8 @@ namespace CROMS.Forms
             if (dt.Rows.Count == 0) return;
             DataRow r = dt.Rows[0];
             _editingId = id;
+            // Fields are filled below; re-evaluate the print buttons once they are in.
+            if (IsHandleCreated) BeginInvoke(new Action(UpdateStepNavigation));
             // Keep the revision this record was registered on, rather than migrating it
             // to today's when it is edited or reprinted.
             if (dt.Columns.Contains("form_code") && r["form_code"] != DBNull.Value)
@@ -1304,6 +1309,7 @@ namespace CROMS.Forms
         private void ClearForm()
         {
             _editingId = null;
+            UpdatePrintVisibility();
             _scanImage = null;
             _ocrScanId = null;
             _formCode = FormCatalog.Current(DocKind.Death)?.FormCode;

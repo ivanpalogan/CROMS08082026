@@ -667,6 +667,9 @@ namespace CROMS.Forms
             _next.Enabled = _step < StepNames.Length - 1;
             _save.Enabled = !_readOnly;
             _save.Text = _dirty ? "Save draft *" : "Save draft";
+            // The MF-90 printout only appears once the application is DONE: saved, no unsaved
+            // edits, and no blocking item left (or the licence is already issued).
+            _printApp.Visible = _l.Id > 0 && (_l.IssueDate.HasValue || (!_dirty && IssueIssues().Count == 0));
             if (_l.IssueDate.HasValue) { _issue.Enabled = false; _adminOverride.Visible = false; _footReason.Text = "Licence " + _l.LicenseNo + " issued " + MUi.D(_l.IssueDate) + "."; return; }
 
             bool overridden = _l.RequirementsOverrideBy.HasValue;
