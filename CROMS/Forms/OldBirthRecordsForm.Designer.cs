@@ -28,7 +28,7 @@ namespace CROMS.Forms
         // ---- entry view ----------------------------------------------------------
         private CardPanel cardEntry;
         private Label lblEntryTitle, lblEntrySub;
-        private Button btnBack, btnEdit, btnSave, btnCancel, btnDeleteEntry, btnSoftcopy;
+        private Button btnBack, btnEdit, btnSave, btnCancel, btnDeleteEntry, btnSoftcopy, btnFullRecord;
         private TabControl tabControl;
 
         private TextBox txtReg, txtBookVol, txtBookPage;
@@ -68,8 +68,8 @@ namespace CROMS.Forms
             };
             var subtitle = new Label
             {
-                Text = "Backlog records digitized from old registry books — committed straight from " +
-                       "Intelligent Document Processing. Not shown on the live Birth Registration screen.",
+                Text = "Every saved birth record — registered at the counter or digitized from old registry books. " +
+                       "Digitized records can be edited here; registered ones are edited in Birth Registration.",
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = UiTheme.Muted,
                 AutoSize = true,
@@ -199,6 +199,8 @@ namespace CROMS.Forms
             btnCancel = new Button { Text = "Cancel", Width = 90 };
             btnDeleteEntry = new Button { Text = "Delete", Width = 90 };
             btnSoftcopy = new Button { Text = "View Softcopy", Width = 130 };
+            btnFullRecord = new Button { Text = "Full Details", Width = 110 };
+            btnFullRecord.Click += new System.EventHandler(this.btnFullRecord_Click);
             btnEdit.Click += new System.EventHandler(this.btnEdit_Click);
             btnSave.Click += new System.EventHandler(this.btnSave_Click);
             btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
@@ -208,6 +210,7 @@ namespace CROMS.Forms
             actions.Controls.Add(btnSave);
             actions.Controls.Add(btnCancel);
             actions.Controls.Add(btnDeleteEntry);
+            actions.Controls.Add(btnFullRecord);
             actions.Controls.Add(btnSoftcopy);
             top.Controls.Add(actions, 1, 0);
 

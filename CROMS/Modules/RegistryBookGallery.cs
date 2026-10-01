@@ -13,9 +13,10 @@ namespace CROMS.Modules
     /// Step 1 of the Civil Registry Record digitization workflow — the "Registry Books"
     /// gallery a Birth/Marriage/Death Record screen opens on: rectangular book cards laid out
     /// side by side (File-Explorer style), grouped by <c>book_volume</c> exactly the way
-    /// RegistryBooksForm already groups the live registries (2026-09-15), scoped to
-    /// <c>record_source = 'OCR-Backlog'</c> so a book here is always the backlog's own
-    /// archive, never the live registration list.
+    /// RegistryBooksForm already groups the live registries (2026-09-15). Covers EVERY saved
+    /// record — registered at the counter and digitized from old books alike — so the
+    /// archive shows what the office actually holds (it used to be scoped to
+    /// <c>record_source = 'OCR-Backlog'</c> and came up empty on a database of registrations).
     /// <para/>
     /// One reusable control instead of three near-identical copies, so Birth/Marriage/Death
     /// Record share the same design and workflow while each still queries its own table.
@@ -113,8 +114,7 @@ namespace CROMS.Modules
                 "SELECT COALESCE(book_volume,'(no volume recorded)') AS VolDisplay, " +
                 "book_volume AS VolRaw, COUNT(*) AS Records, " +
                 "COUNT(DISTINCT CASE WHEN book_page IS NOT NULL AND book_page<>'' THEN book_page END) AS Pages " +
-                "FROM " + _table + " WHERE record_source = 'OCR-Backlog' " +
-                "GROUP BY book_volume ORDER BY book_volume DESC";
+                "FROM " + _table + " GROUP BY book_volume ORDER BY book_volume DESC";
 
             _all = new List<BookInfo>();
             try

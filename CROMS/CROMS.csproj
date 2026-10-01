@@ -704,6 +704,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Modules\HoverFade.cs" />
+    <Compile Include="Modules\RecordFullDetail.cs" />
     <Compile Include="Modules\RegistryBookGallery.cs" />
     <Compile Include="Modules\ReasonPrompt.cs" />
     <Compile Include="Modules\ReasonPromptForm.cs">

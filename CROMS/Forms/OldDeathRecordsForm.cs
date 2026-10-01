@@ -33,6 +33,11 @@ namespace CROMS.Forms
         private long? _editingId;
         private byte[] _scanImage;
         private bool _viewOnly;
+        // True for a digitized (OCR-Backlog) record and a brand-new one typed here; a record
+        // registered at the counter is shown but view-only (edited in Death Registration).
+        private bool _isBacklog = true;
+
+        private const string BacklogSource = "OCR-Backlog";
 
         public OldDeathRecordsForm()
         {
@@ -56,7 +61,7 @@ namespace CROMS.Forms
         public void OpenToRecord(long id)
         {
             DataTable dt = Db.Pull(
-                "SELECT book_volume FROM deaths WHERE id = @id AND record_source = 'OCR-Backlog'",
+                "SELECT book_volume FROM deaths WHERE id = @id",
                 new MySqlParameter("@id", id));
             if (dt.Rows.Count == 0) return;
             object volObj = dt.Rows[0]["book_volume"];
@@ -128,9 +133,17 @@ namespace CROMS.Forms
         private void UpdateListButtons()
         {
             bool has = dgv.CurrentRow != null;
+            bool backlog = has && SelectedIsBacklog();
             btnViewFromList.Enabled = has;
-            btnEditFromList.Enabled = has;
-            btnDeleteFromList.Enabled = has;
+            btnEditFromList.Enabled = backlog;
+            btnDeleteFromList.Enabled = backlog;
+        }
+
+        private bool SelectedIsBacklog()
+        {
+            if (dgv.CurrentRow == null || !dgv.Columns.Contains("Source")) return false;
+            return string.Equals(Convert.ToString(dgv.CurrentRow.Cells["Source"].Value), "Digitized",
+                StringComparison.Ordinal);
         }
 
         private long? SelectedId()
@@ -222,10 +235,18 @@ namespace CROMS.Forms
         {
             _viewOnly = view;
             foreach (var c in _inputs) c.Enabled = !view;
-            btnEdit.Visible = view;
+            btnEdit.Visible = view && _isBacklog;
             btnSave.Visible = !view;
             btnCancel.Visible = !view && _editingId != null;
-            btnDeleteEntry.Visible = view;
+            btnDeleteEntry.Visible = view && _isBacklog;
+            btnFullRecord.Visible = _editingId != null;
+        }
+
+        private void btnFullRecord_Click(object sender, EventArgs e)
+        {
+            if (_editingId == null) return;
+            RecordFullDetail.Show(this, "v_death_certificate", _editingId.Value,
+                "Death Record — " + (lblEntryTitle.Text ?? ""));
         }
 
         private void EnterEditMode() => SetMode(view: false);
@@ -243,8 +264,10 @@ namespace CROMS.Forms
             string term = (txtSearch?.Text ?? "").Trim();
             string sql =
                 "SELECT id, registry_no AS 'Registry No.', full_name AS 'Deceased', sex AS Sex, " +
-                "date_of_death AS 'Date of Death', book_page AS 'Page', status AS Status " +
-                "FROM deaths WHERE record_source = 'OCR-Backlog'";
+                "date_of_death AS 'Date of Death', book_volume AS 'Book', book_page AS 'Page', " +
+                "status AS Status, " +
+                "CASE WHEN record_source = '" + BacklogSource + "' THEN 'Digitized' ELSE 'Registered' END AS Source " +
+                "FROM deaths WHERE 1 = 1";
             var ps = new List<MySqlParameter>();
             sql += _bookIsNullGroup ? " AND book_volume IS NULL" : " AND book_volume = @vol";
             if (!_bookIsNullGroup) ps.Add(new MySqlParameter("@vol", _bookVolRaw));
@@ -264,11 +287,12 @@ namespace CROMS.Forms
 
         private void LoadRecord(long id)
         {
-            DataTable dt = Db.Pull("SELECT * FROM deaths WHERE id = @id AND record_source = 'OCR-Backlog'",
+            DataTable dt = Db.Pull("SELECT * FROM deaths WHERE id = @id",
                 new MySqlParameter("@id", id));
             if (dt.Rows.Count == 0) return;
             DataRow r = dt.Rows[0];
             _editingId = id;
+            _isBacklog = dt.Columns.Contains("record_source") && Str(r, "record_source") == BacklogSource;
             _scanImage = dt.Columns.Contains("scan_image") && r["scan_image"] != DBNull.Value
                 ? (byte[])r["scan_image"] : null;
 
@@ -319,12 +343,14 @@ namespace CROMS.Forms
             lblEntryTitle.Text = Str(r, "full_name");
             if (lblEntryTitle.Text.Length == 0) lblEntryTitle.Text = "#" + id;
             lblEntrySub.Text = "Registry No. " + (txtReg.Text.Length > 0 ? txtReg.Text : "(none)") +
-                                "  ·  Status: " + (cboStatus.SelectedItem?.ToString() ?? "—");
+                                "  ·  Status: " + (cboStatus.SelectedItem?.ToString() ?? "—") +
+                                (_isBacklog ? "" : "  ·  Registered record — view only here");
         }
 
         private void ClearForm()
         {
             _editingId = null;
+            _isBacklog = true;
             _scanImage = null;
             foreach (Control c in new Control[] {
                 txtReg, txtBookVol, txtBookPage, txtFirst, txtMiddle, txtLast, txtCivil, txtAge,
@@ -492,7 +518,10 @@ namespace CROMS.Forms
             cbo.SelectedIndex = -1;
             for (int i = 0; i < cbo.Items.Count; i++)
                 if (string.Equals(cbo.Items[i].ToString(), value, StringComparison.OrdinalIgnoreCase))
-                { cbo.SelectedIndex = i; break; }
+                { cbo.SelectedIndex = i; return; }
+            // A registered record can carry a status the short list lacks (e.g. "Pending
+            // Approval"); show it rather than a blank box.
+            if (!string.IsNullOrWhiteSpace(value)) cbo.SelectedIndex = cbo.Items.Add(value);
         }
 
         private static void SetDate(DateTimePicker dtp, object value)
