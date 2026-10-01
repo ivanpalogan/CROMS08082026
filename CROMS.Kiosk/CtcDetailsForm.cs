@@ -110,10 +110,16 @@ namespace CROMS.Kiosk
 
             _ownerCaption.Text = marriage ? "WHOSE RECORD — THE COUPLE" : birth ? "WHOSE RECORD — THE CHILD"
                 : death ? "WHOSE RECORD — THE DECEASED" : "WHOSE RECORD";
-            string ev = marriage ? "marriage" : birth ? "birth" : death ? "death" : null;
-            _eventCaption.Text = ev == null ? "Date of the event" : "Date of " + ev;
-            _provinceCaption.Text = ev == null ? "Province" : "Province of " + ev;
-            _cityCaption.Text = ev == null ? "City / Municipality" : "City / Municipality of " + ev;
+            // The captions name the event. Until a document is chosen there is no specific wording
+            // to give, so the three boxes stay hidden rather than show "Date of the event".
+            string ev = marriage ? "Marriage" : birth ? "Birth" : death ? "Death" : null;
+            foreach (Control c in _eventBlock) c.Visible = ev != null;
+            if (ev != null)
+            {
+                _eventCaption.Text = "Date of " + ev;
+                _provinceCaption.Text = "Province of " + ev;
+                _cityCaption.Text = "City/Municipality of " + ev;
+            }
             SizeCard();
         }
 
@@ -341,7 +347,8 @@ namespace CROMS.Kiosk
                 int inputH = Math.Max(40, _eventDate.Height);
                 string doc = _document.SelectedItem as string;
                 bool marriage = doc == "Marriage";
-                int fieldRows = 5 + (marriage ? 1 : 0);
+                bool known = doc == "Birth" || doc == "Marriage" || doc == "Death";
+                int fieldRows = 4 + (known ? 1 : 0) + (marriage ? 1 : 0);
                 int sections = 2;
 
                 Tier t = Tiers[Tiers.Length - 1];

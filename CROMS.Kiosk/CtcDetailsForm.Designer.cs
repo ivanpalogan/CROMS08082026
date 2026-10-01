@@ -49,6 +49,10 @@ namespace CROMS.Kiosk
         // flag per member and its table row collapses to 0.
         private readonly List<Control> _spouseBlock = new List<Control>();
 
+        // Date / province / city of the event. Hidden until a document type is chosen, because the
+        // captions name the event ("Date of Birth") and there is no honest generic wording.
+        private readonly List<Control> _eventBlock = new List<Control>();
+
         // Everything that carries a font which follows the card size (see SizeCard).
         private readonly List<Label> _captions = new List<Label>();
         private readonly List<Control> _inputs = new List<Control>();
@@ -185,12 +189,11 @@ namespace CROMS.Kiosk
             _eventDate.CustomFormat = "d MMMM yyyy";
             _eventDate.ShowCheckBox = true;   // unticked = "the client does not know the date"
             _eventDate.Checked = false;
-            _eventCaption.Text = "Date of the event";
-            _provinceCaption.Text = "Province";
-            _cityCaption.Text = "City / Municipality";
-            Row(Field(_eventCaption, _eventDate), 0, 4);
-            Cell(Field(_provinceCaption, _province), 4, 4);
-            Cell(Field(_cityCaption, _city), 8, 4);
+            Panel e1 = Field(_eventCaption, _eventDate);
+            Row(e1, 0, 4);
+            Panel e2 = Field(_provinceCaption, _province); Cell(e2, 4, 4);
+            Panel e3 = Field(_cityCaption, _city); Cell(e3, 8, 4);
+            _eventBlock.AddRange(new Control[] { e1, e2, e3 });
 
             // --- remarks ------------------------------------------------------
             _remarks.MaxLength = 255;

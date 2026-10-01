@@ -685,7 +685,7 @@ namespace CROMS.Modules
             string when = DateText(r, "event_date");
             string where = JoinPlace(Cell(r, "event_city"), Cell(r, "event_province"));
             if (when != null || where != null)
-                lines.Add("Event: " + string.Join("  ·  ", Kept(when, where)));
+                lines.Add("Date and place of " + doc.ToLowerInvariant() + ": " + string.Join("  ·  ", Kept(when, where)));
 
             string father = Cell(r, "father_name"), mother = Cell(r, "mother_maiden_name");
             if (father != null) lines.Add("Father: " + father);
