@@ -578,6 +578,7 @@ namespace CROMS.Forms
                 "Whether this officer may solemnize (Family Code Art. 7) is confirmed by the registrar from the office's own records.");
             _keyControls["DateOfMarriage"] = _dom; _keyControls["PlaceOfMarriage"] = _church; _keyControls["Solemnizer"] = _sol;
             _keyControls["SolemnizerPosition"] = _solPos; _keyControls["Witness1"] = _w1; _keyControls["Witness2"] = _w2;
+            _dom.MaxDate = DateTime.Today;   // Form 97 is for a marriage that already happened - no future dates
             _dom.ValueChanged += (s, e) => Changed(_dom);
             foreach (Control c in new Control[] { _tom, _sol, _solPos, _w1, _w2 }) c.TextChanged += (s, e) => Changed(c);
             _church.SelectedIndexChanged += (s, e) => Changed(_church); _muni.SelectedIndexChanged += (s, e) => Changed(_muni);

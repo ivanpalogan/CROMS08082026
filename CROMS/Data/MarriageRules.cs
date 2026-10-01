@@ -742,10 +742,7 @@ namespace CROMS.Data
             if (!m.DateOfMarriage.HasValue)
                 list.Add(new RuleIssue(RuleSeverity.Blocking, "DOM", "Date of marriage is required.", Sol));
             else if (m.DateOfMarriage.Value.Date > today.Date)
-                // A future date is a SCHEDULED wedding: it may be entered and saved as a draft ahead of
-                // time, but the marriage cannot be REGISTERED before it has happened.
-                list.Add(new RuleIssue(RuleSeverity.Blocking, "DOM_FUTURE",
-                    "Wedding scheduled for " + D(m.DateOfMarriage) + " - save as draft now; it can be registered on or after that date.", Sol));
+                list.Add(new RuleIssue(RuleSeverity.Blocking, "DOM_FUTURE", "Date of marriage " + D(m.DateOfMarriage) + " is in the future.", Sol));
 
             if (m.DateOfMarriage.HasValue)
                 foreach (Party p in new[] { m.Husband, m.Wife })
@@ -766,8 +763,7 @@ namespace CROMS.Data
             if (!m.DateReceived.HasValue)
                 list.Add(new RuleIssue(RuleSeverity.Blocking, "RECEIVED",
                     "Date the certificate was received at this office is required - it decides timely vs delayed registration.", Cert));
-            else if (m.DateOfMarriage.HasValue && m.DateOfMarriage.Value.Date <= today.Date &&
-                     m.DateReceived.Value.Date < m.DateOfMarriage.Value.Date)
+            else if (m.DateOfMarriage.HasValue && m.DateReceived.Value.Date < m.DateOfMarriage.Value.Date)
                 list.Add(new RuleIssue(RuleSeverity.Blocking, "RECEIVED_EARLY",
                     "Date received " + D(m.DateReceived) + " is before the date of marriage " + D(m.DateOfMarriage) + ".", Cert));
 

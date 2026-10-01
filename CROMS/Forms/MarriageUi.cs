@@ -161,7 +161,10 @@ namespace CROMS.Forms
 
         public static void Put(DateTimePicker d, DateTime? v)
         {
-            if (v.HasValue) { d.Value = v.Value; if (d.ShowCheckBox) d.Checked = true; }
+            // A stored date outside the picker's range (e.g. a future date saved before MaxDate existed)
+            // is shown as "not entered" rather than silently changed to another date.
+            if (v.HasValue && (v.Value > d.MaxDate || v.Value < d.MinDate)) { if (d.ShowCheckBox) d.Checked = false; }
+            else if (v.HasValue) { d.Value = v.Value; if (d.ShowCheckBox) d.Checked = true; }
             else if (d.ShowCheckBox) d.Checked = false;
         }
 
