@@ -768,6 +768,7 @@ namespace CROMS.Forms
             {
                 if (!SaveThenPrint()) return;
             }
+            else if (!SaveEditsBeforePrint()) return;
 
             // One reusable report path for every form: Crystal when a .rpt exists for
             // this revision, otherwise CROMS's own replica/structured renderer. The old
@@ -776,6 +777,37 @@ namespace CROMS.Forms
             // hardcoded to Municipal Form 102.
             // Owner is the popup while it is open: a modal shown over a blocked form is hidden.
             CROMS.Data.CertificateReport.Show(_formCode, _editingId.Value, (IWin32Window)_entryDialog ?? this);
+        }
+
+        /// <summary>
+        /// The certificate is drawn from the saved row, so anything typed since the last save
+        /// (e.g. the Prepared / Received / Registered By block on the Certification tab) would
+        /// silently print blank. Write the on-screen values first. The record's STORED status
+        /// is kept: pressing Print must not promote, demote or number a record.
+        /// </summary>
+        private bool SaveEditsBeforePrint()
+        {
+            if (_editingId == null) return true;
+            if (!ValidateChild()) return false;
+            try
+            {
+                DataTable cur = Db.Pull("SELECT status FROM births WHERE id = @id",
+                    new MySqlParameter("@id", _editingId.Value));
+                string status = cur.Rows.Count > 0 && cur.Rows[0]["status"] != DBNull.Value
+                    ? cur.Rows[0]["status"].ToString()
+                    : (cboStatus.SelectedItem?.ToString() ?? "Draft");
+                var ps = new List<MySqlParameter>(FieldParams(status))
+                {
+                    new MySqlParameter("@id", _editingId.Value)
+                };
+                Db.Push("UPDATE births SET " + SetClause + " WHERE id = @id", ps.ToArray());
+                SaveScan(_editingId.Value);
+                Audit.Write(Audit.Update, "births", _editingId.Value,
+                    "Saved before printing: " + txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim());
+                _autoSaveDirty = false;
+                return true;
+            }
+            catch (Exception ex) { Fail(ex); return false; }
         }
 
         /// <summary>
