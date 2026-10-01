@@ -596,18 +596,21 @@ namespace CROMS.Data
         }
 
         /// <summary>
-        /// A requirement is satisfied when staff have VERIFIED it. "Submitted" means received but
-        /// not yet checked, which is exactly what the final check exists to do. A counselling
-        /// certificate may instead be "Waived", which the law allows only as a three-month
-        /// deferral (Art. 16) - handled by <see cref="Deferral"/>, not by pretending it arrived.
-        /// An Admin BYPASS also satisfies it - deliberately checked before Status, since a
-        /// bypassed row's Status still honestly says what is on file (often still "Missing").
+        /// A requirement is satisfied once the document has been RECEIVED ("Submitted") or
+        /// checked ("Verified"). Submitted used to wait for Verified, which made a row whose
+        /// document was on file read as outstanding while a bypassed row (no document at all)
+        /// read as done - the opposite of what the office expects. Verified is now an extra
+        /// check, not a gate. A counselling certificate may instead be "Waived", which the law
+        /// allows only as a three-month deferral (Art. 16) - handled by <see cref="Deferral"/>,
+        /// not by pretending it arrived. A Staff/Admin BYPASS also satisfies it, for THAT row
+        /// only - deliberately checked before Status, since a bypassed row's Status still
+        /// honestly says what is on file (often still "Missing").
         /// </summary>
         public static bool Satisfied(ReqRow r)
         {
             if (r == null) return false;
             if (r.IsBypassed) return true;
-            if (r.Status == "Verified") return true;
+            if (r.Status == "Verified" || r.Status == "Submitted") return true;
             return r.Status == "Waived" && r.Code == "COUNSELING";
         }
 
@@ -617,7 +620,7 @@ namespace CROMS.Data
             var reasons = new List<string>();
             foreach (ReqRow r in rows)
             {
-                if (r.Code == "PARENTAL_ADVICE" && r.Status == "Verified" &&
+                if (r.Code == "PARENTAL_ADVICE" && (r.Status == "Verified" || r.Status == "Submitted") &&
                     !string.IsNullOrEmpty(r.Outcome) && r.Outcome != "Favorable")
                     reasons.Add("parental advice for the " + r.Party.ToLowerInvariant() + " is " +
                                 r.Outcome.ToLowerInvariant() + " (Art. 15)");

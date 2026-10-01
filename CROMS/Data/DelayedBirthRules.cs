@@ -113,7 +113,7 @@ namespace CROMS.Data
             var group = catalog.Where(t => string.Equals(t.AppliesTo, "Birth", StringComparison.OrdinalIgnoreCase) && t.GroupCode == groupCode).ToList();
             var codes = new HashSet<string>(group.Select(t => t.Code));
             need = group.Count > 0 ? group[0].GroupMin : 1;
-            have = rows.Count(r => codes.Contains(r.Code) && (r.Status == "Verified" || r.IsBypassed));
+            have = rows.Count(r => codes.Contains(r.Code) && (r.Status == "Verified" || r.Status == "Submitted" || r.IsBypassed));
             return have >= need;
         }
 
