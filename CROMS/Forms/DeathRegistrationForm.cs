@@ -1081,6 +1081,7 @@ namespace CROMS.Forms
             "certifier_license_no, disposal_method, place_of_disposal, date_of_disposal, permit_type";
 
         private const string ValuePlaceholders =
+            "@iname, @irel, @iaddr, @idate, @prep, @preptitle, @prepdate, @recv, @recvtitle, @recvdate, @regby, @regbytitle, @regbydate, " +
             "@form_code, @form_name, @name, @bookvol, @bookpage, @sex, @civil, @age, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
             "@lic, @disp, @dplace, @ddate, @permit";
 
