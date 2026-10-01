@@ -58,7 +58,9 @@ namespace CROMS.Forms
             this.cboCertType = new System.Windows.Forms.ComboBox();
             this.cboRecordType = new System.Windows.Forms.ComboBox();
             this.lblSelRecord = new System.Windows.Forms.Label();
-            this.cboRecord = new System.Windows.Forms.ComboBox();
+            this.tblFind = new System.Windows.Forms.TableLayoutPanel();
+            this.btnFindRecord = new System.Windows.Forms.Button();
+            this.lblFoundRecord = new System.Windows.Forms.Label();
             this.cardPurpose = new CROMS.Modules.CardPanel();
             this.tblPurpose = new System.Windows.Forms.TableLayoutPanel();
             this.flowHead3 = new System.Windows.Forms.FlowLayoutPanel();
@@ -117,6 +119,7 @@ namespace CROMS.Forms
             this.flowHead1.SuspendLayout();
             this.cardCertificate.SuspendLayout();
             this.tblCert.SuspendLayout();
+            this.tblFind.SuspendLayout();
             this.flowHead2.SuspendLayout();
             this.cardPurpose.SuspendLayout();
             this.tblPurpose.SuspendLayout();
@@ -454,7 +457,7 @@ namespace CROMS.Forms
             this.tblCert.Controls.Add(this.cboCertType, 0, 3);
             this.tblCert.Controls.Add(this.cboRecordType, 1, 3);
             this.tblCert.Controls.Add(this.lblSelRecord, 0, 4);
-            this.tblCert.Controls.Add(this.cboRecord, 0, 5);
+            this.tblCert.Controls.Add(this.tblFind, 0, 5);
             this.tblCert.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tblCert.Location = new System.Drawing.Point(0, 0);
             this.tblCert.Name = "tblCert";
@@ -586,20 +589,58 @@ namespace CROMS.Forms
             this.lblSelRecord.Name = "lblSelRecord";
             this.lblSelRecord.Size = new System.Drawing.Size(205, 15);
             this.lblSelRecord.TabIndex = 5;
-            this.lblSelRecord.Text = "Select registry record  (type to search)";
-            // 
-            // cboRecord
-            // 
-            this.cboRecord.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.cboRecord.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
-            this.cboRecord.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems;
-            this.tblCert.SetColumnSpan(this.cboRecord, 2);
-            this.cboRecord.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.cboRecord.Location = new System.Drawing.Point(20, 162);
-            this.cboRecord.Margin = new System.Windows.Forms.Padding(0);
-            this.cboRecord.Name = "cboRecord";
-            this.cboRecord.Size = new System.Drawing.Size(867, 25);
-            this.cboRecord.TabIndex = 5;
+            this.lblSelRecord.Text = "Registry record  (pick the record type first, then click Find Record)";
+            //
+            // tblFind
+            //
+            this.tblFind.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.tblFind.BackColor = System.Drawing.Color.Transparent;
+            this.tblFind.ColumnCount = 2;
+            this.tblFind.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 150F));
+            this.tblFind.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tblFind.Controls.Add(this.btnFindRecord, 0, 0);
+            this.tblFind.Controls.Add(this.lblFoundRecord, 1, 0);
+            this.tblCert.SetColumnSpan(this.tblFind, 2);
+            this.tblFind.Location = new System.Drawing.Point(20, 162);
+            this.tblFind.Margin = new System.Windows.Forms.Padding(0);
+            this.tblFind.Name = "tblFind";
+            this.tblFind.RowCount = 1;
+            this.tblFind.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 25F));
+            this.tblFind.Size = new System.Drawing.Size(867, 25);
+            this.tblFind.TabIndex = 5;
+            //
+            // btnFindRecord
+            //
+            this.btnFindRecord.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnFindRecord.BackColor = System.Drawing.Color.FromArgb(29, 78, 216);
+            this.btnFindRecord.Enabled = false;
+            this.btnFindRecord.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnFindRecord.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            this.btnFindRecord.ForeColor = System.Drawing.Color.White;
+            this.btnFindRecord.Location = new System.Drawing.Point(0, 0);
+            this.btnFindRecord.Margin = new System.Windows.Forms.Padding(0, 0, 12, 0);
+            this.btnFindRecord.Name = "btnFindRecord";
+            this.btnFindRecord.Size = new System.Drawing.Size(138, 25);
+            this.btnFindRecord.TabIndex = 0;
+            this.btnFindRecord.Text = "Find Record...";
+            this.btnFindRecord.UseVisualStyleBackColor = false;
+            this.btnFindRecord.Click += new System.EventHandler(this.btnFindRecord_Click);
+            //
+            // lblFoundRecord
+            //
+            this.lblFoundRecord.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.lblFoundRecord.AutoEllipsis = true;
+            this.lblFoundRecord.BackColor = System.Drawing.Color.Transparent;
+            this.lblFoundRecord.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.lblFoundRecord.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
+            this.lblFoundRecord.Location = new System.Drawing.Point(150, 3);
+            this.lblFoundRecord.Margin = new System.Windows.Forms.Padding(0);
+            this.lblFoundRecord.Name = "lblFoundRecord";
+            this.lblFoundRecord.Size = new System.Drawing.Size(717, 19);
+            this.lblFoundRecord.TabIndex = 1;
+            this.lblFoundRecord.Text = "Select a record type first.";
+            this.lblFoundRecord.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.lblFoundRecord.UseMnemonic = false;
             // 
             // cardPurpose
             // 
@@ -1330,6 +1371,7 @@ namespace CROMS.Forms
             this.flowHead1.ResumeLayout(false);
             this.flowHead1.PerformLayout();
             this.cardCertificate.ResumeLayout(false);
+            this.tblFind.ResumeLayout(false);
             this.tblCert.ResumeLayout(false);
             this.tblCert.PerformLayout();
             this.flowHead2.ResumeLayout(false);
@@ -1395,7 +1437,9 @@ namespace CROMS.Forms
         private System.Windows.Forms.ComboBox cboCertType;
         private System.Windows.Forms.ComboBox cboRecordType;
         private System.Windows.Forms.Label lblSelRecord;
-        private System.Windows.Forms.ComboBox cboRecord;
+        private System.Windows.Forms.TableLayoutPanel tblFind;
+        private System.Windows.Forms.Button btnFindRecord;
+        private System.Windows.Forms.Label lblFoundRecord;
 
         private CROMS.Modules.CardPanel cardPurpose;
         private System.Windows.Forms.TableLayoutPanel tblPurpose;

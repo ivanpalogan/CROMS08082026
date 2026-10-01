@@ -23,6 +23,12 @@ namespace CROMS.Forms
         private int _queueTicketId;
         private string _queueTicketCode;
 
+        // The registry record chosen with Find Record (0 = none yet), and the kiosk name that
+        // pre-fills the search box. The record TYPE is picked first; changing it drops the pick.
+        private int _pickedId;
+        private string _pickedName;
+        private string _findHint;
+
         public void RefreshData() => LoadRequests();
 
         /// <summary>
@@ -93,13 +99,13 @@ namespace CROMS.Forms
                 string purpose = Text2(r["purpose"]);
                 if (purpose.Length > 0) txtPurpose.Text = purpose;
 
-                // The record picker is a searchable combo bound to the registry rows, so typing
-                // the owner's name into it filters straight to the entry. Deliberately only a
-                // starting point: it is left for the clerk to CONFIRM against the list, since a
-                // kiosk-typed name is the client's spelling, not the registry's.
+                // The owner's name only seeds the Find Record search box. Deliberately NOT a
+                // chosen record: the clerk confirms it against the list, since a kiosk-typed
+                // name is the client's spelling, not the registry's.
                 string owner = string.Join(" ", new[] { Text2(r["owner_last"]), Text2(r["owner_first"]) }
                     .Where(p => p.Length > 0));
-                if (owner.Length > 0) cboRecord.Text = owner;
+                _findHint = owner;
+                UpdateFindState();
             }
             catch { /* no ctc_requests table yet, or a counter-created request */ }
         }
@@ -167,7 +173,7 @@ namespace CROMS.Forms
             cboCertType.Items.AddRange(new object[] { "CTC", "Negative" });
             cboCertType.SelectedItem = "CTC";
             cboRecordType.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });
-            cboRecordType.SelectedIndexChanged += (s, e) => { LoadRecords(); UpdateSummary(); };
+            cboRecordType.SelectedIndexChanged += (s, e) => { ClearPick(); UpdateSummary(); };
             LoadRequests();
             LearningLibrary.Attach(txtFirst, LearningLibrary.GivenName);
             LearningLibrary.Attach(txtLast, LearningLibrary.Surname);
@@ -179,12 +185,11 @@ namespace CROMS.Forms
             txtMiddle.TextChanged += (s, e) => UpdateSummary();
             txtLast.TextChanged += (s, e) => UpdateSummary();
             cboCertType.SelectedIndexChanged += (s, e) => UpdateSummary();
-            cboRecord.SelectedIndexChanged += (s, e) => UpdateSummary();
-            cboRecord.TextChanged += (s, e) => UpdateSummary();
             txtCopies.TextChanged += (s, e) => UpdateSummary();
             txtPurpose.TextChanged += (s, e) => UpdateSummary();
 
             SetupRefreshIcon();
+            UpdateFindState();
             UpdateSummary();
         }
 
@@ -194,7 +199,7 @@ namespace CROMS.Forms
             SetSummary(lblSumClient, FullClientName());
             SetSummary(lblSumCertType, cboCertType.SelectedItem?.ToString());
             SetSummary(lblSumRecordType, cboRecordType.SelectedItem?.ToString());
-            SetSummary(lblSumRecord, cboRecord.Text);
+            SetSummary(lblSumRecord, _pickedName);
             SetSummary(lblSumCopies, txtCopies.Text);
             SetSummary(lblSumPurpose, txtPurpose.Text);
 
@@ -277,33 +282,55 @@ namespace CROMS.Forms
 
         private void HideValidation() => pnlValidation.Visible = false;
 
-        /// <summary>Fills the Record dropdown with records of the chosen type.</summary>
-        private void LoadRecords()
+        /// <summary>Opens the search dialog for the chosen record type and keeps the pick.</summary>
+        private void btnFindRecord_Click(object sender, EventArgs e)
         {
             string type = cboRecordType.SelectedItem?.ToString();
-            string sql;
-            switch (type)
+            if (type == null) return;   // the button is disabled until a type is chosen
+
+            using (var dlg = new FindRecordDialog(type, _findHint))
             {
-                case "Birth":
-                    sql = "SELECT id, TRIM(CONCAT(last_name, ', ', first_name)) AS name FROM births ORDER BY last_name";
-                    break;
-                case "Death":
-                    sql = "SELECT id, full_name AS name FROM deaths ORDER BY full_name";
-                    break;
-                case "Marriage":
-                    sql = "SELECT id, TRIM(CONCAT(husband_last_name, ' & ', wife_last_name)) AS name FROM marriages ORDER BY id DESC";
-                    break;
-                default:
-                    cboRecord.DataSource = null;
-                    return;
+                if (dlg.ShowDialog(this) != DialogResult.OK || dlg.PickedId <= 0) return;
+                _pickedId = dlg.PickedId;
+                _pickedName = dlg.PickedName;
             }
-            DataTable dt = Db.Pull(sql);
-            cboRecord.DataSource = dt;
-            cboRecord.DisplayMember = "name";
-            cboRecord.ValueMember = "id";
-            // Type-to-search popup (own filter, no native autocomplete: the record list can be big).
-            CROMS.Modules.SearchCombo.Attach(cboRecord);
-            cboRecord.SelectedIndex = -1;
+            UpdateFindState();
+            UpdateSummary();
+        }
+
+        /// <summary>Forgets the chosen record — a record belongs to ONE register, so switching
+        /// Birth/Marriage/Death must never leave a birth id sitting under "Marriage".</summary>
+        private void ClearPick()
+        {
+            _pickedId = 0;
+            _pickedName = null;
+            UpdateFindState();
+        }
+
+        /// <summary>Find Record needs a record type; the line beside it says what is chosen
+        /// or what to do next.</summary>
+        private void UpdateFindState()
+        {
+            bool hasType = cboRecordType.SelectedItem != null;
+            btnFindRecord.Enabled = hasType;
+
+            if (_pickedId > 0)
+            {
+                lblFoundRecord.Text = "✔  " + _pickedName;
+                lblFoundRecord.ForeColor = UiTheme.Success;
+            }
+            else if (!hasType)
+            {
+                lblFoundRecord.Text = "Select a record type first.";
+                lblFoundRecord.ForeColor = UiTheme.Muted;
+            }
+            else
+            {
+                lblFoundRecord.Text = string.IsNullOrWhiteSpace(_findHint)
+                    ? "No record chosen yet."
+                    : "No record chosen yet  (client's name from the kiosk: " + _findHint + ")";
+                lblFoundRecord.ForeColor = UiTheme.Muted;
+            }
         }
 
         private void btnCreate_Click(object sender, EventArgs e)
@@ -320,7 +347,7 @@ namespace CROMS.Forms
             int copies = int.TryParse(txtCopies.Text, out int c) && c > 0 ? c : 1;
             object recordType = cboRecordType.SelectedItem == null
                 ? (object)DBNull.Value : cboRecordType.SelectedItem.ToString();
-            object recordId = cboRecord.SelectedValue is int rid ? (object)rid : DBNull.Value;
+            object recordId = _pickedId > 0 ? (object)_pickedId : DBNull.Value;
 
             try
             {
@@ -432,7 +459,8 @@ namespace CROMS.Forms
             txtLast.Clear();
             cboCertType.SelectedItem = "CTC";
             cboRecordType.SelectedIndex = -1;
-            cboRecord.DataSource = null;
+            _findHint = null;
+            ClearPick();
             txtCopies.Text = "1";
             txtPurpose.Clear();
             HideValidation();
