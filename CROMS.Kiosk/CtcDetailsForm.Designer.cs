@@ -9,6 +9,7 @@ namespace CROMS.Kiosk
     {
         private Panel _card;
         private Panel _body;
+        private TableLayoutPanel _root, _bar;
         private TableLayoutPanel _grid;
         private Label _title, _subtitle;
         private Button _back, _next;
@@ -53,7 +54,16 @@ namespace CROMS.Kiosk
         private readonly List<Panel> _fieldPanels = new List<Panel>();
 
         // Designed (1x) sizes; SizeCard multiplies them by the card's scale.
-        private const int BaseFieldH = 60, BaseSectionH = 26, GridCols = 6;
+        private const int GridCols = 6;
+
+        // Sizes are in PIXELS (GraphicsUnit.Pixel), so they read the same on every display
+        // scaling. Chosen for elderly and low-vision clients at arm's length: title 32,
+        // section headings 24, labels 19, input text 20, button text 24.
+        private const int TitlePx = 32, SubtitlePx = 18, SectionPx = 24, LabelPx = 19, InputPx = 20, ButtonPx = 24;
+        private const int CaptionH = 28, TitleH = 44, SubtitleH = 28;
+
+        private static Font Px(float px, FontStyle style = FontStyle.Regular)
+            => new Font("Segoe UI", px, style, GraphicsUnit.Pixel);
 
         private void InitializeComponent()
         {
@@ -61,7 +71,7 @@ namespace CROMS.Kiosk
             FormBorderStyle = FormBorderStyle.None;
             WindowState = FormWindowState.Maximized;
             BackColor = KioskCore.Bg;
-            Font = new Font("Segoe UI", 10F);
+            Font = Px(InputPx);
             AutoScroll = true;
 
             _card = new Panel { BackColor = KioskCore.CardBg };
@@ -78,7 +88,7 @@ namespace CROMS.Kiosk
         // pixel box - at any monitor size the fields stretch with the card and never overlap.
         private void BuildCard()
         {
-            var root = new TableLayoutPanel
+            var root = _root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
@@ -97,25 +107,25 @@ namespace CROMS.Kiosk
             {
                 Text = "Tell the records staff which entry to pull from the registry books. Only the document and the name are required.",
                 Dock = DockStyle.Top,
-                Height = 34,
+                Height = SubtitleH,
                 ForeColor = KioskCore.Muted,
-                Font = new Font("Segoe UI", 10.5F),
+                Font = Px(SubtitlePx),
                 AutoEllipsis = true,
             };
             _title = new Label
             {
                 Text = "Certified True Copy",
                 Dock = DockStyle.Top,
-                Height = 46,
+                Height = TitleH,
                 ForeColor = KioskCore.Ink,
-                Font = new Font("Segoe UI", 26F, FontStyle.Bold),
+                Font = Px(TitlePx, FontStyle.Bold),
             };
             head.Controls.Add(_subtitle);   // Dock=Top: last added sits on top
             head.Controls.Add(_title);
             root.Controls.Add(head, 0, 0);
 
             // --- body (scrolls only if the screen is genuinely too small) -----
-            _body = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.Transparent, Margin = new Padding(0, 8, 0, 8) };
+            _body = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.Transparent, Margin = new Padding(0, 4, 0, 4) };
             _grid = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
@@ -161,7 +171,8 @@ namespace CROMS.Kiosk
             Field("Last name *", _ownerLast, out Panel pLast);
             _grid.Controls.Add(pLast, 4, _grid.RowCount - 1); _grid.SetColumnSpan(pLast, 2);
 
-            _eventDate.Format = DateTimePickerFormat.Long;
+            _eventDate.Format = DateTimePickerFormat.Custom;   // no weekday: it only crowds the field
+            _eventDate.CustomFormat = "d MMMM yyyy";
             _eventDate.ShowCheckBox = true;   // unticked = "the client does not know the date"
             _eventDate.Checked = false;
             _eventCaption.Text = "Date of the event";
@@ -199,18 +210,18 @@ namespace CROMS.Kiosk
             Row(Field("Anything else that helps find it (spelling variants, nickname, year only...)", _remarks), 0, GridCols);
 
             // --- button bar ---------------------------------------------------
-            var bar = new TableLayoutPanel
+            var bar = _bar = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 3,
                 RowCount = 1,
-                Height = 72,
+                Height = 92,
                 BackColor = Color.Transparent,
                 Margin = new Padding(0),
             };
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220F));
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 280F));
             bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
-            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 236F));
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 296F));
             bar.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             _back = ActionButton("Back", KioskCore.Line, KioskCore.Ink);
@@ -219,7 +230,7 @@ namespace CROMS.Kiosk
 
             _next = ActionButton("Continue", KioskCore.Accent, Color.White);
             _next.Anchor = AnchorStyles.Right | AnchorStyles.Top;
-            _next.Margin = new Padding(3, 3, 19, 3);   // line up with the fields' right edge (they keep a 16px gutter)
+            _next.Margin = new Padding(3, 3, 35, 3);   // line up with the fields' right edge (they keep a 16px gutter)
             _next.Click += new EventHandler(Continue_Click);
 
             bar.Controls.Add(_back, 0, 0);
@@ -252,19 +263,30 @@ namespace CROMS.Kiosk
         private Panel Field(Label caption, Control input)
         {
             caption.Dock = DockStyle.Top;
-            caption.Height = 24;
+            caption.Height = CaptionH;
             caption.ForeColor = KioskCore.Ink;
-            caption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            caption.Font = Px(LabelPx, FontStyle.Bold);
+            caption.TextAlign = ContentAlignment.BottomLeft;
             caption.AutoEllipsis = true;
             caption.UseMnemonic = false;
 
             input.Dock = DockStyle.Top;
-            input.Font = new Font("Segoe UI", 10.5F);
+            input.Font = Px(InputPx);
+            // A date picker's height is fixed by its font, so it gets a bigger one - it sets the
+            // height every other input is matched to (see SizeCard).
+            if (input is DateTimePicker) input.Font = Px(InputPx + 6);
+            if (input is TextBox tb) tb.AutoSize = false;   // lets SizeCard make it taller than its font
+            if (input is ComboBox cb)
+            {
+                // Owner-drawn so the box and its list rows can be as tall as a finger needs.
+                cb.DrawMode = DrawMode.OwnerDrawFixed;
+                cb.DrawItem += new DrawItemEventHandler(Combo_DrawItem);
+            }
 
             var p = new Panel
             {
                 Dock = DockStyle.Fill,
-                Height = BaseFieldH,
+                Height = 80,
                 Margin = new Padding(0, 0, 16, 0),
                 BackColor = Color.Transparent,
             };
@@ -282,11 +304,11 @@ namespace CROMS.Kiosk
         private Label Section(Label label)
         {
             label.Dock = DockStyle.Fill;
-            label.Height = BaseSectionH;
+            label.Height = 36;
             label.TextAlign = ContentAlignment.BottomLeft;
-            label.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            label.Font = Px(SectionPx, FontStyle.Bold);
             label.ForeColor = KioskCore.Accent;
-            label.Margin = new Padding(0, 4, 0, 2);
+            label.Margin = new Padding(0, 6, 0, 2);
             label.UseMnemonic = false;
             _sections.Add(label);
             return label;
@@ -297,11 +319,11 @@ namespace CROMS.Kiosk
             var b = new Button
             {
                 Text = text,
-                Size = new Size(220, 52),
+                Size = new Size(260, 68),
                 FlatStyle = FlatStyle.Flat,
                 BackColor = back,
                 ForeColor = fore,
-                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Font = Px(ButtonPx, FontStyle.Bold),
                 Cursor = Cursors.Hand,
             };
             b.FlatAppearance.BorderSize = 0;

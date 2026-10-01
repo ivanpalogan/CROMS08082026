@@ -180,15 +180,28 @@ namespace CROMS.Kiosk
         private static string Trim(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         // ------------------------------------------------------------------ helpers
-        private float _fontScale = -1f;
         private bool _sizing;
+
+        // Vertical spacing tiers, roomiest first. A tall screen gets the first; a short one
+        // (1366x768) falls through to the first tier whose rows still fit the card, and only if
+        // none fits does the body scroll. Type size never changes - it is the readable minimum.
+        private struct Tier
+        {
+            public int Gap, SecH, BarH, PadV;
+            public bool Sub;   // show the one-line instruction under the title
+            public Tier(int g, int s, int b, int p, bool sub) { Gap = g; SecH = s; BarH = b; PadV = p; Sub = sub; }
+        }
+
+        private static readonly Tier[] Tiers =
+        {
+            new Tier(20, 44, 96, 32, true), new Tier(14, 40, 88, 24, true), new Tier(8, 36, 80, 16, true), new Tier(2, 30, 72, 8, false),
+        };
 
         /// <summary>
         /// The card takes ~88% of the screen width and ~86% of its height (92% on a short
-        /// screen such as 1366x768, where every pixel is needed), centred. Fonts and field
-        /// heights grow with the card, and whatever vertical room is left once the visible rows
-        /// are placed is shared between them, so the form fills the card instead of sitting in
-        /// its top half. Below a minimum size the FORM scrolls rather than squashing controls.
+        /// screen such as 1366x768), centred. Every input is the same height - that of the date
+        /// picker, whose height Windows fixes from its font - and spare vertical room is shared
+        /// between the visible rows. Below a minimum size the FORM scrolls rather than squashing.
         /// </summary>
         private void SizeCard()
         {
@@ -197,42 +210,35 @@ namespace CROMS.Kiosk
             try
             {
                 const int MinW = 900, MinH = 600;
-                double hFrac = ClientSize.Height < 900 ? 0.92 : 0.86;
+                double hFrac = ClientSize.Height < 900 ? 0.94 : 0.86;
                 int w = Math.Max(MinW, (int)(ClientSize.Width * 0.88));
                 int h = Math.Max(MinH, (int)(ClientSize.Height * hFrac));
                 _card.Size = new Size(w, h);
                 AutoScrollMinSize = new Size(w, h);
 
-                // Fonts follow the card, but only upward (the design size is already the
-                // smallest that reads on a kiosk) and in 5% steps so a resize does not rebuild
-                // every Font on every pixel.
-                float f = Math.Min(1.4f, Math.Max(1f, Math.Min(h / 760f, w / 1100f)));
-                f = (float)Math.Round(f * 20) / 20f;
-                if (Math.Abs(f - _fontScale) > 0.001f)
-                {
-                    _fontScale = f;
-                    SetFonts(_title, 26F * f, FontStyle.Bold);
-                    SetFonts(_subtitle, 10.5F * f, FontStyle.Regular);
-                    foreach (var c in _captions) SetFonts(c, 9F * f, FontStyle.Bold);
-                    foreach (var c in _inputs) c.Font = new Font("Segoe UI", 10.5F * f);
-                    foreach (var c in _sections) SetFonts(c, 8.5F * f, FontStyle.Bold);
-                    _title.Height = (int)(46 * f);
-                    _subtitle.Height = (int)(34 * f);
-                    foreach (var c in _captions) c.Height = (int)(24 * f);
-                    foreach (var c in _sections) c.Height = (int)(26 * f);
-                }
-
-                // Share the spare height between the field rows that are showing.
+                int inputH = Math.Max(40, _eventDate.Height);
                 string doc = _document.SelectedItem as string;
                 bool block = doc == "Marriage" || doc == "Birth";
                 int fieldRows = 5 + (block ? 1 : 0);
                 int sections = 2 + (block ? 1 : 0);
-                int baseH = (int)(BaseFieldH * f);
-                int sectionH = (int)(26 * f) + 6;
-                int avail = _body.ClientSize.Height - 12;
-                int needed = fieldRows * baseH + sections * sectionH;
-                int extra = Math.Max(0, Math.Min((avail - needed) / fieldRows, (int)(40 * f)));
-                foreach (var p in _fieldPanels) p.Height = baseH + extra;
+
+                Tier t = Tiers[Tiers.Length - 1];
+                int avail = 0, needed = 0;
+                foreach (Tier c in Tiers)
+                {
+                    avail = h - c.PadV * 2 - TitleH - (c.Sub ? SubtitleH : 0) - c.BarH - 8 - 12;
+                    needed = fieldRows * (CaptionH + inputH + c.Gap) + sections * (c.SecH + 8);
+                    t = c;
+                    if (needed <= avail) break;
+                }
+                int extra = Math.Max(0, Math.Min((avail - needed) / fieldRows, 24));
+
+                _root.Padding = new Padding(44, t.PadV, 44, t.PadV);
+                _bar.Height = t.BarH;
+                _subtitle.Visible = t.Sub;
+                foreach (var sec in _sections) sec.Height = t.SecH;
+                foreach (var inp in _inputs) SetInputHeight(inp, inputH);
+                foreach (var fp in _fieldPanels) fp.Height = CaptionH + inputH + t.Gap + extra;
 
                 _card.Location = new Point(
                     Math.Max(0, (ClientSize.Width - _card.Width) / 2),
@@ -241,7 +247,35 @@ namespace CROMS.Kiosk
             finally { _sizing = false; }
         }
 
-        private static void SetFonts(Label l, float size, FontStyle style) => l.Font = new Font("Segoe UI", size, style);
+        /// <summary>Gives one input its height. A combo that OthersBox wrapped sits inside a host
+        /// panel whose height was fixed at wrap time, so the host is resized too.</summary>
+        private void SetInputHeight(Control input, int h)
+        {
+            if (input is DateTimePicker) return;                   // fixed by its font
+            if (input is ComboBox cb) cb.ItemHeight = h - 6;       // control height = item height + 6
+            else input.Height = h;
+
+            Control host = input.Parent;
+            if (host != null && !_fieldPanels.Contains(host as Panel))
+            {
+                host.Height = h;
+                if (input is ComboBox c2) OthersBox.Relayout(c2);
+            }
+        }
+
+        private void Combo_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            var cb = (ComboBox)sender;
+            e.DrawBackground();
+            if (e.Index >= 0)
+            {
+                string text = cb.GetItemText(cb.Items[e.Index]);
+                var r = new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 8, e.Bounds.Height);
+                TextRenderer.DrawText(e.Graphics, text, cb.Font, r, e.ForeColor,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            }
+            e.DrawFocusRectangle();
+        }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
