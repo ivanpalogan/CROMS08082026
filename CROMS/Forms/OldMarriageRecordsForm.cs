@@ -138,6 +138,7 @@ namespace CROMS.Forms
             bool has = dgv.CurrentRow != null;
             bool backlog = has && SelectedIsBacklog();
             btnViewFromList.Enabled = has;
+            btnUsePick.Enabled = has;
             btnEditFromList.Enabled = backlog;
             btnDeleteFromList.Enabled = backlog;
         }
@@ -164,9 +165,87 @@ namespace CROMS.Forms
 
 
 
+        // ---- pick mode: Certificate Request > Find Record sends the clerk here ----------------
+        // The clerk searches with this section's own search bar — across EVERY book, not just
+        // one — and picks a record; the callback hands it back to the request form.
+
+        private Action<int, string> _pickCallback;
+        private Action _pickCancelled;
+        private bool _allBooks;
+
+        public bool PickMode => _pickCallback != null;
+
+        private string PickHeader() => "Choose the record for the certificate request — all books";
+
+        public void BeginPick(string searchText, Action<int, string> onPicked, Action onCancelled)
+        {
+            _pickCallback = onPicked;
+            _pickCancelled = onCancelled;
+            _allBooks = true;
+            _bookVolRaw = null;
+            _bookVolDisplay = null;
+            _bookIsNullGroup = false;
+            ApplyPickChrome();
+            txtSearch.Text = searchText ?? "";
+            ShowListView();
+            LoadGrid();
+            txtSearch.Focus();
+            txtSearch.SelectAll();
+        }
+
+        private void ApplyPickChrome()
+        {
+            bool pick = PickMode;
+            btnUsePick.Visible = pick;
+            btnNewFromList.Visible = !pick;
+            btnEditFromList.Visible = !pick;
+            btnDeleteFromList.Visible = !pick;
+            btnBackToBooks.Text = pick ? "← Cancel" : "← Books";
+        }
+
+        private void EndPick()
+        {
+            _pickCallback = null;
+            _pickCancelled = null;
+            _allBooks = false;
+            ApplyPickChrome();
+            txtSearch.Text = "";
+            ShowBooksGallery();
+        }
+
+        private void CancelPick()
+        {
+            Action cancelled = _pickCancelled;
+            EndPick();
+            if (cancelled != null) cancelled();
+        }
+
+        private string Cell(string column)
+        {
+            if (dgv.CurrentRow == null || !dgv.Columns.Contains(column)) return "";
+            return Convert.ToString(dgv.CurrentRow.Cells[column].Value) ?? "";
+        }
+
+        private void ChoosePick()
+        {
+            long? id = SelectedId();
+            if (id == null) return;
+            string name = (Cell("Husband") + "  &  " + Cell("Wife")).Trim();
+            string reg = Cell("Registry No.");
+            string label = reg.Length > 0 ? name + "  (" + reg + ")" : name;
+            Action<int, string> picked = _pickCallback;
+            EndPick();
+            if (picked != null) picked((int)id.Value, label);
+        }
+
         // ---- event handlers wired in the Designer ----------------------------------
 
-        private void btnBackToBooks_Click(object sender, EventArgs e) => ShowBooksGallery();
+        private void btnBackToBooks_Click(object sender, EventArgs e)
+        {
+            if (PickMode) CancelPick();      // "← Cancel": back to Certificate Request, nothing chosen
+            else ShowBooksGallery();
+        }
+        private void btnUsePick_Click(object sender, EventArgs e) => ChoosePick();
         private void txtSearch_TextChanged(object sender, EventArgs e) => LoadGrid();
         private void btnNewFromList_Click(object sender, EventArgs e) => OpenNew();
         private void btnViewFromList_Click(object sender, EventArgs e) => OpenSelected(view: true);
@@ -182,7 +261,9 @@ namespace CROMS.Forms
         private void btnSoftcopy_Click(object sender, EventArgs e) => ShowSoftcopy();
         private void dgv_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex >= 0) OpenSelected(view: true);
+            if (e.RowIndex < 0) return;
+            if (PickMode) ChoosePick();
+            else OpenSelected(view: true);
         }
         private void _gallery_BookOpened(RegistryBookGallery.BookInfo b) => OpenBook(b.VolRaw, b.VolDisplay);
 
@@ -200,7 +281,7 @@ namespace CROMS.Forms
             cardBooks.Visible = false;
             cardEntry.Visible = false;
             cardList.Visible = true;
-            lblListHeader.Text = "Book " + (_bookVolDisplay ?? "(no volume recorded)");
+            lblListHeader.Text = _allBooks ? PickHeader() : "Book " + (_bookVolDisplay ?? "(no volume recorded)");
         }
 
         private void ShowEntryView()
@@ -274,20 +355,24 @@ namespace CROMS.Forms
                 "CASE WHEN record_source = '" + BacklogSource + "' THEN 'Digitized' ELSE 'Registered' END AS Source " +
                 "FROM marriages WHERE 1 = 1";
             var ps = new List<MySqlParameter>();
-            sql += _bookIsNullGroup ? " AND book_volume IS NULL" : " AND book_volume = @vol";
-            if (!_bookIsNullGroup) ps.Add(new MySqlParameter("@vol", _bookVolRaw));
+            if (!_allBooks)   // pick mode searches every book at once
+            {
+                sql += _bookIsNullGroup ? " AND book_volume IS NULL" : " AND book_volume = @vol";
+                if (!_bookIsNullGroup) ps.Add(new MySqlParameter("@vol", _bookVolRaw));
+            }
             if (term.Length > 0)
             {
                 sql += " AND (registry_no LIKE @t OR husband_first_name LIKE @t OR husband_last_name LIKE @t " +
                        "OR wife_first_name LIKE @t OR wife_last_name LIKE @t)";
                 ps.Add(new MySqlParameter("@t", "%" + term + "%"));
             }
-            sql += " ORDER BY book_page, id DESC";
+            sql += _allBooks ? " ORDER BY id DESC LIMIT 300" : " ORDER BY book_page, id DESC";
 
             DataTable dt = ps.Count > 0 ? Db.Pull(sql, ps.ToArray()) : Db.Pull(sql);
             dgv.DataSource = dt;
             if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
-            lblListHeader.Text = "Book " + (_bookVolDisplay ?? "(no volume recorded)") + "  ·  " + dt.Rows.Count + " record(s)";
+            lblListHeader.Text = (_allBooks ? PickHeader() : "Book " + (_bookVolDisplay ?? "(no volume recorded)"))
+                                 + "  ·  " + dt.Rows.Count + " record(s)";
             UpdateListButtons();
         }
 

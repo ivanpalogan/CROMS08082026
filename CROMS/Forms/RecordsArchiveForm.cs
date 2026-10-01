@@ -404,6 +404,32 @@ namespace CROMS.Forms
             return _workbenches.TryGetValue(cat, out Form form) ? form as OldDeathRecordsForm : null;
         }
 
+        /// <summary>
+        /// Certificate Request's "Find Record": opens the Birth / Marriage / Death Record
+        /// section of this screen in pick mode — its own search bar over every book, plus a
+        /// "Use This Record" button. The chosen record (id + a one-line label) goes to
+        /// <paramref name="onPicked"/>; "← Cancel" calls <paramref name="onCancelled"/>.
+        /// Returns false when the section could not be opened.
+        /// </summary>
+        public bool BeginRecordPick(string recordType, string searchText,
+                                    Action<int, string> onPicked, Action onCancelled)
+        {
+            Form workbench;
+            switch (recordType)
+            {
+                case "Birth": workbench = OpenBirthRecordWorkbench(); break;
+                case "Marriage": workbench = OpenMarriageRecordWorkbench(); break;
+                case "Death": workbench = OpenDeathRecordWorkbench(); break;
+                default: return false;
+            }
+
+            if (workbench is OldBirthRecordsForm b) b.BeginPick(searchText, onPicked, onCancelled);
+            else if (workbench is OldMarriageRecordsForm m) m.BeginPick(searchText, onPicked, onCancelled);
+            else if (workbench is OldDeathRecordsForm d) d.BeginPick(searchText, onPicked, onCancelled);
+            else return false;
+            return true;
+        }
+
         private void btnRefresh_Click(object sender, EventArgs e) => RefreshData();
 
         // ------------------------------------------------------------ detail

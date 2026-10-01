@@ -27,7 +27,8 @@ namespace CROMS.Forms
         // pre-fills the search box. The record TYPE is picked first; changing it drops the pick.
         private int _pickedId;
         private string _pickedName;
-        private string _findHint;
+        private string _findHint;      // the kiosk client's name, shown beside the button
+        private string _findSearch;    // what the archive search bar starts with (the surname)
 
         public void RefreshData() => LoadRequests();
 
@@ -105,6 +106,9 @@ namespace CROMS.Forms
                 string owner = string.Join(" ", new[] { Text2(r["owner_last"]), Text2(r["owner_first"]) }
                     .Where(p => p.Length > 0));
                 _findHint = owner;
+                // The archive search matches one name column at a time, so "Last First" would
+                // find nothing; the surname alone finds the family and the clerk narrows it.
+                _findSearch = Text2(r["owner_last"]);
                 UpdateFindState();
             }
             catch { /* no ctc_requests table yet, or a counter-created request */ }
@@ -282,20 +286,39 @@ namespace CROMS.Forms
 
         private void HideValidation() => pnlValidation.Visible = false;
 
-        /// <summary>Opens the search dialog for the chosen record type and keeps the pick.</summary>
+        /// <summary>
+        /// Sends the clerk to the matching Records Archive section (Birth / Marriage / Death
+        /// Record) to search with ITS search bar. Picking a record there brings them straight
+        /// back to this request with the record filled in; "← Cancel" brings them back with
+        /// nothing changed. The half-filled request stays exactly as it was — the module is
+        /// cached, so only the pick is added.
+        /// </summary>
         private void btnFindRecord_Click(object sender, EventArgs e)
         {
             string type = cboRecordType.SelectedItem?.ToString();
             if (type == null) return;   // the button is disabled until a type is chosen
 
-            using (var dlg = new FindRecordDialog(type, _findHint))
+            MainForm shell = Shell();
+            var archive = shell == null ? null : shell.GoToModule("archive") as RecordsArchiveForm;
+            if (archive == null)
             {
-                if (dlg.ShowDialog(this) != DialogResult.OK || dlg.PickedId <= 0) return;
-                _pickedId = dlg.PickedId;
-                _pickedName = dlg.PickedName;
+                MessageBox.Show("Records Archive could not be opened from here. Open it from the sidebar.",
+                    "Find Record", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
-            UpdateFindState();
-            UpdateSummary();
+
+            bool opened = archive.BeginRecordPick(type, _findSearch,
+                (id, label) =>
+                {
+                    shell.GoToModule("certrequest");
+                    _pickedId = id;
+                    _pickedName = label;
+                    UpdateFindState();
+                    UpdateSummary();
+                },
+                () => shell.GoToModule("certrequest"));
+
+            if (!opened) shell.GoToModule("certrequest");
         }
 
         /// <summary>Forgets the chosen record — a record belongs to ONE register, so switching
@@ -460,6 +483,7 @@ namespace CROMS.Forms
             cboCertType.SelectedItem = "CTC";
             cboRecordType.SelectedIndex = -1;
             _findHint = null;
+            _findSearch = null;
             ClearPick();
             txtCopies.Text = "1";
             txtPurpose.Clear();

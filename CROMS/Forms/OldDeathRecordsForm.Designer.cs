@@ -21,7 +21,7 @@ namespace CROMS.Forms
         private DataGridView dgv;
         private TextBox txtSearch;
         private Label lblListHeader;
-        private Button btnBackToBooks, btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
+        private Button btnUsePick, btnBackToBooks, btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
 
         // ---- entry view ----------------------------------------------------------
         private CardPanel cardEntry;
@@ -145,11 +145,17 @@ namespace CROMS.Forms
             btnEditFromList = new Button { Text = "Edit", Width = 90, Enabled = false };
             btnDeleteFromList = new Button { Text = "Delete", Width = 90, Enabled = false };
             btnRefresh = new Button { Text = "Refresh", Width = 90 };
+            // Only shown while Certificate Request's Find Record has sent the clerk here to choose.
+            btnUsePick = new Button { Text = "Use This Record", Width = 150, Visible = false, Enabled = false };
+            btnUsePick.BackColor = UiTheme.Accent;
+            btnUsePick.ForeColor = Color.White;
+            btnUsePick.Click += new System.EventHandler(this.btnUsePick_Click);
             btnNewFromList.Click += new System.EventHandler(this.btnNewFromList_Click);
             btnViewFromList.Click += new System.EventHandler(this.btnViewFromList_Click);
             btnEditFromList.Click += new System.EventHandler(this.btnEditFromList_Click);
             btnDeleteFromList.Click += new System.EventHandler(this.btnDeleteFromList_Click);
             btnRefresh.Click += new System.EventHandler(this.btnRefresh_Click);
+            actions.Controls.Add(btnUsePick);
             actions.Controls.Add(btnNewFromList);
             actions.Controls.Add(btnViewFromList);
             actions.Controls.Add(btnEditFromList);

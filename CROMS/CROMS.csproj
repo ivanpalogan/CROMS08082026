@@ -706,12 +706,6 @@
     <Compile Include="Modules\HoverFade.cs" />
     <Compile Include="Modules\RecordFullDetail.cs" />
     <Compile Include="Modules\RegistryBookGallery.cs" />
-    <Compile Include="Forms\FindRecordDialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\FindRecordDialog.Designer.cs">
-      <DependentUpon>FindRecordDialog.cs</DependentUpon>
-    </Compile>
     <Compile Include="Modules\ReasonPrompt.cs" />
     <Compile Include="Modules\ReasonPromptForm.cs">
       <SubType>Form</SubType>
