@@ -668,8 +668,25 @@ namespace CROMS.Forms
             if (windowId <= 0) return;
             try
             {
-                Db.Push("UPDATE windows SET last_heartbeat = NOW() WHERE id = @id",
-                    new MySqlParameter("@id", windowId));
+                // The beat also re-asserts WHO holds the window. Presence needs an operator AND a
+                // fresh heartbeat; if something cleared the operator while this app kept beating
+                // (a second PC releasing the same window), the beat alone left the window
+                // "heartbeating but ownerless" and the kiosk/display read it as closed. Only an
+                // empty window or one this user already holds is touched, so it can never take a
+                // window another operator has claimed.
+                if (Session.User != null)
+                {
+                    Db.Push("UPDATE windows SET last_heartbeat = NOW(), current_operator = @op, operator_name = @nm " +
+                            "WHERE id = @id AND (current_operator IS NULL OR current_operator = @op)",
+                        new MySqlParameter("@op", Session.User.Id),
+                        new MySqlParameter("@nm", (object)Session.User.FullName ?? DBNull.Value),
+                        new MySqlParameter("@id", windowId));
+                }
+                else
+                {
+                    Db.Push("UPDATE windows SET last_heartbeat = NOW() WHERE id = @id",
+                        new MySqlParameter("@id", windowId));
+                }
             }
             catch { /* non-fatal */ }
         }
