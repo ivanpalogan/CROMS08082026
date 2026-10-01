@@ -288,9 +288,11 @@ namespace CROMS.Forms
         {
             _cboDCit = LookupCell(txtCitizen, "nationalities");
             _cboDRel = LookupCell(txtReligion, "religions");
-            _cboDImm = LookupCell(txtImm, "causes_of_death");
-            _cboDAnt = LookupCell(txtAnt, "causes_of_death");
-            _cboDUnd = LookupCell(txtUnd, "causes_of_death");
+            // Causes are typeable with the search popup; a new one typed is added to the
+            // master list on save so the list fills itself over time.
+            _cboDImm = LookupCell(txtImm, "causes_of_death", true);
+            _cboDAnt = LookupCell(txtAnt, "causes_of_death", true);
+            _cboDUnd = LookupCell(txtUnd, "causes_of_death", true);
             // Relationship to the DECEASED, so the list is filtered to the entries that
             // belong on Municipal Form 103 - the shared master file also carries the
             // birth-side answers (Attending Midwife, Clinic Administrator), and offering
@@ -308,9 +310,9 @@ namespace CROMS.Forms
         }
 
         /// <summary>A single pick-only combo, replacing <paramref name="tb"/> in its own cell.</summary>
-        private ComboBox LookupCell(TextBox tb, string masterTable)
+        private ComboBox LookupCell(TextBox tb, string masterTable, bool editable = false)
         {
-            var cbo = CreateLookupCells(tb, 1, null, new[] { false })[0];
+            var cbo = CreateLookupCells(tb, 1, null, new[] { editable })[0];
             FillLookup(cbo, masterTable);
             return cbo;
         }
@@ -421,8 +423,19 @@ namespace CROMS.Forms
 
         private static object ComboVal(ComboBox c)
         {
-            string v = c.SelectedItem?.ToString() ?? "";
+            // An editable combo holds typed text that is not in the list.
+            string v = c.DropDownStyle == ComboBoxStyle.DropDown
+                ? (c.Text ?? "").Trim()
+                : c.SelectedItem?.ToString() ?? "";
             return string.IsNullOrWhiteSpace(v) ? (object)DBNull.Value : v;
+        }
+
+        /// <summary>Cause value for saving; a newly typed cause joins the master list.</summary>
+        private static object CauseVal(ComboBox c)
+        {
+            object v = ComboVal(c);
+            if (v is string s) LookupStore.Ensure("causes_of_death", s);
+            return v;
         }
 
         private static object ComboJoin(ComboBox[] parts)
@@ -1107,9 +1120,9 @@ namespace CROMS.Forms
                 new MySqlParameter("@regbytitle", S(txtCRegTitle)),
                 new MySqlParameter("@regbydate", Picked(dtpCRegDate)),
                 new MySqlParameter("@religion", ComboVal(_cboDRel)),
-                new MySqlParameter("@imm", ComboVal(_cboDImm)),
-                new MySqlParameter("@ant", ComboVal(_cboDAnt)),
-                new MySqlParameter("@und", ComboVal(_cboDUnd)),
+                new MySqlParameter("@imm", CauseVal(_cboDImm)),
+                new MySqlParameter("@ant", CauseVal(_cboDAnt)),
+                new MySqlParameter("@und", CauseVal(_cboDUnd)),
                 new MySqlParameter("@cert", S(txtCertifier)),
                 new MySqlParameter("@lic", S(txtLicense)),
                 new MySqlParameter("@disp", Combo(cboDisposal)),
