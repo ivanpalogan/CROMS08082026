@@ -70,6 +70,9 @@ namespace CROMS.Forms
         public DeathRegistrationForm()
         {
             InitializeComponent();
+            // Every death-side date is something that already happened: no future dates.
+            foreach (DateTimePicker d in new[] { dtpDod, dtpDispDate, dtpCInfDate, dtpCPrepDate, dtpCRecvDate, dtpCRegDate })
+                d.MaxDate = DateTime.Today;
             tabControl.TabPages.Add(_extras.Page);
             // Going forward to another tab needs the deceased's first and last name; going back is always allowed.
             tabControl.Selecting += (s, e) =>
@@ -488,8 +491,14 @@ namespace CROMS.Forms
 
         private static void SetPicked(DateTimePicker dtp, object v)
         {
-            if (v != DBNull.Value && v != null) { dtp.Value = Convert.ToDateTime(v); dtp.Checked = true; }
+            if (v != DBNull.Value && v != null) { dtp.Value = Clamp(dtp, Convert.ToDateTime(v)); dtp.Checked = true; }
             else dtp.Checked = false;
+        }
+
+        /// <summary>An old record holding a future date must still open, not throw on MaxDate.</summary>
+        private static DateTime Clamp(DateTimePicker dtp, DateTime d)
+        {
+            return d > dtp.MaxDate ? dtp.MaxDate : d < dtp.MinDate ? dtp.MinDate : d;
         }
 
         private static object NullIfEmpty(string v)
@@ -1222,7 +1231,7 @@ namespace CROMS.Forms
                 if (DateTime.TryParseExact(Get(key), "yyyy-MM-dd",
                         System.Globalization.CultureInfo.InvariantCulture,
                         System.Globalization.DateTimeStyles.None, out DateTime parsed))
-                { picker.Value = parsed; picker.Checked = true; }
+                { if (parsed <= DateTime.Today) { picker.Value = parsed; picker.Checked = true; } }   // a future date is a misreading
             }
 
             SetText(txtCInfName, "Informant");
@@ -1267,7 +1276,7 @@ namespace CROMS.Forms
 
             if (Get("DateOfDeath").Length > 0 &&
                 DateTime.TryParse(Get("DateOfDeath"), System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out DateTime d))
+                    System.Globalization.DateTimeStyles.None, out DateTime d) && d <= DateTime.Today)
                 dtpDod.Value = d;
 
             ShowEntryView();   // the auto-filled record needs to be reviewed, not left in the list
@@ -1319,11 +1328,12 @@ namespace CROMS.Forms
             c.SelectedItem = v == DBNull.Value || v == null ? null : v.ToString();
         private static void SetDate(DateTimePicker dtp, object v)
         {
-            if (v != DBNull.Value && v != null) dtp.Value = Convert.ToDateTime(v);
+            if (v != DBNull.Value && v != null && dtp.Format != DateTimePickerFormat.Time) dtp.Value = Clamp(dtp, Convert.ToDateTime(v));
+            else if (v != DBNull.Value && v != null) dtp.Value = Convert.ToDateTime(v);
         }
         private static void SetOptionalDate(DateTimePicker dtp, object v)
         {
-            if (v != DBNull.Value && v != null) { dtp.Value = Convert.ToDateTime(v); dtp.Checked = true; }
+            if (v != DBNull.Value && v != null) { dtp.Value = Clamp(dtp, Convert.ToDateTime(v)); dtp.Checked = true; }
             else dtp.Checked = false;
         }
         private static void SetTime(DateTimePicker dtp, object v)

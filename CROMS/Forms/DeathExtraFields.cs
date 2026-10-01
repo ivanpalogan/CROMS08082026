@@ -142,7 +142,7 @@ namespace CROMS.Forms
         private static void SetPick(DateTimePicker d, DataRow r, string col)
         {
             if (r.Table.Columns.Contains(col) && r[col] != DBNull.Value)
-            { d.Value = Convert.ToDateTime(r[col]); d.Checked = true; }
+            { DateTime v = Convert.ToDateTime(r[col]); d.Value = v > d.MaxDate ? d.MaxDate : v; d.Checked = true; }
             else d.Checked = false;
         }
 
@@ -162,7 +162,8 @@ namespace CROMS.Forms
         private static DateTimePicker Date() => new DateTimePicker
         {
             Format = DateTimePickerFormat.Custom, CustomFormat = "dd MMM yyyy",
-            ShowCheckBox = true, Checked = false, Dock = DockStyle.Left, Width = 170, Margin = new Padding(0, 3, 12, 3)
+            ShowCheckBox = true, Checked = false, Dock = DockStyle.Left, Width = 170, Margin = new Padding(0, 3, 12, 3),
+            MaxDate = DateTime.Today   // attendance and permit dates already happened
         };
 
         private static void Row(TableLayoutPanel t, string l1, Control c1, string l2, Control c2)
