@@ -86,7 +86,12 @@ namespace CROMS.Forms
             // Numbered step strip + at-a-glance rail + the per-step required-field gate
             // (replaces the old "first and last name" check on the tab headers).
             InitializeWizardChrome();
+            RearrangeDeceasedTab();
+            PrepareFieldMessages();
             LoadDeaths();
+            // The shell styles the grids when the module is first shown; the list screen's own
+            // type scale has to be applied after that so it has the last word.
+            Load += delegate { ApplyListLayout(); };
             LearningLibrary.Attach(txtLastName, LearningLibrary.Surname);
             LearningLibrary.Attach(txtFirstName, LearningLibrary.GivenName);
             LearningLibrary.Attach(txtDispPlace, LearningLibrary.Cemetery);
@@ -128,60 +133,89 @@ namespace CROMS.Forms
             OpenEntryDialog();
         }
 
+        private bool _dialogPolished;
+
         /// <summary>
-        /// Reparents the header (title/subtitle + Register Death / Print) and the entry
-        /// panel (cardForm — the tabbed fields and the New/Update/Delete row) into a
-        /// stand-alone popup, mirroring Birth Registration's entry dialog. Blocks until
-        /// closed, then hands everything back to the embedded list screen.
+        /// Moves the entry panel (cardForm — step strip, fields, at-a-glance rail and the action
+        /// bar) into a stand-alone popup. The popup has NO title band: the window's own title bar
+        /// already says "Death Registration - Municipal Form 103", and the old header row above the
+        /// form held nothing but that name, a repeat of it as a subtitle, and a Register Death button
+        /// parked in the far corner. Register Death, Back/Next and the print buttons are in the
+        /// action bar at the bottom right of the card now. Blocks until closed, then hands the
+        /// panel back to the embedded list screen.
         /// </summary>
         private void OpenEntryDialog()
         {
             if (_entryDialog != null) { _entryDialog.Activate(); return; }
 
-            layoutMain.Controls.Remove(pnlHeader);
+            Padding cardMargin = cardForm.Margin;
             layoutMain.Controls.Remove(cardForm);
+            cardForm.Margin = new Padding(0);
             btnSave.Visible = true;
-            UpdatePrintVisibility();
 
             var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 1,
-                RowCount = 2,
-                Padding = new Padding(20, 16, 20, 16),
+                RowCount = 1,
+                Padding = new Padding(16, 12, 16, 12),
                 BackColor = UiTheme.PageBg
             };
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
+            // One column that is exactly the window's width. An unstyled column AutoSizes to the
+            // card's last width (1360), which on a 1366x768 screen pushed the card, and the buttons
+            // on its right, past the edge of the window.
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.Controls.Add(pnlHeader, 0, 0);
-            root.Controls.Add(cardForm, 0, 1);
+            root.Controls.Add(cardForm, 0, 0);
+            _entryRoot = root;
 
-            // Wide enough for the 1,116 px field grid beside the 270 px rail, but never
-            // larger than the screen: a narrower window scrolls each step instead.
+            // Fill most of the usable screen (92%, 97% on a short one), centred, and never ask
+            // for more than the screen has. Below the floor the popup scrolls rather than squashing.
             Rectangle wa = Screen.FromControl(this).WorkingArea;
+            Size want = EntryDialogSize(wa);
             var dlg = new Form
             {
                 Text = "Death Registration - Municipal Form 103",
                 StartPosition = FormStartPosition.CenterParent,
-                ClientSize = new Size(Math.Min(1560, wa.Width - 40), Math.Min(820, wa.Height - 80)),
-                MinimumSize = new Size(Math.Min(1000, wa.Width - 40), Math.Min(600, wa.Height - 80)),
+                Size = want,   // OUTER size: the title bar and borders are inside it, so the whole window fits the work area
+                MinimumSize = new Size(Math.Min(900, wa.Width), Math.Min(560, wa.Height)),
                 MaximizeBox = true,
                 MinimizeBox = true,
                 ShowIcon = false,
-                BackColor = UiTheme.PageBg
+                BackColor = UiTheme.PageBg,
+                AutoScroll = true,
+                AutoScrollMinSize = new Size(1120, 650)
             };
             dlg.Controls.Add(root);
             _entryDialog = dlg;
             UpdatePrintVisibility();
-            dlg.Shown += delegate { UpdateStepNavigation(); };
 
-            UiTheme.Polish(dlg);
+            // The shell has already styled everything inside the module (re-styling on every open
+            // would stack a second set of paint handlers on each button); only a first open needs it.
+            if (!_dialogPolished) { UiTheme.Polish(dlg); _dialogPolished = true; }
+            // Readable type, measured input height, tier spacing - after Polish, which would
+            // otherwise have the last word on fonts.
+            ApplyEntryFontsOnce();
+            _appliedKey = -1;
+            ApplyEntryTier();
+            dlg.Resize += delegate { ApplyEntryTier(); };
+            dlg.Shown += delegate
+            {
+                _appliedKey = -1; ApplyEntryTier(); UpdateStepNavigation();
+                // Once, shortly after the window has settled: the combos only get their native edit
+                // box when first shown, and resizing them re-selects their text, so doing it
+                // immediately here would be undone by the layout pass that is still finishing.
+                var settle = new System.Windows.Forms.Timer { Interval = 200 };
+                settle.Tick += delegate { settle.Stop(); settle.Dispose(); if (!dlg.IsDisposed) DeselectCombos(); };
+                settle.Start();
+            };
+
             dlg.ShowDialog(this);
 
-            root.Controls.Remove(pnlHeader);
             root.Controls.Remove(cardForm);
-            layoutMain.Controls.Add(pnlHeader, 0, 0);
+            cardForm.Margin = cardMargin;
             layoutMain.Controls.Add(cardForm, 0, 1);
+            NextStepGlow.SetActive(btnSave, false);
             _entryDialog = null;
             dlg.Dispose();
             if (!cardRecords.Visible) ShowListView();
@@ -374,12 +408,15 @@ namespace CROMS.Forms
             grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 27f));
             if (captioned) grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 16f));
 
+            // The host fills its column (the layout pass sizes its height); the Tag lets that pass
+            // and the field-message wrapper recognise a lookup cell without a lookup of names.
             var host = new Panel
             {
                 Margin = tb.Margin,
-                Anchor = tb.Anchor,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Height = captioned ? 43 : 25,
-                BackColor = Color.Transparent
+                BackColor = Color.Transparent,
+                Tag = captioned ? LookupCaptioned : LookupPlain
             };
             if ((tb.Anchor & AnchorStyles.Right) == 0) host.Width = tb.Width;
 
@@ -529,13 +566,28 @@ namespace CROMS.Forms
 
         private void LoadDeaths()
         {
-            dgvDeaths.DataSource = Db.Pull(
-                "SELECT id, registry_no AS 'Registry No', full_name AS Deceased, age AS Age, " +
-                "date_of_death AS 'Date of Death', book_volume AS Book, book_page AS Page, " +
-                "permit_type AS Permit, status AS Status " +
-                "FROM deaths ORDER BY id DESC");
-            if (dgvDeaths.Columns.Contains("id")) dgvDeaths.Columns["id"].Visible = false;
-            ApplySearchFilter();
+            try
+            {
+                dgvDeaths.DataSource = Db.Pull(
+                    "SELECT id, registry_no AS 'Registry No', full_name AS Deceased, age AS Age, " +
+                    "date_of_death AS 'Date of Death', book_volume AS Book, book_page AS Page, " +
+                    "permit_type AS Permit, status AS Status " +
+                    "FROM deaths ORDER BY id DESC");
+                lblRecent.Text = "RECENT DEATH REGISTRATIONS";
+                lblRecent.ForeColor = UiTheme.Muted;
+                if (dgvDeaths.Columns.Contains("id")) dgvDeaths.Columns["id"].Visible = false;
+                ApplySearchFilter();
+                if (_listStyled) ReapplyListGrid();
+            }
+            catch (Exception ex)
+            {
+                // A database that has not been brought up to date (or a server that is down) must
+                // leave an empty list and one plain sentence, not a crash on opening the module.
+                ErrorLog.Write("DeathRegistration.LoadDeaths", ex);
+                dgvDeaths.DataSource = null;
+                lblRecent.Text = ErrorLog.Friendly(ex, "load");
+                lblRecent.ForeColor = UiTheme.Danger;
+            }
         }
 
         private void ApplySearchFilter()
@@ -646,7 +698,7 @@ namespace CROMS.Forms
                 if (keepOpen) LoadDeath((int)newId);
                 return newId;
             }
-            catch (Exception ex) { Fail(ex); }
+            catch (Exception ex) { Fail(ex, "save", "Register"); }
             return null;
         }
 
@@ -701,7 +753,7 @@ namespace CROMS.Forms
                 if (keepOpen) LoadDeath((int)newId);
                 return newId;
             }
-            catch (Exception ex) { Fail(ex); }
+            catch (Exception ex) { Fail(ex, "save", "SubmitPendingVerification"); }
             return null;
         }
 
@@ -764,20 +816,44 @@ namespace CROMS.Forms
         private void dgvDeaths_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex < 0) return;
-            LoadDeath(Convert.ToInt32(dgvDeaths.Rows[e.RowIndex].Cells["id"].Value));
-            ShowEntryView();
+            if (LoadDeath(Convert.ToInt32(dgvDeaths.Rows[e.RowIndex].Cells["id"].Value))) ShowEntryView();
         }
 
         /// <summary>Public entry point for a caller outside this module (e.g. Records Archive
         /// search) to open a specific death record here for view/edit/delete.</summary>
         public void OpenRecordForEdit(int id)
         {
-            LoadDeath(id);
-            ShowEntryView();
+            if (LoadDeath(id)) ShowEntryView();
+        }
+
+        /// <summary>
+        /// Loads one death record into the form. A column a newer build expects but this database
+        /// does not have yet (a migration not run) is logged and answered with one plain sentence;
+        /// it never opens a half-filled form or lets the exception reach the clerk.
+        /// </summary>
+        private bool LoadDeath(int id)
+        {
+            try
+            {
+                LoadDeathCore(id);
+                if (_editingId != id) return false;
+                ClearAllFieldMessages();
+                // Setting an editable combo's value leaves its text highlighted in blue, which on a
+                // record opened for viewing reads as if it were all selected for replacement.
+                foreach (ComboBox cb in AllDescendants(tabControl).OfType<ComboBox>())
+                    if (cb.DropDownStyle == ComboBoxStyle.DropDown) { cb.SelectionStart = 0; cb.SelectionLength = 0; }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _editingId = null;
+                Fail(ex, "open", "LoadDeath");
+                return false;
+            }
         }
 
         /// <summary>Load one death record into the form for editing or printing.</summary>
-        private void LoadDeath(int id)
+        private void LoadDeathCore(int id)
         {
             DataTable dt = Db.Pull("SELECT * FROM deaths WHERE id = " + id);
             if (dt.Rows.Count == 0) return;
@@ -863,7 +939,7 @@ namespace CROMS.Forms
                 LoadDeaths();
                 ShowListView();
             }
-            catch (Exception ex) { Fail(ex); }
+            catch (Exception ex) { Fail(ex, "save", "UpdateRecord"); }
         }
 
         // ---------- PRINT (Certificate of Death + Burial/Transfer Permit) ----------
@@ -929,7 +1005,7 @@ namespace CROMS.Forms
                     }
                 }
             }
-            catch (Exception ex) { Fail(ex); }
+            catch (Exception ex) { Fail(ex, "print", "Print"); }
         }
 
         private static string V(DataRow r, string col) =>
@@ -1142,15 +1218,20 @@ namespace CROMS.Forms
             return RegistryNumber.Next("deaths", 'D');
         }
 
+        /// <summary>
+        /// The one check a saved record is held to: the deceased's first and last name. The sentence
+        /// goes under the box itself, not in a pop-up.
+        /// </summary>
         private bool ValidateName()
         {
-            if (string.IsNullOrWhiteSpace(txtFirstName.Text) || string.IsNullOrWhiteSpace(txtLastName.Text))
-            {
-                MessageBox.Show("The deceased's first and last name are required.", "Missing data",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return false;
-            }
-            return true;
+            bool last = HasText(txtLastName.Text), first = HasText(txtFirstName.Text);
+            if (last && first) return true;
+
+            ClearAllFieldMessages();
+            if (!last) ShowFieldMessage(txtLastName, "Please enter the last name.", "Enter the last name.", "Required.");
+            if (!first) ShowFieldMessage(txtFirstName, "Please enter the first name.", "Enter the first name.", "Required.");
+            FocusField(!last ? txtLastName : txtFirstName, 0);
+            return false;
         }
 
         /// <summary>First [Middle] Last, joined for the single <c>full_name</c> column -
@@ -1275,6 +1356,7 @@ namespace CROMS.Forms
         private void ClearForm()
         {
             _editingId = null;
+            ClearAllFieldMessages();
             UpdatePrintVisibility();
             _scanImage = null;
             _ocrScanId = null;
@@ -1335,8 +1417,5 @@ namespace CROMS.Forms
             if (v != DBNull.Value && v != null && TimeSpan.TryParse(v.ToString(), out TimeSpan ts))
                 dtp.Value = DateTime.Today.Add(ts);
         }
-        private static void Fail(Exception ex) =>
-            MessageBox.Show("Operation failed: " + ex.Message, "Error",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 }

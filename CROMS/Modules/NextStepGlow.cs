@@ -23,6 +23,7 @@ namespace CROMS.Modules
         private static readonly Timer _timer = new Timer { Interval = 45 };
         private static double _phase;
         private static readonly Dictionary<Control, int> _radius = new Dictionary<Control, int>();
+        private static readonly Dictionary<Control, Color> _ring = new Dictionary<Control, Color>();
         private static readonly HashSet<Control> _active = new HashSet<Control>();
 
         static NextStepGlow()
@@ -43,10 +44,21 @@ namespace CROMS.Modules
         /// </summary>
         public static void Wire(Control c, int cornerRadius)
         {
+            Wire(c, cornerRadius, UiTheme.Accent);
+        }
+
+        /// <summary>
+        /// Same as <see cref="Wire(Control,int)"/> with the ring in <paramref name="ring"/> -
+        /// for a control whose own fill is already the accent colour (a ring the same hue as
+        /// the fill would be invisible) or a different hue such as the green of a "ready" button.
+        /// </summary>
+        public static void Wire(Control c, int cornerRadius, Color ring)
+        {
             DoubleBuffer(c);
             _radius[c] = cornerRadius;
+            _ring[c] = ring;
             c.Paint += (s, e) => DrawGlow(c, e.Graphics);
-            c.Disposed += (s, e) => { _active.Remove(c); _radius.Remove(c); };
+            c.Disposed += (s, e) => { _active.Remove(c); _radius.Remove(c); _ring.Remove(c); };
         }
 
         /// <summary>Turns the pulse on or off for a wired control.</summary>
@@ -78,8 +90,11 @@ namespace CROMS.Modules
             var rect = new Rectangle(0, 0, c.Width - 1, c.Height - 1);
             if (rect.Width <= 0 || rect.Height <= 0) return;
 
+            Color ringColor;
+            if (!_ring.TryGetValue(c, out ringColor)) ringColor = UiTheme.Accent;
+
             using (GraphicsPath path = CardPanel.RoundedRect(rect, r))
-            using (var pen = new Pen(Color.FromArgb(Math.Min(255, alpha), UiTheme.Accent), width))
+            using (var pen = new Pen(Color.FromArgb(Math.Min(255, alpha), ringColor), width))
                 g.DrawPath(pen, path);
         }
 

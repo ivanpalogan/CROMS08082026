@@ -21,15 +21,16 @@ namespace CROMS.Forms
         private string _loadedRegistryNo = "";
         private bool _suspendAge;
 
-        /// <summary>One missing or invalid entry: what is wrong, which step it is on, where to put the cursor.</summary>
+        /// <summary>One missing or invalid entry: what is wrong, which step it is on, where to put the cursor,
+        /// and the short red sentence to show under that field (longest wording first).</summary>
         private sealed class StepIssue
         {
             public readonly string Message;
             public readonly int Step;
             public readonly Control Focus;
-            public readonly bool Blocking;
-            public StepIssue(string message, int step, Control focus, bool blocking = true)
-            { Message = message; Step = step; Focus = focus; Blocking = blocking; }
+            public readonly string[] Msg;
+            public StepIssue(string message, int step, Control focus, params string[] msg)
+            { Message = message; Step = step; Focus = focus; Msg = msg; }
         }
 
         // The five steps, in the order of tabControl.TabPages (the Medical & Permits page is
@@ -68,11 +69,11 @@ namespace CROMS.Forms
             _tabHost.Controls.Add(tabControl);
             _tabHost.Resize += delegate { PositionHiddenTabHeader(); };
 
-            _stepStrip = new StepStrip(true);
+            _stepStrip = new StepStrip(true) { Large = true, Height = 76 };
             for (int i = 0; i < tabControl.TabPages.Count; i++)
                 _stepStrip.AddStep(tabControl.TabPages[i].Text.Replace("&&", "&"), i < StepSubs.Length ? StepSubs[i] : "");
             _stepStrip.StepClicked += i => GoToStep(i);
-            tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); };
+            tabControl.SelectedIndexChanged += delegate { UpdateStepNavigation(); if (IsHandleCreated) BeginInvoke(new Action(DeselectCombos)); };
 
             _railPanel = new Panel
             {
@@ -92,7 +93,10 @@ namespace CROMS.Forms
             body.Controls.Add(_tabHost, 0, 0);
             body.Controls.Add(_railPanel, 1, 0);
 
-            // Footer: a one-line "what is missing" hint on the left, Back / Next on the right.
+            // Footer: a one-line "what is next" hint on the left and EVERY action on the right, in
+            // the order the eye finishes a form: Back, Next, then Register Death. Register Death and
+            // the print buttons used to float in a header band above the form, far from where the
+            // clerk's attention is by the time the entries are done.
             var footer = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, Margin = new Padding(0), Padding = new Padding(4, 0, 4, 0) };
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -100,16 +104,34 @@ namespace CROMS.Forms
             footer.Controls.Add(pnlRecordActions, 1, 0);
             pnlRecordActions.AutoSize = true;
             pnlRecordActions.Dock = DockStyle.Fill;
+            // The card face is white; a panel that inherits the form's page grey paints a grey bar
+            // across the bottom of it, which also swallows the pale buttons.
+            footer.BackColor = Color.White;
+            pnlRecordActions.BackColor = Color.White;
+            lblStepHint.BackColor = Color.White;
+            // The bar is right-to-left: the first control is the right-most one.
+            pnlRecordActions.Controls.Add(btnSave);
+            pnlRecordActions.Controls.SetChildIndex(btnSave, 0);
+            pnlRecordActions.Controls.Add(btnAckSlip);
+            pnlRecordActions.Controls.Add(btnCertificate);
+            btnSave.TabIndex = 2;
 
             // Explicit rows (strip / body / footer) rather than a Dock stack, so dock order
             // can never squeeze the strip into a sliver.
             var root = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Margin = new Padding(0) };
+            // An unstyled column AutoSizes to its widest child, which pushed the footer past the
+            // window's right edge once the buttons grew; one column that is exactly the width given.
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            lblStepHint.AutoSize = false;   // a fixed-size label with an ellipsis, not one that demands its full text width
+            lblStepHint.AutoEllipsis = true;
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, _stepStrip.Height));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
             root.Controls.Add(_stepStrip, 0, 0);
             root.Controls.Add(body, 0, 1);
             root.Controls.Add(footer, 0, 2);
+            _wizardRoot = root;
+            _wizardBody = body;
 
             _wizardHost = new Panel { Dock = DockStyle.Fill, Margin = new Padding(0) };
             _wizardHost.Controls.Add(root);
@@ -156,39 +178,69 @@ namespace CROMS.Forms
         private List<StepIssue> IssuesForStep(int step)
         {
             var list = new List<StepIssue>();
-            void Need(bool ok, string what, Control at) { if (!ok) list.Add(new StepIssue(what, step, at)); }
+            // msg = the sentence shown under the field, longest wording first; the last one is short
+            // enough for any column, so it is never cut off.
+            void Need(bool ok, string what, Control at, params string[] msg) { if (!ok) list.Add(new StepIssue(what, step, at, msg)); }
             bool Has(string s) => !string.IsNullOrWhiteSpace(s);
 
             switch (step)
             {
                 case 0:
-                    Need(Has(txtLastName.Text), "Last name", txtLastName);
-                    Need(Has(txtFirstName.Text), "First name", txtFirstName);
-                    Need(cboSex.SelectedItem != null, "Sex", cboSex);
-                    Need(cboCivil.SelectedItem != null, "Civil status", cboCivil);
-                    Need(_cboDCit != null && Has(_cboDCit.Text), "Citizenship", _cboDCit);
+                    Need(Has(txtLastName.Text), "Last name", txtLastName,
+                        "Please enter the last name.", "Enter the last name.", "Required.");
+                    Need(Has(txtFirstName.Text), "First name", txtFirstName,
+                        "Please enter the first name.", "Enter the first name.", "Required.");
+                    Need(cboSex.SelectedItem != null, "Sex", cboSex,
+                        "Please choose the sex.", "Choose the sex.", "Required.");
+                    Need(cboCivil.SelectedItem != null, "Civil status", cboCivil,
+                        "Please choose the civil status.", "Choose the status.", "Required.");
+                    Need(_cboDCit != null && Has(_cboDCit.Text), "Citizenship", _cboDCit,
+                        "Please choose the citizenship.", "Choose citizenship.", "Required.");
                     if (dtpDob.Checked && dtpDob.Value.Date > dtpDod.Value.Date)
-                        list.Add(new StepIssue("Date of birth is after the date of death", step, dtpDob));
+                        list.Add(new StepIssue("Date of birth is after the date of death", step, dtpDob,
+                            "The date of birth is after the date of death.", "Birth is after death.", "Check dates."));
                     else
                     {
                         int age;
                         bool okAge = int.TryParse((txtAge.Text ?? "").Trim(), out age) && age >= 0 && age <= 130;
-                        Need(okAge, dtpDob.Checked ? "Age (could not be computed - check the dates)" : "Age at death (or tick Date of Birth)", dtpDob.Checked ? (Control)dtpDob : txtAge);
+                        if (!okAge && dtpDob.Checked)
+                            list.Add(new StepIssue("Age (could not be computed - check the dates)", step, dtpDob,
+                                "The age could not be worked out - check the dates.", "Check the two dates.", "Check dates."));
+                        else if (!okAge)
+                            list.Add(new StepIssue("Age at death (or tick Date of Birth)", step, txtAge,
+                                "Please enter the age, or tick Date of Birth.", "Enter the age.", "Required."));
                     }
-                    Need(_pod != null && Has(_pod[1].Text), "Place of death - province", _pod == null ? null : _pod[1]);
-                    Need(_pod != null && Has(_pod[2].Text), "Place of death - city / municipality", _pod == null ? null : _pod[2]);
+                    if (_pod != null)
+                    {
+                        bool prov = Has(_pod[1].Text), muni = Has(_pod[2].Text);
+                        if (!prov && !muni)
+                            list.Add(new StepIssue("Place of death - province and city / municipality", step, _pod[1],
+                                "Please choose the province and the city / municipality.", "Choose province and city.", "Required."));
+                        else if (!prov)
+                            list.Add(new StepIssue("Place of death - province", step, _pod[1],
+                                "Please choose the province.", "Choose the province.", "Required."));
+                        else if (!muni)
+                            list.Add(new StepIssue("Place of death - city / municipality", step, _pod[2],
+                                "Please choose the city / municipality.", "Choose the city.", "Required."));
+                    }
                     break;
 
                 case 1:
-                    Need(_cboDImm != null && Has(_cboDImm.Text), "Immediate cause of death", _cboDImm);
-                    Need(cboDisposal.SelectedItem != null, "Disposal method", cboDisposal);
-                    Need(Has(txtDispPlace.Text), "Place of disposal", txtDispPlace);
+                    Need(_cboDImm != null && Has(_cboDImm.Text), "Immediate cause of death", _cboDImm,
+                        "Please enter the immediate cause of death.", "Enter the immediate cause.", "Required.");
+                    Need(cboDisposal.SelectedItem != null, "Disposal method", cboDisposal,
+                        "Please choose the disposal method.", "Choose the method.", "Required.");
+                    Need(Has(txtDispPlace.Text), "Place of disposal", txtDispPlace,
+                        "Please enter the place of disposal.", "Enter the place.", "Required.");
                     break;
 
                 case 2:
-                    Need(Has(txtCInfName.Text), "Informant's name", txtCInfName);
-                    Need(_cboInfRel != null && Has(_cboInfRel.Text), "Informant's relationship to the deceased", _cboInfRel);
-                    Need(Has(txtCInfAddr.Text), "Informant's address", txtCInfAddr);
+                    Need(Has(txtCInfName.Text), "Informant's name", txtCInfName,
+                        "Please enter the informant's name.", "Enter the informant's name.", "Required.");
+                    Need(_cboInfRel != null && Has(_cboInfRel.Text), "Informant's relationship to the deceased", _cboInfRel,
+                        "Please choose the relationship to the deceased.", "Choose the relationship.", "Required.");
+                    Need(Has(txtCInfAddr.Text), "Informant's address", txtCInfAddr,
+                        "Please enter the informant's address.", "Enter the address.", "Required.");
                     break;
             }
             return list;
@@ -208,22 +260,36 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Shows what is missing on <paramref name="step"/>, takes the operator there and
-        /// puts the cursor on the first empty field. Used by the step gate and by Save.
+        /// Puts a short red sentence under EVERY required field that is still wrong on steps 1 to
+        /// <paramref name="throughStep"/> + 1, takes the operator to the first one and puts the cursor
+        /// on it. Used by the step gate and by Register / Save. No pop-up: the sentence sits on the
+        /// field itself and goes the moment that field is fixed.
         /// </summary>
-        private void ShowStepProblems(int step)
+        private void ShowIssues(int throughStep)
         {
-            List<StepIssue> issues = IssuesForStep(step);
-            if (issues.Count == 0) return;
-            if (tabControl.SelectedIndex != step) tabControl.SelectedIndex = step;
-            UpdateStepNavigation();
+            var all = new List<StepIssue>();
+            for (int s = 0; s <= Math.Min(throughStep, 2); s++) all.AddRange(IssuesForStep(s));
+            if (all.Count == 0) return;
 
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Complete these on the \"" + StepName(step) + "\" step first:");
-            sb.AppendLine();
-            foreach (StepIssue i in issues) sb.AppendLine("  • " + i.Message);
-            MessageBox.Show(this, sb.ToString().TrimEnd(), "Missing data", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            if (issues[0].Focus != null) issues[0].Focus.Focus();
+            ClearAllFieldMessages();
+            foreach (StepIssue i in all) ShowFieldMessage(i.Focus, i.Msg);
+            FocusField(all[0].Focus, all[0].Step);
+            UpdateStepNavigation();
+        }
+
+        private bool HasIssues(int throughStep)
+        {
+            for (int s = 0; s <= Math.Min(throughStep, 2); s++)
+                if (IssuesForStep(s).Count > 0) return true;
+            return false;
+        }
+
+        /// <summary>True when pressing the save button would be accepted right now.</summary>
+        private bool IsReadyToSave()
+        {
+            if (_editingId != null)
+                return !string.IsNullOrWhiteSpace(txtFirstName.Text) && !string.IsNullOrWhiteSpace(txtLastName.Text);
+            return !HasIssues(2);
         }
 
         /// <summary>
@@ -235,13 +301,9 @@ namespace CROMS.Forms
         private bool ValidateAllSteps()
         {
             if (_editingId != null) return ValidateName();
-            for (int s = 0; s <= 2; s++)
-            {
-                if (IssuesForStep(s).Count == 0) continue;
-                ShowStepProblems(s);
-                return false;
-            }
-            return true;
+            if (!HasIssues(2)) return true;
+            ShowIssues(2);
+            return false;
         }
 
         // ---------------------------------------------------------------- navigation
@@ -255,7 +317,7 @@ namespace CROMS.Forms
             if (index > tabControl.SelectedIndex && _editingId == null)
             {
                 int bad = FirstIncompleteStepBefore(index);
-                if (bad >= 0) { ShowStepProblems(bad); return; }
+                if (bad >= 0) { ShowIssues(index - 1); return; }
             }
             tabControl.SelectedIndex = index;
             UpdateStepNavigation();
@@ -288,12 +350,22 @@ namespace CROMS.Forms
                 }
 
             btnBack.Enabled = cur > 0;
-            btnNext.Text = cur >= last ? SaveCaption() : "Next >";
-            lblStepHint.Text = _editingId == null
-                ? (cur < last ? "Fill in the required entries on this step to continue." : "Last step - review, then " + SaveCaption().ToLowerInvariant() + ".")
-                : "Editing a saved record - move between steps freely.";
+            btnNext.Text = "Next >";
             btnSave.Text = SaveCaption();
             RefreshRail();
+        }
+
+        /// <summary>
+        /// Hint line, which button is the solid one, and whether Next is offered at all - on the
+        /// last step there is nowhere to go next, so the save button is the only forward action.
+        /// </summary>
+        private void UpdateFooterState()
+        {
+            if (tabControl.SelectedIndex < 0 || btnNext == null) return;
+            int cur = tabControl.SelectedIndex, last = tabControl.TabPages.Count - 1;
+            btnNext.Visible = cur < last;
+            lblStepHint.Text = FooterHint(cur, last);
+            UpdateFooterEmphasis();
         }
 
         private string SaveCaption() { return _editingId == null ? "Register Death" : "Save Changes"; }
@@ -310,48 +382,59 @@ namespace CROMS.Forms
             _railPanel.Controls.Clear();
 
             var items = new List<Control>();
-            items.Add(MUi.Cap("Registration at a glance"));
-            items.Add(MUi.Kv("Registry No.", string.IsNullOrWhiteSpace(_loadedRegistryNo) ? "(assigned on save)" : _loadedRegistryNo));
+            items.Add(RailCap("Registration at a glance"));
+            items.Add(RailKv("Registry No.", string.IsNullOrWhiteSpace(_loadedRegistryNo) ? "(on save)" : _loadedRegistryNo));
             string name = ((txtLastName.Text ?? "").Trim() + ", " + (txtFirstName.Text ?? "").Trim()).Trim(' ', ',');
-            items.Add(MUi.Kv("Deceased", string.IsNullOrWhiteSpace(name) ? "-" : name));
-            items.Add(MUi.Kv("Date of death", dtpDod.Value.ToString("dd MMM yyyy")));
-            items.Add(MUi.Kv("Age", string.IsNullOrWhiteSpace(txtAge.Text) ? "-" : txtAge.Text.Trim()));
+            items.Add(RailKv("Deceased", string.IsNullOrWhiteSpace(name) ? "-" : name));
+            items.Add(RailKv("Date of death", dtpDod.Value.ToString("dd MMM yyyy")));
+            items.Add(RailKv("Age", string.IsNullOrWhiteSpace(txtAge.Text) ? "-" : txtAge.Text.Trim()));
 
-            var stage = new FlowLayoutPanel { Height = 34, BackColor = Color.Transparent, Padding = new Padding(0, 6, 0, 0), Dock = DockStyle.Top };
-            stage.Controls.Add(MUi.Txt("Status", 9F, FontStyle.Regular, UiTheme.Muted));
-            stage.Controls.Add(MUi.Pill(_editingId == null ? "NEW" : "SAVED", _editingId == null ? "Draft" : "Registered"));
+            var stage = new FlowLayoutPanel { Height = 44, BackColor = Color.Transparent, Padding = new Padding(0, 8, 0, 0), Dock = DockStyle.Top };
+            var stageKey = MUi.Txt("Status", 9F, FontStyle.Regular, UiTheme.Muted);
+            stageKey.Font = Px(17f);
+            stageKey.Margin = new Padding(0, 5, 8, 0);
+            stage.Controls.Add(stageKey);
+            StatusPill pill = MUi.Pill(_editingId == null ? "NEW" : "SAVED", _editingId == null ? "Draft" : "Registered");
+            pill.Font = Px(15f, FontStyle.Bold);
+            stage.Controls.Add(pill);
             items.Add(stage);
 
-            if (tabControl.SelectedIndex >= 0)
+            // The strip already says which step this is; on a short screen the line is the first thing to go.
+            if (tabControl.SelectedIndex >= 0 && _appliedKey / 10 != 2)
             {
-                var stepLine = new FlowLayoutPanel { Height = 22, BackColor = Color.Transparent, Dock = DockStyle.Top };
-                stepLine.Controls.Add(MUi.Txt("Step " + (tabControl.SelectedIndex + 1) + " of " + tabControl.TabPages.Count +
-                    " - " + StepName(tabControl.SelectedIndex), 9F, FontStyle.Regular, UiTheme.Muted));
+                var stepLine = new FlowLayoutPanel { Height = 34, BackColor = Color.Transparent, Dock = DockStyle.Top };
+                var stepTxt = MUi.Txt("Step " + (tabControl.SelectedIndex + 1) + " of " + tabControl.TabPages.Count +
+                    " - " + StepName(tabControl.SelectedIndex), 9F, FontStyle.Regular, UiTheme.Muted);
+                stepTxt.Font = Px(17f);
+                stepLine.Controls.Add(stepTxt);
                 items.Add(stepLine);
             }
 
-            items.Add(MUi.Cap("Outstanding"));
+            items.Add(RailCap("Outstanding"));
             var issues = new List<RuleIssue>();
             for (int s = 0; s <= 2; s++)
                 foreach (StepIssue i in IssuesForStep(s))
                     issues.Add(new RuleIssue(RuleSeverity.Blocking, "DEATH_" + s, i.Message, StepName(s)));
 
-            var issueList = new IssueList { Height = 210, Dock = DockStyle.Top };
+            // The list takes what is left of the rail after the fixed rows above and the banner below.
+            int listH = Math.Max(120, Math.Min(300, _railPanel.ClientSize.Height - 400));
+            var issueList = new IssueList { Large = true, Height = listH, Dock = DockStyle.Top };
             issueList.FixRequested += tabName => { int idx = TabIndexByText(tabName); if (idx >= 0) { tabControl.SelectedIndex = idx; UpdateStepNavigation(); } };
             issueList.SetIssues(issues, "Every required entry is filled in.");
-            items.Add(issueList);
 
-            var banner = new Banner();
+            var banner = new Banner { Large = true };
             if (issues.Count == 0) banner.Set(RuleSeverity.Info, "Ready to save.", "All required entries are complete.", true);
             else banner.Set(RuleSeverity.Blocking, issues.Count + " REQUIRED ENTR" + (issues.Count == 1 ? "Y" : "IES") + " MISSING",
                 _editingId == null ? "A new registration cannot be saved until these are filled." : "Listed for your information.");
-            items.Add(new Panel { Height = 10, BackColor = Color.Transparent, Dock = DockStyle.Top });
+            // The verdict sits ABOVE the list so it is never scrolled out of sight on a short screen.
             items.Add(banner);
+            items.Add(issueList);
 
             // Bottom-first, so Dock=Top lays them out top-to-bottom (the codebase convention).
             for (int i = items.Count - 1; i >= 0; i--) { items[i].Dock = DockStyle.Top; _railPanel.Controls.Add(items[i]); }
             _railPanel.ResumeLayout();
             UpdatePrintVisibility();
+            UpdateFooterState();
         }
 
         /// <summary>

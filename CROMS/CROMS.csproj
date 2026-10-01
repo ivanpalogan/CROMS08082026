@@ -298,6 +298,9 @@
     <Compile Include="Forms\DeathRegistrationForm.Wizard.cs">
       <DependentUpon>DeathRegistrationForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\DeathRegistrationForm.Layout.cs">
+      <DependentUpon>DeathRegistrationForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\RegistryBooksForm.cs">
       <SubType>Form</SubType>
     </Compile>
