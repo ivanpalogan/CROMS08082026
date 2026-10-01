@@ -212,9 +212,17 @@ namespace CROMS.Forms
         {
             if (_loading) return;
             _dirty = true;
-            RefreshAges();
-            RefreshFooter();
+            // Debounced: run once ~300 ms after the last keystroke, not on every key.
+            if (_touchTimer == null)
+            {
+                _touchTimer = new System.Windows.Forms.Timer { Interval = 300 };
+                _touchTimer.Tick += (s, e) => { _touchTimer.Stop(); if (!IsDisposed) { RefreshAges(); RefreshFooter(); } };
+                Disposed += (s, e) => _touchTimer.Dispose();
+            }
+            _touchTimer.Stop();
+            _touchTimer.Start();
         }
+        private System.Windows.Forms.Timer _touchTimer;
 
         private bool SaveDraft(bool explicitSave)
         {

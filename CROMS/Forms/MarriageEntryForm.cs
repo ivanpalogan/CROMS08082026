@@ -1790,7 +1790,22 @@ namespace CROMS.Forms
                     MarriageService.History("Marriage", _id.Value, "OCR fields edited", null, null, null);
                 }
             }
-            RefreshLight();
+            ScheduleRefresh();
+        }
+
+        // Typing must never wait on validation + rail rebuild: run the refresh once, shortly
+        // after the last keystroke, instead of on every key.
+        private System.Windows.Forms.Timer _refreshTimer;
+        private void ScheduleRefresh()
+        {
+            if (_refreshTimer == null)
+            {
+                _refreshTimer = new System.Windows.Forms.Timer { Interval = 300 };
+                _refreshTimer.Tick += (s, e) => { _refreshTimer.Stop(); if (!IsDisposed) RefreshLight(); };
+                Disposed += (s, e) => _refreshTimer.Dispose();
+            }
+            _refreshTimer.Stop();
+            _refreshTimer.Start();
         }
 
         // ===================================================================== refresh

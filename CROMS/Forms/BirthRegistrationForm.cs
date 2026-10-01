@@ -2272,7 +2272,11 @@ namespace CROMS.Forms
 
             // Keeps the rail current as the operator types - the same live-refresh
             // convention the marriage license window uses for its own "at a glance" rail.
-            EventHandler railRefresh = delegate { RefreshRail(); };
+            // Debounced: refresh once ~300 ms after the last keystroke, not on every key.
+            var railTimer = new System.Windows.Forms.Timer { Interval = 300 };
+            railTimer.Tick += delegate { railTimer.Stop(); if (!IsDisposed) RefreshRail(); };
+            Disposed += delegate { railTimer.Dispose(); };
+            EventHandler railRefresh = delegate { railTimer.Stop(); railTimer.Start(); };
             txtFirstName.TextChanged += railRefresh;
             txtLastName.TextChanged += railRefresh;
             cboSex.SelectedIndexChanged += railRefresh;

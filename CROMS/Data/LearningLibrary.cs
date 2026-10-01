@@ -175,25 +175,14 @@ namespace CROMS.Data
         {
             if (box == null) return;
             EnsureSeeded();
-            var src = Source(category);
-            foreach (object item in box.Items)
-            {
-                string s = item?.ToString();
-                if (!string.IsNullOrWhiteSpace(s) && !src.Contains(s)) src.Add(s);
-            }
-            box.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            box.AutoCompleteSource = AutoCompleteSource.CustomSource;
-            box.AutoCompleteCustomSource = src;
+            // Plain typing: no autocomplete popup (it re-filtered a large list on every key).
+            // The library still LEARNS what was typed on Leave.
+            box.AutoCompleteMode = AutoCompleteMode.None;
 
             box.Leave += (s, e) =>
             {
                 string v = box.Text;
-                if (IsLearnable(v))
-                {
-                    Learn(category, v);
-                    if (!box.AutoCompleteCustomSource.Contains(v.Trim()))
-                        box.AutoCompleteCustomSource.Add(v.Trim());
-                }
+                if (IsLearnable(v)) Learn(category, v);
             };
         }
 
