@@ -63,18 +63,19 @@ namespace CROMS.Modules
 
             var toolbar = new TableLayoutPanel
             {
-                Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 8)
+                Dock = DockStyle.Top, Height = 114, ColumnCount = 1, RowCount = 2, AutoSize = false, Margin = new Padding(0, 0, 0, 8)
             };
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
+            toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             root.Controls.Add(toolbar, 0, 0);
 
-            var filters = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
+            var filters = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
             var lblSearch = new Label { Text = "Search:", AutoSize = true, Margin = new Padding(0, 8, 6, 0) };
-            _txtSearch = new TextBox { Width = 220, Margin = new Padding(0, 4, 18, 4) };
+            _txtSearch = new TextBox { Width = 280, Font = new Font("Segoe UI", 11F), Margin = new Padding(0, 4, 18, 4) };
             _txtSearch.TextChanged += (s, e) => ApplyFilter();
             var lblYear = new Label { Text = "Year:", AutoSize = true, Margin = new Padding(0, 8, 6, 0) };
-            _cboYear = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 110, Margin = new Padding(0, 4, 0, 4) };
+            _cboYear = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 140, Font = new Font("Segoe UI", 11F), Margin = new Padding(0, 4, 0, 4) };
             _cboYear.SelectedIndexChanged += (s, e) => ApplyFilter();
             filters.Controls.Add(lblSearch);
             filters.Controls.Add(_txtSearch);
@@ -82,14 +83,14 @@ namespace CROMS.Modules
             filters.Controls.Add(_cboYear);
             toolbar.Controls.Add(filters, 0, 0);
 
-            var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-            var btnDigitize = new Button { Text = "+ Digitize Old Record", Width = 190, Height = 32 };
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0, 10, 0, 12) };
+            var btnDigitize = new Button { Text = "+ Digitize Old Record", Width = 220, Height = 44, Font = new Font("Segoe UI", 10F, FontStyle.Bold), BackColor = UiTheme.Accent, ForeColor = Color.White };
             btnDigitize.Click += (s, e) => DigitizeRequested?.Invoke();
-            var btnRefresh = new Button { Text = "Refresh", Width = 90, Height = 32 };
+            var btnRefresh = new Button { Text = "Refresh", Width = 120, Height = 44, Font = new Font("Segoe UI", 10F, FontStyle.Bold) };
             btnRefresh.Click += (s, e) => Reload();
             actions.Controls.Add(btnDigitize);
             actions.Controls.Add(btnRefresh);
-            toolbar.Controls.Add(actions, 1, 0);
+            toolbar.Controls.Add(actions, 0, 1);
 
             _lblCount = new Label
             {

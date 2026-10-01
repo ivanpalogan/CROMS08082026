@@ -139,6 +139,7 @@ namespace CROMS.Forms
             bool backlog = has && SelectedIsBacklog();
             btnViewFromList.Enabled = has;
             btnUsePick.Enabled = has;
+            btnListSoftcopy.Enabled = has;
             btnEditFromList.Enabled = backlog;
             btnDeleteFromList.Enabled = backlog;
         }
@@ -351,6 +352,11 @@ namespace CROMS.Forms
 
         private void OpenSelected(long id, bool view)
         {
+            if (view)
+            {
+                RecordFullDetail.Show(this, "v_marriage_certificate", id, "Marriage Record — Full Details");
+                return;
+            }
             LoadRecord(id);
             SetMode(view);
             ShowEntryView();
@@ -384,6 +390,29 @@ namespace CROMS.Forms
 
         // ---- data ---------------------------------------------------------------
 
+        private void StyleArchiveTable()
+        {
+            dgv.ColumnHeadersHeight = 46;
+            dgv.DefaultCellStyle.Font = new Font("Segoe UI", 10.5F);
+            dgv.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            dgv.DefaultCellStyle.Padding = new Padding(12, 8, 12, 8);
+            dgv.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+            foreach (DataGridViewRow row in dgv.Rows) row.MinimumHeight = 46;
+            foreach (DataGridViewColumn col in dgv.Columns)
+            {
+                if (col.Name == "id") { col.Visible = false; continue; }
+                col.MinimumWidth = col.Name == "Status" || col.Name == "Source" ? 120 : 90;
+                col.FillWeight = 85;
+                if (col.Name == "Husband" || col.Name == "Wife") { col.MinimumWidth = 220; col.FillWeight = 230; }
+                if (col.Name == "Registry No.") { col.MinimumWidth = 140; col.FillWeight = 130; }
+                if (col.Name == "Date of Marriage")
+                {
+                    col.MinimumWidth = 140;
+                    col.FillWeight = 130;
+                    col.DefaultCellStyle.Format = "dd MMM yyyy";
+                }
+            }
+        }
         private void LoadGrid()
         {
             string term = (txtSearch?.Text ?? "").Trim();

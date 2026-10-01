@@ -33,6 +33,10 @@ namespace CROMS.Forms
             this.lblTitle = new System.Windows.Forms.Label();
             this.lblSubtitle = new System.Windows.Forms.Label();
             this.pillQueueRef = new CROMS.Modules.StatusPill();
+            this.cardKiosk = new CROMS.Modules.CardPanel();
+            this.flowKiosk = new System.Windows.Forms.FlowLayoutPanel();
+            this.lblKioskHint = new System.Windows.Forms.Label();
+            this.lblKioskTitle = new System.Windows.Forms.Label();
             this.tblBody = new System.Windows.Forms.TableLayoutPanel();
             this.tblLeft = new System.Windows.Forms.TableLayoutPanel();
             this.cardClient = new CROMS.Modules.CardPanel();
@@ -96,10 +100,6 @@ namespace CROMS.Forms
             this.lblNextCap = new System.Windows.Forms.Label();
             this.pnlNextBar = new System.Windows.Forms.Panel();
             this.cardPhoto = new CROMS.Modules.CardPanel();
-            this.cardKiosk = new CROMS.Modules.CardPanel();
-            this.lblKioskTitle = new System.Windows.Forms.Label();
-            this.lblKioskHint = new System.Windows.Forms.Label();
-            this.flowKiosk = new System.Windows.Forms.FlowLayoutPanel();
             this.picClient = new System.Windows.Forms.PictureBox();
             this.lblPhotoCap = new System.Windows.Forms.Label();
             this.pnlValidation = new System.Windows.Forms.Panel();
@@ -116,6 +116,7 @@ namespace CROMS.Forms
             this.dgvReq = new System.Windows.Forms.DataGridView();
             this.root.SuspendLayout();
             this.tblHeader.SuspendLayout();
+            this.cardKiosk.SuspendLayout();
             this.tblBody.SuspendLayout();
             this.tblLeft.SuspendLayout();
             this.cardClient.SuspendLayout();
@@ -123,8 +124,8 @@ namespace CROMS.Forms
             this.flowHead1.SuspendLayout();
             this.cardCertificate.SuspendLayout();
             this.tblCert.SuspendLayout();
-            this.tblFind.SuspendLayout();
             this.flowHead2.SuspendLayout();
+            this.tblFind.SuspendLayout();
             this.cardPurpose.SuspendLayout();
             this.tblPurpose.SuspendLayout();
             this.flowHead3.SuspendLayout();
@@ -134,7 +135,6 @@ namespace CROMS.Forms
             this.pnlNextStep.SuspendLayout();
             this.pnlNextBody.SuspendLayout();
             this.cardPhoto.SuspendLayout();
-            this.cardKiosk.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.picClient)).BeginInit();
             this.pnlValidation.SuspendLayout();
             this.flowActions.SuspendLayout();
@@ -231,6 +231,65 @@ namespace CROMS.Forms
             this.pillQueueRef.TabIndex = 2;
             this.pillQueueRef.Visible = false;
             // 
+            // cardKiosk
+            // 
+            this.cardKiosk.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.cardKiosk.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
+            this.cardKiosk.CardColor = System.Drawing.Color.White;
+            this.cardKiosk.Controls.Add(this.flowKiosk);
+            this.cardKiosk.Controls.Add(this.lblKioskHint);
+            this.cardKiosk.Controls.Add(this.lblKioskTitle);
+            this.cardKiosk.DrawShadow = true;
+            this.cardKiosk.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(207)))), ((int)(((byte)(219)))), ((int)(((byte)(249)))));
+            this.cardKiosk.Location = new System.Drawing.Point(24, 90);
+            this.cardKiosk.Margin = new System.Windows.Forms.Padding(0, 14, 0, 0);
+            this.cardKiosk.Name = "cardKiosk";
+            this.cardKiosk.Padding = new System.Windows.Forms.Padding(20, 12, 20, 8);
+            this.cardKiosk.Radius = 10;
+            this.cardKiosk.Size = new System.Drawing.Size(1418, 120);
+            this.cardKiosk.TabIndex = 6;
+            this.cardKiosk.Visible = false;
+            this.cardKiosk.SizeChanged += new System.EventHandler(this.cardKiosk_SizeChanged);
+            // 
+            // flowKiosk
+            // 
+            this.flowKiosk.BackColor = System.Drawing.Color.Transparent;
+            this.flowKiosk.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.flowKiosk.Location = new System.Drawing.Point(20, 54);
+            this.flowKiosk.Margin = new System.Windows.Forms.Padding(0);
+            this.flowKiosk.Name = "flowKiosk";
+            this.flowKiosk.Padding = new System.Windows.Forms.Padding(0, 6, 0, 0);
+            this.flowKiosk.Size = new System.Drawing.Size(1378, 58);
+            this.flowKiosk.TabIndex = 2;
+            // 
+            // lblKioskHint
+            // 
+            this.lblKioskHint.BackColor = System.Drawing.Color.Transparent;
+            this.lblKioskHint.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblKioskHint.Font = new System.Drawing.Font("Segoe UI", 8.75F);
+            this.lblKioskHint.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblKioskHint.Location = new System.Drawing.Point(20, 34);
+            this.lblKioskHint.Name = "lblKioskHint";
+            this.lblKioskHint.Size = new System.Drawing.Size(1378, 20);
+            this.lblKioskHint.TabIndex = 1;
+            this.lblKioskHint.Text = "What the client submitted. The fields below are already filled in from it — check" +
+    " them, pick the certificate and record type, then click Find Record.";
+            this.lblKioskHint.UseMnemonic = false;
+            // 
+            // lblKioskTitle
+            // 
+            this.lblKioskTitle.BackColor = System.Drawing.Color.Transparent;
+            this.lblKioskTitle.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblKioskTitle.Font = new System.Drawing.Font("Segoe UI", 10.5F, System.Drawing.FontStyle.Bold);
+            this.lblKioskTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
+            this.lblKioskTitle.Location = new System.Drawing.Point(20, 12);
+            this.lblKioskTitle.Name = "lblKioskTitle";
+            this.lblKioskTitle.Size = new System.Drawing.Size(1378, 22);
+            this.lblKioskTitle.TabIndex = 0;
+            this.lblKioskTitle.Text = "From the kiosk";
+            this.lblKioskTitle.UseMnemonic = false;
+            // 
             // tblBody
             // 
             this.tblBody.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
@@ -240,7 +299,7 @@ namespace CROMS.Forms
             this.tblBody.Controls.Add(this.tblLeft, 0, 0);
             this.tblBody.Controls.Add(this.tblRight, 1, 0);
             this.tblBody.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tblBody.Location = new System.Drawing.Point(24, 94);
+            this.tblBody.Location = new System.Drawing.Point(24, 228);
             this.tblBody.Margin = new System.Windows.Forms.Padding(0, 18, 0, 0);
             this.tblBody.Name = "tblBody";
             this.tblBody.RowCount = 1;
@@ -594,20 +653,20 @@ namespace CROMS.Forms
             this.lblSelRecord.Location = new System.Drawing.Point(20, 137);
             this.lblSelRecord.Margin = new System.Windows.Forms.Padding(0, 14, 0, 5);
             this.lblSelRecord.Name = "lblSelRecord";
-            this.lblSelRecord.Size = new System.Drawing.Size(205, 15);
+            this.lblSelRecord.Size = new System.Drawing.Size(351, 15);
             this.lblSelRecord.TabIndex = 5;
             this.lblSelRecord.Text = "Registry record  (pick the record type first, then click Find Record)";
-            //
+            // 
             // tblFind
-            //
+            // 
             this.tblFind.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.tblFind.BackColor = System.Drawing.Color.Transparent;
             this.tblFind.ColumnCount = 2;
+            this.tblCert.SetColumnSpan(this.tblFind, 2);
             this.tblFind.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 150F));
             this.tblFind.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.tblFind.Controls.Add(this.btnFindRecord, 0, 0);
             this.tblFind.Controls.Add(this.lblFoundRecord, 1, 0);
-            this.tblCert.SetColumnSpan(this.tblFind, 2);
             this.tblFind.Location = new System.Drawing.Point(20, 162);
             this.tblFind.Margin = new System.Windows.Forms.Padding(0);
             this.tblFind.Name = "tblFind";
@@ -615,11 +674,11 @@ namespace CROMS.Forms
             this.tblFind.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 25F));
             this.tblFind.Size = new System.Drawing.Size(867, 25);
             this.tblFind.TabIndex = 5;
-            //
+            // 
             // btnFindRecord
-            //
+            // 
             this.btnFindRecord.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.btnFindRecord.BackColor = System.Drawing.Color.FromArgb(29, 78, 216);
+            this.btnFindRecord.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
             this.btnFindRecord.Enabled = false;
             this.btnFindRecord.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnFindRecord.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
@@ -632,14 +691,14 @@ namespace CROMS.Forms
             this.btnFindRecord.Text = "Find Record...";
             this.btnFindRecord.UseVisualStyleBackColor = false;
             this.btnFindRecord.Click += new System.EventHandler(this.btnFindRecord_Click);
-            //
+            // 
             // lblFoundRecord
-            //
+            // 
             this.lblFoundRecord.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
             this.lblFoundRecord.AutoEllipsis = true;
             this.lblFoundRecord.BackColor = System.Drawing.Color.Transparent;
             this.lblFoundRecord.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.lblFoundRecord.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
+            this.lblFoundRecord.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
             this.lblFoundRecord.Location = new System.Drawing.Point(150, 3);
             this.lblFoundRecord.Margin = new System.Windows.Forms.Padding(0);
             this.lblFoundRecord.Name = "lblFoundRecord";
@@ -1159,67 +1218,6 @@ namespace CROMS.Forms
             this.cardPhoto.Size = new System.Drawing.Size(491, 129);
             this.cardPhoto.TabIndex = 1;
             this.cardPhoto.Visible = false;
-            //
-            // cardKiosk
-            //
-            // Everything the client submitted at the kiosk, shown ABOVE the form so staff can see
-            // it while they work and never re-type it. Hidden unless the request came from a
-            // queue ticket; the chips inside are built at run time because WHICH details exist
-            // depends on the record type (a birth, a marriage and a death ask different things).
-            this.cardKiosk.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
-            this.cardKiosk.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.cardKiosk.CardColor = System.Drawing.Color.White;
-            this.cardKiosk.Controls.Add(this.flowKiosk);
-            this.cardKiosk.Controls.Add(this.lblKioskHint);
-            this.cardKiosk.Controls.Add(this.lblKioskTitle);
-            this.cardKiosk.DrawShadow = true;
-            this.cardKiosk.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(207)))), ((int)(((byte)(219)))), ((int)(((byte)(249)))));
-            this.cardKiosk.Location = new System.Drawing.Point(24, 74);
-            this.cardKiosk.Margin = new System.Windows.Forms.Padding(0, 14, 0, 0);
-            this.cardKiosk.Name = "cardKiosk";
-            this.cardKiosk.Padding = new System.Windows.Forms.Padding(20, 12, 20, 8);
-            this.cardKiosk.Radius = 10;
-            this.cardKiosk.Size = new System.Drawing.Size(1418, 120);
-            this.cardKiosk.TabIndex = 6;
-            this.cardKiosk.Visible = false;
-            this.cardKiosk.SizeChanged += new System.EventHandler(this.cardKiosk_SizeChanged);
-            //
-            // lblKioskTitle
-            //
-            this.lblKioskTitle.BackColor = System.Drawing.Color.Transparent;
-            this.lblKioskTitle.Dock = System.Windows.Forms.DockStyle.Top;
-            this.lblKioskTitle.Font = new System.Drawing.Font("Segoe UI", 10.5F, System.Drawing.FontStyle.Bold);
-            this.lblKioskTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
-            this.lblKioskTitle.Location = new System.Drawing.Point(20, 12);
-            this.lblKioskTitle.Name = "lblKioskTitle";
-            this.lblKioskTitle.Size = new System.Drawing.Size(1378, 22);
-            this.lblKioskTitle.TabIndex = 0;
-            this.lblKioskTitle.Text = "From the kiosk";
-            this.lblKioskTitle.UseMnemonic = false;
-            //
-            // lblKioskHint
-            //
-            this.lblKioskHint.BackColor = System.Drawing.Color.Transparent;
-            this.lblKioskHint.Dock = System.Windows.Forms.DockStyle.Top;
-            this.lblKioskHint.Font = new System.Drawing.Font("Segoe UI", 8.75F);
-            this.lblKioskHint.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblKioskHint.Location = new System.Drawing.Point(20, 34);
-            this.lblKioskHint.Name = "lblKioskHint";
-            this.lblKioskHint.Size = new System.Drawing.Size(1378, 20);
-            this.lblKioskHint.TabIndex = 1;
-            this.lblKioskHint.Text = "What the client submitted. The fields below are already filled in from it \u2014 check them, pick the certificate and record type, then click Find Record.";
-            this.lblKioskHint.UseMnemonic = false;
-            //
-            // flowKiosk
-            //
-            this.flowKiosk.BackColor = System.Drawing.Color.Transparent;
-            this.flowKiosk.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.flowKiosk.Location = new System.Drawing.Point(20, 54);
-            this.flowKiosk.Margin = new System.Windows.Forms.Padding(0);
-            this.flowKiosk.Name = "flowKiosk";
-            this.flowKiosk.Padding = new System.Windows.Forms.Padding(0, 6, 0, 0);
-            this.flowKiosk.Size = new System.Drawing.Size(1378, 58);
-            this.flowKiosk.TabIndex = 2;
             // 
             // picClient
             // 
@@ -1250,7 +1248,7 @@ namespace CROMS.Forms
             this.pnlValidation.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(251)))), ((int)(((byte)(234)))), ((int)(((byte)(236)))));
             this.pnlValidation.Controls.Add(this.lblValidation);
             this.pnlValidation.Controls.Add(this.pnlValBar);
-            this.pnlValidation.Location = new System.Drawing.Point(24, 664);
+            this.pnlValidation.Location = new System.Drawing.Point(24, 798);
             this.pnlValidation.Margin = new System.Windows.Forms.Padding(0, 18, 0, 0);
             this.pnlValidation.Name = "pnlValidation";
             this.pnlValidation.Size = new System.Drawing.Size(1418, 48);
@@ -1285,7 +1283,7 @@ namespace CROMS.Forms
             this.flowActions.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.flowActions.Controls.Add(this.btnCreate);
             this.flowActions.Controls.Add(this.btnClear);
-            this.flowActions.Location = new System.Drawing.Point(24, 730);
+            this.flowActions.Location = new System.Drawing.Point(24, 864);
             this.flowActions.Margin = new System.Windows.Forms.Padding(0, 18, 0, 0);
             this.flowActions.Name = "flowActions";
             this.flowActions.Size = new System.Drawing.Size(352, 48);
@@ -1328,11 +1326,11 @@ namespace CROMS.Forms
             this.cardRecent.Dock = System.Windows.Forms.DockStyle.Fill;
             this.cardRecent.DrawShadow = true;
             this.cardRecent.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(225)))), ((int)(((byte)(229)))), ((int)(((byte)(236)))));
-            this.cardRecent.Location = new System.Drawing.Point(24, 798);
+            this.cardRecent.Location = new System.Drawing.Point(24, 932);
             this.cardRecent.Margin = new System.Windows.Forms.Padding(0, 20, 0, 0);
             this.cardRecent.Name = "cardRecent";
             this.cardRecent.Radius = 10;
-            this.cardRecent.Size = new System.Drawing.Size(1418, 132);
+            this.cardRecent.Size = new System.Drawing.Size(1418, 1);
             this.cardRecent.TabIndex = 4;
             // 
             // tblRecent
@@ -1349,7 +1347,7 @@ namespace CROMS.Forms
             this.tblRecent.RowCount = 2;
             this.tblRecent.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tblRecent.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tblRecent.Size = new System.Drawing.Size(1418, 132);
+            this.tblRecent.Size = new System.Drawing.Size(1418, 1);
             this.tblRecent.TabIndex = 0;
             // 
             // tblRecentHead
@@ -1412,7 +1410,7 @@ namespace CROMS.Forms
             this.dgvReq.ReadOnly = true;
             this.dgvReq.RowHeadersVisible = false;
             this.dgvReq.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvReq.Size = new System.Drawing.Size(1386, 58);
+            this.dgvReq.Size = new System.Drawing.Size(1386, 1);
             this.dgvReq.TabIndex = 11;
             // 
             // CertificateRequestForm
@@ -1431,6 +1429,7 @@ namespace CROMS.Forms
             this.root.PerformLayout();
             this.tblHeader.ResumeLayout(false);
             this.tblHeader.PerformLayout();
+            this.cardKiosk.ResumeLayout(false);
             this.tblBody.ResumeLayout(false);
             this.tblLeft.ResumeLayout(false);
             this.cardClient.ResumeLayout(false);
@@ -1439,11 +1438,11 @@ namespace CROMS.Forms
             this.flowHead1.ResumeLayout(false);
             this.flowHead1.PerformLayout();
             this.cardCertificate.ResumeLayout(false);
-            this.tblFind.ResumeLayout(false);
             this.tblCert.ResumeLayout(false);
             this.tblCert.PerformLayout();
             this.flowHead2.ResumeLayout(false);
             this.flowHead2.PerformLayout();
+            this.tblFind.ResumeLayout(false);
             this.cardPurpose.ResumeLayout(false);
             this.tblPurpose.ResumeLayout(false);
             this.tblPurpose.PerformLayout();
@@ -1456,7 +1455,6 @@ namespace CROMS.Forms
             this.pnlNextStep.ResumeLayout(false);
             this.pnlNextBody.ResumeLayout(false);
             this.cardPhoto.ResumeLayout(false);
-            this.cardKiosk.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.picClient)).EndInit();
             this.pnlValidation.ResumeLayout(false);
             this.flowActions.ResumeLayout(false);

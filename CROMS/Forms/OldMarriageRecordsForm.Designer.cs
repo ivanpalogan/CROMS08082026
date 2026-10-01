@@ -21,7 +21,7 @@ namespace CROMS.Forms
         private DataGridView dgv;
         private TextBox txtSearch;
         private Label lblListHeader;
-        private Button btnUsePick, btnBackToBooks, btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh;
+        private Button btnUsePick, btnBackToBooks, btnNewFromList, btnViewFromList, btnEditFromList, btnDeleteFromList, btnRefresh, btnListSoftcopy;
 
         // ---- entry view ----------------------------------------------------------
         private CardPanel cardEntry;
@@ -108,24 +108,28 @@ namespace CROMS.Forms
             host.Controls.Add(cardList);
 
             var layout = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(18) };
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 210));
             layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             cardList.Controls.Add(layout);
 
-            var toolbar = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, AutoSize = true, Margin = new Padding(0, 0, 0, 10) };
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            var toolbar = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, AutoSize = false, Margin = new Padding(0, 0, 0, 16) };
+            toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            toolbar.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             layout.Controls.Add(toolbar, 0, 0);
 
-            var searchRow = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, FlowDirection = FlowDirection.TopDown };
+            var searchRow = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown };
             btnBackToBooks = new Button { Text = "← Books", Width = 100 };
             btnBackToBooks.Click += new System.EventHandler(this.btnBackToBooks_Click);
             lblListHeader = new Label
             {
-                Text = "", Font = new Font("Segoe UI", 10.5F, FontStyle.Bold), ForeColor = UiTheme.Ink,
-                AutoSize = true, Margin = new Padding(0, 6, 0, 4)
+                Text = "",
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                ForeColor = UiTheme.Ink,
+                AutoSize = true,
+                Margin = new Padding(0, 6, 0, 4)
             };
-            var searchSub = new TableLayoutPanel { AutoSize = true, ColumnCount = 2 };
+            var searchSub = new TableLayoutPanel { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 2 };
             var lblSearch = new Label { Text = "Search:", AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 6, 8, 0) };
             txtSearch = new TextBox { Width = 320 };
             txtSearch.TextChanged += new System.EventHandler(this.txtSearch_TextChanged);
@@ -136,9 +140,9 @@ namespace CROMS.Forms
             searchRow.Controls.Add(searchSub);
             toolbar.Controls.Add(searchRow, 0, 0);
 
-            var actions = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-            btnNewFromList = new Button { Text = "+ New Record", Width = 120 };
-            btnViewFromList = new Button { Text = "View", Width = 90, Enabled = false };
+            var actions = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, WrapContents = true, FlowDirection = FlowDirection.LeftToRight, Margin = new Padding(0, 12, 0, 0) };
+            btnNewFromList = new Button { Text = "+ New Record", Width = 150 };
+            btnViewFromList = new Button { Text = "View Full Record", Width = 170, Enabled = false };
             btnEditFromList = new Button { Text = "Edit", Width = 90, Enabled = false };
             btnDeleteFromList = new Button { Text = "Delete", Width = 90, Enabled = false };
             btnRefresh = new Button { Text = "Refresh", Width = 90 };
@@ -157,8 +161,35 @@ namespace CROMS.Forms
             actions.Controls.Add(btnViewFromList);
             actions.Controls.Add(btnEditFromList);
             actions.Controls.Add(btnDeleteFromList);
+            btnListSoftcopy = new Button { Text = "View Softcopy", Width = 150 };
+            btnListSoftcopy.Click += (s, e) =>
+            {
+                long? id = SelectedId();
+                if (id == null) return;
+                LoadRecord(id.Value);
+                ShowSoftcopy();
+            };
+            actions.Controls.Add(btnListSoftcopy);
             actions.Controls.Add(btnRefresh);
-            toolbar.Controls.Add(actions, 1, 0);
+            foreach (Button button in actions.Controls)
+            {
+                button.Height = 44;
+                button.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                button.Margin = new Padding(0, 0, 10, 8);
+                button.MinimumSize = new Size(button.Width, 44);
+            }
+            btnBackToBooks.Size = new Size(130, 44);
+            btnBackToBooks.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            btnViewFromList.BackColor = UiTheme.Accent;
+            btnViewFromList.ForeColor = Color.White;
+            btnDeleteFromList.ForeColor = Color.FromArgb(185, 28, 28);
+            txtSearch.Font = new Font("Segoe UI", 11F);
+            toolbar.Controls.Add(actions, 0, 1);
+            layout.SizeChanged += (s, e) =>
+            {
+                int availableWidth = Math.Max(200, layout.ClientSize.Width - 36);
+                layout.RowStyles[0].Height = 148 + actions.GetPreferredSize(new Size(availableWidth, 0)).Height;
+            };
 
             dgv = new DataGridView
             {
@@ -170,6 +201,8 @@ namespace CROMS.Forms
                 MultiSelect = false,
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
             };
+            dgv.DataBindingComplete += (s, e) => StyleArchiveTable();
+            dgv.VisibleChanged += (s, e) => { if (dgv.Visible) StyleArchiveTable(); };
             dgv.SelectionChanged += new System.EventHandler(this.dgv_SelectionChanged);
             dgv.CellDoubleClick += new DataGridViewCellEventHandler(this.dgv_CellDoubleClick);
             layout.Controls.Add(dgv, 0, 1);
