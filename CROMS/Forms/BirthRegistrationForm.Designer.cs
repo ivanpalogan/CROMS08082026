@@ -123,7 +123,7 @@ namespace CROMS.Forms
             this.lblAttName = new System.Windows.Forms.Label();
             this.txtAttName = new System.Windows.Forms.TextBox();
             this.lblAttTitle = new System.Windows.Forms.Label();
-            this.txtAttTitle = new System.Windows.Forms.TextBox();
+            this.txtAttTitle = new System.Windows.Forms.ComboBox();
             this.lblAttDate = new System.Windows.Forms.Label();
             this.dtpAttDate = new System.Windows.Forms.DateTimePicker();
             this.lblAttAddress = new System.Windows.Forms.Label();
@@ -1458,6 +1458,8 @@ namespace CROMS.Forms
             // txtAttTitle
             // 
             this.txtAttTitle.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.txtAttTitle.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
+            this.txtAttTitle.FormattingEnabled = true;
             this.txtAttTitle.Location = new System.Drawing.Point(181, 53);
             this.txtAttTitle.Margin = new System.Windows.Forms.Padding(3, 3, 24, 3);
             this.txtAttTitle.Name = "txtAttTitle";
@@ -2414,7 +2416,7 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblAttName;
         private System.Windows.Forms.TextBox txtAttName;
         private System.Windows.Forms.Label lblAttTitle;
-        private System.Windows.Forms.TextBox txtAttTitle;
+        private System.Windows.Forms.ComboBox txtAttTitle;
         private System.Windows.Forms.Label lblAttAddress;
         private System.Windows.Forms.TextBox txtAttAddress;
         private System.Windows.Forms.TabPage tabInformant;

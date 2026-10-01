@@ -131,7 +131,7 @@ namespace CROMS.Forms
         {
             ClearForm();
 
-            void Set(TextBox t, string key)
+            void Set(Control t, string key)
             {
                 if (t != null && f.TryGetValue(key, out string v) && !string.IsNullOrWhiteSpace(v)) t.Text = v.Trim();
             }
@@ -282,7 +282,8 @@ namespace CROMS.Forms
         {
             if (DateTime.TryParseExact(value, "yyyy-MM-dd",
                                        System.Globalization.CultureInfo.InvariantCulture,
-                                       System.Globalization.DateTimeStyles.None, out DateTime d))
+                                       System.Globalization.DateTimeStyles.None, out DateTime d)
+                && d.Date <= dtp.MaxDate.Date && d.Date >= dtp.MinDate.Date)   // a future date read off a scan is a misreading
             { dtp.Value = d; dtp.Checked = true; }
         }
 
@@ -361,6 +362,11 @@ namespace CROMS.Forms
             // Same for the parents' marriage: it can follow the birth (legitimation) but it
             // cannot be a date that has not happened yet.
             dtpMarrDate.MaxDate = DateTime.Today;
+            // Every certification date is a signing that has already happened: attendant,
+            // informant, prepared / received / registered by. None can be tomorrow.
+            foreach (DateTimePicker p in new[] { dtpAttDate, dtpInfDate, dtpPreparedDate, dtpReceivedDate, dtpRegisteredDate })
+                p.MaxDate = DateTime.Today;
+            txtAttTitle.Items.AddRange(AttendantTitles);
 
             // Subscribe after initialization and data loading so the initial values
             // do not trigger delayed-registration calculations during construction.
@@ -1954,8 +1960,32 @@ namespace CROMS.Forms
                 dtpMarrDate.Focus();
                 return false;
             }
+            // Same stale-MaxDate guard for the certification dates (form left open past midnight).
+            var signed = new[]
+            {
+                (dtpAttDate, "attendant", tabAttendant), (dtpInfDate, "informant", tabInformant),
+                (dtpPreparedDate, "prepared by", tabCert), (dtpReceivedDate, "received by", tabCert),
+                (dtpRegisteredDate, "registered by", tabCert),
+            };
+            foreach (var (dtp, label, tab) in signed)
+                if (dtp.Checked && dtp.Value.Date > DateTime.Today)
+                {
+                    MessageBox.Show("The " + label + " date signed is in the future.",
+                        "Invalid date", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    tabControl.SelectedTab = tab;
+                    dtp.Focus();
+                    return false;
+                }
             return true;
         }
+
+        /// <summary>Common titles / positions of whoever attended the birth (Form 102 item 21b / 19b).</summary>
+        private static readonly string[] AttendantTitles =
+        {
+            "Physician", "Resident Physician", "Municipal Health Officer", "Nurse", "Senior Nurse",
+            "Public Health Nurse", "Midwife", "Rural Health Midwife", "Barangay Health Worker",
+            "Traditional Birth Attendant (Hilot)",
+        };
 
         private void ClearForm()
         {
@@ -2745,7 +2775,7 @@ namespace CROMS.Forms
         private static object NullIfBlank(string v) =>
             string.IsNullOrWhiteSpace(v) ? (object)DBNull.Value : v.Trim();
 
-        private static object S(TextBox t) =>
+        private static object S(Control t) =>
             string.IsNullOrWhiteSpace(t.Text) ? (object)DBNull.Value : t.Text.Trim();
 
         private static object I(TextBox t) =>
