@@ -207,7 +207,8 @@ namespace CROMS.Forms
 
             if (f.TryGetValue("DateOfBirth", out string dob) &&
                 DateTime.TryParse(dob, System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.None, out DateTime d))
+                    System.Globalization.DateTimeStyles.None, out DateTime d) &&
+                d.Date <= DateTime.Today)   // a future date read off a scan is a misreading - leave it for the operator
                 dtpDob.Value = d;
 
 
@@ -353,6 +354,10 @@ namespace CROMS.Forms
             LoadLookupData();
             LoadBirths();
             WireLearningAutocomplete();
+
+            // A child cannot be born in the future: the picker refuses later dates outright
+            // instead of accepting one and flagging it afterwards.
+            dtpDob.MaxDate = DateTime.Today;
 
             // Subscribe after initialization and data loading so the initial values
             // do not trigger delayed-registration calculations during construction.
@@ -1929,6 +1934,14 @@ namespace CROMS.Forms
                 tabControl.SelectedTab = tabChild;
                 return false;
             }
+            if (dtpDob.Value.Date > DateTime.Today)
+            {
+                MessageBox.Show("The date of birth is in the future. A child cannot be registered before being born.",
+                    "Invalid date of birth", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                tabControl.SelectedTab = tabChild;
+                dtpDob.Focus();
+                return false;
+            }
             return true;
         }
 
@@ -2750,7 +2763,13 @@ namespace CROMS.Forms
 
         private static void SetDate(DateTimePicker dtp, object v)
         {
-            if (v != DBNull.Value && v != null) dtp.Value = Convert.ToDateTime(v);
+            if (v == DBNull.Value || v == null) return;
+            DateTime d = Convert.ToDateTime(v);
+            // A stored date outside the picker's range (e.g. a future date of birth saved
+            // before the picker was bounded) would throw; clamp it so the record still opens.
+            if (d > dtp.MaxDate) d = dtp.MaxDate;
+            else if (d < dtp.MinDate) d = dtp.MinDate;
+            dtp.Value = d;
         }
 
         private static void SetOptionalDate(DateTimePicker dtp, object v)
