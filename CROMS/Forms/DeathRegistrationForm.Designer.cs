@@ -141,7 +141,6 @@ namespace CROMS.Forms
             this.lblRecent = new System.Windows.Forms.Label();
             this.pnlListActions = new System.Windows.Forms.FlowLayoutPanel();
             this.btnNewRegistration = new System.Windows.Forms.Button();
-            this.btnDeleteSelected = new System.Windows.Forms.Button();
             this.pnlSearch = new System.Windows.Forms.TableLayoutPanel();
             this.txtSearch = new System.Windows.Forms.TextBox();
             this.btnClearSearch = new System.Windows.Forms.Button();
@@ -1478,7 +1477,6 @@ namespace CROMS.Forms
             this.pnlListActions.AutoSize = true;
             this.pnlListActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.pnlListActions.Controls.Add(this.btnNewRegistration);
-            this.pnlListActions.Controls.Add(this.btnDeleteSelected);
             this.pnlListActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlListActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.pnlListActions.Location = new System.Drawing.Point(1108, 0);
@@ -1502,20 +1500,6 @@ namespace CROMS.Forms
             this.btnNewRegistration.Text = "+ New Death Registration";
             this.btnNewRegistration.UseVisualStyleBackColor = false;
             this.btnNewRegistration.Click += new System.EventHandler(this.btnNewRegistration_Click);
-            //
-            // btnDeleteSelected
-            //
-            this.btnDeleteSelected.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnDeleteSelected.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.btnDeleteSelected.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
-            this.btnDeleteSelected.Margin = new System.Windows.Forms.Padding(6, 6, 0, 6);
-            this.btnDeleteSelected.Name = "btnDeleteSelected";
-            this.btnDeleteSelected.Size = new System.Drawing.Size(150, 30);
-            this.btnDeleteSelected.TabIndex = 1;
-            this.btnDeleteSelected.Text = "Delete Selected";
-            this.btnDeleteSelected.UseVisualStyleBackColor = true;
-            this.btnDeleteSelected.Visible = false;
-            this.btnDeleteSelected.Click += new System.EventHandler(this.btnDeleteSelected_Click);
             //
             // pnlSearch
             //
@@ -1733,7 +1717,6 @@ namespace CROMS.Forms
         private System.Windows.Forms.Button btnBack;
         private System.Windows.Forms.Button btnNext;
         private System.Windows.Forms.Label lblStepHint;
-        private System.Windows.Forms.Button btnDeleteSelected;
 
         private CROMS.Modules.CardPanel cardRecords;
         private System.Windows.Forms.TableLayoutPanel layoutRecords;

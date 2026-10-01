@@ -86,7 +86,6 @@ namespace CROMS.Forms
             // Numbered step strip + at-a-glance rail + the per-step required-field gate
             // (replaces the old "first and last name" check on the tab headers).
             InitializeWizardChrome();
-            btnDeleteSelected.Visible = Session.IsAdmin;
             LoadDeaths();
             LearningLibrary.Attach(txtLastName, LearningLibrary.Surname);
             LearningLibrary.Attach(txtFirstName, LearningLibrary.GivenName);
@@ -863,39 +862,6 @@ namespace CROMS.Forms
                 ClearForm();
                 LoadDeaths();
                 ShowListView();
-            }
-            catch (Exception ex) { Fail(ex); }
-        }
-
-        // ---------- DELETE (list screen, administrators only) ----------
-        // A registry entry is not something the person filling in a form should be able to
-        // remove from inside that form, so deleting lives on the list - where the record is
-        // visibly chosen - and is limited to the administrator. It is audited either way.
-        private void btnDeleteSelected_Click(object sender, EventArgs e)
-        {
-            if (!Session.IsAdmin)
-            {
-                MessageBox.Show("Only an administrator can delete a registry entry.", "Delete",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            if (dgvDeaths.CurrentRow == null || !dgvDeaths.Columns.Contains("id"))
-            {
-                MessageBox.Show("Click a record in the list to delete it first.", "Delete",
-                    MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-            int id = Convert.ToInt32(dgvDeaths.CurrentRow.Cells["id"].Value);
-            string who = Str(dgvDeaths.CurrentRow.Cells["Deceased"].Value);
-            if (MessageBox.Show("Delete the death record of \"" + who + "\"?\n\nThis cannot be undone.",
-                "Confirm delete", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
-            try
-            {
-                Db.Push("DELETE FROM deaths WHERE id = @id", new MySqlParameter("@id", id));
-                Audit.Write(Audit.Delete, "deaths", id, who);
-                MessageBox.Show("Record deleted.", "Deleted", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                ClearForm();
-                LoadDeaths();
             }
             catch (Exception ex) { Fail(ex); }
         }
