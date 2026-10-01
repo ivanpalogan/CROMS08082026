@@ -27,8 +27,10 @@ namespace CROMS.Forms
         // pre-fills the search box. The record TYPE is picked first; changing it drops the pick.
         private int _pickedId;
         private string _pickedName;
+        private string _pickedStatus;   // the picked record's registry status, to warn about unfinished ones
         private string _findHint;      // the kiosk client's name, shown beside the button
         private RecordCriteria _criteria;  // everything the kiosk already captured about the record
+        private DataRow _kioskCtc;         // the kiosk intake row (ctc_requests) for the card, if any
 
         public void RefreshData() => LoadRequests();
 
@@ -44,14 +46,17 @@ namespace CROMS.Forms
             _queueTicketCode = ticketCode;
 
             // Pre-fill from what the client entered on the kiosk (name, purpose, photo).
-            string contact = "";
+            string contact = "", requester = "", ticketPurpose = "", idType = "";
+            _kioskCtc = null;
             System.Data.DataTable dt = Db.Pull(
                 "SELECT full_name, purpose, contact_no, id_image, document_type FROM queue_tickets WHERE id = " + ticketId);
             if (dt.Rows.Count > 0)
             {
                 var row = dt.Rows[0];
-                FillName(Text2(row["full_name"]));
-                txtPurpose.Text = Text2(row["purpose"]);
+                requester = Text2(row["full_name"]);
+                ticketPurpose = Text2(row["purpose"]);
+                FillName(requester);
+                txtPurpose.Text = ticketPurpose;
                 string requestedType = Text2(row["document_type"]);
                 if (requestedType == "Birth" || requestedType == "Marriage" || requestedType == "Death")
                     cboRecordType.SelectedItem = requestedType;
@@ -60,6 +65,17 @@ namespace CROMS.Forms
             }
 
             PrefillFromCtcIntake(ticketId);
+
+            // The valid ID the client said they would present (migration 34); optional.
+            try
+            {
+                System.Data.DataTable idt = Db.Pull("SELECT valid_id_type FROM queue_tickets WHERE id = @id",
+                    new MySqlParameter("@id", ticketId));
+                if (idt.Rows.Count > 0) idType = Text2(idt.Rows[0]["valid_id_type"]);
+            }
+            catch { /* database not yet on migration 34 */ }
+
+            RenderKioskCard(ticketCode, requester, contact, idType, ticketPurpose);
 
             pillQueueRef.Text = "Queue ticket " + ticketCode +
                 (contact.Length > 0 ? "   ·   " + contact : "");
@@ -85,11 +101,13 @@ namespace CROMS.Forms
             {
                 System.Data.DataTable c = Db.Pull(
                     "SELECT doc_type, copies, purpose, registry_no, owner_first, owner_middle, owner_last, " +
-                    "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province " +
+                    "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province, " +
+                    "relationship, father_name, mother_maiden_name, remarks " +
                     "FROM ctc_requests WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
                     new MySqlParameter("@id", ticketId));
                 if (c.Rows.Count == 0) return;
                 System.Data.DataRow r = c.Rows[0];
+                _kioskCtc = r;
 
                 string doc = Text2(r["doc_type"]);
                 if (doc == "Birth" || doc == "Marriage" || doc == "Death") cboRecordType.SelectedItem = doc;
@@ -165,6 +183,124 @@ namespace CROMS.Forms
             pillQueueRef.Visible = false;
             picClient.Image = null;
             cardPhoto.Visible = false;
+            HideKioskCard();
+        }
+
+        // ---------------------------------------------------------- "From the kiosk" card
+        /// <summary>
+        /// Shows what the client submitted at the kiosk, above the form, so staff can read it
+        /// while they work instead of re-typing it. Which details appear depends on the record
+        /// type the client asked for: a birth shows the child, a marriage both spouses, a death
+        /// the deceased. A detail the client left blank is simply not shown.
+        /// </summary>
+        private void RenderKioskCard(string ticketCode, string requester, string contact, string idType, string ticketPurpose)
+        {
+            flowKiosk.SuspendLayout();
+            foreach (Control old in flowKiosk.Controls.Cast<Control>().ToArray()) { flowKiosk.Controls.Remove(old); old.Dispose(); }
+
+            DataRow r = _kioskCtc;
+            string doc = r == null ? "" : Text2(r["doc_type"]);
+            string place = r == null ? "" : string.Join(", ",
+                new[] { Text2(r["event_city"]), Text2(r["event_province"]) }.Where(x => x.Length > 0));
+            string when = r != null && r["event_date"] != DBNull.Value && DateTime.TryParse(r["event_date"].ToString(), out DateTime ev)
+                ? ev.ToString("d MMMM yyyy") : "";
+
+            if (r != null)
+            {
+                string owner = RecordMatch.Join(Text2(r["owner_first"]), Text2(r["owner_middle"]), Text2(r["owner_last"]));
+                switch (doc)
+                {
+                    case "Birth":
+                        AddKioskChip("Child's name", owner);
+                        AddKioskChip("Date of birth", when);
+                        AddKioskChip("Place of birth", place);
+                        AddKioskChip("Father", Text2(r["father_name"]));
+                        AddKioskChip("Mother's maiden name", Text2(r["mother_maiden_name"]));
+                        break;
+                    case "Marriage":
+                        AddKioskChip("Husband", owner);
+                        AddKioskChip("Wife", RecordMatch.Join(Text2(r["spouse_first"]), Text2(r["spouse_middle"]), Text2(r["spouse_last"])));
+                        AddKioskChip("Date of marriage", when);
+                        AddKioskChip("Place of marriage", place);
+                        break;
+                    case "Death":
+                        AddKioskChip("Deceased", owner);
+                        AddKioskChip("Date of death", when);
+                        AddKioskChip("Place of death", place);
+                        break;
+                    default:
+                        AddKioskChip("Record owner", owner);
+                        break;
+                }
+                AddKioskChip("Registry no.", Text2(r["registry_no"]));
+                AddKioskChip("Relationship to owner", Text2(r["relationship"]));
+            }
+
+            AddKioskChip("Requested by", string.IsNullOrWhiteSpace(contact) ? requester : requester + "  \u00b7  " + contact);
+            AddKioskChip("Valid ID", idType);
+            if (r != null)
+            {
+                AddKioskChip("Copies", Text2(r["copies"]));
+                AddKioskChip("Purpose", Text2(r["purpose"]).Length > 0 ? Text2(r["purpose"]) : ticketPurpose);
+                AddKioskChip("Client's note", Text2(r["remarks"]));
+            }
+            else
+            {
+                AddKioskChip("Request", ticketPurpose);   // an older ticket with no structured intake
+            }
+            flowKiosk.ResumeLayout(true);
+
+            lblKioskTitle.Text = "From the kiosk  \u00b7  " + ticketCode +
+                (doc.Length > 0 ? "  \u00b7  " + doc + " certificate" : "");
+            cardKiosk.Visible = true;
+            AutoScrollMinSize = new Size(1150, 1100);   // the card adds height; keep the list reachable
+            FitKioskCard();
+        }
+
+        /// <summary>One caption + value pair. A blank value is not shown at all.</summary>
+        private void AddKioskChip(string caption, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            var chip = new FlowLayoutPanel
+            {
+                FlowDirection = FlowDirection.TopDown, WrapContents = false, AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.Transparent,
+                Margin = new Padding(0, 0, 34, 8)
+            };
+            chip.Controls.Add(new Label
+            {
+                Text = caption, AutoSize = true, Margin = new Padding(0),
+                Font = new Font("Segoe UI", 8.25F), ForeColor = UiTheme.Muted, UseMnemonic = false
+            });
+            chip.Controls.Add(new Label
+            {
+                Text = value.Trim(), AutoSize = true, Margin = new Padding(0, 1, 0, 0),
+                MaximumSize = new Size(360, 0),
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold), ForeColor = UiTheme.Ink, UseMnemonic = false
+            });
+            flowKiosk.Controls.Add(chip);
+        }
+
+        private void HideKioskCard()
+        {
+            _kioskCtc = null;
+            if (!cardKiosk.Visible) return;
+            cardKiosk.Visible = false;
+            foreach (Control old in flowKiosk.Controls.Cast<Control>().ToArray()) { flowKiosk.Controls.Remove(old); old.Dispose(); }
+            AutoScrollMinSize = new Size(1150, 950);
+        }
+
+        private void cardKiosk_SizeChanged(object sender, EventArgs e) => FitKioskCard();
+
+        /// <summary>Grows the card to hold its chips (they wrap onto a second line on a narrow
+        /// window). Changing the height does not change the width, so this cannot loop.</summary>
+        private void FitKioskCard()
+        {
+            if (!cardKiosk.Visible) return;
+            int width = Math.Max(300, cardKiosk.Width - cardKiosk.Padding.Horizontal);
+            int need = lblKioskTitle.Height + lblKioskHint.Height + cardKiosk.Padding.Vertical +
+                       flowKiosk.GetPreferredSize(new Size(width, 0)).Height + 4;
+            if (cardKiosk.Height != need) cardKiosk.Height = need;
         }
 
         /// <summary>Joins the three name parts into "First Middle Last", skipping blanks.</summary>
@@ -326,6 +462,7 @@ namespace CROMS.Forms
                     shell.GoToModule("certrequest");
                     _pickedId = id;
                     _pickedName = label;
+                    _pickedStatus = ReadStatus(type, id);
                     UpdateFindState();
                     UpdateSummary();
                 },
@@ -334,12 +471,33 @@ namespace CROMS.Forms
             if (!opened) shell.GoToModule("certrequest");
         }
 
+        private static string ReadStatus(string type, int id)
+        {
+            string table = RecordMatch.Table(type);
+            if (table == null) return null;
+            try
+            {
+                DataTable dt = Db.Pull("SELECT status FROM `" + table + "` WHERE id = @id", new MySqlParameter("@id", id));
+                return dt.Rows.Count > 0 && dt.Rows[0][0] != DBNull.Value ? dt.Rows[0][0].ToString() : null;
+            }
+            catch { return null; }
+        }
+
+        private static bool IsUnfinished(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status)) return false;
+            string s = status.ToLowerInvariant();
+            return s.Contains("draft") || s.Contains("pending") || s.Contains("review") ||
+                   s.Contains("reject") || s.Contains("cancel") || s.Contains("return");
+        }
+
         /// <summary>Forgets the chosen record — a record belongs to ONE register, so switching
         /// Birth/Marriage/Death must never leave a birth id sitting under "Marriage".</summary>
         private void ClearPick()
         {
             _pickedId = 0;
             _pickedName = null;
+            _pickedStatus = null;
             UpdateFindState();
         }
 
@@ -350,9 +508,17 @@ namespace CROMS.Forms
             bool hasType = cboRecordType.SelectedItem != null;
             btnFindRecord.Enabled = hasType;
 
-            if (_pickedId > 0)
+            if (_pickedId > 0 && IsUnfinished(_pickedStatus))
             {
-                lblFoundRecord.Text = "✔  " + _pickedName;
+                // A certificate is a copy of a REGISTERED record. A draft or pending one is not
+                // registered yet, so say so - but do not block: the clerk may know better.
+                lblFoundRecord.Text = "⚠  " + _pickedName + "  —  status: " + _pickedStatus +
+                                      " (not registered yet; check before issuing a certificate)";
+                lblFoundRecord.ForeColor = UiTheme.Warning;
+            }
+            else if (_pickedId > 0)
+            {
+                lblFoundRecord.Text = "✔  " + _pickedName + "  —  registered record, ready to view as a certificate";
                 lblFoundRecord.ForeColor = UiTheme.Success;
             }
             else if (!hasType)
@@ -568,7 +734,7 @@ namespace CROMS.Forms
 
             var head = new Label
             {
-                Text = "Step 2 of 4 — Print the Certificate",
+                Text = "Step 2 of 4 — View the Certificate",
                 Font = new Font("Segoe UI", 15F, FontStyle.Bold),
                 ForeColor = Color.FromArgb(33, 37, 41),
                 Location = new Point(24, 18), AutoSize = true
@@ -602,12 +768,12 @@ namespace CROMS.Forms
             };
 
             // ---- Step 1: Preview + Print --------------------------------------------------
-            var lblStep1 = StepLabel(1, "Preview and print the certificate");
+            var lblStep1 = StepLabel(1, "View the certificate — preview, then print");
             lblStep1.Location = new Point(26, 202);
 
             _btnPrint = new Button
             {
-                Text = "🖨  Preview & Print Certificate",
+                Text = "🖨  View Certificate  (Preview / Print)",
                 Location = new Point(26, 226), Size = new Size(508, 46),
                 FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(13, 110, 253),
                 ForeColor = Color.White, Font = new Font("Segoe UI", 11F, FontStyle.Bold),

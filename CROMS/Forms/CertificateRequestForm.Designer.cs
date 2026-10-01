@@ -96,6 +96,10 @@ namespace CROMS.Forms
             this.lblNextCap = new System.Windows.Forms.Label();
             this.pnlNextBar = new System.Windows.Forms.Panel();
             this.cardPhoto = new CROMS.Modules.CardPanel();
+            this.cardKiosk = new CROMS.Modules.CardPanel();
+            this.lblKioskTitle = new System.Windows.Forms.Label();
+            this.lblKioskHint = new System.Windows.Forms.Label();
+            this.flowKiosk = new System.Windows.Forms.FlowLayoutPanel();
             this.picClient = new System.Windows.Forms.PictureBox();
             this.lblPhotoCap = new System.Windows.Forms.Label();
             this.pnlValidation = new System.Windows.Forms.Panel();
@@ -130,6 +134,7 @@ namespace CROMS.Forms
             this.pnlNextStep.SuspendLayout();
             this.pnlNextBody.SuspendLayout();
             this.cardPhoto.SuspendLayout();
+            this.cardKiosk.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.picClient)).BeginInit();
             this.pnlValidation.SuspendLayout();
             this.flowActions.SuspendLayout();
@@ -145,15 +150,17 @@ namespace CROMS.Forms
             this.root.ColumnCount = 1;
             this.root.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
             this.root.Controls.Add(this.tblHeader, 0, 0);
-            this.root.Controls.Add(this.tblBody, 0, 1);
-            this.root.Controls.Add(this.pnlValidation, 0, 2);
-            this.root.Controls.Add(this.flowActions, 0, 3);
-            this.root.Controls.Add(this.cardRecent, 0, 4);
+            this.root.Controls.Add(this.cardKiosk, 0, 1);
+            this.root.Controls.Add(this.tblBody, 0, 2);
+            this.root.Controls.Add(this.pnlValidation, 0, 3);
+            this.root.Controls.Add(this.flowActions, 0, 4);
+            this.root.Controls.Add(this.cardRecent, 0, 5);
             this.root.Dock = System.Windows.Forms.DockStyle.Fill;
             this.root.Location = new System.Drawing.Point(0, 0);
             this.root.Name = "root";
             this.root.Padding = new System.Windows.Forms.Padding(24, 20, 24, 20);
-            this.root.RowCount = 5;
+            this.root.RowCount = 6;
+            this.root.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 570F));
             this.root.RowStyles.Add(new System.Windows.Forms.RowStyle());
@@ -1152,6 +1159,67 @@ namespace CROMS.Forms
             this.cardPhoto.Size = new System.Drawing.Size(491, 129);
             this.cardPhoto.TabIndex = 1;
             this.cardPhoto.Visible = false;
+            //
+            // cardKiosk
+            //
+            // Everything the client submitted at the kiosk, shown ABOVE the form so staff can see
+            // it while they work and never re-type it. Hidden unless the request came from a
+            // queue ticket; the chips inside are built at run time because WHICH details exist
+            // depends on the record type (a birth, a marriage and a death ask different things).
+            this.cardKiosk.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) | System.Windows.Forms.AnchorStyles.Right)));
+            this.cardKiosk.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
+            this.cardKiosk.CardColor = System.Drawing.Color.White;
+            this.cardKiosk.Controls.Add(this.flowKiosk);
+            this.cardKiosk.Controls.Add(this.lblKioskHint);
+            this.cardKiosk.Controls.Add(this.lblKioskTitle);
+            this.cardKiosk.DrawShadow = true;
+            this.cardKiosk.LineColor = System.Drawing.Color.FromArgb(((int)(((byte)(207)))), ((int)(((byte)(219)))), ((int)(((byte)(249)))));
+            this.cardKiosk.Location = new System.Drawing.Point(24, 74);
+            this.cardKiosk.Margin = new System.Windows.Forms.Padding(0, 14, 0, 0);
+            this.cardKiosk.Name = "cardKiosk";
+            this.cardKiosk.Padding = new System.Windows.Forms.Padding(20, 12, 20, 8);
+            this.cardKiosk.Radius = 10;
+            this.cardKiosk.Size = new System.Drawing.Size(1418, 120);
+            this.cardKiosk.TabIndex = 6;
+            this.cardKiosk.Visible = false;
+            this.cardKiosk.SizeChanged += new System.EventHandler(this.cardKiosk_SizeChanged);
+            //
+            // lblKioskTitle
+            //
+            this.lblKioskTitle.BackColor = System.Drawing.Color.Transparent;
+            this.lblKioskTitle.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblKioskTitle.Font = new System.Drawing.Font("Segoe UI", 10.5F, System.Drawing.FontStyle.Bold);
+            this.lblKioskTitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(29)))), ((int)(((byte)(78)))), ((int)(((byte)(216)))));
+            this.lblKioskTitle.Location = new System.Drawing.Point(20, 12);
+            this.lblKioskTitle.Name = "lblKioskTitle";
+            this.lblKioskTitle.Size = new System.Drawing.Size(1378, 22);
+            this.lblKioskTitle.TabIndex = 0;
+            this.lblKioskTitle.Text = "From the kiosk";
+            this.lblKioskTitle.UseMnemonic = false;
+            //
+            // lblKioskHint
+            //
+            this.lblKioskHint.BackColor = System.Drawing.Color.Transparent;
+            this.lblKioskHint.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblKioskHint.Font = new System.Drawing.Font("Segoe UI", 8.75F);
+            this.lblKioskHint.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblKioskHint.Location = new System.Drawing.Point(20, 34);
+            this.lblKioskHint.Name = "lblKioskHint";
+            this.lblKioskHint.Size = new System.Drawing.Size(1378, 20);
+            this.lblKioskHint.TabIndex = 1;
+            this.lblKioskHint.Text = "What the client submitted. The fields below are already filled in from it \u2014 check them, pick the certificate and record type, then click Find Record.";
+            this.lblKioskHint.UseMnemonic = false;
+            //
+            // flowKiosk
+            //
+            this.flowKiosk.BackColor = System.Drawing.Color.Transparent;
+            this.flowKiosk.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.flowKiosk.Location = new System.Drawing.Point(20, 54);
+            this.flowKiosk.Margin = new System.Windows.Forms.Padding(0);
+            this.flowKiosk.Name = "flowKiosk";
+            this.flowKiosk.Padding = new System.Windows.Forms.Padding(0, 6, 0, 0);
+            this.flowKiosk.Size = new System.Drawing.Size(1378, 58);
+            this.flowKiosk.TabIndex = 2;
             // 
             // picClient
             // 
@@ -1388,6 +1456,7 @@ namespace CROMS.Forms
             this.pnlNextStep.ResumeLayout(false);
             this.pnlNextBody.ResumeLayout(false);
             this.cardPhoto.ResumeLayout(false);
+            this.cardKiosk.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.picClient)).EndInit();
             this.pnlValidation.ResumeLayout(false);
             this.flowActions.ResumeLayout(false);
@@ -1412,6 +1481,10 @@ namespace CROMS.Forms
         private System.Windows.Forms.TableLayoutPanel tblBody;
         private System.Windows.Forms.TableLayoutPanel tblLeft;
         private System.Windows.Forms.TableLayoutPanel tblRight;
+        private CROMS.Modules.CardPanel cardKiosk;
+        private System.Windows.Forms.Label lblKioskTitle;
+        private System.Windows.Forms.Label lblKioskHint;
+        private System.Windows.Forms.FlowLayoutPanel flowKiosk;
 
         private CROMS.Modules.CardPanel cardClient;
         private System.Windows.Forms.TableLayoutPanel tblClient;
