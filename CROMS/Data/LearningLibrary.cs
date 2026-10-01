@@ -136,6 +136,24 @@ namespace CROMS.Data
             return list;
         }
 
+        /// <summary>True when the library already holds this value (case/accent/punctuation-
+        /// insensitive) under the category. Used to accept a place the master list lacks.</summary>
+        public static bool Contains(string category, string value)
+        {
+            if (string.IsNullOrWhiteSpace(category) || string.IsNullOrWhiteSpace(value)) return false;
+            string norm = Normalize(value);
+            if (norm.Length == 0) return false;
+            try
+            {
+                using (DataTable dt = Db.Pull(
+                    "SELECT 1 FROM reference_library WHERE category = @c AND normalized = @n LIMIT 1",
+                    new MySqlParameter("@c", category),
+                    new MySqlParameter("@n", norm)))
+                    return dt.Rows.Count > 0;
+            }
+            catch { return false; }
+        }
+
         /// <summary>Full autocomplete source for a category (all values, common first).</summary>
         public static AutoCompleteStringCollection Source(string category)
         {

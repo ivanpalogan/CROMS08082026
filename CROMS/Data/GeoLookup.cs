@@ -160,6 +160,12 @@ namespace CROMS.Data
         public static void CascadeAddress(ComboBox province, ComboBox municipality, ComboBox barangay)
         {
             if (province == null || municipality == null) return;
+            // A Philippine place must be a listed one (or already in the Learning Library).
+            // The lists are emptied for a foreign country, which is what switches this off.
+            Func<bool> philippine = () => province.Items.Count > 1;
+            Strict(province, LearningLibrary.Province, "province", philippine);
+            Strict(municipality, LearningLibrary.Municipality, "city / municipality", philippine);
+            Strict(barangay, LearningLibrary.Barangay, "barangay", philippine);
             province.SelectedIndexChanged += (s, e) =>
             {
                 LoadMunicipalities(municipality, province.Text);
@@ -168,6 +174,60 @@ namespace CROMS.Data
             if (barangay != null)
                 municipality.SelectedIndexChanged += (s, e) =>
                     LoadBarangays(barangay, province.Text, municipality.Text);
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ComboBox, object> _strict =
+            new System.Runtime.CompilerServices.ConditionalWeakTable<ComboBox, object>();
+
+        /// <summary>
+        /// Refuse a typed place that is not in the combo's list and not in the Learning Library.
+        /// <para/>
+        /// These cells are editable so a foreign locality can be typed, which also let
+        /// "sdcfd" be saved as a Philippine province. On leaving the box, a value that
+        /// matches a listed one (any case / accent) is snapped to the listed spelling; a
+        /// library value is accepted; anything else is CLEARED with a short notice, so
+        /// nothing unlisted can reach a record. <paramref name="applies"/> switches it off
+        /// for a foreign country, where there is no list to hold the value to.
+        /// </summary>
+        public static void Strict(ComboBox combo, string libraryCategory, string what, Func<bool> applies)
+        {
+            if (combo == null) return;
+            object seen;
+            if (_strict.TryGetValue(combo, out seen)) return;
+            _strict.Add(combo, new object());
+            var tip = new ToolTip { IsBalloon = true, ToolTipTitle = "Not a listed " + what };
+            combo.Leave += (s, e) =>
+            {
+                if (!Unlisted(combo, libraryCategory, applies)) return;
+                string bad = combo.Text.Trim();
+                combo.Text = "";
+                combo.SelectedIndex = combo.Items.Count > 0 ? 0 : -1;
+                try { tip.Show("\"" + bad + "\" is not in the list. Choose a " + what + " from the list.", combo, 0, combo.Height + 2, 3500); }
+                catch { }
+            };
+        }
+
+        /// <summary>True when the combo holds text that is neither listed nor in the library
+        /// (after snapping a case/accent variant to the listed spelling). Also usable as a
+        /// save-time guard: <c>if (GeoLookup.Unlisted(...)) refuse</c>.</summary>
+        public static bool Unlisted(ComboBox combo, string libraryCategory, Func<bool> applies)
+        {
+            if (combo == null) return false;
+            string text = (combo.Text ?? "").Trim();
+            if (text.Length == 0) return false;
+            if (applies != null && !applies()) return false;
+            string key = LearningLibrary.Normalize(text);
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                string item = combo.Items[i] == null ? "" : combo.Items[i].ToString();
+                if (item.Length > 0 && LearningLibrary.Normalize(item) == key)
+                {
+                    if (combo.SelectedIndex != i) combo.SelectedIndex = i;
+                    return false;
+                }
+            }
+            if (LearningLibrary.Contains(libraryCategory, text)) { Select(combo, text); return false; }
+            return true;
         }
 
         /// <summary>Province → municipality only, for a place of birth / death / marriage,

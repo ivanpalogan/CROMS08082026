@@ -360,6 +360,7 @@ namespace CROMS.Forms
             p.Cit = MUi.Combo(false); p.Rel = MUi.Combo(false); p.Res = MUi.Combo(false); p.Civil = MUi.Combo(false, MarriageRules.CivilStatuses);
             Bind(p.Cit, Read("nationalities")); Bind(p.Rel, Read("religions")); Bind(p.Res, Read("residences"));
             GeoLookup.LoadCountries(p.BirthCountry);
+            GeoLookup.CascadePlace(p.BirthProv, p.BirthMuni);
             GeoLookup.CascadeCountry(p.BirthCountry, p.BirthProv, p.BirthMuni, null);
             GeoLookup.Select(p.BirthCountry, GeoLookup.HomeCountry);
 
