@@ -179,7 +179,9 @@ namespace CROMS.Forms
             _remarks.Text = _l.Remarks;
             FillParty(_h, _l.Husband); FillParty(_w, _l.Wife);
             _orNo.Text = _l.PaymentOr; _orAmt.Text = _l.PaymentAmount.HasValue ? _l.PaymentAmount.Value.ToString("0.00") : "";
-            MUi.Put(_orDate, _l.PaymentDate);
+            // A new payment can only be dated today. A payment already on record keeps its own day (shown, not changeable).
+            MUi.OnlyDay(_orDate, _l.PaymentDate ?? DateTime.Today);
+            _orDate.Checked = _l.PaymentDate.HasValue;
             _finding.Text = _l.ImpedimentNote;
             _postStart.Value = _l.PostingStart ?? DateTime.Today;
             _loading = false;

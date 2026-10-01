@@ -342,6 +342,8 @@ namespace CROMS.Forms
             _docs.PartyOptions = new[] { "Both", "Husband", "Wife" };
             _docs.AllowBypass = MarriageService.CanBypass;
             _docs.Changed += () => RefreshAll();
+            MUi.NumericOnly(_orAmt);
+            MUi.OnlyDay(_orDate, DateTime.Today);
             TableLayoutPanel pay = MUi.Grid(4, 1, 58);
             pay.Controls.Add(MUi.Field("Official receipt no. (Treasury)", _orNo), 0, 0);
             pay.Controls.Add(MUi.Field("Amount (PHP)", _orAmt), 1, 0);

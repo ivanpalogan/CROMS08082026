@@ -157,6 +157,49 @@ namespace CROMS.Forms
             };
         }
 
+        /// <summary>Money box: digits and one decimal point only, at most 2 decimals. Typing is filtered and a paste is cleaned.</summary>
+        public static void NumericOnly(TextBox t)
+        {
+            t.KeyPress += (s, e) =>
+            {
+                if (char.IsControl(e.KeyChar)) return;
+                if (char.IsDigit(e.KeyChar))
+                {
+                    int dot = t.Text.IndexOf('.');
+                    bool typingOverSelection = t.SelectionLength > 0;
+                    if (dot >= 0 && t.SelectionStart > dot && !typingOverSelection && t.Text.Length - dot > 2) e.Handled = true;
+                    return;
+                }
+                if (e.KeyChar == '.' && (t.SelectedText.Contains(".") || t.Text.IndexOf('.') < 0)) return;
+                e.Handled = true;
+            };
+            bool busy = false;
+            t.TextChanged += (s, e) =>
+            {
+                if (busy) return;
+                var sb = new System.Text.StringBuilder();
+                bool seenDot = false; int decimals = 0;
+                foreach (char c in t.Text)
+                {
+                    if (char.IsDigit(c)) { if (seenDot) { if (decimals >= 2) continue; decimals++; } sb.Append(c); }
+                    else if (c == '.' && !seenDot) { seenDot = true; sb.Append(c); }
+                }
+                if (sb.ToString() == t.Text) return;
+                busy = true; int pos = t.SelectionStart;
+                t.Text = sb.ToString(); t.SelectionStart = Math.Min(pos, t.Text.Length);
+                busy = false;
+            };
+        }
+
+        /// <summary>Lock a picker to one day (the payment is recorded on the day it is entered).</summary>
+        public static void OnlyDay(DateTimePicker d, DateTime day)
+        {
+            day = day.Date;
+            d.MinDate = DateTimePicker.MinimumDateTime;   // widen first so setting Max below Min's old value cannot throw
+            d.MaxDate = DateTimePicker.MaximumDateTime;
+            d.MinDate = day; d.MaxDate = day; d.Value = day;
+        }
+
         public static DateTime? Val(DateTimePicker d) { return d.ShowCheckBox && !d.Checked ? (DateTime?)null : d.Value.Date; }
 
         public static void Put(DateTimePicker d, DateTime? v)
