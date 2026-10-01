@@ -831,7 +831,7 @@ namespace CROMS.Forms
             lblCategoryTitle.Text = _searchCategory.Label;
             pnlSearchBar.Visible = true;
             cardDetail.Visible = true;
-            btnViewRecord.Text = "Open in Module";
+            btnViewRecord.Text = "View Record Details";
             ApplyBounds();
             txtQuery.Focus();
         }
@@ -1077,12 +1077,8 @@ namespace CROMS.Forms
                               "record itself — they are blank here because the paper book entry " +
                               "has not been recorded for this record yet."));
 
-            Button open = MUi.Btn("Open in " + type + " Registration", MUi.Kind.Primary);
-            open.Dock = DockStyle.Top;
-            open.Margin = new Padding(0, 14, 0, 0);
-            open.Click += (s, e) => OpenSearchRecord();
-            rows.Add(open);
-
+            // The one record-opening control is the toolbar's btnViewRecord ("View Record Details").
+            // A second button here did the identical thing, so none is added to the rail.
             SearchStack(cardDetail, rows.ToArray());
             cardDetail.ResumeLayout(true);
         }
