@@ -1464,13 +1464,9 @@ namespace CROMS.Forms
                 string rMuni = dt.Columns.Contains(pre + "_res_municipality") ? S(pre + "_res_municipality") : "";
                 string rBrgy = dt.Columns.Contains(pre + "_res_barangay") ? S(pre + "_res_barangay") : "";
                 string rHouse = dt.Columns.Contains(pre + "_res_house") ? S(pre + "_res_house") : "";
-                if (rProv == "" && rMuni == "" && rBrgy == "" && rHouse == "" && r[pre + "_residence_id"] != DBNull.Value)
-                {
-                    // A record saved before migration 74 holds only the old pick-list entry. Show it
-                    // in the house/street box so nothing already on file is hidden; saving then keeps it.
-                    foreach (DataRow rr in Read("residences").Rows)
-                        if (Convert.ToString(rr["id"]) == Convert.ToString(r[pre + "_residence_id"])) { rHouse = Convert.ToString(rr["name"]); break; }
-                }
+                // House No. / Street is a plain typed box: never pre-filled from the old residence
+                // pick-list (migration 74 retired it). A pre-74 record keeps its old residence_id in
+                // the table and v_marriage_certificate still prints it until the new parts are typed.
                 GeoLookup.SetAddress(p.ResProv, p.ResMuni, p.ResBrgy, rProv, rMuni, rBrgy);
                 p.ResHouse.Text = rHouse;
                 p.Civil.SelectedItem = MarriageRules.CivilStatuses.Contains(S(pre + "_civil_status")) ? S(pre + "_civil_status") : null;
