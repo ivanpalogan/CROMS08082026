@@ -384,11 +384,7 @@ namespace CROMS.Forms
                     Font = tb.Font,
                     Margin = new Padding(0, 0, i == count - 1 ? 0 : 6, 0)
                 };
-                if (ed)
-                {
-                    cbo.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-                    cbo.AutoCompleteSource = AutoCompleteSource.ListItems;
-                }
+                if (ed) CROMS.Modules.SearchCombo.Attach(cbo);   // type-to-search popup
                 grid.Controls.Add(cbo, i, 0);
                 made[i] = cbo;
 

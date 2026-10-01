@@ -125,17 +125,22 @@ namespace CROMS.Modules
         private static void ApplySearch(ComboBox cb)
         {
             if (cb.IsDisposed || cb.Items.Count < SearchableMin) return;
-            if (cb.AutoCompleteMode != AutoCompleteMode.None) return;   // already configured by its form
+            if (SearchCombo.IsAttached(cb)) return;
 
+            // Search is our own popup (SearchCombo), never the native ListItems autocomplete:
+            // that one throws "Too many items in the combo box" on a big list.
             int idx = cb.SelectedIndex;
             if (cb.DropDownStyle == ComboBoxStyle.DropDownList)
             {
-                _pickOnly.Add(cb);
-                cb.DropDownStyle = ComboBoxStyle.DropDown;
-                if (idx >= 0 && idx < cb.Items.Count) cb.SelectedIndex = idx;
+                try
+                {
+                    cb.DropDownStyle = ComboBoxStyle.DropDown;
+                    _pickOnly.Add(cb);
+                    if (idx >= 0 && idx < cb.Items.Count) cb.SelectedIndex = idx;
+                }
+                catch (OutOfMemoryException) { return; }   // too large to rebuild: leave it a plain pick list
             }
-            cb.AutoCompleteSource = AutoCompleteSource.ListItems;
-            cb.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            SearchCombo.Attach(cb);
         }
 
         private static void SnapToItem(ComboBox cb)

@@ -142,7 +142,7 @@ namespace CROMS.Forms
                 Dock = DockStyle.Fill, Font = F(9.75F), Margin = new Padding(0, 0, 10, 0),
                 DropDownStyle = editable ? ComboBoxStyle.DropDown : ComboBoxStyle.DropDownList
             };
-            if (editable) { c.AutoCompleteMode = AutoCompleteMode.SuggestAppend; c.AutoCompleteSource = AutoCompleteSource.ListItems; }
+            if (editable) SearchCombo.Attach(c);   // type-to-search popup (own filter, not native autocomplete)
             if (items != null) foreach (string s in items) c.Items.Add(s);
             return c;
         }

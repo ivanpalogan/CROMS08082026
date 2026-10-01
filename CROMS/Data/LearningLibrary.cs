@@ -175,9 +175,10 @@ namespace CROMS.Data
         {
             if (box == null) return;
             EnsureSeeded();
-            // Plain typing: no autocomplete popup (it re-filtered a large list on every key).
-            // The library still LEARNS what was typed on Leave.
-            box.AutoCompleteMode = AutoCompleteMode.None;
+            // Search popup for the combo: its own list plus this library category's values.
+            // (Own filter - the native autocomplete chokes on big lists.) The library also
+            // LEARNS what was typed, on Leave.
+            CROMS.Modules.SearchCombo.UseLibrary(box, category);
 
             box.Leave += (s, e) =>
             {

@@ -301,10 +301,8 @@ namespace CROMS.Forms
             cboRecord.DataSource = dt;
             cboRecord.DisplayMember = "name";
             cboRecord.ValueMember = "id";
-            // Re-assert type-to-filter autocomplete after the DataSource swap (a rebind
-            // can drop the ListItems source), so typing part of a name filters the list.
-            cboRecord.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            cboRecord.AutoCompleteSource = AutoCompleteSource.ListItems;
+            // Type-to-search popup (own filter, no native autocomplete: the record list can be big).
+            CROMS.Modules.SearchCombo.Attach(cboRecord);
             cboRecord.SelectedIndex = -1;
         }
 

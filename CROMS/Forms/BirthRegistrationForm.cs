@@ -2659,12 +2659,11 @@ namespace CROMS.Forms
                 {
                     Name = tb.Name + "Lookup" + i,
                     DropDownStyle = ComboBoxStyle.DropDown,
-                    AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                    AutoCompleteSource = AutoCompleteSource.ListItems,
                     Dock = DockStyle.Top,
                     Font = tb.Font,
                     Margin = new Padding(0, 0, col == count - 1 ? 0 : 6, 0)
                 };
+                CROMS.Modules.SearchCombo.Attach(cbo);   // type-to-search popup
                 grid.Controls.Add(cbo, col, 0);
                 made[i] = cbo;
 
