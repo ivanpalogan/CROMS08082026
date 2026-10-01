@@ -54,12 +54,12 @@ namespace CROMS.Kiosk
             Application.AddMessageFilter(this);
         }
 
-        // Centred against the form's OWN ClientSize on Load/Resize, never a
+        // Sized and centred against the form's OWN ClientSize on Load/Resize, never a
         // Screen.PrimaryScreen snapshot taken in the constructor before the form has been
         // laid out — that static maths is what put the card off in a corner on this DPI.
-        private void CtcDetailsForm_Load(object sender, EventArgs e) { LoadFromSession(); ApplyDocType(); CenterCard(); }
+        private void CtcDetailsForm_Load(object sender, EventArgs e) { LoadFromSession(); ApplyDocType(); SizeCard(); }
 
-        private void CtcDetailsForm_Resize(object sender, EventArgs e) => CenterCard();
+        private void CtcDetailsForm_Resize(object sender, EventArgs e) => SizeCard();
 
         private void Document_SelectedIndexChanged(object sender, EventArgs e) => ApplyDocType();
 
@@ -98,6 +98,7 @@ namespace CROMS.Kiosk
                 : doc == "Death" ? "WHOSE RECORD — THE DECEASED" : "WHOSE RECORD";
             _eventCaption.Text = marriage ? "Date of marriage" : birth ? "Date of birth"
                 : doc == "Death" ? "Date of death" : "Date of the event";
+            SizeCard();
         }
 
         private void Continue_Click(object sender, EventArgs e)
@@ -179,12 +180,68 @@ namespace CROMS.Kiosk
         private static string Trim(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         // ------------------------------------------------------------------ helpers
-        private void CenterCard()
+        private float _fontScale = -1f;
+        private bool _sizing;
+
+        /// <summary>
+        /// The card takes ~88% of the screen width and ~86% of its height (92% on a short
+        /// screen such as 1366x768, where every pixel is needed), centred. Fonts and field
+        /// heights grow with the card, and whatever vertical room is left once the visible rows
+        /// are placed is shared between them, so the form fills the card instead of sitting in
+        /// its top half. Below a minimum size the FORM scrolls rather than squashing controls.
+        /// </summary>
+        private void SizeCard()
         {
-            _card.Location = new Point(
-                Math.Max(0, (ClientSize.Width - _card.Width) / 2),
-                Math.Max(0, (ClientSize.Height - _card.Height) / 2));
+            if (_sizing || _card == null || ClientSize.Width <= 0 || ClientSize.Height <= 0) return;
+            _sizing = true;
+            try
+            {
+                const int MinW = 900, MinH = 600;
+                double hFrac = ClientSize.Height < 900 ? 0.92 : 0.86;
+                int w = Math.Max(MinW, (int)(ClientSize.Width * 0.88));
+                int h = Math.Max(MinH, (int)(ClientSize.Height * hFrac));
+                _card.Size = new Size(w, h);
+                AutoScrollMinSize = new Size(w, h);
+
+                // Fonts follow the card, but only upward (the design size is already the
+                // smallest that reads on a kiosk) and in 5% steps so a resize does not rebuild
+                // every Font on every pixel.
+                float f = Math.Min(1.4f, Math.Max(1f, Math.Min(h / 760f, w / 1100f)));
+                f = (float)Math.Round(f * 20) / 20f;
+                if (Math.Abs(f - _fontScale) > 0.001f)
+                {
+                    _fontScale = f;
+                    SetFonts(_title, 26F * f, FontStyle.Bold);
+                    SetFonts(_subtitle, 10.5F * f, FontStyle.Regular);
+                    foreach (var c in _captions) SetFonts(c, 9F * f, FontStyle.Bold);
+                    foreach (var c in _inputs) c.Font = new Font("Segoe UI", 10.5F * f);
+                    foreach (var c in _sections) SetFonts(c, 8.5F * f, FontStyle.Bold);
+                    _title.Height = (int)(46 * f);
+                    _subtitle.Height = (int)(34 * f);
+                    foreach (var c in _captions) c.Height = (int)(24 * f);
+                    foreach (var c in _sections) c.Height = (int)(26 * f);
+                }
+
+                // Share the spare height between the field rows that are showing.
+                string doc = _document.SelectedItem as string;
+                bool block = doc == "Marriage" || doc == "Birth";
+                int fieldRows = 5 + (block ? 1 : 0);
+                int sections = 2 + (block ? 1 : 0);
+                int baseH = (int)(BaseFieldH * f);
+                int sectionH = (int)(26 * f) + 6;
+                int avail = _body.ClientSize.Height - 12;
+                int needed = fieldRows * baseH + sections * sectionH;
+                int extra = Math.Max(0, Math.Min((avail - needed) / fieldRows, (int)(40 * f)));
+                foreach (var p in _fieldPanels) p.Height = baseH + extra;
+
+                _card.Location = new Point(
+                    Math.Max(0, (ClientSize.Width - _card.Width) / 2),
+                    Math.Max(0, (ClientSize.Height - _card.Height) / 2));
+            }
+            finally { _sizing = false; }
         }
+
+        private static void SetFonts(Label l, float size, FontStyle style) => l.Font = new Font("Segoe UI", size, style);
 
         protected override void OnFormClosing(FormClosingEventArgs e)
         {

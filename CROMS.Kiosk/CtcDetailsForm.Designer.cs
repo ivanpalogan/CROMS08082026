@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -8,6 +8,9 @@ namespace CROMS.Kiosk
     public sealed partial class CtcDetailsForm
     {
         private Panel _card;
+        private Panel _body;
+        private TableLayoutPanel _grid;
+        private Label _title, _subtitle;
         private Button _back, _next;
 
         // Request
@@ -38,11 +41,19 @@ namespace CROMS.Kiosk
         private readonly Label _ownerCaption = new Label();
         private readonly Label _eventCaption = new Label();
 
+        // Every member of a block is one control (a field panel or a section heading), so
+        // hiding the block is one Visible flag per member and its table row collapses to 0.
         private readonly List<Control> _spouseBlock = new List<Control>();
         private readonly List<Control> _parentBlock = new List<Control>();
 
-        private const int CardW = 980, CardH = 760;
-        private const int Pad = 44, FieldW = 892;
+        // Everything that carries a font which follows the card size (see SizeCard).
+        private readonly List<Label> _captions = new List<Label>();
+        private readonly List<Control> _inputs = new List<Control>();
+        private readonly List<Label> _sections = new List<Label>();
+        private readonly List<Panel> _fieldPanels = new List<Panel>();
+
+        // Designed (1x) sizes; SizeCard multiplies them by the card's scale.
+        private const int BaseFieldH = 60, BaseSectionH = 26, GridCols = 6;
 
         private void InitializeComponent()
         {
@@ -53,13 +64,7 @@ namespace CROMS.Kiosk
             Font = new Font("Segoe UI", 10F);
             AutoScroll = true;
 
-            _card = new Panel
-            {
-                Size = new Size(CardW, CardH),
-                BackColor = KioskCore.CardBg,
-                Anchor = AnchorStyles.None,
-            };
-            AutoScrollMinSize = _card.Size;
+            _card = new Panel { BackColor = KioskCore.CardBg };
             Load += new EventHandler(CtcDetailsForm_Load);
             Resize += new EventHandler(CtcDetailsForm_Resize);
 
@@ -68,141 +73,224 @@ namespace CROMS.Kiosk
         }
 
         // ------------------------------------------------------------------ layout
+        // The card is a three-row table: heading / scrolling body / button bar. The body is a
+        // six-column grid, so every field gets a share of the card's width instead of a fixed
+        // pixel box - at any monitor size the fields stretch with the card and never overlap.
         private void BuildCard()
         {
-            int y = 34;
-            _card.Controls.Add(Title("Certified True Copy", Pad, y, 26F, KioskCore.Ink)); y += 44;
-            _card.Controls.Add(Title("Tell the records staff which entry to pull from the registry books. " +
-                "Only the document and the name are required.", Pad, y, 10.5F, KioskCore.Muted)); y += 34;
+            var root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(44, 28, 44, 24),
+                BackColor = Color.Transparent,
+            };
+            root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            // --- the request -------------------------------------------------
-            _card.Controls.Add(Section("WHAT YOU NEED", Pad, y)); y += 26;
+            // --- heading ------------------------------------------------------
+            var head = new Panel { Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.Transparent };
+            _subtitle = new Label
+            {
+                Text = "Tell the records staff which entry to pull from the registry books. Only the document and the name are required.",
+                Dock = DockStyle.Top,
+                Height = 34,
+                ForeColor = KioskCore.Muted,
+                Font = new Font("Segoe UI", 10.5F),
+                AutoEllipsis = true,
+            };
+            _title = new Label
+            {
+                Text = "Certified True Copy",
+                Dock = DockStyle.Top,
+                Height = 46,
+                ForeColor = KioskCore.Ink,
+                Font = new Font("Segoe UI", 26F, FontStyle.Bold),
+            };
+            head.Controls.Add(_subtitle);   // Dock=Top: last added sits on top
+            head.Controls.Add(_title);
+            root.Controls.Add(head, 0, 0);
+
+            // --- body (scrolls only if the screen is genuinely too small) -----
+            _body = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.Transparent, Margin = new Padding(0, 8, 0, 8) };
+            _grid = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = GridCols,
+                BackColor = Color.Transparent,
+                Padding = new Padding(0),
+            };
+            for (int i = 0; i < GridCols; i++) _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F / GridCols));
+            _body.Controls.Add(_grid);
+            root.Controls.Add(_body, 0, 1);
+
+            // --- the request --------------------------------------------------
+            Row(Section("WHAT YOU NEED"), 0, GridCols);
 
             _document.DropDownStyle = ComboBoxStyle.DropDownList;
             _document.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });
             _document.SelectedIndexChanged += new EventHandler(Document_SelectedIndexChanged);
-            Field("Document type *", _document, Pad, y, 280);
+            Row(Field("Document type *", _document), 0, 2, true);
 
             _copies.DropDownStyle = ComboBoxStyle.DropDownList;
             for (int i = 1; i <= 10; i++) _copies.Items.Add(i.ToString());
-            Field("Copies", _copies, Pad + 300, y, 120);
+            Field("Copies", _copies, out Panel pCopies);
+            _grid.Controls.Add(pCopies, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pCopies, 1);
 
             _purpose.Items.AddRange(KioskCore.CtcPurposes);
-            Field("Purpose", _purpose, Pad + 440, y, 452);
-            y += 74;
+            Field("Purpose", _purpose, out Panel pPurpose);
+            _grid.Controls.Add(pPurpose, 3, _grid.RowCount - 1); _grid.SetColumnSpan(pPurpose, 3);
 
             // --- whose record -------------------------------------------------
             _ownerCaption.Text = "WHOSE RECORD";
-            _card.Controls.Add(Section(_ownerCaption, Pad, y)); y += 26;
+            Row(Section(_ownerCaption), 0, GridCols);
 
-            Field("Registry number (if you know it)", _registryNo, Pad, y, 280);
+            Row(Field("Registry number (if you know it)", _registryNo), 0, 2, true);
             _relationship.Items.AddRange(KioskCore.CtcRelationships);
-            Field("You are the record owner's...", _relationship, Pad + 300, y, 592);
-            y += 74;
+            Field("You are the record owner's...", _relationship, out Panel pRel);
+            _grid.Controls.Add(pRel, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pRel, 4);
 
-            Field("First name *", _ownerFirst, Pad, y, 290);
-            Field("Middle name", _ownerMiddle, Pad + 302, y, 288);
-            Field("Last name *", _ownerLast, Pad + 602, y, 290);
-            y += 74;
+            Row(Field("First name *", _ownerFirst), 0, 2, true);
+            Field("Middle name", _ownerMiddle, out Panel pMid);
+            _grid.Controls.Add(pMid, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pMid, 2);
+            Field("Last name *", _ownerLast, out Panel pLast);
+            _grid.Controls.Add(pLast, 4, _grid.RowCount - 1); _grid.SetColumnSpan(pLast, 2);
 
             _eventDate.Format = DateTimePickerFormat.Long;
             _eventDate.ShowCheckBox = true;   // unticked = "the client does not know the date"
             _eventDate.Checked = false;
             _eventCaption.Text = "Date of the event";
-            Field(_eventCaption, _eventDate, Pad, y, 290);
-            Field("City / Municipality", _city, Pad + 302, y, 288);
-            Field("Province", _province, Pad + 602, y, 290);
-            y += 78;
+            Row(Field(_eventCaption, _eventDate), 0, 2, true);
+            Field("City / Municipality", _city, out Panel pCity);
+            _grid.Controls.Add(pCity, 2, _grid.RowCount - 1); _grid.SetColumnSpan(pCity, 2);
+            Field("Province", _province, out Panel pProv);
+            _grid.Controls.Add(pProv, 4, _grid.RowCount - 1); _grid.SetColumnSpan(pProv, 2);
 
             // --- conditional block (marriage: spouse | birth: parents) --------
-            int blockY = y;
             _lblSpouse.Text = "THE OTHER SPOUSE";
-            Label spouseHead = Section(_lblSpouse, Pad, blockY);
+            Label spouseHead = Section(_lblSpouse);
+            Row(spouseHead, 0, GridCols);
             _spouseBlock.Add(spouseHead);
-            _spouseBlock.Add(Field("First name", _spouseFirst, Pad, blockY + 26, 290));
-            _spouseBlock.Add(Field("Middle name", _spouseMiddle, Pad + 302, blockY + 26, 288));
-            _spouseBlock.Add(Field("Last name", _spouseLast, Pad + 602, blockY + 26, 290));
+            Panel s1 = Field("First name", _spouseFirst);
+            Row(s1, 0, 2, true);
+            _spouseBlock.Add(s1);
+            Field("Middle name", _spouseMiddle, out Panel s2);
+            _grid.Controls.Add(s2, 2, _grid.RowCount - 1); _grid.SetColumnSpan(s2, 2); _spouseBlock.Add(s2);
+            Field("Last name", _spouseLast, out Panel s3);
+            _grid.Controls.Add(s3, 4, _grid.RowCount - 1); _grid.SetColumnSpan(s3, 2); _spouseBlock.Add(s3);
 
             _lblParents.Text = "PARENTS ON THE RECORD";
-            Label parentHead = Section(_lblParents, Pad, blockY);
+            Label parentHead = Section(_lblParents);
+            Row(parentHead, 0, GridCols);
             _parentBlock.Add(parentHead);
-            _parentBlock.Add(Field("Father's full name", _father, Pad, blockY + 26, 440));
-            _parentBlock.Add(Field("Mother's maiden name", _mother, Pad + 452, blockY + 26, 440));
-            y = blockY + 100;
+            Panel p1 = Field("Father's full name", _father);
+            Row(p1, 0, 3, true);
+            _parentBlock.Add(p1);
+            Field("Mother's maiden name", _mother, out Panel p2);
+            _grid.Controls.Add(p2, 3, _grid.RowCount - 1); _grid.SetColumnSpan(p2, 3); _parentBlock.Add(p2);
 
             // --- remarks ------------------------------------------------------
             _remarks.MaxLength = 255;
-            Field("Anything else that helps find it (spelling variants, nickname, year only...)",
-                _remarks, Pad, y, FieldW);
-            y += 78;
+            Row(Field("Anything else that helps find it (spelling variants, nickname, year only...)", _remarks), 0, GridCols);
+
+            // --- button bar ---------------------------------------------------
+            var bar = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 1,
+                Height = 72,
+                BackColor = Color.Transparent,
+                Margin = new Padding(0),
+            };
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 220F));
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+            bar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 236F));
+            bar.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
             _back = ActionButton("Back", KioskCore.Line, KioskCore.Ink);
-            _back.Location = new Point(Pad, CardH - 86);
+            _back.Anchor = AnchorStyles.Left | AnchorStyles.Top;
             _back.Click += new EventHandler(Back_Click);
 
             _next = ActionButton("Continue", KioskCore.Accent, Color.White);
-            _next.Location = new Point(CardW - Pad - 220, CardH - 86);
+            _next.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _next.Margin = new Padding(3, 3, 19, 3);   // line up with the fields' right edge (they keep a 16px gutter)
             _next.Click += new EventHandler(Continue_Click);
 
-            _card.Controls.Add(_back);
-            _card.Controls.Add(_next);
+            bar.Controls.Add(_back, 0, 0);
+            bar.Controls.Add(_next, 2, 0);
+            root.Controls.Add(bar, 0, 2);
+
+            _card.Controls.Add(root);
         }
 
-        private Control Field(string caption, Control input, int x, int y, int width)
+        /// <summary>Starts a new grid row and puts <paramref name="c"/> in it. When
+        /// <paramref name="keepOpen"/> is true the caller adds more cells to the SAME row.</summary>
+        private void Row(Control c, int col, int span, bool keepOpen = false)
         {
-            var cap = new Label
-            {
-                Text = caption,
-                Location = new Point(x, y),
-                Size = new Size(width, 22),
-                Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                ForeColor = KioskCore.Ink,
-            };
-            return Field(cap, input, x, y, width);
+            _grid.RowCount += 1;
+            _grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            _grid.Controls.Add(c, col, _grid.RowCount - 1);
+            _grid.SetColumnSpan(c, span);
+            // keepOpen: later cells of this row use _grid.RowCount - 1 as their row. A row that
+            // is not kept open is simply never added to again.
         }
+
+        /// <summary>One field = a transparent panel holding the bold caption over the input.
+        /// It is a single control, so hiding it hides both and its row collapses.</summary>
+        private Panel Field(string caption, Control input) => Field(new Label { Text = caption }, input);
+
+        private void Field(string caption, Control input, out Panel panel) => panel = Field(new Label { Text = caption }, input);
 
         /// <summary>Overload taking a caption Label the caller keeps a reference to, so its text
         /// can follow the chosen document type ("Date of birth" / "Date of marriage").</summary>
-        private Control Field(Label caption, Control input, int x, int y, int width)
+        private Panel Field(Label caption, Control input)
         {
-            caption.Location = new Point(x, y);
-            caption.Size = new Size(width, 22);
-            caption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            caption.Dock = DockStyle.Top;
+            caption.Height = 24;
             caption.ForeColor = KioskCore.Ink;
+            caption.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            caption.AutoEllipsis = true;
+            caption.UseMnemonic = false;
 
-            input.Location = new Point(x, y + 24);
-            input.Size = new Size(width, 34);
+            input.Dock = DockStyle.Top;
             input.Font = new Font("Segoe UI", 10.5F);
 
-            _card.Controls.Add(caption);
-            _card.Controls.Add(input);
+            var p = new Panel
+            {
+                Dock = DockStyle.Fill,
+                Height = BaseFieldH,
+                Margin = new Padding(0, 0, 16, 0),
+                BackColor = Color.Transparent,
+            };
+            p.Controls.Add(input);      // Dock=Top: added first = below the caption
+            p.Controls.Add(caption);
 
-            // The caption is returned as the block member so a hidden block hides BOTH — the
-            // input follows its caption's visibility through the paired lists.
-            caption.Tag = input;
-            return caption;
+            _captions.Add(caption);
+            _inputs.Add(input);
+            _fieldPanels.Add(p);
+            return p;
         }
 
-        private Label Section(string text, int x, int y) => Section(new Label { Text = text }, x, y);
+        private Label Section(string text) => Section(new Label { Text = text });
 
-        private Label Section(Label label, int x, int y)
+        private Label Section(Label label)
         {
-            label.Location = new Point(x, y);
-            label.Size = new Size(FieldW, 20);
+            label.Dock = DockStyle.Fill;
+            label.Height = BaseSectionH;
+            label.TextAlign = ContentAlignment.BottomLeft;
             label.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             label.ForeColor = KioskCore.Accent;
-            _card.Controls.Add(label);
+            label.Margin = new Padding(0, 4, 0, 2);
+            label.UseMnemonic = false;
+            _sections.Add(label);
             return label;
         }
-
-        private static Label Title(string text, int x, int y, float size, Color color) => new Label
-        {
-            Text = text,
-            Location = new Point(x, y),
-            Size = new Size(FieldW, size > 14 ? 40 : 30),
-            Font = new Font("Segoe UI", size, size > 14 ? FontStyle.Bold : FontStyle.Regular),
-            ForeColor = color,
-        };
 
         private static Button ActionButton(string text, Color back, Color fore)
         {
