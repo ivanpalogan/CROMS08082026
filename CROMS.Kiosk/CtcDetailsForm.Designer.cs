@@ -270,7 +270,7 @@ namespace CROMS.Kiosk
             // A date picker's height is fixed by its font, so it gets a bigger one - it sets the
             // height every other input is matched to (see SizeCard).
             if (input is DateTimePicker) input.Font = Px(InputPx + 6);
-            if (input is TextBox tb) tb.AutoSize = false;   // lets SizeCard make it taller than its font
+            if (input is TextBox tb) { tb.AutoSize = false; tb.BorderStyle = BorderStyle.FixedSingle; }   // lets SizeCard make it taller than its font
             if (input is ComboBox cb)
             {
                 // Owner-drawn so the box and its list rows can be as tall as a finger needs.

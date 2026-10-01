@@ -475,18 +475,23 @@ namespace CROMS.Kiosk
             }
         }
 
+        /// <summary>Draws a dropdown row in the kiosk palette: the picked row is the soft accent tint (not
+        /// Windows' bright blue), and the box itself reads white with ink text - or grey while locked.</summary>
         private void Combo_DrawItem(object sender, DrawItemEventArgs e)
         {
             var cb = (ComboBox)sender;
-            e.DrawBackground();
+            bool edit = (e.State & DrawItemState.ComboBoxEdit) != 0;
+            bool hot = !edit && (e.State & DrawItemState.Selected) != 0;
+            Color back = !cb.Enabled ? Color.FromArgb(240, 242, 245) : hot ? KioskCore.CardSelBg : KioskCore.CardBg;
+            Color fore = !cb.Enabled ? KioskCore.Muted : hot ? KioskCore.Accent : KioskCore.Ink;
+            using (var b = new SolidBrush(back)) e.Graphics.FillRectangle(b, e.Bounds);
             if (e.Index >= 0)
             {
                 string text = cb.GetItemText(cb.Items[e.Index]);
                 var r = new Rectangle(e.Bounds.X + 6, e.Bounds.Y, e.Bounds.Width - 8, e.Bounds.Height);
-                TextRenderer.DrawText(e.Graphics, text, cb.Font, r, e.ForeColor,
+                TextRenderer.DrawText(e.Graphics, text, cb.Font, r, fore,
                     TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
             }
-            e.DrawFocusRectangle();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
