@@ -358,6 +358,9 @@ namespace CROMS.Forms
             // A child cannot be born in the future: the picker refuses later dates outright
             // instead of accepting one and flagging it afterwards.
             dtpDob.MaxDate = DateTime.Today;
+            // Same for the parents' marriage: it can follow the birth (legitimation) but it
+            // cannot be a date that has not happened yet.
+            dtpMarrDate.MaxDate = DateTime.Today;
 
             // Subscribe after initialization and data loading so the initial values
             // do not trigger delayed-registration calculations during construction.
@@ -1942,6 +1945,15 @@ namespace CROMS.Forms
                 dtpDob.Focus();
                 return false;
             }
+            // Covers a form left open past midnight, when MaxDate is stale.
+            if (tglParentsMarried.Checked && dtpMarrDate.Checked && dtpMarrDate.Value.Date > DateTime.Today)
+            {
+                MessageBox.Show("The parents' date of marriage is in the future.",
+                    "Invalid date of marriage", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                tabControl.SelectedTab = tabMarriage;
+                dtpMarrDate.Focus();
+                return false;
+            }
             return true;
         }
 
@@ -2774,7 +2786,16 @@ namespace CROMS.Forms
 
         private static void SetOptionalDate(DateTimePicker dtp, object v)
         {
-            if (v != DBNull.Value && v != null) { dtp.Value = Convert.ToDateTime(v); dtp.Checked = true; }
+            if (v != DBNull.Value && v != null)
+            {
+                // A stored date outside the picker's range (a future marriage date saved
+                // before the picker was bounded) would throw; clamp so the record still opens.
+                DateTime d = Convert.ToDateTime(v);
+                if (d > dtp.MaxDate) d = dtp.MaxDate;
+                else if (d < dtp.MinDate) d = dtp.MinDate;
+                dtp.Value = d;
+                dtp.Checked = true;
+            }
             else dtp.Checked = false;
         }
 
