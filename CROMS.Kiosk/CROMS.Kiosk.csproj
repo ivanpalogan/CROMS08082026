@@ -115,6 +115,7 @@
     <Compile Include="HoverFade.cs" />
     <Compile Include="AutoCaps.cs" />
     <Compile Include="GeoPick.cs" />
+    <Compile Include="NameField.cs" />
     <Compile Include="IdNumberMask.cs" />
     <Compile Include="KioskSession.cs" />
     <Compile Include="CtcDetailsForm.cs">

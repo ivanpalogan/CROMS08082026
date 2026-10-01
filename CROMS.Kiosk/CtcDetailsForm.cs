@@ -37,6 +37,14 @@ namespace CROMS.Kiosk
             InitializeComponent();
             SetupGeo();
             OthersBox.AttachInline(_purpose, 80);
+            // One name rule for every name box (see NameField). A full stop is kept because "Ma.
+            // Cristina" (first name), "A." (middle initial) and "Jr." (suffix) are all normal. The
+            // middle name may be left blank. AutoCaps only capitalises the first letter of a word.
+            foreach (TextBox t in new[] { _ownerFirst, _ownerLast, _spouseFirst, _spouseLast }) NameField.Attach(t, true);
+            NameField.Attach(_ownerMiddle, true, "Full name or initial");
+            NameField.Attach(_spouseMiddle, true, "Full name or initial");
+            NameField.Attach(_ownerSuffix, true, "Jr., Sr., III");
+            NameField.Attach(_spouseSuffix, true, "Jr., Sr., III");
             AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast, _ownerSuffix,
                 _spouseFirst, _spouseMiddle, _spouseLast, _spouseSuffix);
 
@@ -117,19 +125,19 @@ namespace CROMS.Kiosk
                 _document.Focus();
                 return;
             }
-            if (string.IsNullOrWhiteSpace(_ownerFirst.Text) || string.IsNullOrWhiteSpace(_ownerLast.Text))
+            if (!NameField.HasLetter(_ownerFirst.Text) || !NameField.HasLetter(_ownerLast.Text))
             {
                 Warn(_document.SelectedItem as string == "Marriage"
                     ? "Please enter the husband's first and last name."
                     : "Please enter the first and last name on the record you need a copy of.");
-                (string.IsNullOrWhiteSpace(_ownerFirst.Text) ? _ownerFirst : _ownerLast).Focus();
+                (!NameField.HasLetter(_ownerFirst.Text) ? _ownerFirst : _ownerLast).Focus();
                 return;
             }
             if (_document.SelectedItem as string == "Marriage"
-                && (string.IsNullOrWhiteSpace(_spouseFirst.Text) || string.IsNullOrWhiteSpace(_spouseLast.Text)))
+                && (!NameField.HasLetter(_spouseFirst.Text) || !NameField.HasLetter(_spouseLast.Text)))
             {
                 Warn("Please enter the wife's first and last name.");
-                (string.IsNullOrWhiteSpace(_spouseFirst.Text) ? _spouseFirst : _spouseLast).Focus();
+                (!NameField.HasLetter(_spouseFirst.Text) ? _spouseFirst : _spouseLast).Focus();
                 return;
             }
             if (!PlaceIsValid()) return;
@@ -174,19 +182,19 @@ namespace CROMS.Kiosk
             _session.CtcPurpose = Trim(OthersBox.Value(_purpose));
             _session.CtcRelationship = Trim(_relationship.Text);
             _session.CtcRegistryNo = Trim(_registryNo.Text);
-            _session.CtcOwnerFirst = Trim(_ownerFirst.Text);
-            _session.CtcOwnerMiddle = Trim(_ownerMiddle.Text);
-            _session.CtcOwnerLast = Trim(_ownerLast.Text);
-            _session.CtcOwnerSuffix = Trim(_ownerSuffix.Text);
+            _session.CtcOwnerFirst = Trim(NameField.Clean(_ownerFirst.Text, true));
+            _session.CtcOwnerMiddle = Trim(NameField.Clean(_ownerMiddle.Text, true));
+            _session.CtcOwnerLast = Trim(NameField.Clean(_ownerLast.Text, true));
+            _session.CtcOwnerSuffix = Trim(NameField.Clean(_ownerSuffix.Text, true));
 
             // A block that is not on screen must not contribute to the request — switching
             // Marriage to Death after typing a spouse would otherwise file a death record
             // with a spouse name nobody ever saw.
             bool marriage = _session.CtcDocumentType == "Marriage";
-            _session.CtcSpouseFirst = marriage ? Trim(_spouseFirst.Text) : null;
-            _session.CtcSpouseMiddle = marriage ? Trim(_spouseMiddle.Text) : null;
-            _session.CtcSpouseLast = marriage ? Trim(_spouseLast.Text) : null;
-            _session.CtcSpouseSuffix = marriage ? Trim(_spouseSuffix.Text) : null;
+            _session.CtcSpouseFirst = marriage ? Trim(NameField.Clean(_spouseFirst.Text, true)) : null;
+            _session.CtcSpouseMiddle = marriage ? Trim(NameField.Clean(_spouseMiddle.Text, true)) : null;
+            _session.CtcSpouseLast = marriage ? Trim(NameField.Clean(_spouseLast.Text, true)) : null;
+            _session.CtcSpouseSuffix = marriage ? Trim(NameField.Clean(_spouseSuffix.Text, true)) : null;
 
             _session.CtcEventDate = _eventDate.Checked ? _eventDate.Value.Date : (DateTime?)null;
             // The placeholder shown while the city box is locked must never be saved as a city.
