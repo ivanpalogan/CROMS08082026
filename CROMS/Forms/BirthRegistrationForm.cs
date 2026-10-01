@@ -68,6 +68,7 @@ namespace CROMS.Forms
         private Panel _reqHost;
         private int _reqStepIndex = -1;
         private Button _btnClearForm;
+        private Button _btnPrintFooter;
 
         // Auto-save: while the popup is open, a typed change is persisted as a Draft in the
         // background (AutoSaveTick), so closing the popup without Submitting never loses
@@ -471,10 +472,26 @@ namespace CROMS.Forms
                 };
                 _btnClearForm.Click += btnClearForm_Click;
             }
+            // The record-action toolbar (which carries Print Certificate) stays behind in the
+            // module, so without this the certificate could not be opened from the popup at all.
+            if (_btnPrintFooter == null)
+            {
+                _btnPrintFooter = new Button
+                {
+                    Width = 230,
+                    Height = 40,
+                    Text = "Print Certificate",
+                    FlatStyle = FlatStyle.Flat,
+                    Font = new System.Drawing.Font("Segoe UI", 9.75F),
+                    Margin = new Padding(10, 0, 0, 0)
+                };
+                _btnPrintFooter.Click += btnPrintCert_Click;
+            }
             btnSubmit.Visible = true;
             btnSubmit.Margin = new Padding(0);
             footer.Controls.Add(btnSubmit);
             footer.Controls.Add(_btnClearForm);
+            footer.Controls.Add(_btnPrintFooter);
 
             var root = new TableLayoutPanel
             {
@@ -757,7 +774,8 @@ namespace CROMS.Forms
             // BirthCertificatePrinter's measured coordinates now live in FormCatalog as
             // this form's print map, so the replica is unchanged — it is just no longer
             // hardcoded to Municipal Form 102.
-            CROMS.Data.CertificateReport.Show(_formCode, _editingId.Value, this);
+            // Owner is the popup while it is open: a modal shown over a blocked form is hidden.
+            CROMS.Data.CertificateReport.Show(_formCode, _editingId.Value, (IWin32Window)_entryDialog ?? this);
         }
 
         /// <summary>
