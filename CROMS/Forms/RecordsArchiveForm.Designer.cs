@@ -10,6 +10,7 @@ namespace CROMS.Forms
         private System.Windows.Forms.Label lblCount;
         private System.Windows.Forms.Button btnRefresh;
         private System.Windows.Forms.Button btnViewRecord;
+        private System.Windows.Forms.Button btnViewCertificate;
         private System.Windows.Forms.DataGridView grid;
         private System.Windows.Forms.Panel pnlSearchBar;
         private System.Windows.Forms.TextBox txtQuery;
@@ -33,6 +34,7 @@ namespace CROMS.Forms
             this.lblCount = new System.Windows.Forms.Label();
             this.btnRefresh = new System.Windows.Forms.Button();
             this.btnViewRecord = new System.Windows.Forms.Button();
+            this.btnViewCertificate = new System.Windows.Forms.Button();
             this.grid = new System.Windows.Forms.DataGridView();
             this.pnlSearchBar = new System.Windows.Forms.Panel();
             this.txtQuery = new System.Windows.Forms.TextBox();
@@ -125,6 +127,20 @@ namespace CROMS.Forms
             this.btnViewRecord.Text = "View Full Record";
             this.btnViewRecord.UseVisualStyleBackColor = false;
             this.btnViewRecord.Click += new System.EventHandler(this.btnViewRecord_Click);
+            //
+            // btnViewCertificate
+            //
+            this.btnViewCertificate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.btnViewCertificate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnViewCertificate.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
+            this.btnViewCertificate.Location = new System.Drawing.Point(580, 792);
+            this.btnViewCertificate.Name = "btnViewCertificate";
+            this.btnViewCertificate.Size = new System.Drawing.Size(200, 40);
+            this.btnViewCertificate.TabIndex = 7;
+            this.btnViewCertificate.Text = "View Certificate";
+            this.btnViewCertificate.UseVisualStyleBackColor = true;
+            this.btnViewCertificate.Visible = false;
+            this.btnViewCertificate.Click += new System.EventHandler(this.btnViewCertificate_Click);
             //
             // grid
             //
@@ -223,6 +239,7 @@ namespace CROMS.Forms
             this.Controls.Add(this.cardDetail);
             this.Controls.Add(this.grid);
             this.Controls.Add(this.pnlSearchBar);
+            this.Controls.Add(this.btnViewCertificate);
             this.Controls.Add(this.btnViewRecord);
             this.Controls.Add(this.btnRefresh);
             this.Controls.Add(this.lblCount);

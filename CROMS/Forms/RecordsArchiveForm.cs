@@ -333,6 +333,7 @@ namespace CROMS.Forms
             lblCategoryTitle.Text = cat.Label;
             grid.Visible = false;
             btnViewRecord.Visible = false;
+            btnViewCertificate.Visible = false;
             lblCount.Visible = false;
             btnRefresh.Visible = false;
 
@@ -832,6 +833,7 @@ namespace CROMS.Forms
             pnlSearchBar.Visible = true;
             cardDetail.Visible = true;
             btnViewRecord.Text = "View Record Details";
+            btnViewCertificate.Visible = true;
             ApplyBounds();
             txtQuery.Focus();
         }
@@ -841,6 +843,7 @@ namespace CROMS.Forms
             pnlSearchBar.Visible = false;
             cardDetail.Visible = false;
             btnViewRecord.Text = "View Full Record";
+            btnViewCertificate.Visible = false;
             ApplyBounds();
         }
 
@@ -1193,6 +1196,45 @@ namespace CROMS.Forms
             if (birth != null) birth.OpenRecordForEdit(id);
             else if (marriage != null) marriage.OpenRecordForEdit(id);
             else if (death != null) death.OpenRecordForEdit(id);
+        }
+
+        /// <summary>
+        /// Opens the selected hit's certificate (preview, with Print from the viewer) straight
+        /// from the archive — the same shared path Birth Registration's Print Certificate uses,
+        /// so no registration window has to be opened. The record's own stored form revision
+        /// decides the layout (ShowFor reads form_code), so an old record prints on its own form.
+        /// </summary>
+        private void btnViewCertificate_Click(object sender, EventArgs e)
+        {
+            DataGridViewRow row = SearchSelectedRow();
+            if (row == null)
+            {
+                MessageBox.Show("Select a record in the list first.", "View Certificate",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            DocKind kind;
+            switch (SearchCell(row, "Type"))
+            {
+                case "Birth": kind = DocKind.Birth; break;
+                case "Marriage": kind = DocKind.Marriage; break;
+                case "Death": kind = DocKind.Death; break;
+                default: return;
+            }
+
+            long id;
+            if (!long.TryParse(SearchCell(row, "id"), out id)) return;
+
+            try
+            {
+                // ShowFor explains itself (record not found / unknown form) when it returns null.
+                CertificateReport.ShowFor(kind, id, this);
+            }
+            catch (Exception ex)
+            {
+                ErrorLog.Report(this, "Records Archive", ex, "open");
+            }
         }
 
         /// <summary>Walks up the control tree to the application shell (MainForm).</summary>
