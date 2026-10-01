@@ -28,8 +28,9 @@ namespace CROMS.Kiosk
         private readonly TextBox _ownerLast = new TextBox();
         private readonly TextBox _ownerSuffix = new TextBox();
         private readonly DateTimePicker _eventDate = new DateTimePicker();
-        private readonly TextBox _province = new TextBox();
-        private readonly TextBox _city = new TextBox();
+        // Province first, then only that province's cities / municipalities (see SetupGeo).
+        private readonly ComboBox _province = new ComboBox();
+        private readonly ComboBox _city = new ComboBox();
 
         // Marriage only: the wife's name.
         private readonly TextBox _spouseFirst = new TextBox();

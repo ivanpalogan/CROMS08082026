@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace CROMS.Kiosk
@@ -34,6 +35,7 @@ namespace CROMS.Kiosk
         {
             _session = session;
             InitializeComponent();
+            SetupGeo();
             OthersBox.AttachInline(_purpose, 80);
             AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast, _ownerSuffix,
                 _spouseFirst, _spouseMiddle, _spouseLast, _spouseSuffix);
@@ -58,6 +60,7 @@ namespace CROMS.Kiosk
         // Screen.PrimaryScreen snapshot taken in the constructor before the form has been
         // laid out — that static maths is what put the card off in a corner on this DPI.
         private void CtcDetailsForm_Load(object sender, EventArgs e) { LoadFromSession(); ApplyDocType(); SizeCard(); }
+
 
         private void CtcDetailsForm_Resize(object sender, EventArgs e) => SizeCard();
 
@@ -129,6 +132,7 @@ namespace CROMS.Kiosk
                 (string.IsNullOrWhiteSpace(_spouseFirst.Text) ? _spouseFirst : _spouseLast).Focus();
                 return;
             }
+            if (!PlaceIsValid()) return;
             SaveToSession();
             _navigating = true;
             DialogResult = DialogResult.OK;
@@ -158,8 +162,7 @@ namespace CROMS.Kiosk
             _spouseSuffix.Text = _session.CtcSpouseSuffix ?? "";
             if (_session.CtcEventDate.HasValue) { _eventDate.Value = _session.CtcEventDate.Value; _eventDate.Checked = true; }
             else _eventDate.Checked = false;
-            _city.Text = _session.CtcEventCity ?? "";
-            _province.Text = _session.CtcEventProvince ?? "";
+            LoadPlace(_session.CtcEventProvince, _session.CtcEventCity);
             _remarks.Text = _session.CtcDetails ?? "";
         }
 
@@ -186,14 +189,111 @@ namespace CROMS.Kiosk
             _session.CtcSpouseSuffix = marriage ? Trim(_spouseSuffix.Text) : null;
 
             _session.CtcEventDate = _eventDate.Checked ? _eventDate.Value.Date : (DateTime?)null;
-            _session.CtcEventCity = Trim(_city.Text);
+            // The placeholder shown while the city box is locked must never be saved as a city.
             _session.CtcEventProvince = Trim(_province.Text);
+            _session.CtcEventCity = _city.Enabled ? Trim(_city.Text) : null;
             _session.CtcDetails = Trim(_remarks.Text);
         }
 
         private static string Trim(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
         // ------------------------------------------------------------------ helpers
+        // ------------------------------------------------------------------ place of the event
+        // Province -> City/Municipality, from the official PSGC lists the staff app uses. The city
+        // box stays locked ("Select Province First") until a province is chosen, and then lists
+        // only that province's cities and municipalities. Both boxes search as the client types.
+        private const string CityLocked = "Select Province First";
+        private readonly ToolTip _geoTip = new ToolTip { IsBalloon = false, AutoPopDelay = 3500 };
+        private bool _geoOffline;      // lists could not be loaded: both boxes fall back to plain typing
+
+        private void SetupGeo()
+        {
+            var provinces = GeoData.Provinces();
+            _geoOffline = provinces.Count == 0;
+            foreach (ComboBox c in new[] { _province, _city })
+            {
+                c.DropDownStyle = ComboBoxStyle.DropDown;
+                SearchPick.Attach(c);
+            }
+            if (_geoOffline) return;   // no PSGC data reachable: leave both as ordinary text boxes
+
+            _province.Items.AddRange(provinces.ToArray());
+            SearchPick.Refresh(_province);
+            _province.SelectedIndexChanged += (s, e) => ProvincePicked();
+            _province.TextUpdate += (s, e) => { if (_city.Enabled) LockCity(); };   // typing again un-picks the province
+            _province.Leave += (s, e) => CheckProvince();
+            _city.Leave += (s, e) => CheckCity();
+            LockCity();
+        }
+
+        private void LockCity()
+        {
+            _city.Items.Clear();
+            SearchPick.Refresh(_city);
+            _city.Text = CityLocked;
+            _city.Enabled = false;
+        }
+
+        private void ProvincePicked()
+        {
+            int id = GeoData.ProvinceId(_province.Text);
+            if (id == 0) { LockCity(); return; }
+            _city.Enabled = true;
+            _city.Items.Clear();
+            _city.Items.AddRange(GeoData.Municipalities(id).ToArray());
+            SearchPick.Refresh(_city);
+            _city.Text = "";
+            _city.SelectedIndex = -1;
+        }
+
+        /// <summary>Typed text that is not a real province is cleared - a wrong place on a record is worse than a blank one.</summary>
+        private void CheckProvince()
+        {
+            if (_geoOffline || string.IsNullOrWhiteSpace(_province.Text)) return;
+            int idx = FindListed(_province, _province.Text);
+            if (idx >= 0) { if (_province.SelectedIndex != idx) _province.SelectedIndex = idx; return; }
+            _province.Text = "";
+            LockCity();
+            _geoTip.Show("Please pick a province from the list.", _province, 0, _province.Height + 2, 3000);
+        }
+
+        private void CheckCity()
+        {
+            if (_geoOffline || !_city.Enabled || string.IsNullOrWhiteSpace(_city.Text)) return;
+            int idx = FindListed(_city, _city.Text);
+            if (idx >= 0) { if (_city.SelectedIndex != idx) _city.SelectedIndex = idx; return; }
+            _city.Text = "";
+            _geoTip.Show("Please pick a city or municipality from the list.", _city, 0, _city.Height + 2, 3000);
+        }
+
+        private static int FindListed(ComboBox cb, string text)
+        {
+            string n = GeoData.Normalize(text);
+            for (int i = 0; i < cb.Items.Count; i++)
+                if (GeoData.Normalize(cb.GetItemText(cb.Items[i])) == n) return i;
+            return -1;
+        }
+
+        private void LoadPlace(string province, string city)
+        {
+            if (_geoOffline) { _province.Text = province ?? ""; _city.Text = city ?? ""; return; }
+            int idx = string.IsNullOrWhiteSpace(province) ? -1 : FindListed(_province, province);
+            if (idx < 0) { _province.SelectedIndex = -1; _province.Text = ""; LockCity(); return; }
+            _province.SelectedIndex = idx;       // fires ProvincePicked, which fills the city list
+            if (!string.IsNullOrWhiteSpace(city))
+            {
+                int c = FindListed(_city, city);
+                if (c >= 0) _city.SelectedIndex = c; else _city.Text = city;
+            }
+        }
+
+        private bool PlaceIsValid()
+        {
+            CheckProvince();
+            CheckCity();
+            return true;
+        }
+
         private bool _sizing;
 
         // Vertical spacing tiers, roomiest first. A tall screen gets the first; a short one
