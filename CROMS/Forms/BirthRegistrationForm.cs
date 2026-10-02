@@ -1276,19 +1276,20 @@ namespace CROMS.Forms
         /// </summary>
         private void btnSubmit_Click(object sender, EventArgs e)
         {
+            // Bypass is only worth offering when a required-field check actually failed.
+            // A record that passes every check submits straight away - asking "bypass?"
+            // when there is nothing to bypass is just noise.
+            if (ValidateChild()) { SubmitRecord(null); return; }
+
             IWin32Window owner = _entryDialog ?? (IWin32Window)this;
             DialogResult choice = MessageBox.Show(owner,
-                "Submit this birth registration for approval?\n\n" +
-                "Click YES to use BYPASS (skips the required-field checks; needs " +
-                "you to re-enter your password and is written to the audit trail).\n" +
-                "Click NO to submit normally.",
-                "Submit for Approval", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-            if (choice == DialogResult.Cancel) return;
-
-            if (choice == DialogResult.Yes) { DoBypassSubmit(); return; }
-
-            if (!ValidateChild()) return;
-            SubmitRecord(null);
+                "Some required entries are missing (shown in red).\n\n" +
+                "Submit anyway with BYPASS? It skips the required-field checks, needs " +
+                "you to re-enter your password and is written to the audit trail.\n\n" +
+                "Click NO to go back and fill them in.",
+                "Submit for Approval", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+            if (choice == DialogResult.Yes) DoBypassSubmit();
         }
 
         /// <summary>
