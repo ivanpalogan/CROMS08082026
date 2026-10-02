@@ -529,44 +529,14 @@ namespace CROMS.Forms
             return MarriageRules.ApplyOverride(issues, _l);
         }
 
-        /// <summary>The same issues, WITHOUT the override applied - used only to decide whether
-        /// the Admin Override button has anything to offer (there is no point overriding when
-        /// nothing is actually missing, and payment can never be overridden so it alone doesn't
-        /// count).</summary>
-        private bool HasOverridableIssues()
-        {
-            if (_l.Id <= 0) return false;
-            return MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s).Where(i => i.Blocks).Any(i => i.Code != "PAYMENT");
-        }
-
+        /// <summary>Withdraws a whole-application override carried by an older application. New
+        /// overrides are no longer created here - bypass a requirement from its own row instead.</summary>
         private void DoAdminOverride()
         {
-            if (_l.RequirementsOverrideBy.HasValue)
-            {
-                if (!MUi.Confirm(this, "Withdraw override", "Withdraw the requirements override on this application?",
-                        "Reason on file|" + _l.RequirementsOverrideReason)) return;
-                try { MarriageService.ClearRequirementsOverride(_l.Id); Reload(); }
-                catch (Exception ex) { MUi.Fail(this, ex); }
-                return;
-            }
-
-            List<RuleIssue> toBypass = MarriageRules.ValidateForIssue(Current(), _catalog, DateTime.Today, _s)
-                .Where(i => i.Blocks && i.Code != "PAYMENT").ToList();
-            if (toBypass.Count == 0)
-            {
-                MessageBox.Show(this, "Nothing to override - the only outstanding item is payment, and that can never be bypassed.",
-                    "Admin Override", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
-
-            string reason = MUi.AskWithChecklist(this, "Admin Override",
-                "This will let the licence issue with the following still unresolved:",
-                toBypass.Select(i => i.Message),
-                "Issuing anyway will be permanently recorded with your name and role on the application and in the audit trail.\n\n" +
-                "Payment can NEVER be bypassed by this override - it will still be required.",
-                "Proceed With Override");
-            if (reason == null) return;
-            try { MarriageService.OverrideRequirements(_l.Id, reason); Reload(); }
+            if (!_l.RequirementsOverrideBy.HasValue) return;
+            if (!MUi.Confirm(this, "Withdraw override", "Withdraw the requirements override on this application?",
+                    "Reason on file|" + _l.RequirementsOverrideReason)) return;
+            try { MarriageService.ClearRequirementsOverride(_l.Id); Reload(); }
             catch (Exception ex) { MUi.Fail(this, ex); }
         }
 
@@ -739,8 +709,11 @@ namespace CROMS.Forms
             if (_l.IssueDate.HasValue) { _issue.Enabled = false; _adminOverride.Visible = false; _footReason.Text = "Licence " + _l.LicenseNo + " issued " + MUi.D(_l.IssueDate) + "."; return; }
 
             bool overridden = _l.RequirementsOverrideBy.HasValue;
-            _adminOverride.Visible = MarriageService.CanBypass && !_dirty && (overridden || HasOverridableIssues());
-            _adminOverride.Text = overridden ? "Withdraw Override" : "Admin Override";
+            // Requirements are bypassed one row at a time in the checklist now, so this button no
+            // longer offers a new whole-application override. It stays ONLY to withdraw an override
+            // that an older application already carries - otherwise that override could never be undone.
+            _adminOverride.Visible = MarriageService.CanBypass && !_dirty && overridden;
+            _adminOverride.Text = "Withdraw Override";
 
             List<RuleIssue> issues = IssueIssues();
             _issue.Enabled = issues.Count == 0 && !_dirty;
