@@ -2362,7 +2362,10 @@ namespace CROMS.Forms
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterParent;
             MinimizeBox = false; MaximizeBox = false;
-            ClientSize = new Size(880, 560);
+            // A representative release gets a third column for the authorization letter.
+            bool isRep = !string.IsNullOrWhiteSpace(repInfo);
+            int dlgW = isRep ? 1340 : 880;
+            ClientSize = new Size(dlgW, 560);
             BackColor = Color.White;
             Font = new Font("Segoe UI", 10F);
 
@@ -2403,6 +2406,25 @@ namespace CROMS.Forms
                     catch { }
             }
 
+            // Authorization letter photo (representative only). Same two-way claim lookup as
+            // the ID above; a database without migration 81 just reads as "no letter".
+            Image letterImg = null;
+            if (isRep)
+            {
+                try
+                {
+                    DataTable lt = Db.Pull(
+                        "SELECT cr.auth_letter FROM claim_requests cr " +
+                        "LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
+                        "WHERE (cr.transaction_id = @t OR qt.transaction_id = @t) AND cr.auth_letter IS NOT NULL " +
+                        "ORDER BY cr.id DESC LIMIT 1",
+                        new MySqlParameter("@t", txnId));
+                    if (lt.Rows.Count > 0 && lt.Rows[0][0] != DBNull.Value)
+                        letterImg = BytesToImage((byte[])lt.Rows[0][0]);
+                }
+                catch { }
+            }
+
             // ---- header
             Controls.Add(new Label
             {
@@ -2418,7 +2440,7 @@ namespace CROMS.Forms
             // ---- left: details
             var details = new TableLayoutPanel
             {
-                Location = new Point(24, 96), Size = new Size(360, 400),
+                Location = new Point(24, 96), Size = new Size(360, isRep ? 450 : 400),
                 ColumnCount = 1, BackColor = UiTheme.PageBg
             };
             details.Controls.Add(Field("Transaction", txnCode));
@@ -2427,16 +2449,21 @@ namespace CROMS.Forms
             details.Controls.Add(Field("Claimant", string.IsNullOrWhiteSpace(claimant) ? "—" : claimant));
             details.Controls.Add(Field("Representative", string.IsNullOrWhiteSpace(repInfo) ? "Owner (not a representative)" : repInfo));
             details.Controls.Add(Field("Name on uploaded ID", idName.Length > 0 ? idName : "— (no ID uploaded)"));
+            if (isRep)
+                details.Controls.Add(Field("Authorization letter", letterImg != null ? "On file (see right)" : "— (not uploaded)"));
             Controls.Add(details);
 
             // ---- right: photos
             Controls.Add(PhotoBox("CLIENT PHOTO (from kiosk)", clientPhoto, 404, 96, "No kiosk photo on file."));
             Controls.Add(PhotoBox("UPLOADED VALID ID (from claimapp)", uploadedId, 404, 300, "No ID uploaded yet."));
+            if (isRep)
+                Controls.Add(PhotoBox("AUTHORIZATION LETTER (from claimapp)", letterImg, 868, 96,
+                    "No authorization letter uploaded.", 390));
 
             // ---- buttons
             var release = new Button
             {
-                Text = "✔  Release Document", Location = new Point(596, 504), Size = new Size(258, 44),
+                Text = "✔  Release Document", Location = new Point(dlgW - 284, 504), Size = new Size(258, 44),
                 FlatStyle = FlatStyle.Flat, BackColor = Green, ForeColor = Color.White,
                 Font = new Font("Segoe UI", 11F, FontStyle.Bold), Cursor = Cursors.Hand,
                 DialogResult = DialogResult.OK
@@ -2445,7 +2472,7 @@ namespace CROMS.Forms
             release.FlatAppearance.MouseOverBackColor = UiTheme.Mix(Green, Color.Black, 0.18f);
             var cancel = new Button
             {
-                Text = "Cancel", Location = new Point(486, 504), Size = new Size(100, 44),
+                Text = "Cancel", Location = new Point(dlgW - 394, 504), Size = new Size(100, 44),
                 FlatStyle = FlatStyle.Flat, BackColor = UiTheme.Chrome, ForeColor = Ink,
                 Font = new Font("Segoe UI", 10F, FontStyle.Bold), Cursor = Cursors.Hand,
                 DialogResult = DialogResult.Cancel
@@ -2454,7 +2481,7 @@ namespace CROMS.Forms
             Controls.Add(release); Controls.Add(cancel);
             AcceptButton = release; CancelButton = cancel;
 
-            FormClosed += (s, e) => { clientPhoto?.Dispose(); uploadedId?.Dispose(); };
+            FormClosed += (s, e) => { clientPhoto?.Dispose(); uploadedId?.Dispose(); letterImg?.Dispose(); };
         }
 
         private static Control Field(string label, string value)
@@ -2474,9 +2501,9 @@ namespace CROMS.Forms
             return p;
         }
 
-        private static Control PhotoBox(string caption, Image img, int x, int y, string emptyText)
+        private static Control PhotoBox(string caption, Image img, int x, int y, string emptyText, int height = 186)
         {
-            var host = new Panel { Location = new Point(x, y), Size = new Size(448, 186) };
+            var host = new Panel { Location = new Point(x, y), Size = new Size(448, height) };
             host.Controls.Add(new Label
             {
                 Text = caption, Location = new Point(0, 0), AutoSize = true,
@@ -2484,7 +2511,7 @@ namespace CROMS.Forms
             });
             var pic = new PictureBox
             {
-                Location = new Point(0, 22), Size = new Size(448, 160),
+                Location = new Point(0, 22), Size = new Size(448, height - 26),
                 BorderStyle = BorderStyle.FixedSingle, BackColor = UiTheme.PageBg,
                 SizeMode = PictureBoxSizeMode.Zoom, Image = img
             };
@@ -2492,7 +2519,7 @@ namespace CROMS.Forms
             if (img == null)
                 host.Controls.Add(new Label
                 {
-                    Text = emptyText, Location = new Point(0, 90), Size = new Size(448, 24),
+                    Text = emptyText, Location = new Point(0, 22 + (height - 26) / 2 - 12), Size = new Size(448, 24),
                     TextAlign = ContentAlignment.MiddleCenter, ForeColor = Muted, BackColor = Color.Transparent
                 });
             return host;
