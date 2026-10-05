@@ -317,6 +317,13 @@ namespace CROMS.Data
                 int longest = Math.Max(upright.Width, upright.Height);
                 bool wantNative = longest > PreferredLongSide * 1.15;
 
+                // A GDI+ Bitmap is NOT safe to touch from two threads at once: reading Width
+                // while the other pass is mid-draw throws "Object is currently in use
+                // elsewhere" (intermittent crash, caught by the BREQS test suite 2026-10-05).
+                // So the concurrent native pass gets its OWN copy, made here on the calling
+                // thread before either task starts.
+                Bitmap nativeCopy = wantNative ? new Bitmap(upright) : null;
+
                 var preferredSw = Stopwatch.StartNew();
                 Task<DocAiResult> preferredTask = Task.Run(() =>
                 {
@@ -328,16 +335,20 @@ namespace CROMS.Data
                 Task<DocAiResult> nativeTask = wantNative
                     ? Task.Run(() =>
                     {
-                        var r = AnalyzeAt(upright, longest);
+                        var r = AnalyzeAt(nativeCopy, longest);
                         Log("native pass (" + longest + "px)", nativeSw);
                         return r;
                     })
                     : null;
 
-                DocAiResult best = preferredTask.Result;
+                DocAiResult best;
+                try { best = preferredTask.Result; }
+                catch { if (nativeTask != null) { try { nativeTask.Wait(); } catch { } } nativeCopy?.Dispose(); throw; }
                 if (nativeTask != null)
                 {
-                    DocAiResult native = nativeTask.Result;
+                    DocAiResult native;
+                    try { native = nativeTask.Result; }
+                    finally { nativeCopy.Dispose(); }
                     // Only a genuinely unrecognised layout was ever eligible for the native
                     // pass to matter (see the old guard this replaces) - if the 2400px pass
                     // DID resolve a layout, the native result is thrown away here exactly as

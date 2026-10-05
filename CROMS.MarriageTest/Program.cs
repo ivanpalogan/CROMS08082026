@@ -363,6 +363,13 @@ namespace CROMS.MarriageTest
             Check("expiry is in the history", MarriageService.HistoryOf("License", dead.Id).AsEnumerable().Any(r => r["Event"].ToString() == "Licence expired"));
         }
 
+        // Register() refuses until a final registered Form 97 page is captured and confirmed (Step 12 gate).
+        private static void ConfirmFinal(int marriageId)
+        {
+            MarriageService.AddFinalDocumentPage(marriageId, new byte[] { 0xFF, 0xD8, 0xFF, 0xD9 });
+            MarriageService.ConfirmFinalDocument(marriageId);
+        }
+
         // ------------------------------------------------------------ marriages
         private static void MarriageScenarios()
         {
@@ -375,6 +382,7 @@ namespace CROMS.MarriageTest
             List<RuleIssue> v = MarriageService.ValidateMarriage(m1);
             Check("Form 97 on a valid licence validates clean", v.Count(i => i.Blocks) == 0, Codes(v));
             string reg;
+            ConfirmFinal(m1);
             List<RuleIssue> r = MarriageService.Register(m1, out reg);
             DataTable row = Db.Pull("SELECT status, registration_type, date_registered, registered_by FROM marriages WHERE id=" + m1);
             Check("registered, registry number " + reg, r.Count == 0 && reg != null && row.Rows[0]["status"].ToString() == "Registered");
@@ -428,6 +436,7 @@ namespace CROMS.MarriageTest
             MarriageService.RegistrarReview(m4, true, "Art. 34 affidavit examined");
             v = MarriageService.ValidateMarriage(m4);
             Check("exempt with basis, affidavit, review: clean", v.Count(i => i.Blocks) == 0, Codes(v));
+            ConfirmFinal(m4);
             r = MarriageService.Register(m4, out reg);
             Check("licence-exempt marriage registered with no fake licence",
                 r.Count == 0 && Db.Pull("SELECT license_id FROM marriages WHERE id=" + m4).Rows[0][0] == DBNull.Value);
@@ -447,6 +456,7 @@ namespace CROMS.MarriageTest
             v = MarriageService.ValidateMarriage(m5);
             Check("delayed notice still posted: registration waits", Has(v, "DELAY_POSTING_OPEN"), Codes(v));
             MarriageService.StartCasePosting(m5, Today.AddDays(-s.DelayedPostingDays));
+            ConfirmFinal(m5);
             r = MarriageService.Register(m5, out reg);
             Check("delayed registration completes and is typed Delayed",
                 r.Count == 0 && Db.Pull("SELECT registration_type FROM marriages WHERE id=" + m5).Rows[0][0].ToString() == "Delayed", Codes(r));
@@ -1163,7 +1173,7 @@ namespace CROMS.MarriageTest
             // registered + in PSA queue
             LicenseFacts used = IssuedLicence(issue: Today.AddDays(-40));
             int regId = MarriageService.SaveMarriage(null, Form97(used, Today.AddDays(-12), Today.AddDays(-3)));
-            string reg; MarriageService.Register(regId, out reg);
+            string reg; ConfirmFinal(regId); MarriageService.Register(regId, out reg);
             // delayed + exempt case
             var ex = Form97(null, Today.AddDays(-120), Today.AddDays(-2), "Exempt");
             ex["exemption_basis"] = "ART34";

@@ -231,11 +231,14 @@ namespace CROMS.MarriageTest
         private static void Render(string dir)
         {
             Application.EnableVisualStyles();
-            Type t = typeof(PaymentService).Assembly.GetType("CROMS.Forms.FeesPaymentsForm", true);
+            Type feesType = typeof(PaymentService).Assembly.GetType("CROMS.Forms.FeesPaymentsForm", true);
+            // Payment log + monthly collection moved to Reports & Analytics > Fees & Collections (CollectionsReportForm).
+            Type colType = typeof(PaymentService).Assembly.GetType("CROMS.Forms.CollectionsReportForm", true);
             const BindingFlags nf = BindingFlags.Instance | BindingFlags.NonPublic;
             for (int tab = 0; tab < 5; tab++)
             {
                 int which = tab;
+                Type t = (which == 2 || which == 3) ? colType : feesType;
                 var f = (Form)Activator.CreateInstance(t, true);
                 Snap(f, 1500, 960, Path.Combine(dir, "fees_tab" + which + ".png"), x =>
                 {
@@ -258,7 +261,7 @@ namespace CROMS.MarriageTest
                         year.Items.Insert(0, "2099"); year.SelectedIndex = 0;
                         ((ComboBox)t.GetField("_mMonth", nf).GetValue(x)).SelectedIndex = 0;
                     }
-                    tabs.SelectedIndex = which;
+                    tabs.SelectedIndex = (which == 2 || which == 3) ? which - 2 : which;
                     if (which == 1) t.GetMethod("BindLines", nf).Invoke(x, null);
                     if (which == 2) t.GetMethod("LoadLog", nf).Invoke(x, null);
                     if (which == 3)
