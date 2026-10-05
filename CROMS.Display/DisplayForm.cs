@@ -83,7 +83,10 @@ namespace CROMS.Display
 
         // Card footprint (design baseline 1080p). Cards are capped at this size and the
         // grid is padded so the whole row sits centred, instead of stretching to the screen.
-        private const float CardW = 350F, CardH = 620F, CardGap = 28F;
+        // Caps are generous: one window should read big across the room, many windows share
+        // the screen. A card never gets bigger than this, so a lone card stays centred.
+        private const float CardW = 640F, CardH = 900F, CardGap = 28F;
+        private int _cellW = 378, _cellH = 648;   // actual cell size from the last layout pass
 
         /// <summary>Pads the grid so equal-size cards sit centred in the free area.</summary>
         private void ApplyGridPadding()
@@ -101,6 +104,8 @@ namespace CROMS.Display
 
             int cellW = Math.Min((areaW - 2 * outer) / cols, (int)((CardW + CardGap) * s));
             int cellH = Math.Min((areaH - 2 * outer) / rows, (int)((CardH + CardGap) * s));
+            _cellW = Math.Max(120, cellW);
+            _cellH = Math.Max(160, cellH);
             int padX = Math.Max(outer, (areaW - cellW * cols) / 2);
             int padY = Math.Max(outer / 2, (areaH - cellH * rows) / 2);
             _grid.Padding = new Padding(padX, padY, padX, padY);
@@ -206,7 +211,6 @@ namespace CROMS.Display
         private void RebuildGrid(DataTable wins)
         {
             _lastWins = wins;   // remembered so a resize can re-lay with the new scale
-            float sc = Scale;
             _grid.SuspendLayout();
             _grid.Controls.Clear();
             _grid.ColumnStyles.Clear();
@@ -215,6 +219,10 @@ namespace CROMS.Display
             _subLabels.Clear();
 
             int count = wins.Rows.Count;
+            ApplyGridPadding();                      // sets _cellW/_cellH for this window count
+            // Everything on a card scales with the card itself (not just the screen height), so
+            // it stays proportionate whether one big card or eight small ones share the board.
+            float sc = Math.Min(4f, Math.Max(0.4f, Math.Min(_cellW / 378f, _cellH / 648f)));
             if (count == 0)
             {
                 _grid.ColumnCount = 1;
@@ -223,7 +231,7 @@ namespace CROMS.Display
                 {
                     Text = "No active windows",
                     ForeColor = Color.FromArgb(148, 163, 184),
-                    Font = new Font("Segoe UI", 28F * sc),
+                    Font = new Font("Segoe UI", 28F * Scale),
                     Dock = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleCenter
                 }, 0, 0);
@@ -244,8 +252,7 @@ namespace CROMS.Display
             // "Q-037") GROWS to fill the card and reads across the room; AutoFit shrinks a
             // long code back down to fit. Scales down a little as more windows share the
             // screen, then with the screen size (small laptop ↔ big TV).
-            float codeSize = (count <= 3 ? 120F : count <= 6 ? 90F : 62F) * sc;
-            ApplyGridPadding();
+            float codeSize = (count <= 3 ? 130F : count <= 6 ? 100F : 72F) * sc;
 
             int i = 0;
             foreach (DataRow w in wins.Rows)
@@ -293,7 +300,7 @@ namespace CROMS.Display
 
                 // Ticket code shrinks to fit its card so a long queue number stays
                 // readable on the public board — never clipped or cut in half.
-                AttachAutoFit(code, codeSize, 24F * sc);
+                AttachAutoFit(code, codeSize, 16F * sc);
 
                 _codeLabels[id] = code;
                 _subLabels[id] = sub;
