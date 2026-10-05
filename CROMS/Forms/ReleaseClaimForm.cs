@@ -49,7 +49,10 @@ namespace CROMS.Forms
         private Label _wMeta, _nextLab;
         private TableLayoutPanel _pnlSummary, _pnlClaim, _repBlock, _claimStack;
         private int _repRow, _camRow;                 // collapsible rows in the claim block
-        private const int RepRowHeight = 108;         // two ID field rows
+        private const int RepRowHeight = 152;         // two ID field rows + the authorization-letter row
+        private Label _lblLetterState;                // "Letter on file" / "not yet uploaded"
+        private Button _btnViewLetter;
+        private byte[] _authLetter;                   // letter photo uploaded for the selected release (claim_requests.auth_letter)
         private const int CamRowHeight = 290;         // BuildCameraPanel's own height
         private string _state = "";     // the status ApplyState last rendered
 
@@ -383,6 +386,64 @@ namespace CROMS.Forms
         }
 
         /// <summary>
+        /// The second QR — for a REPRESENTATIVE. Same claim row as the ID-upload QR, but the
+        /// phone opens claimapp's authorization-letter page and the photo is saved to
+        /// claim_requests.auth_letter (copied onto the release record when Release is pressed).
+        /// </summary>
+        private void ShowLetterUploadQr()
+        {
+            if (!_selectedTxnId.HasValue)
+            {
+                MessageBox.Show("Select a request to release first.", "No request selected",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            long txnId = _selectedTxnId.Value;
+            string token, ticketNo;
+            try
+            {
+                EnsureClaimForTransaction(txnId, out token, out ticketNo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not prepare the letter QR: " + ex.Message, "Error",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            ShowIdUploadQrDialog(txnId, token, ticketNo, true);
+        }
+
+        /// <summary>
+        /// Loads the authorization-letter photo the representative's phone uploaded for this
+        /// transaction (same two-way claim lookup as <see cref="ShowUploadedIdFor"/>). A database
+        /// without migration 81 simply reads as "no letter".
+        /// </summary>
+        private void ShowAuthLetterFor(int txnId)
+        {
+            _authLetter = null;
+            try
+            {
+                DataTable dt = Db.Pull(
+                    "SELECT cr.auth_letter FROM claim_requests cr " +
+                    "LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
+                    "WHERE (cr.transaction_id = " + txnId + " OR qt.transaction_id = " + txnId + ") " +
+                    "AND cr.auth_letter IS NOT NULL ORDER BY cr.id DESC LIMIT 1");
+                if (dt.Rows.Count > 0 && dt.Rows[0]["auth_letter"] != DBNull.Value)
+                    _authLetter = (byte[])dt.Rows[0]["auth_letter"];
+            }
+            catch (MySqlException ex) when (ex.Number == 1054) { /* migration 81 not applied */ }
+            catch { /* a lookup hiccup must not break selecting a release */ }
+
+            if (_lblLetterState != null)
+            {
+                _lblLetterState.Text = _authLetter != null
+                    ? "Authorization letter: on file" : "Authorization letter: not yet uploaded";
+                _lblLetterState.ForeColor = _authLetter != null ? UiTheme.Ink : UiTheme.Faint;
+            }
+            if (_btnViewLetter != null) _btnViewLetter.Enabled = _authLetter != null;
+        }
+
+        /// <summary>
         /// Finds the claim_requests row already linked to this transaction (a returning
         /// pickup, or a QR shown earlier for the same release) and reuses its token, or
         /// creates a fresh one tied directly to transaction_id — no queue ticket involved,
@@ -431,11 +492,11 @@ namespace CROMS.Forms
         /// <summary>Small modal showing the QR + a "check for upload" button that re-reads the
         /// claim row and refreshes the Uploaded ID pane behind it — no auto-polling, since the
         /// officer is standing right there and can just tap it once the client says they're done.</summary>
-        private void ShowIdUploadQrDialog(long txnId, string token, string ticketNo)
+        private void ShowIdUploadQrDialog(long txnId, string token, string ticketNo, bool letter = false)
         {
             using (var dlg = new Form
             {
-                Text = "Ask Claimant to Upload ID",
+                Text = letter ? "Ask Representative to Upload Authorization Letter" : "Ask Claimant to Upload ID",
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 StartPosition = FormStartPosition.CenterParent,
                 MinimizeBox = false, MaximizeBox = false,
@@ -449,7 +510,8 @@ namespace CROMS.Forms
                 };
                 var sub = new Label
                 {
-                    Text = "to upload a photo of your valid ID.", Location = new Point(20, 46),
+                    Text = letter ? "to upload a photo of the authorization letter." : "to upload a photo of your valid ID.",
+                    Location = new Point(20, 46),
                     Size = new Size(380, 22), Font = new Font("Segoe UI", 10F), ForeColor = Muted
                 };
                 var pic = new PictureBox
@@ -457,7 +519,7 @@ namespace CROMS.Forms
                     Location = new Point(90, 78), Size = new Size(240, 240),
                     SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle
                 };
-                Bitmap qr = QrHelper.TryCreate(ClaimLink.Build(token), 8);
+                Bitmap qr = QrHelper.TryCreate(letter ? ClaimLink.BuildLetter(token) : ClaimLink.Build(token), 8);
                 if (qr != null) pic.Image = qr;
                 else pic.Visible = false;
 
@@ -474,14 +536,17 @@ namespace CROMS.Forms
                 };
                 var fallback = new Label
                 {
-                    Text = "No camera? On the phone open " + ClaimLink.BaseUrl() +
-                           " and enter the ticket number above.",
+                    Text = letter
+                        ? "Scan this with the phone camera. It opens the letter page directly."
+                        : "No camera? On the phone open " + ClaimLink.BaseUrl() +
+                          " and enter the ticket number above.",
                     Location = new Point(20, 356), Size = new Size(380, 50),
                     TextAlign = ContentAlignment.TopCenter, Font = new Font("Segoe UI", 9F), ForeColor = Muted
                 };
                 var status = new Label
                 {
-                    Text = "Waiting for upload…", Location = new Point(20, 412), Size = new Size(380, 24),
+                    Text = letter ? "Waiting for the letter…" : "Waiting for upload…",
+                    Location = new Point(20, 412), Size = new Size(380, 24),
                     TextAlign = ContentAlignment.MiddleCenter, Font = new Font("Segoe UI", 9.5F, FontStyle.Italic),
                     ForeColor = UiTheme.Warning
                 };
@@ -494,9 +559,19 @@ namespace CROMS.Forms
                 refresh.FlatAppearance.BorderSize = 0;
                 refresh.Click += (s, e) =>
                 {
-                    ShowUploadedIdFor((int)txnId);
-                    bool uploaded = picUploadedId.Image != null;
-                    status.Text = uploaded ? "✔ ID uploaded — check the panel behind this window." : "Waiting for upload…";
+                    bool uploaded;
+                    if (letter)
+                    {
+                        ShowAuthLetterFor((int)txnId);
+                        uploaded = _authLetter != null;
+                        status.Text = uploaded ? "✔ Letter uploaded — use View behind this window." : "Waiting for the letter…";
+                    }
+                    else
+                    {
+                        ShowUploadedIdFor((int)txnId);
+                        uploaded = picUploadedId.Image != null;
+                        status.Text = uploaded ? "✔ ID uploaded — check the panel behind this window." : "Waiting for upload…";
+                    }
                     status.ForeColor = uploaded ? Green : UiTheme.Warning;
                 };
                 var close = new Button
@@ -796,6 +871,36 @@ namespace CROMS.Forms
             OthersBox.AttachInline(txtIdType, 50);
             AddFieldRow(_repBlock, lblIdNum, txtIdNum);
             CROMS.Data.IdNumberMask.Attach(txtIdNum, txtIdType);   // auto-space + cap to the picked ID's format
+
+            // Second QR: the representative's AUTHORIZATION LETTER. The claimant's phone
+            // photographs it and it is saved to the database; the officer sees it here.
+            var btnLetterQr = MakeMiniButton("📱  Letter QR", Chip, Accent);
+            btnLetterQr.Width = 120;
+            btnLetterQr.Height = 32;
+            btnLetterQr.Margin = new Padding(0, 6, 6, 0);
+            btnLetterQr.Click += (s, e) => ShowLetterUploadQr();
+            _btnViewLetter = MakeMiniButton("View", Chip, Ink);
+            _btnViewLetter.Width = 60;
+            _btnViewLetter.Height = 32;
+            _btnViewLetter.Margin = new Padding(0, 6, 8, 0);
+            _btnViewLetter.Enabled = false;
+            _btnViewLetter.Click += (s, e) =>
+            {
+                if (_authLetter != null) SoftcopyViewer.Show(_authLetter, "Authorization letter", this);
+            };
+            _lblLetterState = new Label
+            {
+                AutoSize = true, Margin = new Padding(0, 13, 0, 0),
+                Font = new Font("Segoe UI", 9F), ForeColor = Faint, Text = "Authorization letter: not yet uploaded"
+            };
+            var letterRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill, WrapContents = false, BackColor = UiTheme.Surface
+            };
+            letterRow.Controls.Add(btnLetterQr);
+            letterRow.Controls.Add(_btnViewLetter);
+            letterRow.Controls.Add(_lblLetterState);
+            AddRowSpan(_repBlock, letterRow, 44);
             _repRow = t.RowCount;
             AddStack(t, _repBlock, 0);   // 0 until the box is ticked (see ShowRepFields)
             chkRep.CheckedChanged += (s, e) => ShowRepFields(chkRep.Checked);
@@ -1356,6 +1461,7 @@ namespace CROMS.Forms
             SetFaceState(lblPhotoState, picClient.Image != null, "On file", "No kiosk photo");
 
             ShowUploadedIdFor(txnId);
+            ShowAuthLetterFor(txnId);
             UpdateChecklist();
         }
 
@@ -1919,23 +2025,61 @@ namespace CROMS.Forms
             using (var v = new ReleaseVerifyDialog(_selectedTxnId.Value, txtClaimant.Text.Trim(), repInfo))
                 if (v.ShowDialog(this) != DialogResult.OK) return;
 
+            // A representative collecting on someone else's behalf should have shown an
+            // authorization letter. Not a hard block (the letter may be handed over on paper),
+            // but the officer must decide knowingly rather than release by accident.
+            if (chkRep.Checked && _authLetter == null &&
+                MessageBox.Show(
+                    "No authorization letter photo is on file for this release.\r\n\r\n" +
+                    "Use the Letter QR to have the representative's phone photograph it, " +
+                    "or release anyway if you have checked the paper letter.\r\n\r\nRelease without it?",
+                    "No authorization letter", MessageBoxButtons.YesNo, MessageBoxIcon.Warning,
+                    MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                return;
+
             try
             {
                 var photoParam = new MySqlParameter("@photo", MySqlDbType.LongBlob)
                 {
                     Value = (object)_photoBytes ?? DBNull.Value
                 };
-                Db.Push(
-                    "INSERT INTO releases (transaction_id, claimant_name, is_representative, " +
-                    "representative_id_type, representative_id_number, claimant_photo, released_by) " +
-                    "VALUES (@txn, @name, @rep, @idtype, @idnum, @photo, @by)",
-                    new MySqlParameter("@txn", _selectedTxnId.Value),
-                    new MySqlParameter("@name", txtClaimant.Text.Trim()),
-                    new MySqlParameter("@rep", chkRep.Checked ? 1 : 0),
-                    new MySqlParameter("@idtype", chkRep.Checked ? NullIfEmpty(OthersBox.Value(txtIdType)) : DBNull.Value),
-                    new MySqlParameter("@idnum", chkRep.Checked ? NullIfEmpty(txtIdNum.Text) : DBNull.Value),
-                    photoParam,
-                    new MySqlParameter("@by", Session.UserIdParam));
+                // Only a representative's release carries a letter; a self-claim never does.
+                byte[] letterToSave = chkRep.Checked ? _authLetter : null;
+                var letterParam = new MySqlParameter("@letter", MySqlDbType.LongBlob)
+                {
+                    Value = (object)letterToSave ?? DBNull.Value
+                };
+                try
+                {
+                    Db.Push(
+                        "INSERT INTO releases (transaction_id, claimant_name, is_representative, " +
+                        "representative_id_type, representative_id_number, claimant_photo, " +
+                        "authorization_letter, released_by) " +
+                        "VALUES (@txn, @name, @rep, @idtype, @idnum, @photo, @letter, @by)",
+                        new MySqlParameter("@txn", _selectedTxnId.Value),
+                        new MySqlParameter("@name", txtClaimant.Text.Trim()),
+                        new MySqlParameter("@rep", chkRep.Checked ? 1 : 0),
+                        new MySqlParameter("@idtype", chkRep.Checked ? NullIfEmpty(OthersBox.Value(txtIdType)) : DBNull.Value),
+                        new MySqlParameter("@idnum", chkRep.Checked ? NullIfEmpty(txtIdNum.Text) : DBNull.Value),
+                        photoParam,
+                        letterParam,
+                        new MySqlParameter("@by", Session.UserIdParam));
+                }
+                catch (MySqlException ex) when (ex.Number == 1054)
+                {
+                    // Migration 81 not applied: release exactly as before rather than block the counter.
+                    Db.Push(
+                        "INSERT INTO releases (transaction_id, claimant_name, is_representative, " +
+                        "representative_id_type, representative_id_number, claimant_photo, released_by) " +
+                        "VALUES (@txn, @name, @rep, @idtype, @idnum, @photo, @by)",
+                        new MySqlParameter("@txn", _selectedTxnId.Value),
+                        new MySqlParameter("@name", txtClaimant.Text.Trim()),
+                        new MySqlParameter("@rep", chkRep.Checked ? 1 : 0),
+                        new MySqlParameter("@idtype", chkRep.Checked ? NullIfEmpty(OthersBox.Value(txtIdType)) : DBNull.Value),
+                        new MySqlParameter("@idnum", chkRep.Checked ? NullIfEmpty(txtIdNum.Text) : DBNull.Value),
+                        new MySqlParameter("@photo", MySqlDbType.LongBlob) { Value = (object)_photoBytes ?? DBNull.Value },
+                        new MySqlParameter("@by", Session.UserIdParam));
+                }
 
                 // close the transaction + mark any linked cert request / claim released
                 Db.Push("UPDATE transactions SET status = 'Released' WHERE id = @txn",
@@ -2083,6 +2227,13 @@ namespace CROMS.Forms
             txtIdNum.Clear();
             if (picClient != null) { picClient.Image?.Dispose(); picClient.Image = null; }
             if (picUploadedId != null) { picUploadedId.Image?.Dispose(); picUploadedId.Image = null; }
+            _authLetter = null;
+            if (_lblLetterState != null)
+            {
+                _lblLetterState.Text = "Authorization letter: not yet uploaded";
+                _lblLetterState.ForeColor = UiTheme.Faint;
+            }
+            if (_btnViewLetter != null) _btnViewLetter.Enabled = false;
             if (lblUploadedIdCap != null) lblUploadedIdCap.Text = "Uploaded ID (from claimapp)";
             tglUseCam.Checked = false;   // fires ApplyCameraOption → hides + releases the camera
             ResetCamera();

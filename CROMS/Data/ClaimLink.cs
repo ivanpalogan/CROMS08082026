@@ -19,6 +19,15 @@ namespace CROMS.Data
             return BaseUrl() + "/?claim=" + Uri.EscapeDataString(token ?? "");
         }
 
+        /// <summary>
+        /// The second QR at the release counter: same claim, but claimapp opens its
+        /// authorization-letter page (<c>doc=letter</c>) instead of the valid-ID page.
+        /// </summary>
+        public static string BuildLetter(string token)
+        {
+            return Build(token) + "&doc=letter";
+        }
+
         /// <summary>The base app URL (no token) — short enough for a client to type by hand.</summary>
         public static string BaseUrl()
         {
