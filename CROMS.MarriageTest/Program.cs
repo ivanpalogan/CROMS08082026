@@ -72,6 +72,13 @@ namespace CROMS.MarriageTest
                 Console.WriteLine("PASSED " + _pass + "   FAILED " + _fail);
                 return _fail;
             }
+            if (args.Length > 0 && args[0] == "--birthtest") return BirthTest.Run();
+            if (args.Length > 1 && args[0] == "--birthrender")
+            {
+                try { LoginAs("Admin"); BirthRender.Run(args[1]); }
+                catch (Exception ex) { _fail++; Console.WriteLine("CRASH: " + ex); }
+                return _fail;
+            }
             if (args.Length > 1 && args[0] == "--parentres")
             {
                 try { Cleanup(); LoginAs("Admin"); ParentResidence(args[1]); }

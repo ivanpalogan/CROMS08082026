@@ -92,7 +92,8 @@ namespace CROMS.Forms
             Control[] inputs =
             {
                 txtFirstName, txtLastName, cboSex, dtpDob, dtpMarrDate,
-                dtpAttDate, dtpInfDate, dtpPreparedDate, dtpReceivedDate, dtpRegisteredDate
+                dtpAttDate, dtpInfDate, dtpPreparedDate, dtpReceivedDate, dtpRegisteredDate,
+                txtFee, txtFeeOr
             };
             foreach (Control input in inputs) AttachFieldMessage(input);
         }

@@ -209,6 +209,9 @@
     <Compile Include="Forms\BirthRegistrationForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Forms\BirthRegistrationForm.Child.cs">
+      <DependentUpon>BirthRegistrationForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\BirthRegistrationForm.Layout.cs">
       <DependentUpon>BirthRegistrationForm.cs</DependentUpon>
     </Compile>
@@ -933,6 +936,7 @@
     <None Include="Database\79_ctc_name_suffix.sql" />
     <None Include="Database\80_ctc_relationship_width.sql" />
     <None Include="Database\81_authorization_letter.sql" />
+    <None Include="Database\82_birth_form_fields.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />

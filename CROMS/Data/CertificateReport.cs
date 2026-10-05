@@ -504,10 +504,27 @@ namespace CROMS.Data
                      : d.Year.ToString(CultureInfo.InvariantCulture);
             }
             string value = Value(row, c.Column, c.IsDate);
+            string text;
             if (c.Join != null)
-                return string.Join(", ", c.Join.Select(i => Part(value, i))
-                                               .Where(x => x.Length > 0));
-            return Part(value, c.Part);
+                text = string.Join(", ", c.Join.Select(i => Part(value, i))
+                                                .Where(x => x.Length > 0));
+            else
+                text = Part(value, c.Part);
+
+            if (c.IsTime)
+            {
+                // Stored as HH:mm; the paper says "born alive at ___ a.m./p.m.".
+                DateTime t;
+                if (DateTime.TryParseExact(text.Trim(), new[] { "HH:mm", "H:mm", "HH:mm:ss" },
+                        CultureInfo.InvariantCulture, DateTimeStyles.None, out t))
+                    return t.ToString("h:mm tt", CultureInfo.InvariantCulture);
+            }
+            if (c.Extra != null)
+            {
+                var more = c.Extra.Select(col => Value(row, col, false)).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim());
+                text = string.Join(", ", new[] { text }.Where(x => !string.IsNullOrWhiteSpace(x)).Concat(more));
+            }
+            return text;
         }
 
         /// <summary>The part of a combined value that belongs in one printed box.</summary>

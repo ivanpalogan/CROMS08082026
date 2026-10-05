@@ -34,6 +34,12 @@ namespace CROMS.Data
         /// by ", " (blank parts skipped) - for a printed box that gathers several stored parts,
         /// e.g. the residence box that holds house/street AND barangay.</summary>
         public int[] Join;
+        /// <summary>Other columns of the SAME row whose values follow this box's own value, joined by
+        /// ", " (blanks skipped) - e.g. the facility name box that also carries the hospital's
+        /// house no. / street and barangay, which are stored in their own columns.</summary>
+        public string[] Extra;
+        /// <summary>The value is a clock time stored as HH:mm; print it as h:mm AM/PM.</summary>
+        public bool IsTime;
 
         public PrintCell(string column, float x, float y, float size = 7.5f,
                          int part = -1, bool isDate = false)
@@ -529,8 +535,11 @@ namespace CROMS.Data
                 new ReportField("date_of_birth",     "3. Date of Birth", true),
                 new ReportField("time_of_birth",     "    Time of Birth"),
                 new ReportField("place_of_birth",    "4. Place of Birth"),
+                new ReportField("place_of_birth_house",    "    Hospital - House No. / Street"),
+                new ReportField("place_of_birth_barangay", "    Hospital - Barangay"),
                 new ReportField("birth_country",     "    Country of Birth"),
                 new ReportField("type_of_birth",     "5a. Type of Birth"),
+                new ReportField("multiple_birth_order", "5b. If Multiple Birth, Child Was"),
                 new ReportField("birth_order",       "5c. Birth Order"),
                 new ReportField("weight_grams",      "5d. Weight at Birth (grams)")),
             new ReportSection("6-12. Mother",
@@ -1193,6 +1202,7 @@ namespace CROMS.Data
 
             // 4. Place of birth: facility / city-municipality / province
             partc("place_of_birth", 225, 319, 7.5f, 0);
+            d.Cells[d.Cells.Count - 1].Extra = new[] { "place_of_birth_house", "place_of_birth_barangay" };
             partc("place_of_birth", 376, 319, 7.5f, 2);
             partc("place_of_birth", 470, 319, 7.5f, 1);
 
@@ -1252,6 +1262,7 @@ namespace CROMS.Data
 
             // 19b. Certification of birth
             cell("time_of_birth", 456, 872, 7.5f);
+            d.Cells[d.Cells.Count - 1].IsTime = true;
             cell("attendant_address", 404, 905, 7.5f);
             cell("attendant_name", 188, 921, 7.5f);
             cell("attendant_title", 195, 940, 7.5f);
@@ -1323,6 +1334,8 @@ namespace CROMS.Data
 
             // 4. Place of birth: facility / city-municipality / province
             partc("place_of_birth", 183, 290, 7.5f, 0);
+            // Item 4's first box holds the facility name AND its house no., street and barangay.
+            d.Cells[d.Cells.Count - 1].Extra = new[] { "place_of_birth_house", "place_of_birth_barangay" };
             partc("place_of_birth", 430, 290, 7.5f, 2);
             partc("place_of_birth", 617, 290, 7.5f, 1);
 
@@ -1384,6 +1397,7 @@ namespace CROMS.Data
 
             // 21b. Certification of birth: time, then signature block
             cell("time_of_birth", 490, 799, 8f);
+            d.Cells[d.Cells.Count - 1].IsTime = true;
             cell("attendant_name", 137, 855, 7.5f);
             cell("attendant_address", 480, 827, 7.5f);
             cell("attendant_title", 148, 874, 7.5f);

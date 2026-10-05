@@ -163,6 +163,8 @@ namespace CROMS.Forms
             Set(txtMMiddle, "MotherMiddle");
             Set(txtMLast, "MotherLast");
             Set(txtWeight, "Weight");
+            if (f.TryGetValue("BirthOrder", out string bo) && !string.IsNullOrWhiteSpace(bo)) SetBirthOrder(bo);
+            if (f.TryGetValue("TimeOfBirth", out string tob) && !string.IsNullOrWhiteSpace(tob)) SetTimeOfBirth(tob);
 
             if (f.TryGetValue("TypeOfBirth", out string bt))
                 foreach (object item in cboTypeOfBirth.Items)
@@ -324,10 +326,19 @@ namespace CROMS.Forms
             dtpInfDate.ShowCheckBox = true;
             dtpInfDate.Checked = false;
 
+            // Municipal Form 102's order and item numbers, plus the fields the form carries
+            // (time of birth, hospital address, 5b, the fee) - BEFORE the placeholders below
+            // are turned into dropdown cells.
+            ArrangeBirthTabs();
+
             // Runtime-only UI setup. Keep dynamic control creation and resizing out of
             // InitializeComponent so the WinForms Designer does not try to invoke them.
             InitializeLookupControls();
+            ConfigureBirthOrder();
             WireGeography();
+            WireHospitalAddress();
+            _cboInfRel.SelectedIndexChanged += cboInfRel_SelectedIndexChanged;
+            OrderBirthTabIndexes();
             InitializeParentsMarried();
             // Every dropdown that still offers "Others" gets its specify box. Without one
             // the record says "Others" and what the paper actually says is lost.
@@ -942,7 +953,6 @@ namespace CROMS.Forms
             // Filled by LoadRelationships instead: this list is scoped to the entries that
             // belong on Form 102, which a whole-table read cannot express.
 
-            yield return new KeyValuePair<ComboBox, string>(_cboBirthOrder, "birth_orders");
             yield return new KeyValuePair<ComboBox, string>(_pob[0], "hospitals");
             yield return new KeyValuePair<ComboBox, string>(_pom[0], "churches");
         }
@@ -1366,6 +1376,7 @@ namespace CROMS.Forms
                     }
                 }
                 SaveScan(id);
+                RecordRegistrationFee(id, status, owner);
                 Audit.Write(Audit.Create, "births", (int)id,
                     txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim() + " (Pending Approval)");
                 if (bypassNote != null) Audit.Write(Audit.Update, "births", (int)id, bypassNote);
@@ -1502,6 +1513,7 @@ namespace CROMS.Forms
                 if (status == "Pending Approval") SaveTypedLookupValues();
                 long newId = InsertTakingNextFreeNumber(sql, status);
                 SaveScan(newId);   // attach the scanned softcopy, if this came from Document AI
+                RecordRegistrationFee(newId, status, _entryDialog ?? (IWin32Window)this);   // never for a Draft
 
                 // Close the loop back to the OCR upload that produced this record: the
                 // scan keeps its own record of the record it produced, and the pending
@@ -1628,6 +1640,7 @@ namespace CROMS.Forms
             // dtpDob further down raises ValueChanged, which would otherwise recompute the
             // flag and overwrite what was actually recorded.
             _suppressDelayedRecompute = true;
+            _suppressInformantFill = true;   // loading must never "helpfully" re-fill the informant
             chkDelayed.Checked = ToInt(r["is_delayed"]) == 1;
             txtRegNo.Text = Str(r["registry_no"]);
             txtBook.Text = Str(r["book_volume"]);
@@ -1638,12 +1651,18 @@ namespace CROMS.Forms
             txtLastName.Text = Str(r["last_name"]);
             SetCombo(cboSex, r["sex"]);
             SetDate(dtpDob, r["date_of_birth"]);
+            SetTimeOfBirth(dt.Columns.Contains("time_of_birth") ? Str(r["time_of_birth"]) : "");
 
             // Country first: it rebuilds the province list the place cells select into.
             GeoLookup.Select(_pobCountry, Str(r["birth_country"]));
             SetPlace3(_pob, Str(r["place_of_birth"]));
+            // The hospital's address needs the municipality chosen above (it loads the barangay list).
+            SetHospitalAddress(
+                dt.Columns.Contains("place_of_birth_house") ? Str(r["place_of_birth_house"]) : "",
+                dt.Columns.Contains("place_of_birth_barangay") ? Str(r["place_of_birth_barangay"]) : "");
             SetCombo(cboTypeOfBirth, r["type_of_birth"]);
-            SetLookup(_cboBirthOrder, Str(r["birth_order"]));
+            SetMultipleBirth(dt.Columns.Contains("multiple_birth_order") ? Str(r["multiple_birth_order"]) : "");
+            SetBirthOrder(Str(r["birth_order"]));
             txtWeight.Text = Str(r["weight_grams"]);
             txtMFirst.Text = Str(r["mother_first_name"]);
             txtMMiddle.Text = Str(r["mother_middle_name"]);
@@ -1701,6 +1720,9 @@ namespace CROMS.Forms
             // Release the suppression taken above and restate the arithmetic on the label,
             // leaving the stored determination itself untouched.
             _suppressDelayedRecompute = false;
+            _suppressInformantFill = false;
+            ResetInformantPrefill();
+            LoadRegistrationFee(id);
             UpdateDelayedLabel();
             RefreshRequirementsTab();
         }
@@ -1745,6 +1767,7 @@ namespace CROMS.Forms
                     }
                 }
                 SaveScan(_editingId.Value);   // keep/refresh the softcopy on edit
+                RecordRegistrationFee(_editingId.Value, status, _entryDialog ?? (IWin32Window)this);
                 Audit.Write(Audit.Update, "births", _editingId.Value,
                     txtLastName.Text.Trim() + ", " + txtFirstName.Text.Trim());
                 MessageBox.Show("Record updated.", "Updated",
@@ -1791,7 +1814,7 @@ namespace CROMS.Forms
         // ---------- shared SQL fragments ----------
         private const string Columns =
             "form_code, form_name, is_delayed, date_registered, registry_no, book_volume, book_page, status, first_name, middle_name, last_name, sex, " +
-            "date_of_birth, place_of_birth, birth_country, type_of_birth, birth_order, weight_grams, " +
+            "date_of_birth, time_of_birth, place_of_birth, place_of_birth_house, place_of_birth_barangay, birth_country, type_of_birth, multiple_birth_order, birth_order, weight_grams, " +
             "mother_first_name, mother_middle_name, mother_last_name, mother_citizenship, mother_religion, " +
             "mother_occupation, mother_age, mother_children_born_alive, mother_children_living, " +
             "mother_children_dead, mother_residence, father_first_name, father_middle_name, father_last_name, " +
@@ -1803,8 +1826,8 @@ namespace CROMS.Forms
             "registered_by, registered_by_title, registered_by_date, remarks";
 
         private const string ValuePlaceholders =
-            "@form_code, @form_name, @is_delayed, @date_registered, @registry_no, @book_volume, @book_page, @status, @fn, @mn, @ln, @sex, @dob, @place, @country, " +
-            "@type, @order, @weight, @mfn, @mmn, @mln, @mcit, @mrel, @mocc, @mage, @mba, @mlv, @mdd, @mres, " +
+            "@form_code, @form_name, @is_delayed, @date_registered, @registry_no, @book_volume, @book_page, @status, @fn, @mn, @ln, @sex, @dob, @tob, @place, @placehouse, @placebrgy, @country, " +
+            "@type, @multi, @order, @weight, @mfn, @mmn, @mln, @mcit, @mrel, @mocc, @mage, @mba, @mlv, @mdd, @mres, " +
             "@ffn, @fmn, @fln, @fcit, @frel, @focc, @fage, @fres, @pmdate, @pmplace, @pmarried, @atype, @aname, @atitle, " +
             "@aaddr, @adate, @iname, @irel, @iaddr, @idate, " +
             "@prep, @preptitle, @prepdate, @recv, @recvtitle, @recvdate, " +
@@ -1812,8 +1835,8 @@ namespace CROMS.Forms
 
         private const string SetClause =
             "form_code=@form_code, form_name=@form_name, is_delayed=@is_delayed, date_registered=@date_registered, registry_no=@registry_no, book_volume=@book_volume, book_page=@book_page, status=@status, " +
-            "first_name=@fn, middle_name=@mn, last_name=@ln, sex=@sex, date_of_birth=@dob, " +
-            "place_of_birth=@place, birth_country=@country, type_of_birth=@type, birth_order=@order, weight_grams=@weight, " +
+            "first_name=@fn, middle_name=@mn, last_name=@ln, sex=@sex, date_of_birth=@dob, time_of_birth=@tob, " +
+            "place_of_birth=@place, place_of_birth_house=@placehouse, place_of_birth_barangay=@placebrgy, birth_country=@country, type_of_birth=@type, multiple_birth_order=@multi, birth_order=@order, weight_grams=@weight, " +
             "mother_first_name=@mfn, mother_middle_name=@mmn, mother_last_name=@mln, mother_citizenship=@mcit, " +
             "mother_religion=@mrel, mother_occupation=@mocc, mother_age=@mage, mother_children_born_alive=@mba, " +
             "mother_children_living=@mlv, mother_children_dead=@mdd, mother_residence=@mres, " +
@@ -1848,9 +1871,13 @@ namespace CROMS.Forms
                 new MySqlParameter("@sex", Combo(cboSex)),
                 new MySqlParameter("@dob", dtpDob.Value.Date),
 
+                new MySqlParameter("@tob", TimeOfBirthParam()),
                 new MySqlParameter("@place", ComboJoin(_pob)),
+                new MySqlParameter("@placehouse", NullIfBlank(_hospHouse.Text)),
+                new MySqlParameter("@placebrgy", NullIfBlank(_hospBarangay.Text)),
                 new MySqlParameter("@country", NullIfBlank(_pobCountry.Text)),
                 new MySqlParameter("@type", Combo(cboTypeOfBirth)),
+                new MySqlParameter("@multi", MultipleBirthParam()),
                 new MySqlParameter("@order", ComboVal(_cboBirthOrder)),
                 new MySqlParameter("@weight", I(txtWeight)),
                 new MySqlParameter("@mfn", S(txtMFirst)),
@@ -2038,6 +2065,8 @@ namespace CROMS.Forms
                 if (dtp.Checked && dtp.Value.Date > DateTime.Today)
                     flag(dtp, tab, new[] { "The date signed cannot be in the future.", "Date is in the future." });
 
+            ValidateRegistrationFee(flag);
+
             if (first == null) return true;
             FocusField(first, firstTab);
             return false;
@@ -2093,6 +2122,11 @@ namespace CROMS.Forms
             dtpPreparedDate.Checked = false;
             dtpReceivedDate.Checked = false;
             dtpRegisteredDate.Checked = false;
+            dtpTimeOfBirth.Checked = false;   // unticked = the sheet states no time
+            _timeRaw = null;
+            ApplyMultipleBirth();
+            ResetInformantPrefill();
+            ResetRegistrationFee();
 
             // ClearControl empties every combo, including the country, which would leave a
             // fresh record with no country rather than the one this office almost always
@@ -2166,6 +2200,11 @@ namespace CROMS.Forms
             _pob = new[] { pobCells[1], pobCells[2], pobCells[3] };
             _pobProvince = _pob[1];
             _pobMunicipality = _pob[2];
+            // The hospital's own address (item 4 prints it in the same box as the facility name).
+            // Kept in its own two columns, never joined into place_of_birth.
+            ComboBox[] hospCells = CreateLookupCells(txtPlaceAddr, 2, new[] { "Barangay", "House No. / Street (optional)" });
+            _hospBarangay = hospCells[0];
+            _hospHouse = hospCells[1];
 
             _pom = CreateLookupCells(txtMarrPlace, 3, new[] { "Church", "Province", "Municipality" });
             _pomProvince = _pom[1];
@@ -2267,7 +2306,7 @@ namespace CROMS.Forms
             // Country last: wiring it before the province list exists would have the first
             // selection fire into an unbuilt cascade.
             GeoLookup.LoadCountries(_pobCountry);
-            GeoLookup.CascadeCountry(_pobCountry, _pob[1], _pob[2], null);
+            GeoLookup.CascadeCountry(_pobCountry, _pob[1], _pob[2], _hospBarangay);
             GeoLookup.Select(_pobCountry, GeoLookup.HomeCountry);
         }
 
@@ -2701,6 +2740,7 @@ namespace CROMS.Forms
             string prepared = txtPreparedBy.Text, received = txtReceivedBy.Text;
             object place = ComboJoin(_pob);
             string placeCountry = _pobCountry.Text;
+            string hospHouse = _hospHouse.Text, hospBrgy = _hospBarangay.Text;
 
             // New separate Form 102 / births row. This does NOT depend on Type of Birth.
             // ClearForm does not reset the queue ticket, so the parent stays in the same service flow.
@@ -2734,12 +2774,14 @@ namespace CROMS.Forms
             txtPreparedBy.Text = prepared; txtReceivedBy.Text = received;
             GeoLookup.Select(_pobCountry, placeCountry);
             SetPlace3(_pob, place == DBNull.Value ? "" : place.ToString());
+            SetHospitalAddress(hospHouse, hospBrgy);
 
             // Child-specific values remain fresh for the next twin/triplet/etc.
             txtFirstName.Clear(); txtMiddleName.Clear(); txtLastName.Clear();
             cboSex.SelectedIndex = -1; cboSex.Text = "";
             cboTypeOfBirth.SelectedIndex = -1; cboTypeOfBirth.Text = "";
             _cboBirthOrder.SelectedIndex = -1; _cboBirthOrder.Text = "";
+            cboMultiple.SelectedIndex = -1; dtpTimeOfBirth.Checked = false; _timeRaw = null;
             txtWeight.Clear();
             txtRegNo.Clear();
             cboStatus.SelectedItem = "Draft";

@@ -44,6 +44,8 @@
     <Compile Include="Program.cs" />
     <Compile Include="BreqsTest.cs" />
     <Compile Include="FeesTest.cs" />
+    <Compile Include="BirthRender.cs" />
+    <Compile Include="BirthTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CROMS\CROMS.csproj">
