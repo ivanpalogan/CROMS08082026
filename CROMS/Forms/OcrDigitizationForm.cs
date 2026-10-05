@@ -1837,9 +1837,10 @@ namespace CROMS.Forms
             // backlog too, in legacy digitization mode.
             if (!ConfirmRegistryBook()) return;
 
-            long id = _kind == DocKind.Death ? SaveDeath("Registered")
-                    : _kind == DocKind.Marriage ? SaveMarriageLegacy("Registered")
-                    : SaveBirth("Registered");
+            long id;
+            if (!TrySaveOnce(() => _kind == DocKind.Death ? SaveDeath("Registered")
+                                 : _kind == DocKind.Marriage ? SaveMarriageLegacy("Registered")
+                                 : SaveBirth("Registered"), out id)) return;
             _savedRecordId = id;
             WriteAudit(OcrAudit.Committed);
             MarkBatch("Committed", table, id);
@@ -1861,9 +1862,10 @@ namespace CROMS.Forms
             if (!ReadyToSave()) return;
             string table = TableFor(_kind);
 
-            long id = _kind == DocKind.Death ? SaveDeath("Draft")
-                    : _kind == DocKind.Marriage ? SaveMarriageLegacy("Draft")
-                    : SaveBirth("Draft");
+            long id;
+            if (!TrySaveOnce(() => _kind == DocKind.Death ? SaveDeath("Draft")
+                                 : _kind == DocKind.Marriage ? SaveMarriageLegacy("Draft")
+                                 : SaveBirth("Draft"), out id)) return;
             _savedRecordId = id;
             WriteAudit(OcrAudit.Draft);
             MarkBatch("Draft", table, id);
@@ -1873,6 +1875,45 @@ namespace CROMS.Forms
             UpdateFormIdentity();
 
             OpenBacklogRecordResult(_kind, id, "Saved as a draft old record in");
+        }
+
+        /// <summary>
+        /// Runs a save exactly once per scan and turns a duplicate registry number into a
+        /// plain sentence instead of an unhandled exception. A scan that already produced a
+        /// record (Commit pressed twice, or Commit after Draft) is refused before touching the
+        /// database; a registry number that belongs to ANOTHER record trips the UNIQUE index
+        /// (1062) and is reported with the number so the operator can correct it.
+        /// </summary>
+        private bool TrySaveOnce(Func<long> save, out long id)
+        {
+            id = 0;
+            if (_savedRecordId.HasValue)
+            {
+                MessageBox.Show(this,
+                    "This scan was already saved as record #" + _savedRecordId.Value + ".\n\n" +
+                    "Open Records Archive to view or edit it. To digitize another certificate, " +
+                    "load a new scan.",
+                    "Already saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return false;
+            }
+            try
+            {
+                id = save();
+                return true;
+            }
+            catch (MySqlException ex) when (ex.Number == 1062)
+            {
+                ErrorLog.Write("OcrDigitization.Save", ex);
+                string reg = V("RegistryNo");
+                MessageBox.Show(this,
+                    (reg.Length > 0
+                        ? "Registry No. \"" + reg + "\" is already used by another record."
+                        : "A record with the same registry number already exists.") +
+                    "\n\nIf this certificate is already in the registry, do not save it again. " +
+                    "Otherwise correct the Registry No. (or Book / Page) in the grid and try again.",
+                    "Duplicate registry number", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
         }
 
         private static string RegistryWord(DocKind k)
