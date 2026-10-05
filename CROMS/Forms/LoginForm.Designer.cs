@@ -48,7 +48,7 @@ namespace CROMS.Forms
             // pnlBadge
             // 
             this.pnlBadge.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.pnlBadge.Location = new System.Drawing.Point(208, 19);
+            this.pnlBadge.Location = new System.Drawing.Point(118, 114);
             this.pnlBadge.Name = "pnlBadge";
             this.pnlBadge.Size = new System.Drawing.Size(141, 26);
             this.pnlBadge.TabIndex = 2;
@@ -57,7 +57,7 @@ namespace CROMS.Forms
             // 
             this.lblHeadline.Font = new System.Drawing.Font("Segoe UI", 19F, System.Drawing.FontStyle.Bold);
             this.lblHeadline.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(23)))), ((int)(((byte)(26)))), ((int)(((byte)(36)))));
-            this.lblHeadline.Location = new System.Drawing.Point(0, 48);
+            this.lblHeadline.Location = new System.Drawing.Point(0, 52);
             this.lblHeadline.Name = "lblHeadline";
             this.lblHeadline.Size = new System.Drawing.Size(377, 35);
             this.lblHeadline.TabIndex = 3;
@@ -69,7 +69,7 @@ namespace CROMS.Forms
             // 
             this.lblSubtitle.Font = new System.Drawing.Font("Segoe UI", 9.5F);
             this.lblSubtitle.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblSubtitle.Location = new System.Drawing.Point(0, 83);
+            this.lblSubtitle.Location = new System.Drawing.Point(0, 87);
             this.lblSubtitle.Name = "lblSubtitle";
             this.lblSubtitle.Size = new System.Drawing.Size(377, 25);
             this.lblSubtitle.TabIndex = 4;
@@ -82,7 +82,7 @@ namespace CROMS.Forms
             this.lblUserCap.AutoSize = true;
             this.lblUserCap.Font = new System.Drawing.Font("Segoe UI", 8.75F);
             this.lblUserCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblUserCap.Location = new System.Drawing.Point(24, 108);
+            this.lblUserCap.Location = new System.Drawing.Point(24, 142);
             this.lblUserCap.Name = "lblUserCap";
             this.lblUserCap.Size = new System.Drawing.Size(60, 15);
             this.lblUserCap.TabIndex = 5;
@@ -91,7 +91,7 @@ namespace CROMS.Forms
             // pnlUserHost
             // 
             this.pnlUserHost.Controls.Add(this.txtUser);
-            this.pnlUserHost.Location = new System.Drawing.Point(24, 124);
+            this.pnlUserHost.Location = new System.Drawing.Point(24, 158);
             this.pnlUserHost.Name = "pnlUserHost";
             this.pnlUserHost.Size = new System.Drawing.Size(322, 38);
             this.pnlUserHost.TabIndex = 6;
@@ -111,7 +111,7 @@ namespace CROMS.Forms
             this.lblPassCap.AutoSize = true;
             this.lblPassCap.Font = new System.Drawing.Font("Segoe UI", 8.75F);
             this.lblPassCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblPassCap.Location = new System.Drawing.Point(24, 171);
+            this.lblPassCap.Location = new System.Drawing.Point(24, 205);
             this.lblPassCap.Name = "lblPassCap";
             this.lblPassCap.Size = new System.Drawing.Size(57, 15);
             this.lblPassCap.TabIndex = 7;
@@ -121,7 +121,7 @@ namespace CROMS.Forms
             // 
             this.pnlPassHost.Controls.Add(this.txtPass);
             this.pnlPassHost.Controls.Add(this.btnEye);
-            this.pnlPassHost.Location = new System.Drawing.Point(24, 186);
+            this.pnlPassHost.Location = new System.Drawing.Point(24, 220);
             this.pnlPassHost.Name = "pnlPassHost";
             this.pnlPassHost.Size = new System.Drawing.Size(322, 38);
             this.pnlPassHost.TabIndex = 8;
@@ -153,7 +153,7 @@ namespace CROMS.Forms
             // pnlCapsIcon
             // 
             this.pnlCapsIcon.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.pnlCapsIcon.Location = new System.Drawing.Point(24, 233);
+            this.pnlCapsIcon.Location = new System.Drawing.Point(24, 267);
             this.pnlCapsIcon.Name = "pnlCapsIcon";
             this.pnlCapsIcon.Size = new System.Drawing.Size(12, 12);
             this.pnlCapsIcon.TabIndex = 9;
@@ -164,7 +164,7 @@ namespace CROMS.Forms
             this.lblCaps.AutoSize = true;
             this.lblCaps.Font = new System.Drawing.Font("Segoe UI", 8.5F, System.Drawing.FontStyle.Bold);
             this.lblCaps.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(180)))), ((int)(((byte)(83)))), ((int)(((byte)(9)))));
-            this.lblCaps.Location = new System.Drawing.Point(40, 232);
+            this.lblCaps.Location = new System.Drawing.Point(40, 266);
             this.lblCaps.Name = "lblCaps";
             this.lblCaps.Size = new System.Drawing.Size(89, 15);
             this.lblCaps.TabIndex = 10;
@@ -176,7 +176,7 @@ namespace CROMS.Forms
             this.lblMsg.AutoSize = true;
             this.lblMsg.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.lblMsg.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(198)))), ((int)(((byte)(50)))), ((int)(((byte)(63)))));
-            this.lblMsg.Location = new System.Drawing.Point(24, 254);
+            this.lblMsg.Location = new System.Drawing.Point(24, 288);
             this.lblMsg.Name = "lblMsg";
             this.lblMsg.Size = new System.Drawing.Size(0, 15);
             this.lblMsg.TabIndex = 11;
@@ -188,7 +188,7 @@ namespace CROMS.Forms
             this.btnSignIn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSignIn.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
             this.btnSignIn.ForeColor = System.Drawing.Color.White;
-            this.btnSignIn.Location = new System.Drawing.Point(27, 263);
+            this.btnSignIn.Location = new System.Drawing.Point(27, 297);
             this.btnSignIn.Name = "btnSignIn";
             this.btnSignIn.Size = new System.Drawing.Size(322, 40);
             this.btnSignIn.TabIndex = 12;
@@ -203,7 +203,7 @@ namespace CROMS.Forms
             this.btnExit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnExit.Font = new System.Drawing.Font("Segoe UI", 9.5F);
             this.btnExit.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.btnExit.Location = new System.Drawing.Point(27, 309);
+            this.btnExit.Location = new System.Drawing.Point(27, 343);
             this.btnExit.Name = "btnExit";
             this.btnExit.Size = new System.Drawing.Size(322, 34);
             this.btnExit.TabIndex = 13;
@@ -217,7 +217,7 @@ namespace CROMS.Forms
             this.panel1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.panel1.BackgroundImage = global::CROMS.Properties.Resources.images__1_;
             this.panel1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.panel1.Location = new System.Drawing.Point(63, 5);
+            this.panel1.Location = new System.Drawing.Point(193, 6);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(50, 47);
             this.panel1.TabIndex = 14;
@@ -227,7 +227,7 @@ namespace CROMS.Forms
             this.panel2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
             this.panel2.BackgroundImage = global::CROMS.Properties.Resources.images;
             this.panel2.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Zoom;
-            this.panel2.Location = new System.Drawing.Point(7, 5);
+            this.panel2.Location = new System.Drawing.Point(133, 6);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(50, 47);
             this.panel2.TabIndex = 15;
@@ -248,7 +248,7 @@ namespace CROMS.Forms
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.ClientSize = new System.Drawing.Size(377, 364);
+            this.ClientSize = new System.Drawing.Size(377, 398);
             this.Controls.Add(this.panel2);
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.pnlLogo);
