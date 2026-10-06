@@ -327,6 +327,34 @@ namespace CROMS.Data
             catch { rotation = 0; upright = image; }
             Log("rotation probe", rotSw);
 
+            // VERIFY a proposed turn against the real extraction instead of trusting the probe.
+            // Tesseract partly reads a sideways page on its own, so the cheap probe can score a
+            // wrong turn higher than an upright page (Birth.jpg 2026-10-06: turned 90 degrees
+            // although upright read 17 fields against 13 turned, and the preview came out
+            // sideways). The upright read is already running; read the turned page too and keep
+            // whichever Score() says recovered more. A genuinely sideways page reads almost
+            // nothing upright, so it still gets turned.
+            DocAiResult prefetchedTurned = null;
+            if (rotation != 0 && specTask != null)
+            {
+                DocAiResult specRes = null;
+                try { specRes = specTask.Result; } catch { specRes = null; }
+                if (specRes != null && string.IsNullOrEmpty(specRes.Error) && specRes.ExtractedCount >= 8)
+                {
+                    DocAiResult turnedRes = null;
+                    try { turnedRes = AnalyzeAt(upright, PreferredLongSide); } catch { turnedRes = null; }
+                    if (turnedRes == null || Score(specRes) >= Score(turnedRes))
+                    {
+                        try { Diag?.Invoke("rotation " + rotation + " REJECTED: page as given reads better ("
+                            + Score(specRes) + " vs " + (turnedRes == null ? -1 : Score(turnedRes)) + ")"); } catch { }
+                        if (!ReferenceEquals(upright, image)) upright.Dispose();
+                        upright = image;
+                        rotation = 0;
+                    }
+                    else prefetchedTurned = turnedRes;
+                }
+            }
+
             bool useSpec = specTask != null && rotation == 0;
             if (specTask != null && !useSpec)
             {
@@ -360,7 +388,8 @@ namespace CROMS.Data
                 // thread before either task starts.
                 Bitmap nativeCopy = wantNative ? new Bitmap(upright) : null;
 
-                Task<DocAiResult> preferredTask = useSpec ? specTask : Task.Run(() =>
+                Task<DocAiResult> preferredTask = useSpec ? specTask
+                    : prefetchedTurned != null ? Task.FromResult(prefetchedTurned) : Task.Run(() =>
                 {
                     var r = AnalyzeAt(upright, PreferredLongSide);
                     Log("preferred pass (" + PreferredLongSide + "px)", preferredSw);
@@ -1060,11 +1089,31 @@ namespace CROMS.Data
             var (mf, mm, ml) = SplitNameCells(NameAfter(lines, motherIdx));
             var (ff, fm, fl) = SplitNameCells(NameAfter(lines, fatherIdx));
 
-            string sex = Regex.IsMatch(text, @"\bFemale\b", IC) ? "Female"
+            // The child's own block: from the name row down to "4. PLACE OF BIRTH". Sex and date of
+            // birth are only ever read from here. Searching the whole page took the parents' date
+            // of marriage as the date of birth when the real year was misread ("20 February 3005"
+            // on Birth.jpg, 2026-10-06), and took the printed word "Female" as the answer.
+            int placeIdx = FindIdx(lines, @"P\w{0,3}[CG]E\s+OF");
+            int blockStart = childIdx >= 0 ? childIdx : 0;
+            int blockEnd = placeIdx > blockStart ? placeIdx
+                         : (motherIdx > blockStart ? motherIdx : Math.Min(lines.Length, blockStart + 12));
+            string childBlock = string.Join("\n", lines.Skip(blockStart).Take(Math.Max(0, blockEnd - blockStart)));
+
+            // Both options are PRINTED on the form ("1 Male  2 Female"), so seeing the word proves
+            // nothing; the answer is the one with the tick mark in front of it. No tick, no answer.
+            bool tickM = Regex.IsMatch(childBlock, @"\b[Xx]\b[\s_\-\.\)\|~]*1?[\s_\-\.\)]*Male\b");
+            bool tickF = Regex.IsMatch(childBlock, @"\b[Xx]\b[\s_\-\.\)\|~]*2?[\s_\-\.\)]*Female\b");
+            bool printedBoth = Regex.IsMatch(childBlock, @"\bMale\b", IC) && Regex.IsMatch(childBlock, @"\bFemale\b", IC);
+            string sex = tickF && !tickM ? "Female"
+                       : tickM && !tickF ? "Male"
+                       : printedBoth ? ""
+                       : Regex.IsMatch(text, @"\bFemale\b", IC) ? "Female"
                        : Regex.IsMatch(text, @"\bMale\b", IC) ? "Male" : "";
 
-            // Date of birth as "12 June 2018" (day month-name year).
-            string dob = FindDmy(text);
+            // Date of birth as "12 June 2018" (day month-name year), from the child's block only.
+            // A date that cannot be read there stays blank: a later date on the page is a
+            // different event and would be written into the record as the birth date.
+            string dob = FindDmy(childBlock);
             // Time of birth: "...born alive at 1:40 PM...". The anchored fallback
             // survives common OCR damage such as "alive st _3:40.Piypmpm".
             string tob = FindTimeOfBirth(text);

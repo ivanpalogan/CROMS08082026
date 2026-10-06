@@ -223,7 +223,8 @@ namespace CROMS.Data
             //    0/90/180/270 order the old loop used, so a tie breaks identically to
             //    before - only how the scores are COMPUTED changed, not which one wins.
             long[] scores = new long[4];
-            System.Threading.Tasks.Parallel.For(0, 4, i => scores[i] = ProbeScore(source, i * 90, probe));
+            int[] hits = new int[4];
+            System.Threading.Tasks.Parallel.For(0, 4, i => { int h; scores[i] = ProbeScore(source, i * 90, probe, out h); hits[i] = h; });
             long upright = scores[0];
             int axis = 0; long axisScore = upright;
             for (int i = 1; i < 4; i++)
@@ -234,6 +235,9 @@ namespace CROMS.Data
             // A turn has to beat leaving the page alone by a clear margin: upright is the
             // common case, and turning a page the operator can already read is a worse
             // failure than leaving a sideways one for them to rotate by hand.
+            // This probe is only a cheap proposal: Tesseract partly reads a sideways page itself,
+            // so it can favour a wrong turn (Birth.jpg 2026-10-06). DocumentAI.Analyze verifies any
+            // proposed turn against the real extraction before applying it.
             if (axis == 0 || axisScore < Math.Max(1, upright) * 1.2) return 0;
 
             // 3. The candidate is now nearly upright, which is where OSD is strong, so ask
@@ -300,9 +304,32 @@ namespace CROMS.Data
                    "), probe " + string.Join(" ", parts) + ", applied " + DetectRotation(source);
         }
 
-        /// <summary>How well the page reads at one rotation: real words x mean confidence.</summary>
+        /// <summary>Words printed on PSA civil-registry forms; used to tell a real read from noise.</summary>
+        private static readonly HashSet<string> FormWords = new HashSet<string>
+        {
+            "certificate","birth","live","name","sex","date","place","mother","father","citizenship",
+            "religion","occupation","residence","maiden","republic","philippines","civil","registrar",
+            "office","municipal","province","city","municipality","child","attendant","informant",
+            "signature","title","position","prepared","received","address","marriage","death","husband",
+            "wife","deceased","registry","form","weight","grams","single","twin","triplet","male","female",
+            "nurse","physician","midwife","parents","remarks","cause","age","years","first","middle","last",
+            "relationship","time","number","certify","hereby","month","year","hospital","barangay","street",
+            "type","order","born","alive","dead","living","children","married","affidavit","paternity",
+            "acknowledgment","admission","quadruplicate","accomplished","statistics","national","general",
+            "certification","solemnizing","officer","witnesses","burial","disposal","medical","certifier"
+        };
+
+        /// <summary>How well the page reads at one rotation: real words x mean confidence, plus form-label hits.</summary>
         private static long ProbeScore(Bitmap source, int degrees, int probeLongSide)
         {
+            int hits;
+            return ProbeScore(source, degrees, probeLongSide, out hits);
+        }
+
+        private static long ProbeScore(Bitmap source, int degrees, int probeLongSide, out int formHits)
+        {
+            formHits = 0;
+            int hitCount = 0;
             try
             {
                 using (Bitmap turned = Rotate(source, degrees))
@@ -322,7 +349,21 @@ namespace CROMS.Data
                                 .Split((char[])null, StringSplitOptions.RemoveEmptyEntries)
                                 .Count(t => t.Count(char.IsLetter) >= 4);
                             int confidence = (int)(page.GetMeanConfidence() * 100);
-                            return (long)words * confidence;
+
+                            // Word count x confidence alone is fooled by noise: a sideways read of a
+                            // page with a dark halftone column (2026-10-06, Birth.jpg) produced MORE
+                            // 4-letter "words" than the real upright read and turned a correct page
+                            // 90 degrees. Real printed labels ("CERTIFICATE", "CITIZENSHIP",
+                            // "RESIDENCE"...) only appear at the right angle, so each one counts far
+                            // more than a stray garbled word. A non-civil-registry page has ~0 hits
+                            // at every angle, so it falls back to the old measure unchanged.
+                            foreach (string raw in text.Split(new[] { ' ', '\t', '\r', '\n', ',', '.', ':', ';', '/', '(', ')', '-', '_', '"', '\'', '|' },
+                                         StringSplitOptions.RemoveEmptyEntries))
+                            {
+                                if (raw.Length >= 3 && FormWords.Contains(raw.ToLowerInvariant())) hitCount++;
+                            }
+                            formHits = hitCount;
+                            return (long)words * confidence + (long)hitCount * 3000;
                         }
                     }
                 }
