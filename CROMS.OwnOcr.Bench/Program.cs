@@ -59,6 +59,7 @@ namespace CROMS.OwnOcr.Bench
         private static int ReadBench(string dir, string synthFile, string[] opts)
         {
             bool noDp = opts.Contains("--nodp");
+            bool useGlobal = opts.Contains("--global");
             double penalty = 0.25;
             string debugDir = null;
             for (int i = 0; i < opts.Length; i++)
@@ -73,6 +74,7 @@ namespace CROMS.OwnOcr.Bench
                 noDp ? "thinnest column (Day 2)" : "classifier-scored search, penalty " + penalty);
             var reader = new OwnOcrReader(new KnnClassifier(all, 600, 3), noDp ? null : new KnnClassifier(all, 150, 5));
             reader.SplitPenalty = penalty;
+            reader.GlobalMerge = useGlobal;
             if (debugDir != null) Directory.CreateDirectory(debugDir);
 
             List<Row> rows = ReadManifest(dir)
@@ -88,6 +90,7 @@ namespace CROMS.OwnOcr.Bench
             {
                 string path = Path.Combine(dir, r.File);
                 if (!File.Exists(path)) continue;
+                Console.Error.WriteLine("[{0:HH:mm:ss}] {1}", DateTime.Now, r.File);
                 string ours;
                 using (Bitmap bmp = new Bitmap(path))
                 {

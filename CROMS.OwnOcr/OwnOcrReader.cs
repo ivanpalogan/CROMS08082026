@@ -30,6 +30,9 @@ namespace CROMS.OwnOcr
         /// <summary>Fixed price per character piece in the splitter search; higher = fewer, larger pieces.</summary>
         public double SplitPenalty = 0.25;
 
+        /// <summary>Search the whole line at once (can also merge broken letters) instead of each clump alone.</summary>
+        public bool GlobalMerge { set { SplitSearch.GlobalMerge = value; } }
+
         /// <param name="knn">Names each character. The larger the reference set the better.</param>
         /// <param name="scorer">
         /// Judges candidate cuts. It is queried many times per clump, so it is a much smaller

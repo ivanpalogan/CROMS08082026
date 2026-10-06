@@ -29,12 +29,50 @@ namespace CROMS.OwnOcr
         private const double MinWidthInCapHeights = 0.10;
         private const int MaxValleysPerPiece = 12;
 
+        /// <summary>
+        /// Evenly spaced extra candidates inside clumps. Measured 2026-10-06: no gain (42.0% vs
+        /// 42.3% character similarity) and 19 minutes for one benchmark run instead of 90 seconds,
+        /// so it is off. Kept as a switch so the negative result can be reproduced.
+        /// </summary>
+        public static bool DenseCandidates = false;
+
+        /// <summary>
+        /// false = search inside each clump only; pieces are never merged. true = one search over
+        /// the whole line, which can also join a letter that thresholding broke apart - and, as
+        /// measured, also joins letters that should stay apart.
+        /// </summary>
+        public static bool GlobalMerge = false;
+
         public static List<GlyphCell> Run(Analysis a, KnnClassifier scorer, double lambda)
         {
-            var empty = new List<GlyphCell>();
-            if (a.Line == null || a.Pieces.Count == 0) return empty;
+            var result = new List<GlyphCell>();
+            if (a.Line == null || a.Pieces.Count == 0) return result;
+            if (GlobalMerge) return Search(a, a.Pieces, scorer, lambda);
+
             double capH = a.Line.CapHeight;
-            var pieces = a.Pieces.OrderBy(p => p.Left).ToList();
+            foreach (Segmenter.Piece p in a.Pieces.OrderBy(p => p.Left))
+            {
+                // One character's width or less: no search, exactly as the plain splitter treats it.
+                if (p.Width <= 1.0 * capH)
+                {
+                    GlyphCell one = Segmenter.MakeCell(a, p, p.Left, p.Right, false);
+                    if (one != null) result.Add(one);
+                    continue;
+                }
+                List<GlyphCell> best = Search(a, new List<Segmenter.Piece> { p }, scorer, lambda);
+                if (best.Count > 0) result.AddRange(best);
+                else
+                    foreach (GlyphCell c in a.Cells.Where(c => c.Left >= p.Left && c.Right <= p.Right))
+                        result.Add(c);   // no path: keep what the plain splitter made
+            }
+            return result.OrderBy(c => c.Left).ToList();
+        }
+
+        private static List<GlyphCell> Search(Analysis a, List<Segmenter.Piece> pieceList, KnnClassifier scorer, double lambda)
+        {
+            var empty = new List<GlyphCell>();
+            double capH = a.Line.CapHeight;
+            var pieces = pieceList.OrderBy(p => p.Left).ToList();
 
             // ---- nodes ----------------------------------------------------------------------
             var set = new SortedSet<int>();
@@ -49,7 +87,7 @@ namespace CROMS.OwnOcr
                 // where typewriter ink or blur has fused two letters, the join is as thick as the
                 // letters (seen on "van" in the 1993 photocopy). So a clump also gets evenly
                 // spaced candidates and the classifier decides, as it has to anyway.
-                if (p.Width > 0.9 * capH)
+                if (DenseCandidates && p.Width > 0.9 * capH)
                 {
                     int step = Math.Max(2, (int)(0.08 * capH));
                     for (int x = p.Left + step; x < p.Right; x += step) set.Add(x);
