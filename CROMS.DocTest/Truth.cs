@@ -112,6 +112,54 @@ namespace CROMS.DocTest
                         { "Attendant", "Others" },
                     }
                 },
+                // Added 2026-10-06. Values read off the certificate by eye. Left OUT on purpose:
+                // the two-digit-year dates (3-3-05: day/month order is ambiguous, the app leaves
+                // them for the operator), the prepared-by name (signature over the typing makes
+                // even a human reading uncertain) and religion (printed "Catholic", app says
+                // "Roman Catholic").
+                new Sample
+                {
+                    File = Path.Combine(dir, "Birth.jpg"),
+                    What = "Birth — MF-102 (1993), NSO copy with REMARKS column, 1468x2048",
+                    Kind = DocKind.Birth,
+                    Layout = "MF-102 (1993)",
+                    Expect = new Dictionary<string, string>
+                    {
+                        { "Province", "Cagayan" },
+                        { "CityMunicipality", "Peñablanca" },
+                        { "RegistryNo", "2005-297" },
+                        { "ChildFirst", "KIM DANIEL" },
+                        { "ChildMiddle", "GARGOLES" },
+                        { "ChildLast", "CUSIPAG" },
+                        { "Sex", "Male" },
+                        { "DateOfBirth", "2005-02-20" },
+                        { "TypeOfBirth", "Single" },
+                        { "BirthOrder", "Third" },
+                        { "Weight", "3000" },
+                        { "MotherFirst", "Sara" },
+                        { "MotherMiddle", "Callera" },
+                        { "MotherLast", "Gargoles" },
+                        { "MotherCitizenship", "Filipino" },
+                        { "ChildrenBornAlive", "3" },
+                        { "ChildrenLiving", "3" },
+                        { "ChildrenDead", "0" },
+                        { "MotherOccupation", "Housekeeper" },
+                        { "MotherAge", "26" },
+                        { "FatherFirst", "Eric" },
+                        { "FatherMiddle", "Ledesma" },
+                        { "FatherLast", "Cusipag" },
+                        { "FatherCitizenship", "Filipino" },
+                        { "FatherOccupation", "Farmer" },
+                        { "FatherAge", "24" },
+                        { "Attendant", "Hilot" },
+                        { "AttendantName", "CATHERINE LEDESMA" },
+                        { "AttendantTitle", "Hilot" },
+                        { "Informant", "CATHERINE CUSIPAG" },
+                        { "InformantRelationship", "Grandmother" },
+                        { "ReceivedByName", "ELISA C. ARUGAY" },
+                        { "ReceivedByTitle", "M.C.R." },
+                    }
+                },
                 new Sample
                 {
                     File = Path.Combine(dir, "palogan_n.jpg"),

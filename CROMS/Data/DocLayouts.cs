@@ -69,9 +69,14 @@ namespace CROMS.Data
         /// </summary>
         public RectangleF[] TickSlots;
 
+        /// <summary>Re-read a weak value at shifted heights: rows on a photographed page drift against the template by up to a row, and the certification blocks drift most.</summary>
+        public bool Slides;
+
         public FieldSpec InRow(string rowGroup) { RowGroup = rowGroup; return this; }
 
         public FieldSpec WithTicks(params RectangleF[] slots) { TickSlots = slots; return this; }
+
+        public FieldSpec Sliding() { Slides = true; return this; }
 
         public FieldSpec KeepingLabelWords() { KeepLabelWords = true; return this; }
     }
@@ -411,23 +416,33 @@ namespace CROMS.Data
                 // weakest regions in the library. A row that cannot be read comes back
                 // BLANK and flagged, which is the intended failure - re-measure against a
                 // cleaner 1993 scan when the office supplies one.
-                new FieldSpec("AttendantName",     "Attendant Name",       0.225f, 0.6900f, 0.240f, 0.0200f, FieldShape.Name, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("AttendantAddress",  "Attendant Address",    0.470f, 0.6900f, 0.240f, 0.0200f, FieldShape.Place, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("AttendantTitle",    "Attendant Title / Position", 0.225f, 0.7050f, 0.240f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("AttendantDate",     "Attendant Date Signed",0.470f, 0.7040f, 0.240f, 0.0190f, FieldShape.Date, OcrRegionMode.Line, false, null, false),
+                new FieldSpec("AttendantName",     "Attendant Name",       0.225f, 0.6900f, 0.240f, 0.0200f, FieldShape.Name, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("AttendantAddress",  "Attendant Address",    0.470f, 0.6900f, 0.240f, 0.0200f, FieldShape.Place, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("AttendantTitle",    "Attendant Title / Position", 0.225f, 0.7050f, 0.240f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("AttendantDate",     "Attendant Date Signed",0.470f, 0.7040f, 0.240f, 0.0190f, FieldShape.Date, OcrRegionMode.Line, false, null, false).Sliding(),
 
-                new FieldSpec("Informant",         "Informant Name",       0.225f, 0.7430f, 0.240f, 0.0200f, FieldShape.Name, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("InformantAddress",  "Informant Address",    0.470f, 0.7420f, 0.240f, 0.0210f, FieldShape.Place, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("InformantRelationship","Informant Relationship",0.300f, 0.7650f, 0.165f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("InformantDate",     "Informant Date Signed",0.470f, 0.7640f, 0.240f, 0.0200f, FieldShape.Date, OcrRegionMode.Line, false, null, false),
+                new FieldSpec("Informant",         "Informant Name",       0.225f, 0.7430f, 0.240f, 0.0200f, FieldShape.Name, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("InformantAddress",  "Informant Address",    0.470f, 0.7420f, 0.240f, 0.0210f, FieldShape.Place, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("InformantRelationship","Informant Relationship",0.300f, 0.7650f, 0.165f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("InformantDate",     "Informant Date Signed",0.470f, 0.7640f, 0.240f, 0.0200f, FieldShape.Date, OcrRegionMode.Line, false, null, false).Sliding(),
 
-                new FieldSpec("PreparedByName",    "Prepared By",          0.220f, 0.8280f, 0.215f, 0.0190f, FieldShape.Name, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("PreparedByTitle",   "Prepared By Title",    0.220f, 0.8420f, 0.215f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("PreparedByDate",    "Prepared By Date",     0.220f, 0.8560f, 0.215f, 0.0190f, FieldShape.Date, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("ReceivedByName",    "Received By",          0.450f, 0.8280f, 0.250f, 0.0190f, FieldShape.Name, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("ReceivedByTitle",   "Received By Title",    0.450f, 0.8420f, 0.250f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false),
-                new FieldSpec("ReceivedByDate",    "Received By Date",     0.450f, 0.8560f, 0.250f, 0.0190f, FieldShape.Date, OcrRegionMode.Line, false, null, false),
+                new FieldSpec("PreparedByName",    "Prepared By",          0.220f, 0.8280f, 0.215f, 0.0190f, FieldShape.Name, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("PreparedByTitle",   "Prepared By Title",    0.220f, 0.8420f, 0.215f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("PreparedByDate",    "Prepared By Date",     0.220f, 0.8560f, 0.215f, 0.0190f, FieldShape.Date, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("ReceivedByName",    "Received By",          0.450f, 0.8280f, 0.250f, 0.0190f, FieldShape.Name, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("ReceivedByTitle",   "Received By Title",    0.450f, 0.8420f, 0.250f, 0.0190f, FieldShape.Text, OcrRegionMode.Line, false, null, false).Sliding(),
+                new FieldSpec("ReceivedByDate",    "Received By Date",     0.450f, 0.8560f, 0.250f, 0.0190f, FieldShape.Date, OcrRegionMode.Line, false, null, false).Sliding(),
             };
+
+            // The certification-block rows are only ~0.011 apart, but their regions were drawn
+            // 0.019-0.021 tall, so each one also caught the row above or below it (the title box
+            // read "CATHERINE LEDESMA" from the name row, Birth.jpg 2026-10-06). Same centre,
+            // one text line tall.
+            foreach (FieldSpec s in f.Where(x => x.Slides))
+            {
+                const float h = 0.0125f;
+                s.Rect = new RectangleF(s.Rect.X, s.Rect.Y + (s.Rect.Height - h) / 2f, s.Rect.Width, h);
+            }
 
             return new FormLayout
             {
@@ -1077,12 +1092,45 @@ namespace CROMS.Data
                     Judge(reads, spec, layout, read, PageWordsIn(page, rect));
                 }
 
+                // The certification blocks sit at the bottom of a photographed page, where the
+                // rows drift furthest from the fitted template (Birth.jpg 2026-10-06: the attendant
+                // and informant name rows were read from their neighbours). A weak value there is
+                // read again higher and lower and the clearly better reading is kept.
+                if (spec.Slides && (string.IsNullOrWhiteSpace(read.Value) || read.Confidence < 55))
+                    SlideRegion(session, spec, rect, layout, page, read);
+
                 Repair(spec, read);
                 if (spec.TickSlots != null && spec.Choices != null && spec.TickSlots.Length == spec.Choices.Length)
                     ApplyTick(session, spec, fit, read);
                 resultsArr[i] = read;
             });
             return resultsArr.ToList();
+        }
+
+        /// <summary>Vertical shifts tried, as a fraction of page height (about 12px on a 2048px page).</summary>
+        private static readonly float[] SlideSteps = { -0.006f, 0.006f };
+
+        private static void SlideRegion(OcrSession session, FieldSpec spec, RectangleF rect,
+                                        FormLayout layout, OcrResult page, FieldRead read)
+        {
+            foreach (float dy in SlideSteps)
+            {
+                RectangleF moved = new RectangleF(rect.X, rect.Y + dy, rect.Width, rect.Height);
+                if (moved.Y < 0 || moved.Bottom > 1) continue;
+
+                var trial = new FieldRead { Key = spec.Key, Label = spec.Label, Required = spec.Required,
+                                            Core = spec.Core, Region = moved };
+                var reads = new List<OcrRegionRead>(session.ReadRegion(moved, spec.Mode));
+                Judge(reads, spec, layout, trial, PageWordsIn(page, moved));
+                if (string.IsNullOrWhiteSpace(trial.Value)) continue;
+
+                // A different box has to be clearly better, not merely different.
+                bool better = string.IsNullOrWhiteSpace(read.Value) || trial.Confidence >= read.Confidence + 8;
+                if (!better) continue;
+
+                read.Value = trial.Value; read.OcrValue = trial.OcrValue;
+                read.Confidence = trial.Confidence; read.Issue = trial.Issue; read.Region = moved;
+            }
         }
 
         /// <summary>

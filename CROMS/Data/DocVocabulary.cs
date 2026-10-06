@@ -122,6 +122,20 @@ namespace CROMS.Data
 
             foreach (string sql in placeQueries) Harvest(sql, places);
 
+            // The office's own municipality and province, in their official spelling. The
+            // master lists can hold "Penablanca" without its tilde (legacy data), which would
+            // otherwise be the only spelling a repair could return.
+            try
+            {
+                OfficeProfile office = OfficeAssets.Profile;
+                if (office != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(office.MunicipalityForPrint)) places.Add(office.MunicipalityForPrint);
+                    if (!string.IsNullOrWhiteSpace(office.ProvinceForPrint)) places.Add(office.ProvinceForPrint);
+                }
+            }
+            catch { }
+
             // Kept as their own pools, because telling "which part of this text is the
             // province" needs province names ALONE - the mixed `places` pool cannot answer it.
             var provinces = new HashSet<string>(PhProvinces, StringComparer.OrdinalIgnoreCase);
@@ -179,6 +193,15 @@ namespace CROMS.Data
         /// the reading sits between two names the office holds, choosing either would be a
         /// coin flip printed onto a civil-registry record.
         /// </summary>
+        /// <summary>Normalised text with the accent removed, so "peñablanca" and "penablanca" compare as the same place.</summary>
+        private static string Fold(string s) { return (s ?? "").Replace((char)0xF1, (char)0x6E); }
+
+        private static bool HasAccent(string s)
+        {
+            foreach (char c in s ?? "") if (c > 127 && char.IsLetter(c)) return true;
+            return false;
+        }
+
         public static string Snap(string category, string reading, out int distance)
         {
             distance = int.MaxValue;
@@ -211,14 +234,26 @@ namespace CROMS.Data
                 {
                     // Same distance to a DIFFERENT spelling is a genuine ambiguity; the same
                     // distance to the same normalised text is not.
-                    if (best != null && !string.Equals(Normalise(best), target, StringComparison.Ordinal))
+                    if (best != null && !string.Equals(Fold(Normalise(best)), Fold(target), StringComparison.Ordinal))
                         bestTied = true;
+                    // The same place can be on file both with and without its accent
+                    // ("Peñablanca" from the PSGC list, "Penablanca" from legacy data). They
+                    // normalise alike, so the first one met used to win by accident; the accented
+                    // spelling is the official one.
+                    else if (best != null && HasAccent(candidate) && !HasAccent(best))
+                        best = candidate;
                 }
                 else if (d < secondD) secondD = d;
             }
 
             if (best == null || bestTied) return null;
-            if (bestD == 0) return null;                       // already correct, nothing to repair
+            // Already correct apart from a lost accent: "Penablanca" read off a typewriter that
+            // struck no tilde. Restore the official spelling rather than leave it as read.
+            if (bestD == 0)
+            {
+                if (HasAccent(best) && !HasAccent(reading)) { distance = 0; return best; }
+                return null;                                   // already correct, nothing to repair
+            }
             if (bestD > Allowance(probe.Length)) return null;
             // A clear MARGIN, not merely "closer": one edit further away is well within the
             // noise of a bad scan, so a runner-up that close means the reading has not

@@ -766,6 +766,24 @@ namespace CROMS.Data
             foreach (string k in new[] { "MotherReligion", "FatherReligion", "Religion" }) fromPage(k, DocLayouts.Religions, pageReligion);
             foreach (string k in new[] { "MotherCitizenship", "FatherCitizenship", "Nationality" }) fromPage(k, DocLayouts.Citizenships, pageCitizen);
 
+            // The attendant's typed title repeats the kind of attendant ticked in item 19a for a
+            // hilot, midwife or nurse ("Hilot" under item 19b on Birth.jpg). A title that could
+            // not be read is filled from the tick, flagged. Not done for a physician (the title
+            // is then a post such as "Municipal Health Officer") or "Others".
+            DocField attendant = result.Fields.FirstOrDefault(x => x != null && x.Key == "Attendant");
+            DocField title = result.Fields.FirstOrDefault(x => x != null && x.Key == "AttendantTitle");
+            if (attendant != null && title != null && !string.IsNullOrWhiteSpace(attendant.Value)
+                && new[] { "Hilot", "Midwife", "Nurse" }.Contains(attendant.Value)
+                && (string.IsNullOrWhiteSpace(title.Value) || title.RegionConfidence < 60)
+                && !string.Equals(title.Value, attendant.Value, StringComparison.OrdinalIgnoreCase))
+            {
+                title.OcrValue = title.Value;
+                title.Value = attendant.Value;
+                title.Uncertain = true;
+                title.RegionConfidence = 60;
+                title.Issue = "Title could not be read; taken from the attendant box ticked in item 19a - confirm against the scan";
+            }
+
             foreach (string k in new[] { "MotherOccupation", "FatherOccupation" })
             {
                 DocField f = result.Fields.FirstOrDefault(x => x != null && x.Key == k);

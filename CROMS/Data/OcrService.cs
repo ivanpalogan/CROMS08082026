@@ -921,6 +921,7 @@ namespace CROMS.Data
             return reads;
         }
 
+
         private void Add(List<OcrRegionRead> into, string variant, Bitmap image, PageSegMode psm, Rectangle box)
         {
             OcrResult r = Recognise(image, psm);
