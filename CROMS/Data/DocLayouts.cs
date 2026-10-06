@@ -71,7 +71,9 @@ namespace CROMS.Data
     {
         public string Pattern;         // regex matched against a single OCR word
         public PointF At;              // where that word sits in the template
-        public AnchorSpec(string pattern, float x, float y) { Pattern = pattern; At = new PointF(x, y); }
+        /// <summary>Used only by <see cref="PageFit.FromWide"/>: spreads the anchors across x so a page framed differently across its width can be fitted, without disturbing the ordinary fit.</summary>
+        public bool WideOnly;
+        public AnchorSpec(string pattern, float x, float y, bool wideOnly = false) { Pattern = pattern; At = new PointF(x, y); WideOnly = wideOnly; }
     }
 
     /// <summary>
@@ -422,8 +424,8 @@ namespace CROMS.Data
                     // about horizontal SCALE - so a page framed differently across the width
                     // (an NSO copy with a REMARKS column beside the form, Birth.jpg 2026-10-06)
                     // could never be fitted. Positions measured on the 1993 reference scan.
-                    new AnchorSpec(@"^MULTIPLE$",         0.4593f, 0.2710f),
-                    new AnchorSpec(@"^WEIGHT$",           0.4919f, 0.3050f),
+                    new AnchorSpec(@"^MULTIPLE$",         0.4593f, 0.2710f, true),
+                    new AnchorSpec(@"^WEIGHT$",           0.4919f, 0.3050f, true),
                 },
                 Fields = f
             };
@@ -681,6 +683,7 @@ namespace CROMS.Data
             var pairs = new List<Tuple<PointF, PointF>>();   // template, page
             foreach (AnchorSpec a in layout.Anchors)
             {
+                if (a.WideOnly) continue;
                 var rx = new Regex(a.Pattern, RegexOptions.IgnoreCase);
                 OcrWord hit = null; double bestDist = double.MaxValue;
                 foreach (OcrWord w in page.Words)
@@ -739,7 +742,6 @@ namespace CROMS.Data
                 if (list.Count == 0) continue;
                 tmpl.Add(a.At); hits.Add(list);
             }
-            DocumentAI.Diag?.Invoke("wide: anchors with hits " + tmpl.Count + " of " + layout.Anchors.Count);
             if (tmpl.Count < 4) return none;
 
             const float tolY = 0.004f, tolX = 0.008f;
@@ -767,7 +769,6 @@ namespace CROMS.Data
                             if (inl > bestY || (inl == bestY && err < bestYErr)) { bestY = inl; bestYErr = err; sy = s; oy = o; }
                         }
                 }
-            DocumentAI.Diag?.Invoke("wide: Y inliers " + bestY + " scale " + sy.ToString("0.000") + " off " + oy.ToString("0.000"));
             if (bestY < 4) return none;
 
             // Anchors that sit on the fitted rows, each with the hit(s) on that row.
@@ -800,7 +801,6 @@ namespace CROMS.Data
                             if (inl > bestX || (inl == bestX && err < bestXErr)) { bestX = inl; bestXErr = err; sx = s; ox = o; }
                         }
                 }
-            DocumentAI.Diag?.Invoke("wide: X inliers " + bestX + " scale " + sx.ToString("0.000") + " off " + ox.ToString("0.000"));
             if (bestX < 3) return none;
 
             var fit = new PageFit { ScaleX = sx, OffsetX = ox, ScaleY = sy, OffsetY = oy };
