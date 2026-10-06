@@ -724,6 +724,62 @@ namespace CROMS.Data
         /// not-from-its-own-region, so the grid flags it and the operator is told where it
         /// came from.
         /// </summary>
+        private static int EditDistance(string a, string b)
+        {
+            var d = new int[a.Length + 1, b.Length + 1];
+            for (int i = 0; i <= a.Length; i++) d[i, 0] = i;
+            for (int j = 0; j <= b.Length; j++) d[0, j] = j;
+            for (int i = 1; i <= a.Length; i++)
+                for (int j = 1; j <= b.Length; j++)
+                    d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                                       d[i - 1, j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
+            return d[a.Length, b.Length];
+        }
+
+        /// <summary>First/middle/last/maiden name cells of a person, e.g. MotherFirst, FatherLast, ChildMiddle.</summary>
+        private static bool IsPersonNameKey(string key)
+        {
+            return Regex.IsMatch(key ?? "", @"^(Child|Mother|Father|Husband|Wife|Deceased)(First|Middle|Last)$",
+                RegexOptions.IgnoreCase);
+        }
+
+        /// <summary>
+        /// Closed vocabularies: religion, citizenship and occupation come from short lists, so a
+        /// box reading that is NOT on the list ("eT BE" for Catholic, "armer" for Farmer on
+        /// Birth.jpg, 2026-10-06) is a misreading, not a rare answer. Prefer a listed value the
+        /// page pass read, then a listed value one edit away; leave anything else exactly as read.
+        /// </summary>
+        private static void SnapVocabularies(DocAiResult result, List<DocField> page)
+        {
+            string pageReligion = page.FirstOrDefault(p => p != null && p.Key == "Religion")?.Value;
+            string pageCitizen = page.FirstOrDefault(p => p != null && p.Key == "Nationality")?.Value;
+
+            Action<string, string[], string> fromPage = (key, vocab, pageValue) =>
+            {
+                DocField f = result.Fields.FirstOrDefault(x => x != null && x.Key == key);
+                if (f == null || string.IsNullOrWhiteSpace(pageValue)) return;
+                if (vocab.Any(v => string.Equals(v, f.Value, StringComparison.OrdinalIgnoreCase))) return;
+                if (!vocab.Any(v => string.Equals(v, pageValue, StringComparison.OrdinalIgnoreCase))) return;
+                f.OcrValue = f.Value; f.Value = pageValue; f.Uncertain = true; f.RegionConfidence = 60;
+                f.Issue = "Box reading ('" + f.OcrValue + "') is not a known value; taken from the printed label row - confirm against the scan";
+            };
+            foreach (string k in new[] { "MotherReligion", "FatherReligion", "Religion" }) fromPage(k, DocLayouts.Religions, pageReligion);
+            foreach (string k in new[] { "MotherCitizenship", "FatherCitizenship", "Nationality" }) fromPage(k, DocLayouts.Citizenships, pageCitizen);
+
+            foreach (string k in new[] { "MotherOccupation", "FatherOccupation" })
+            {
+                DocField f = result.Fields.FirstOrDefault(x => x != null && x.Key == k);
+                if (f == null || string.IsNullOrWhiteSpace(f.Value)) continue;
+                if (Occupations.Any(o => string.Equals(o, f.Value, StringComparison.OrdinalIgnoreCase))) continue;
+                var near = Occupations.Where(o => o.Length >= 5
+                        && EditDistance(o.ToLowerInvariant(), f.Value.ToLowerInvariant()) <= 1).ToList();
+                if (near.Count != 1) continue;
+                f.OcrValue = f.Value; f.Value = near[0]; f.Uncertain = true;
+                f.RegionConfidence = Math.Max(f.RegionConfidence, 65);
+                f.Issue = "Read as '" + f.OcrValue + "'; matched to the listed occupation '" + near[0] + "' - confirm against the scan";
+            }
+        }
+
         private static void MergePageText(DocAiResult result, OcrResult ocr, FormLayout layout)
         {
             List<DocField> page;
@@ -732,12 +788,50 @@ namespace CROMS.Data
             else if (layout.Kind == DocKind.Death) page = ExtractDeath(result.RawText, ocr.Confidence);
             else return;
 
+            if (layout.Kind == DocKind.Birth) SnapVocabularies(result, page);
+
             foreach (DocField p in page)
             {
                 if (p == null || string.IsNullOrWhiteSpace(p.Value)) continue;
 
                 DocField have = result.Fields.FirstOrDefault(
                     f => string.Equals(f.Key, p.Key, StringComparison.OrdinalIgnoreCase));
+
+                // A weak box reading of a PERSON'S NAME can be beaten by the label pass: on a
+                // photograph the rows drift against the template, so a box can catch the hint
+                // and rule around the name instead of the name ("es" and "JaraC" for "Sara",
+                // Birth.jpg 2026-10-06) while the page pass read the same name cleanly beside
+                // its printed "NAME" label. Replace only when the box reading is poor AND the
+                // page words behind the label value are clearly better supported, and the value
+                // passes the field's own shape rules.
+                if (have != null && !string.IsNullOrWhiteSpace(have.Value) && have.FromRegion
+                    && have.RegionConfidence < 90 && IsPersonNameKey(p.Key)
+                    && !string.Equals(have.Value, p.Value, StringComparison.OrdinalIgnoreCase))
+                {
+                    int labelScore = DocIntelligence.ScoreValue(p.Value, ocr, out System.Drawing.Rectangle _);
+                    int vscore;
+                    string v = RegionReader.Vet(layout, p.Key, p.Value, out vscore);
+
+                    // Two ways the label value may win. (1) The box reading is poor and the label
+                    // value is much better supported. (2) The two are the SAME name read twice
+                    // (within 3 edits - "JaraC" against "Sara") and the page words behind the
+                    // label value are strong: a box that catches a stray neighbouring letter can
+                    // still report a high confidence, so confidence alone cannot be trusted
+                    // there. Two readings that are entirely different names are left alone - which
+                    // one is right is not something to guess.
+                    bool poorBox = have.RegionConfidence < 65 && labelScore >= 70 && labelScore >= have.RegionConfidence + 20;
+                    bool sameName = labelScore >= 85 && labelScore > have.RegionConfidence
+                        && EditDistance(have.Value.ToLowerInvariant(), p.Value.ToLowerInvariant()) <= 3;
+                    if (v != null && (poorBox || sameName))
+                    {
+                        have.OcrValue = have.Value;
+                        have.Value = v;
+                        have.RegionConfidence = Math.Min(labelScore, 85);
+                        have.Issue = "Box reading was poor ('" + have.OcrValue + "'); taken from the form's printed NAME row instead - confirm against the scan";
+                        continue;
+                    }
+                }
+
                 if (have != null && !string.IsNullOrWhiteSpace(have.Value)) continue;
 
                 int score;

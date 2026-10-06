@@ -229,7 +229,7 @@ namespace CROMS.Data
         /// "Filipino" from a keyword), so it gets a deliberately middling score instead of
         /// a flattering one.
         /// </summary>
-        private static int ScoreValue(string value, OcrResult ocr, out Rectangle region)
+        internal static int ScoreValue(string value, OcrResult ocr, out Rectangle region)
         {
             region = Rectangle.Empty;
             if (string.IsNullOrWhiteSpace(value)) return 0;

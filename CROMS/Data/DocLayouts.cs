@@ -389,7 +389,17 @@ namespace CROMS.Data
 
                 new FieldSpec("MarriageOfParents", "Parents Married — Date & Place", 0.240f, 0.5925f, 0.330f, 0.0165f, FieldShape.Place),
                 new FieldSpec("Attendant",         "Attendant at Birth",   0.170f, 0.6185f, 0.510f, 0.0300f, FieldShape.Choice, OcrRegionMode.Sparse, false,
-                              new[] { "Physician", "Nurse", "Midwife", "Hilot", "Others" }),
+                              new[] { "Physician", "Nurse", "Midwife", "Hilot", "Others" })
+                    // Measured on the 1993 reference with a 2x gridded crop: the blank above the
+                    // underline before each printed option number.
+                    // Kept narrow and left-aligned on the underline so the printed option digit
+                    // ("1", "2", "5") sitting just after it is not counted as a tick, and the
+                    // upper slots are short so the tall X of the row below does not bleed in.
+                    .WithTicks(new RectangleF(0.162f, 0.6190f, 0.028f, 0.0075f),
+                               new RectangleF(0.372f, 0.6190f, 0.028f, 0.0075f),
+                               new RectangleF(0.5651f, 0.6165f, 0.027f, 0.0085f),
+                               new RectangleF(0.162f, 0.6280f, 0.028f, 0.0090f),
+                               new RectangleF(0.372f, 0.6280f, 0.028f, 0.0090f)),
                 new FieldSpec("TimeOfBirth",       "Time of Birth",        0.520f, 0.6455f, 0.110f, 0.0160f, FieldShape.Time, OcrRegionMode.Line, false, null, false),
 
                 // ---- 19b. CERTIFICATION OF BIRTH, 20. INFORMANT, 21. PREPARED BY,
@@ -1225,6 +1235,15 @@ namespace CROMS.Data
                 if (piece.Length == 0) continue;
                 int distance;
                 string known = DocVocabulary.Snap(DocVocabulary.Places, piece, out distance);
+                // "Peñablanca" is routinely read with the tilde-n as "fi" or "ii" ("efiablanca",
+                // "Pefiablanca" on Birth.jpg, 2026-10-06), which costs three edits against the
+                // vocabulary, too many to trust in general. Folding that one known confusion
+                // first brings it back to one edit.
+                if (known == null && Regex.IsMatch(piece, "[fFiI]{2}|[fF]i", RegexOptions.None))
+                {
+                    string folded = Regex.Replace(piece, "(?<=[a-z])[fF][iI](?=[a-z])", "n");
+                    if (folded != piece) known = DocVocabulary.Snap(DocVocabulary.Places, folded, out distance);
+                }
                 if (known == null) { mended.Add(piece); continue; }
                 mended.Add(known.Trim());
                 changed = true;
@@ -1645,6 +1664,13 @@ namespace CROMS.Data
                 if (label.Length <= lower.Length) continue;
                 if (label.EndsWith(lower, StringComparison.Ordinal) ||
                     label.StartsWith(lower, StringComparison.Ordinal)) return true;
+
+                // The clipped tail is itself often misread by a character ("clpality" for the
+                // "cipality" left of "City/Municipality" on Birth.jpg, 2026-10-06), so a long
+                // enough token within one edit of a label's tail or head is that fragment too.
+                if (lower.Length >= 6 && label.Length >= lower.Length &&
+                    (Distance(lower, label.Substring(label.Length - lower.Length)) <= 1 ||
+                     Distance(lower, label.Substring(0, lower.Length)) <= 1)) return true;
             }
             return false;
         }
@@ -1780,6 +1806,26 @@ namespace CROMS.Data
                 var tick = new Regex(@"\bx{1,2}\s*\d?\s*" + Regex.Escape(choice.Substring(0, Math.Min(4, choice.Length))),
                     RegexOptions.IgnoreCase);
                 if (tick.IsMatch(text)) return choice;
+            }
+
+            // Birth order is often typed as "3rd" and read back as "Srd": the ordinal suffix
+            // survives where the digit does not, and "rd" can only be 3rd (23rd cannot occur).
+            // "st"/"nd" are likewise 1st/2nd; "th" alone does not say which, so it is not guessed.
+            if (choices.Contains("First") && choices.Contains("Third"))
+            {
+                foreach (string token in text.Split(' '))
+                {
+                    Match ord = Regex.Match(token, @"^([0-9A-Za-z]?)(st|nd|rd|th)$", RegexOptions.IgnoreCase);
+                    if (!ord.Success) continue;
+                    string suffix = ord.Groups[2].Value.ToLowerInvariant();
+                    if (suffix == "st") return "First";
+                    if (suffix == "nd") return "Second";
+                    if (suffix == "rd") return "Third";
+                    char digit = ord.Groups[1].Value.Length == 1 ? ord.Groups[1].Value[0] : ' ';
+                    string[] byDigit = { "Fourth", "Fifth", "Sixth", "Seventh" };
+                    if (digit >= '4' && digit <= '7' && byDigit[digit - '4'] != null && choices.Contains(byDigit[digit - '4']))
+                        return byDigit[digit - '4'];
+                }
             }
 
             // Typed in: the closest option to any token, within one or two edits.
