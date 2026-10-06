@@ -76,6 +76,17 @@ namespace CROMS.Data
 
         public FieldSpec WithTicks(params RectangleF[] slots) { TickSlots = slots; return this; }
 
+        /// <summary>
+        /// Tick options laid out as columns of printed underlines (see
+        /// <see cref="OcrSession.InkAboveRules"/>): one strip per entry of
+        /// <see cref="Choices"/>, tall enough to hold every underline of its column, plus which
+        /// underline (counted from the top) the option's X is written on and how many the
+        /// column has. Used instead of the fixed boxes where rows drift by more than their gap.
+        /// </summary>
+        public RectangleF[] RuleStrips; public int[] RuleRow; public int[] RuleRows;
+        public FieldSpec WithRuleTicks(RectangleF[] strips, int[] row, int[] rows)
+        { RuleStrips = strips; RuleRow = row; RuleRows = rows; return this; }
+
         public FieldSpec Sliding() { Slides = true; return this; }
 
         public FieldSpec KeepingLabelWords() { KeepLabelWords = true; return this; }
@@ -404,7 +415,16 @@ namespace CROMS.Data
                                new RectangleF(0.372f, 0.6190f, 0.028f, 0.0075f),
                                new RectangleF(0.5651f, 0.6165f, 0.027f, 0.0085f),
                                new RectangleF(0.162f, 0.6280f, 0.028f, 0.0090f),
-                               new RectangleF(0.372f, 0.6280f, 0.028f, 0.0090f)),
+                               new RectangleF(0.372f, 0.6280f, 0.028f, 0.0090f))
+                    // Rows drift ~0.010 between photographs, more than the gap between two rows,
+                    // so each X is attributed to the underline it sits on instead (2026-10-06).
+                    // Columns (template x): Physician/Hilot 0.150, Nurse/Others 0.360, Midwife 0.553.
+                    .WithRuleTicks(new[] { new RectangleF(0.150f, 0.608f, 0.062f, 0.050f),
+                                           new RectangleF(0.360f, 0.608f, 0.062f, 0.050f),
+                                           new RectangleF(0.553f, 0.608f, 0.062f, 0.050f),
+                                           new RectangleF(0.150f, 0.608f, 0.062f, 0.050f),
+                                           new RectangleF(0.360f, 0.608f, 0.062f, 0.050f) },
+                                   new[] { 0, 0, 0, 1, 1 }, new[] { 2, 2, 1, 2, 2 }),
                 new FieldSpec("TimeOfBirth",       "Time of Birth",        0.520f, 0.6455f, 0.110f, 0.0160f, FieldShape.Time, OcrRegionMode.Line, false, null, false),
 
                 // ---- 19b. CERTIFICATION OF BIRTH, 20. INFORMANT, 21. PREPARED BY,
@@ -1144,6 +1164,16 @@ namespace CROMS.Data
         {
             RectangleF[] mapped = spec.TickSlots.Select(s => fit.Map(s)).ToArray();
             double[] ink = session.InkIn(mapped);
+            if (spec.RuleStrips != null && spec.RuleStrips.Length == ink.Length)
+            {
+                double[] ruled = session.InkAboveRules(spec.RuleStrips.Select(s => fit.Map(s)).ToArray(),
+                                                       spec.RuleRow, spec.RuleRows);
+                try { DocumentAI.Diag?.Invoke("rule " + spec.Key + ": " + string.Join(" ",
+                    spec.Choices.Select((c, i) => c + "=" + ruled[i].ToString("0.000")))); } catch { }
+                // Use the underline reading only when every option found its underline; mixing
+                // the two scales would compare an X against a printed rule.
+                if (ruled.All(v => v >= 0)) ink = ruled;
+            }
 
             int top = 0;
             for (int i = 1; i < ink.Length; i++) if (ink[i] > ink[top]) top = i;

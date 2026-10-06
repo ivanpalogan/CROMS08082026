@@ -970,29 +970,7 @@ namespace CROMS.Data
                 Rectangle box = Denormalize(norms[i]);
                 if (box.Width < 6 || box.Height < 4) continue;
 
-                byte[] gray = new byte[box.Width * box.Height];
-                lock (OcrService.GdiLock)
-                {
-                    using (var crop = new Bitmap(box.Width, box.Height, PixelFormat.Format24bppRgb))
-                    {
-                        using (var g = Graphics.FromImage(crop))
-                            g.DrawImage(_source, new Rectangle(0, 0, box.Width, box.Height), box, GraphicsUnit.Pixel);
-                        BitmapData d = crop.LockBits(new Rectangle(0, 0, box.Width, box.Height),
-                            ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-                        try
-                        {
-                            var buf = new byte[Math.Abs(d.Stride) * box.Height];
-                            Marshal.Copy(d.Scan0, buf, 0, buf.Length);
-                            for (int y = 0; y < box.Height; y++)
-                                for (int x = 0; x < box.Width; x++)
-                                {
-                                    int p = y * d.Stride + x * 3;
-                                    gray[y * box.Width + x] = (byte)(buf[p + 2] * 0.299 + buf[p + 1] * 0.587 + buf[p] * 0.114);
-                                }
-                        }
-                        finally { crop.UnlockBits(d); }
-                    }
-                }
+                byte[] gray = GrayCrop(box);
 
                 var sorted = (byte[])gray.Clone();
                 Array.Sort(sorted);
@@ -1008,6 +986,147 @@ namespace CROMS.Data
                     ink += rowInk;
                 }
                 result[i] = ink / (double)(box.Width * box.Height);
+            }
+            return result;
+        }
+
+        /// <summary>The grey levels (0-255) of a page rectangle, row by row.</summary>
+        private byte[] GrayCrop(Rectangle box)
+        {
+            byte[] gray = new byte[box.Width * box.Height];
+            lock (OcrService.GdiLock)
+            {
+                using (var crop = new Bitmap(box.Width, box.Height, PixelFormat.Format24bppRgb))
+                {
+                    using (var g = Graphics.FromImage(crop))
+                        g.DrawImage(_source, new Rectangle(0, 0, box.Width, box.Height), box, GraphicsUnit.Pixel);
+                    BitmapData d = crop.LockBits(new Rectangle(0, 0, box.Width, box.Height),
+                        ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                    try
+                    {
+                        var buf = new byte[Math.Abs(d.Stride) * box.Height];
+                        Marshal.Copy(d.Scan0, buf, 0, buf.Length);
+                        for (int y = 0; y < box.Height; y++)
+                            for (int x = 0; x < box.Width; x++)
+                            {
+                                int p = y * d.Stride + x * 3;
+                                gray[y * box.Width + x] = (byte)(buf[p + 2] * 0.299 + buf[p + 1] * 0.587 + buf[p] * 0.114);
+                            }
+                    }
+                    finally { crop.UnlockBits(d); }
+                }
+            }
+            return gray;
+        }
+
+        /// <summary>
+        /// Ink above each printed fill-in underline, for a column of tick options whose rows
+        /// drift against the template by more than the gap between two rows.
+        /// <para/>
+        /// Fixed boxes (<see cref="InkIn"/>) cannot serve two photographs of the same form:
+        /// Birth.jpg and gilvan birth.jpg differ by about 0.010 of the page height, which is
+        /// more than the 0.009 between the Physician and Hilot rows, so one box catches the
+        /// other row's underline. Here each strip is searched for the underlines themselves -
+        /// a long, thin, dark horizontal run, shorter than a table rule - the rows are counted
+        /// from the top, and the X is the ink in a short window just above ITS OWN underline,
+        /// within the underline's own extent (so the printed option digit beside it is not
+        /// counted). Returns -1 for a strip where the expected number of underlines was not
+        /// found, so the caller can fall back to the fixed box for that option.
+        /// </summary>
+        public double[] InkAboveRules(RectangleF[] strips, int[] row, int[] rowCount)
+        {
+            var result = new double[strips.Length];
+            // Measured on the 1993 sheet: the underline is ~0.032 of the page width, a bold
+            // printed letter's crossbar at most ~0.023, a table rule spans the whole strip.
+            int minRun = Math.Max(14, (int)(_sourceWidth * 0.0285));
+            int window = Math.Max(8, (int)(_sourceHeight * 0.0060));
+
+            for (int i = 0; i < strips.Length; i++)
+            {
+                result[i] = -1;
+                Rectangle box = Denormalize(strips[i]);
+                if (box.Width < 10 || box.Height < 12) continue;
+                byte[] gray = GrayCrop(box);
+
+                var sorted = (byte[])gray.Clone();
+                Array.Sort(sorted);
+                int paper = sorted[sorted.Length / 2];
+                int cut = (int)(paper * 0.62);
+
+                // Longest dark run in each row (small gaps bridged) and where it sits.
+                var runLen = new int[box.Height];
+                var runX0 = new int[box.Height];
+                for (int y = 0; y < box.Height; y++)
+                {
+                    int best = 0, bestX = 0, cur = 0, curX = 0, gap = 0;
+                    for (int x = 0; x < box.Width; x++)
+                    {
+                        if (gray[y * box.Width + x] < cut)
+                        {
+                            if (cur == 0) curX = x;
+                            cur += 1 + gap; gap = 0;
+                            if (cur > best) { best = cur; bestX = curX; }
+                        }
+                        else if (cur > 0 && ++gap > 2) { cur = 0; gap = 0; }
+                    }
+                    runLen[y] = best; runX0[y] = bestX;
+                }
+
+                // A run that fills the strip is a table rule, and a slanted rule also leaves
+                // shorter fragments of itself on the rows around it - none of those is an
+                // underline.
+                var ruleRow = new bool[box.Height];
+                for (int y = 0; y < box.Height; y++) ruleRow[y] = runLen[y] >= box.Width * 0.9;
+                var nearRule = new bool[box.Height];
+                for (int y = 0; y < box.Height; y++)
+                    for (int d = -3; d <= 3 && !nearRule[y]; d++)
+                        if (y + d >= 0 && y + d < box.Height && ruleRow[y + d]) nearRule[y] = true;
+
+                // Group adjacent rows holding an underline-sized run into lines.
+                var lines = new List<int[]>();                 // top, bottom, x0, x1
+                for (int y = 0; y < box.Height; y++)
+                {
+                    if (runLen[y] < minRun || nearRule[y]) continue;
+                    if (lines.Count > 0 && y - lines[lines.Count - 1][1] <= 2)
+                    {
+                        int[] l = lines[lines.Count - 1];
+                        l[1] = y;
+                        if (runLen[y] > l[3] - l[2]) { l[2] = runX0[y]; l[3] = runX0[y] + runLen[y]; }
+                    }
+                    else lines.Add(new[] { y, y, runX0[y], runX0[y] + runLen[y] });
+                }
+                try { DocumentAI.Diag?.Invoke("rule strip " + i + " box " + box.Width + "x" + box.Height + " minRun " + minRun + " lines " +
+                    string.Join(";", lines.Select(l => l[0] + "-" + l[1] + "/" + (l[3] - l[2])))); } catch { }
+                // A slanted or blurred table rule can still leave one underline-sized fragment
+                // below the last real underline. Two real underlines sit one row pitch apart
+                // (about 0.0088 of the page height); a rule sits further off, so of the
+                // candidates keep the run of rowCount lines whose spacing matches the pitch.
+                if (rowCount[i] == 2 && lines.Count > 2)
+                {
+                    double pitch = _sourceHeight * 0.0088;
+                    int bestAt = 0; double bestErr = double.MaxValue;
+                    for (int k = 0; k + 1 < lines.Count; k++)
+                    {
+                        double err = Math.Abs(lines[k + 1][0] - lines[k][0] - pitch);
+                        if (err < bestErr) { bestErr = err; bestAt = k; }
+                    }
+                    lines = lines.GetRange(bestAt, 2);
+                }
+                if (lines.Count != rowCount[i] || row[i] >= lines.Count) continue;
+
+                int[] ln = lines[row[i]];
+                int prevBottom = row[i] > 0 ? lines[row[i] - 1][1] : -1000;
+                // Stop two rows short of the underline: its blurred upper edge is dark too and
+                // would otherwise read as ink on every option, X or not (Birth.jpg Nurse 0.063).
+                int bottom = ln[0] - 3;
+                int top = Math.Max(Math.Max(0, bottom - window), prevBottom + 3);
+                if (bottom - top < 3) { result[i] = 0; continue; }
+
+                int ink = 0, area = (ln[3] - ln[2]) * (bottom - top + 1);
+                for (int y = top; y <= bottom; y++)
+                    for (int x = ln[2]; x < ln[3]; x++)
+                        if (gray[y * box.Width + x] < cut) ink++;
+                result[i] = area > 0 ? ink / (double)area : 0;
             }
             return result;
         }
