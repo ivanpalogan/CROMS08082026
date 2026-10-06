@@ -1,6 +1,6 @@
 # Own OCR engine - hand-off (read this first in a new window)
 
-Last updated 2026-10-06, end of Day 5 of the 7-day plan. Commits are made AUTOMATICALLY by a hook (messages 'auto: claude update') and are already on origin/main; I did not make them.
+Last updated 2026-10-06, end of Day 6 of the 7-day plan. Commits are made AUTOMATICALLY by a hook (messages 'auto: claude update') and are already on origin/main; I did not make them.
 
 ## What this is
 The professor's requirement: **write an OCR engine from scratch.** Constraints agreed with the user:
@@ -64,7 +64,10 @@ Bench (`CROMS.OwnOcr.Bench`, console, not in the .sln) modes:
 - Field knowledge helps a little: LettersOnly + CaseConsistency (12.5/56.3 -> 16.7/58.0).
 - Speed: front half ~38 ms/crop; k-NN ~20 ms/glyph with 62k refs; the read benchmark takes ~70 s.
 
-## NEXT STEPS (in order)
+## Day 6 result (see CLAUDE.md)
+raw 18.1% exact / 58.6% sim; + lexicon repair 30.6% / 62.0%; Tesseract 43.1% / 71.4%. Real-glyph training (leave-one-document-out) made it WORSE (15.3 / 13.9%). Lexicon files: data\lexicon\*.txt (export from croms master tables, gitignored). Run: ead <crops> <synth.bin> --nodp --letters --case --trim --lexicon data\lexicon.
+
+## NEXT STEPS (in order, 1-2 are DONE or rejected: 6a rejected, 6b done)
 1. Day 6a - the classifier is the bottleneck (73% per glyph). Biggest likely gain: close the synthetic->real gap.
    Train WITH real glyphs (leave-one-document-out so the score stays honest) and/or make the synthetic ink heavier.
 2. Day 6b - dictionary / lookalike repair: lexicon from the PSGC tables + nationalities/religions/occupations

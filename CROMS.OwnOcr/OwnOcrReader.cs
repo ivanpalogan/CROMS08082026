@@ -13,6 +13,8 @@ namespace CROMS.OwnOcr
         public Analysis Analysis;
         /// <summary>For each character in <see cref="Text"/> (spaces excluded), its ranked candidates.</summary>
         public List<Prediction[]> Candidates = new List<Prediction[]>();
+        /// <summary>Parallel to <see cref="Candidates"/>: true when a word space precedes that character.</summary>
+        public List<bool> SpaceBefore = new List<bool>();
     }
 
     /// <summary>
@@ -45,9 +47,18 @@ namespace CROMS.OwnOcr
 
         // Which labels may be chosen. The reject class is never printable.
         private static readonly bool[] AnyCharacter = Charset.Mask(c => true);
-        private static readonly bool[] NoDigits = Charset.Mask(c => !char.IsDigit(c));
-        private static readonly bool[] UpperOnly = Charset.Mask(c => !char.IsDigit(c) && !char.IsLower(c));
-        private static readonly bool[] LowerOnly = Charset.Mask(c => !char.IsDigit(c) && !char.IsUpper(c));
+        // A name or place is letters plus the few marks they really contain; # & : ; / ( ) are
+        // speckle or a ruled line read as a mark, never part of the value.
+        private const string NonTextMarks = "#&:;/()";
+        private static readonly bool[] NoDigits = Charset.Mask(c => !char.IsDigit(c) && NonTextMarks.IndexOf(c) < 0);
+        private static readonly bool[] UpperOnly = Charset.Mask(c => !char.IsDigit(c) && !char.IsLower(c) && NonTextMarks.IndexOf(c) < 0);
+        private static readonly bool[] LowerOnly = Charset.Mask(c => !char.IsDigit(c) && !char.IsUpper(c) && NonTextMarks.IndexOf(c) < 0);
+
+        /// <summary>
+        /// Drop a mark that cannot start or end a word: a value never begins with punctuation, and
+        /// only a full stop (an initial, "B.") may end one. These come from the edge of the crop.
+        /// </summary>
+        public bool TrimEdgeMarks;
 
         /// <param name="knn">Names each character. The larger the reference set the better.</param>
         /// <param name="scorer">
@@ -149,10 +160,42 @@ namespace CROMS.OwnOcr
                 sb.Append(ranked[i][0].Char);
                 scoreSum += ranked[i][0].Score;
                 result.Candidates.Add(ranked[i]);
+                result.SpaceBefore.Add(spaceBefore[i] && sb.Length > 1);
             }
-            result.Text = sb.ToString();
+            result.Text = TrimEdgeMarks ? TrimMarks(sb.ToString(), result) : sb.ToString();
             result.Confidence = result.Candidates.Count == 0 ? 0 : scoreSum / result.Candidates.Count;
             return result;
+        }
+
+        // Removes leading / trailing marks from the text AND the parallel candidate lists, so the
+        // lexicon repair (which reads Candidates) still lines up with the text.
+        private static string TrimMarks(string text, ReadResult r)
+        {
+            var drop = new List<int>();         // candidate indices to remove
+            string[] words = text.Split(' ');
+            int ci = 0;
+            var outWords = new List<string>();
+            foreach (string w in words)
+            {
+                int start = 0, end = w.Length;
+                while (start < end && !char.IsLetterOrDigit(w[start])) { drop.Add(ci + start); start++; }
+                while (end > start && !char.IsLetterOrDigit(w[end - 1]) && w[end - 1] != '.') { drop.Add(ci + end - 1); end--; }
+                if (end > start) outWords.Add(w.Substring(start, end - start));
+                ci += w.Length;
+            }
+            var dropSet = new HashSet<int>(drop);
+            var cands = new List<Prediction[]>(); var spaces = new List<bool>();
+            bool pending = false;                       // a word space seen on a dropped character
+            for (int i = 0; i < r.Candidates.Count; i++)
+            {
+                bool sp = i < r.SpaceBefore.Count && r.SpaceBefore[i];
+                if (dropSet.Contains(i)) { pending |= sp; continue; }
+                cands.Add(r.Candidates[i]);
+                spaces.Add((sp || pending) && cands.Count > 1);
+                pending = false;
+            }
+            r.Candidates = cands; r.SpaceBefore = spaces;
+            return string.Join(" ", outWords);
         }
 
         private static bool[] Intersect(bool[] a, bool[] b)

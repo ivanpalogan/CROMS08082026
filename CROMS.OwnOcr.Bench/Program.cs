@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -61,25 +61,62 @@ namespace CROMS.OwnOcr.Bench
             bool noDp = opts.Contains("--nodp");
             bool useGlobal = opts.Contains("--global");
             double penalty = 0.25;
-            string debugDir = null;
+            string debugDir = null, lexDir = null; float realWeight = 0;
             for (int i = 0; i < opts.Length; i++)
             {
                 if (opts[i] == "--penalty" && i + 1 < opts.Length)
                     penalty = double.Parse(opts[++i], System.Globalization.CultureInfo.InvariantCulture);
                 if (opts[i] == "--debug" && i + 1 < opts.Length) debugDir = opts[++i];
+                if (opts[i] == "--lexicon" && i + 1 < opts.Length) lexDir = opts[++i];
+                if (opts[i] == "--realtrain" && i + 1 < opts.Length)
+                    realWeight = float.Parse(opts[++i], System.Globalization.CultureInfo.InvariantCulture);
             }
 
             var all = Dataset.Load(synthFile);
             Console.WriteLine("training k-NN on {0} synthetic glyphs ...  splitter: {1}", all.Count,
                 noDp ? "thinnest column (Day 2)" : "classifier-scored search, penalty " + penalty);
-            var reader = new OwnOcrReader(new KnnClassifier(all, 600, 3), noDp ? null : new KnnClassifier(all, 150, 5));
-            reader.SplitPenalty = penalty;
-            reader.GlobalMerge = useGlobal;
+            if (debugDir != null) Directory.CreateDirectory(debugDir);
             // Every field in this benchmark is text (names, places, nationality, occupation), so
             // field knowledge may be switched on: no digits, one letter case per word.
-            reader.LettersOnly = opts.Contains("--letters");
-            reader.CaseConsistency = opts.Contains("--case");
-            if (debugDir != null) Directory.CreateDirectory(debugDir);
+            Func<KnnClassifier, OwnOcrReader> makeReader = k =>
+            {
+                var rd = new OwnOcrReader(k, noDp ? null : new KnnClassifier(all, 150, 5));
+                rd.SplitPenalty = penalty; rd.GlobalMerge = useGlobal;
+                rd.LettersOnly = opts.Contains("--letters"); rd.CaseConsistency = opts.Contains("--case");
+                rd.TrimEdgeMarks = opts.Contains("--trim");
+                return rd;
+            };
+            OwnOcrReader plainReader = realWeight > 0 ? null : makeReader(new KnnClassifier(all, 600, 3));
+
+            // Leave-one-document-out: the reader used for a document has seen real glyphs from the
+            // OTHER documents only, so the score is not the engine remembering its own test.
+            var readerFor = new Dictionary<string, OwnOcrReader>();
+            if (realWeight > 0)
+            {
+                var realBy = new Dictionary<string, List<Sample>>();
+                foreach (Row r0 in ReadManifest(dir).Where(x => !NotPrintedAsStored.Any(s => x.Key.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0)))
+                {
+                    string tr0 = new string(r0.Truth.Where(c => !char.IsWhiteSpace(c)).ToArray());
+                    if (tr0.Length == 0 || tr0.Any(c => Charset.IndexOf(c) < 0)) continue;
+                    using (Bitmap b0 = new Bitmap(Path.Combine(dir, r0.File)))
+                    {
+                        Analysis a0 = OwnOcrEngine.Analyze(b0);
+                        if (a0.Cells.Count != tr0.Length) continue;
+                        List<Sample> l;
+                        if (!realBy.TryGetValue(r0.Sample, out l)) realBy[r0.Sample] = l = new List<Sample>();
+                        for (int i0 = 0; i0 < tr0.Length; i0++) l.Add(Sample.FromCell(a0.Cells[i0], Charset.IndexOf(tr0[i0])));
+                    }
+                }
+                foreach (string doc in realBy.Keys.ToList())
+                {
+                    var others = realBy.Where(kv => kv.Key != doc).SelectMany(kv => kv.Value).ToList();
+                    readerFor[doc] = makeReader(new KnnClassifier(all, others, realWeight, 600, 3));
+                    Console.WriteLine("  reader without '{0}': +{1} real glyphs from the other documents (vote x{2})", doc, others.Count, realWeight);
+                }
+            }
+            LexiconSet lex = lexDir == null ? null : LexiconSet.Load(lexDir);
+            int repExact = 0, repExactCI = 0, repChanged = 0, repBetter = 0, repWorse = 0; double repSim = 0;
+            var repLog = new List<string>();
 
             List<Row> rows = ReadManifest(dir)
                 .Where(r => !NotPrintedAsStored.Any(s => r.Key.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0))
@@ -98,8 +135,21 @@ namespace CROMS.OwnOcr.Bench
                 string ours;
                 using (Bitmap bmp = new Bitmap(path))
                 {
+                    OwnOcrReader reader = plainReader;
+                    if (reader == null && !readerFor.TryGetValue(r.Sample, out reader)) reader = readerFor.Values.First();
                     ReadResult rr = reader.Read(bmp);
                     ours = rr.Text;
+                    if (lex != null)
+                    {
+                        RepairResult rep = lex.Repair(r.Key, rr);
+                        string before = Norm(ours), after = Norm(rep.Text), tr = Norm(r.Truth);
+                        double sb = Similarity(before, tr), sa = Similarity(after, tr);
+                        if (rep.Changed) { repChanged++; if (sa > sb) repBetter++; else if (sa < sb) repWorse++;
+                            repLog.Add(string.Format("  {0,-22} {1,-8} truth [{2}]  read [{3}] -> [{4}]  ({5:0}%->{6:0}%)", Trunc(r.Key, 22), rep.Kind, tr, before, after, sb * 100, sa * 100)); }
+                        if (after == tr) repExact++;
+                        if (string.Equals(after, tr, StringComparison.OrdinalIgnoreCase)) repExactCI++;
+                        repSim += sa;
+                    }
                     if (debugDir != null && Norm(ours) != Norm(r.Truth))
                         using (Bitmap pic = DebugRender.Render(bmp, rr.Analysis, r.File + "   truth '" + r.Truth + "'   ours '" + ours + "'"))
                             pic.Save(Path.Combine(debugDir, Path.GetFileNameWithoutExtension(r.File) + "_debug.png"), ImageFormat.Png);
@@ -127,6 +177,12 @@ namespace CROMS.OwnOcr.Bench
             Console.WriteLine("                         exact   exact(any case)   mean character similarity");
             Console.WriteLine("  OWN ENGINE        {0,6:0.0}%   {1,10:0.0}%        {2,10:0.0}%", oursExact * 100.0 / n, oursExactCI * 100.0 / n, oursSim * 100 / n);
             Console.WriteLine("  CROMS (Tesseract) {0,6:0.0}%   {1,10:0.0}%        {2,10:0.0}%", tessExact * 100.0 / n, tessExactCI * 100.0 / n, tessSim * 100 / n);
+            if (lex != null)
+            {
+                Console.WriteLine("  OWN + REPAIR      {0,6:0.0}%   {1,10:0.0}%        {2,10:0.0}%   (repaired {3} fields: {4} better, {5} worse)",
+                    repExact * 100.0 / n, repExactCI * 100.0 / n, repSim * 100 / n, repChanged, repBetter, repWorse);
+                foreach (string l in repLog) Console.WriteLine(l);
+            }
             Console.WriteLine();
             foreach (var kv in bySample)
                 Console.WriteLine("  {0,-16} fields {1,2}   exact ours {2,2} vs tess {3,2}   similarity ours {4,3:0}% vs tess {5,3:0}%",

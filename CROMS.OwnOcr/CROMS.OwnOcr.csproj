@@ -61,6 +61,7 @@
     <Compile Include="OwnOcrReader.cs" />
     <Compile Include="OwnOcrEngine.cs" />
     <Compile Include="DebugRender.cs" />
+    <Compile Include="Lexicon.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

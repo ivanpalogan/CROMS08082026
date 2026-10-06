@@ -30,12 +30,21 @@ namespace CROMS.OwnOcr
         private readonly int _n;
         private readonly float[] _data;
         private readonly ushort[] _labels;
+        private readonly float[] _weight;        // vote weight of each stored example (1 = synthetic)
 
         public int K = 5;
 
         public int Count { get { return _n; } }
 
         public KnnClassifier(List<Sample> train, int maxPerClass, int seed)
+            : this(train, null, 1f, maxPerClass, seed) { }
+
+        /// <summary>
+        /// <paramref name="extra"/> are real glyphs added on top of the capped synthetic set. They are
+        /// few, so they are never thinned, and their vote counts <paramref name="extraWeight"/> times
+        /// as much: a real typewriter "e" is better evidence about a real "e" than a rendered one.
+        /// </summary>
+        public KnnClassifier(List<Sample> train, List<Sample> extra, float extraWeight, int maxPerClass, int seed)
         {
             // Balanced subset.
             var rng = new Random(seed);
@@ -51,8 +60,12 @@ namespace CROMS.OwnOcr
                 chosen.AddRange(items);
             }
 
+            int synthCount = chosen.Count;
+            if (extra != null) chosen.AddRange(extra);
             _dim = Features.Dim;
             _n = chosen.Count;
+            _weight = new float[_n];
+            for (int i = 0; i < _n; i++) _weight[i] = i < synthCount ? 1f : extraWeight;
             _data = new float[_n * _dim];
             _labels = new ushort[_n];
             for (int i = 0; i < _n; i++)
@@ -119,7 +132,7 @@ namespace CROMS.OwnOcr
             for (int i = 0; i < k; i++)
             {
                 if (bestI[i] < 0) continue;
-                double w = 1.0 / (Math.Sqrt(bestD[i]) + 0.05);
+                double w = _weight[bestI[i]] / (Math.Sqrt(bestD[i]) + 0.05);
                 int label = _labels[bestI[i]];
                 double cur;
                 votes.TryGetValue(label, out cur);
