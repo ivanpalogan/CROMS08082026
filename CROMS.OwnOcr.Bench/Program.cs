@@ -30,7 +30,8 @@ namespace CROMS.OwnOcr.Bench
             if (args.Length >= 3 && args[0] == "realset") return RealSet(args[1], args[2]);
             if (args.Length >= 5 && args[0] == "sheet") return Sheet(args[1], args[2], args[3], args[4]);
             if (args.Length >= 3 && args[0] == "eval") return Eval(args[1], args[2], args.Length > 3 && args[3] == "--tune");
-            if (args.Length >= 3 && args[0] == "read") return ReadBench(args[1], args[2]);
+            if (args.Length >= 3 && args[0] == "dist") return Dist(args[1], args[2]);
+            if (args.Length >= 3 && args[0] == "read") return ReadBench(args[1], args[2], args.Skip(3).ToArray());
 
             Console.WriteLine("Usage: CROMS.OwnOcr.Bench.exe debug <imageOrFolder> <outFolder>");
             Console.WriteLine("       CROMS.OwnOcr.Bench.exe segment <cropsFolder> [outFolder]");
@@ -51,11 +52,28 @@ namespace CROMS.OwnOcr.Bench
         // is NOT raw Tesseract: it is what CROMS ended up with after region reading, several
         // renderings, voting and context repair - the production result - so beating it is hard
         // and matching it would already say something.
-        private static int ReadBench(string dir, string synthFile)
+        //   read <crops> <synth.bin> [--nodp] [--penalty 0.25] [--debug <outDir>]
+        //     --nodp     use the plain thinnest-column cut (the Day-2 splitter) for comparison
+        //     --penalty  price per character piece in the splitter search
+        //     --debug    write the stage-by-stage picture of every field the engine got wrong
+        private static int ReadBench(string dir, string synthFile, string[] opts)
         {
+            bool noDp = opts.Contains("--nodp");
+            double penalty = 0.25;
+            string debugDir = null;
+            for (int i = 0; i < opts.Length; i++)
+            {
+                if (opts[i] == "--penalty" && i + 1 < opts.Length)
+                    penalty = double.Parse(opts[++i], System.Globalization.CultureInfo.InvariantCulture);
+                if (opts[i] == "--debug" && i + 1 < opts.Length) debugDir = opts[++i];
+            }
+
             var all = Dataset.Load(synthFile);
-            Console.WriteLine("training k-NN on {0} synthetic glyphs ...", all.Count);
-            var reader = new OwnOcrReader(new KnnClassifier(all, 600, 3));
+            Console.WriteLine("training k-NN on {0} synthetic glyphs ...  splitter: {1}", all.Count,
+                noDp ? "thinnest column (Day 2)" : "classifier-scored search, penalty " + penalty);
+            var reader = new OwnOcrReader(new KnnClassifier(all, 600, 3), noDp ? null : new KnnClassifier(all, 150, 5));
+            reader.SplitPenalty = penalty;
+            if (debugDir != null) Directory.CreateDirectory(debugDir);
 
             List<Row> rows = ReadManifest(dir)
                 .Where(r => !NotPrintedAsStored.Any(s => r.Key.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0))
@@ -71,7 +89,14 @@ namespace CROMS.OwnOcr.Bench
                 string path = Path.Combine(dir, r.File);
                 if (!File.Exists(path)) continue;
                 string ours;
-                using (Bitmap bmp = new Bitmap(path)) ours = reader.Read(bmp).Text;
+                using (Bitmap bmp = new Bitmap(path))
+                {
+                    ReadResult rr = reader.Read(bmp);
+                    ours = rr.Text;
+                    if (debugDir != null && Norm(ours) != Norm(r.Truth))
+                        using (Bitmap pic = DebugRender.Render(bmp, rr.Analysis, r.File + "   truth '" + r.Truth + "'   ours '" + ours + "'"))
+                            pic.Save(Path.Combine(debugDir, Path.GetFileNameWithoutExtension(r.File) + "_debug.png"), ImageFormat.Png);
+                }
 
                 string truth = Norm(r.Truth), o = Norm(ours), t = Norm(r.Tesseract);
                 n++;
@@ -127,6 +152,45 @@ namespace CROMS.OwnOcr.Bench
                     d[i, j] = Math.Min(Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
                                        d[i - 1, j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
             return d[a.Length, b.Length];
+        }
+
+        // ------------------------- how far is the nearest example, for right and wrong readings?
+        // The splitter search scores a candidate character by this distance, so what matters is
+        // whether it separates a glyph the classifier got RIGHT from one it got WRONG (a clump
+        // of two letters, half a letter). If the two overlap, the distance is a poor judge.
+        private static int Dist(string synthFile, string realFile)
+        {
+            List<Sample> all = Dataset.Load(synthFile), real = Dataset.Load(realFile);
+            var train = new List<Sample>(); var hold = new List<Sample>();
+            for (int i = 0; i < all.Count; i++) (i % 10 == 0 ? hold : train).Add(all[i]);
+            var knn = new KnnClassifier(train, 150, 5);
+
+            Action<string, List<Sample>> report = (name, set) =>
+            {
+                var good = new List<double>(); var bad = new List<double>();
+                var goodS = new List<double>(); var badS = new List<double>();
+                foreach (Sample s in set)
+                {
+                    float d; Prediction[] r = knn.Rank(s.Features(), 1, out d);
+                    bool ok = r.Length > 0 && r[0].Label == s.Label;
+                    (ok ? good : bad).Add(d);
+                    (ok ? goodS : badS).Add(r.Length > 0 ? r[0].Score : 0);
+                }
+                Func<List<double>, string> pct = l =>
+                {
+                    if (l.Count == 0) return "n/a";
+                    var o = l.OrderBy(x => x).ToList();
+                    return string.Format("p10 {0:0.00}  median {1:0.00}  p90 {2:0.00}", o[o.Count / 10], o[o.Count / 2], o[o.Count * 9 / 10]);
+                };
+                Console.WriteLine("{0}: {1} right, {2} wrong", name, good.Count, bad.Count);
+                Console.WriteLine("   nearest distance, RIGHT: {0}", pct(good));
+                Console.WriteLine("   nearest distance, WRONG: {0}", pct(bad));
+                Console.WriteLine("   vote share,       RIGHT: mean {0:0.00}   WRONG: mean {1:0.00}",
+                    goodS.Count == 0 ? 0 : goodS.Average(), badS.Count == 0 ? 0 : badS.Average());
+            };
+            report("synthetic hold-out", hold.Take(2000).ToList());
+            report("real glyphs", real);
+            return 0;
         }
 
         // ----------------------------------------------------------- classifier accuracy
@@ -229,7 +293,8 @@ namespace CROMS.OwnOcr.Bench
                 if (n > max) { max = n; maxC = Charset.At(i).ToString(); }
                 if (n < 100) thin.Add(Charset.At(i) + "=" + n);
             }
-            Console.WriteLine("per class: min {0} ('{1}')   max {2} ('{3}')", min, minC, max, maxC);
+            Console.WriteLine("per class: min {0} ('{1}')   max {2} ('{3}')   reject (not one character): {4}",
+                min, minC, max, maxC, stats.PerClass[Charset.Reject]);
             if (thin.Count > 0) Console.WriteLine("classes under 100 examples: " + string.Join(" ", thin));
             return 0;
         }

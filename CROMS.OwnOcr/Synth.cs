@@ -21,7 +21,7 @@ namespace CROMS.OwnOcr
     public sealed class SynthStats
     {
         public int Lines, Kept, Dropped;
-        public int[] PerClass = new int[Charset.Count];
+        public int[] PerClass = new int[Charset.LabelCount];
         public TimeSpan Elapsed;
     }
 
@@ -152,7 +152,7 @@ namespace CROMS.OwnOcr
 
         private static string Punctuated(Random rng)
         {
-            string[] t = { "Bical, Peñablanca", "A. B. Cruz", "O'Brien-Reyes", "No. 12, St.", "Brgy. (Centro)", "San Jose/Sta. Ana", "Jr., Sr. & Co.", "Block 5; Lot #7" };
+            string[] t = { "Bical, Pe\u00F1ablanca", "A. B. Cruz", "O'Brien-Reyes", "No. 12, St.", "Brgy. (Centro)", "San Jose/Sta. Ana", "Jr., Sr. & Co.", "Block 5; Lot #7" };
             string s = t[rng.Next(t.Length)];
             return rng.Next(2) == 0 ? s : s.ToUpperInvariant();
         }
@@ -299,6 +299,41 @@ namespace CROMS.OwnOcr
             return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
         }
 
+        /// <summary>
+        /// Pictures that are NOT one character, cut from a line whose characters are known:
+        /// two neighbours taken as one, half of a character, and a window that starts inside one
+        /// character and ends inside the next. These are exactly the wrong boxes a splitter
+        /// proposes, and the classifier needs to have seen them to refuse them.
+        /// </summary>
+        private static void AddRejects(Analysis a, Random rng, List<Sample> list)
+        {
+            if (a.Cells.Count < 2 || a.Line == null) return;
+            double capH = a.Line.CapHeight;
+            int i = rng.Next(a.Cells.Count - 1);
+            GlyphCell c0 = a.Cells[i], c1 = a.Cells[i + 1];
+
+            // two neighbours as one
+            TryReject(a, rng, c0.Left, c1.Right, list);
+
+            // half of a character (either half)
+            double f = 0.3 + rng.NextDouble() * 0.4;
+            int cut = c0.Left + (int)(c0.Width * f);
+            if (rng.Next(2) == 0) TryReject(a, rng, c0.Left, cut, list);
+            else TryReject(a, rng, cut + 1, c0.Right, list);
+
+            // a window that straddles the boundary between two characters
+            double f0 = 0.3 + rng.NextDouble() * 0.4, f1 = 0.3 + rng.NextDouble() * 0.4;
+            TryReject(a, rng, c0.Left + (int)(c0.Width * f0), c1.Left + (int)(c1.Width * f1), list);
+        }
+
+        private static void TryReject(Analysis a, Random rng, int x0, int x1, List<Sample> list)
+        {
+            if (x1 - x0 < 3) return;
+            GlyphCell cell = SplitSearch.CellFor(a, a.Pieces, x0, x1, true);
+            if (cell == null) return;
+            list.Add(Sample.FromCell(cell, Charset.Reject));
+        }
+
         // ===================================================================== data set
         public static List<Sample> Generate(int lines, int seed, string fontDir, SynthStats stats, Action<int> progress)
         {
@@ -331,6 +366,7 @@ namespace CROMS.OwnOcr
                     var list = new List<Sample>(chars.Length);
                     for (int k = 0; k < chars.Length; k++)
                         list.Add(Sample.FromCell(a.Cells[k], Charset.IndexOf(chars[k])));
+                    AddRejects(a, rng, list);
                     all[i] = list;
                     System.Threading.Interlocked.Increment(ref kept);
                 }

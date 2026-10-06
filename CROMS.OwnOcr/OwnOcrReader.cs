@@ -25,8 +25,20 @@ namespace CROMS.OwnOcr
     public sealed class OwnOcrReader
     {
         private readonly KnnClassifier _knn;
+        private readonly KnnClassifier _scorer;
 
-        public OwnOcrReader(KnnClassifier knn) { _knn = knn; }
+        /// <summary>Fixed price per character piece in the splitter search; higher = fewer, larger pieces.</summary>
+        public double SplitPenalty = 0.25;
+
+        /// <param name="knn">Names each character. The larger the reference set the better.</param>
+        /// <param name="scorer">
+        /// Judges candidate cuts. It is queried many times per clump, so it is a much smaller
+        /// reference set than <paramref name="knn"/>. When null the plain thinnest-column cut is used.
+        /// </param>
+        public OwnOcrReader(KnnClassifier knn, KnnClassifier scorer = null)
+        {
+            _knn = knn; _scorer = scorer;
+        }
 
         public ReadResult Read(System.Drawing.Bitmap bmp)
         {
@@ -37,6 +49,15 @@ namespace CROMS.OwnOcr
         {
             var result = new ReadResult { Analysis = a };
             if (a.Cells.Count == 0 || a.Line == null) return result;
+
+            // Re-carve the clumps by what the classifier makes of the pieces, replacing the
+            // plain thinnest-column cut. The result replaces a.Cells so the debug picture
+            // shows what was actually read.
+            if (_scorer != null)
+            {
+                List<GlyphCell> better = SplitSearch.Run(a, _scorer, SplitPenalty);
+                if (better.Count > 0) a.Cells = better;
+            }
 
             var sb = new StringBuilder();
             double scoreSum = 0;
@@ -52,8 +73,13 @@ namespace CROMS.OwnOcr
                 if (ranked.Length == 0) continue;
 
                 if (i > 0 && a.Cells[i].Left - a.Cells[i - 1].Right - 1 > spaceGap) sb.Append(' ');
-                sb.Append(ranked[0].Char);
-                scoreSum += ranked[0].Score;
+
+                // The best NAMEABLE character: "not a character" is a verdict about the box, not
+                // something to print. If every candidate is a reject, say so with a question mark
+                // rather than inventing a letter.
+                Prediction pick = ranked.FirstOrDefault(p => p.Label != Charset.Reject);
+                if (pick == null) { sb.Append('?'); }
+                else { sb.Append(pick.Char); scoreSum += pick.Score; }
                 result.Candidates.Add(ranked);
             }
             result.Text = sb.ToString();

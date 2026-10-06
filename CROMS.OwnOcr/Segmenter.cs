@@ -135,6 +135,7 @@ namespace CROMS.OwnOcr
                 : 0.6 * capH;
 
             a.Line = line;
+            a.Pieces = pieces;
             foreach (Piece p in pieces)
             {
                 int n = (int)Math.Round(p.Width / line.TypicalWidth);
@@ -200,7 +201,7 @@ namespace CROMS.OwnOcr
         }
 
         // ===== one or more components that make up a single character =====================
-        private sealed class Piece
+        internal sealed class Piece
         {
             public List<Blob> Blobs = new List<Blob>();
             public int Left = int.MaxValue, Right = -1, Top = int.MaxValue, Bottom = -1;
@@ -283,7 +284,7 @@ namespace CROMS.OwnOcr
         }
 
         // ===== tight box + normalised picture of one character =============================
-        private static GlyphCell MakeCell(Analysis a, Piece p, int x0, int x1, bool split)
+        internal static GlyphCell MakeCell(Analysis a, Piece p, int x0, int x1, bool split)
         {
             int w = a.Cleaned.Width, h = a.Cleaned.Height;
             var ids = new HashSet<int>(p.Blobs.Select(b => b.Id));

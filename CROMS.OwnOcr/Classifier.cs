@@ -43,8 +43,11 @@ namespace CROMS.OwnOcr
             foreach (var group in train.GroupBy(s => s.Label))
             {
                 var items = group.ToList();
-                if (items.Count > maxPerClass)
-                    items = items.OrderBy(_ => rng.Next()).Take(maxPerClass).ToList();
+                // The reject class is not one shape but every wrong way to cut a line, so it gets
+                // several times the room of a letter.
+                int cap = group.Key == Charset.Reject ? maxPerClass * 4 : maxPerClass;
+                if (items.Count > cap)
+                    items = items.OrderBy(_ => rng.Next()).Take(cap).ToList();
                 chosen.AddRange(items);
             }
 
@@ -62,6 +65,18 @@ namespace CROMS.OwnOcr
 
         /// <summary>The most likely characters for one feature vector, best first.</summary>
         public Prediction[] Rank(float[] q, int top = 5)
+        {
+            float nearest;
+            return Rank(q, top, out nearest);
+        }
+
+        /// <summary>
+        /// As above, and also how far the single closest stored example was. That distance is
+        /// the measure of "does this look like ANY character": half a letter, or two letters
+        /// squeezed into one box, are far from everything the classifier has seen, and that is
+        /// what the splitter uses to judge a candidate cut.
+        /// </summary>
+        public Prediction[] Rank(float[] q, int top, out float nearest)
         {
             int k = Math.Min(K, _n);
             var bestD = new float[k];
@@ -84,6 +99,8 @@ namespace CROMS.OwnOcr
                 while (pos > 0 && bestD[pos - 1] > d) { bestD[pos] = bestD[pos - 1]; bestI[pos] = bestI[pos - 1]; pos--; }
                 bestD[pos] = d; bestI[pos] = i;
             }
+
+            nearest = bestI[0] < 0 ? float.MaxValue : (float)Math.Sqrt(bestD[0]);
 
             // Weighted vote: a near neighbour counts for more than a far one.
             var votes = new Dictionary<int, double>();

@@ -39,6 +39,8 @@ namespace CROMS.OwnOcr
         public LineInfo Line;
         /// <summary>Candidate characters of that line, left to right, each normalised for the classifier.</summary>
         public List<GlyphCell> Cells = new List<GlyphCell>();
+        /// <summary>The components grouped into characters-or-clumps, before any cut (used by the splitter search).</summary>
+        internal List<Segmenter.Piece> Pieces = new List<Segmenter.Piece>();
     }
 
     /// <summary>

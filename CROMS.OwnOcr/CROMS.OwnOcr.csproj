@@ -57,6 +57,7 @@
     <Compile Include="Dataset.cs" />
     <Compile Include="Synth.cs" />
     <Compile Include="Classifier.cs" />
+    <Compile Include="SplitSearch.cs" />
     <Compile Include="OwnOcrReader.cs" />
     <Compile Include="OwnOcrEngine.cs" />
     <Compile Include="DebugRender.cs" />
