@@ -591,6 +591,11 @@ namespace CROMS.Data
         // elsewhere", thrown from Image.get_Width() during a real parallel run).
         private readonly int _sourceWidth, _sourceHeight;
         private readonly int _longSide;
+        // Experiment knob (0 = off, use _longSide). Lets the two whole-page passes - which only
+        // identify the form and place its template - run smaller than the page the per-field
+        // reads see. Set from CROMS.DocTest --pagels; never set by the app.
+        public static int PageLongSideOverride = 0;
+        private int PageSide { get { return PageLongSideOverride > 0 ? PageLongSideOverride : _longSide; } }
         private Bitmap _pageBinary, _pageGray;
         private List<float> _rulings;
         // Concurrent: Page() and PageSparse() now run on separate threads (see PageIn),
@@ -641,7 +646,7 @@ namespace CROMS.Data
                 if (_pageBinary == null)
                     lock (_pageBuildGate)
                         if (_pageBinary == null)
-                            using (Bitmap scaled = OcrService.Scale(_source, _longSide))
+                            using (Bitmap scaled = OcrService.Scale(_source, PageSide))
                                 _pageBinary = OcrService.Render(scaled, true, 0.15, 24, false);
                 return _pageBinary;
             }
@@ -654,7 +659,7 @@ namespace CROMS.Data
                 if (_pageGray == null)
                     lock (_pageBuildGate)
                         if (_pageGray == null)
-                            using (Bitmap scaled = OcrService.Scale(_source, _longSide))
+                            using (Bitmap scaled = OcrService.Scale(_source, PageSide))
                                 _pageGray = OcrService.Render(scaled, false, 0, 0, true);
                 return _pageGray;
             }

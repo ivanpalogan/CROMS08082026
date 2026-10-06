@@ -293,6 +293,31 @@ namespace CROMS.Data
             // angles once on a small copy, then work from the straightened page.
             int rotation = 0;
             Bitmap upright = image;
+
+            // SPECULATE. Nearly every scan is already upright, yet the rotation probe used to
+            // finish BEFORE the page read could start - 1.8s on a clear scan, 10s on a faded
+            // one where the probe falls back to four full recognitions. The upright read does
+            // not depend on the probe's answer unless the answer is "not upright", so start
+            // it now on its own bitmap copy (a GDI+ Bitmap is not safe to share across
+            // threads - see the nativeCopy note below) and keep it when the probe agrees. When
+            // it does not, the speculative result is simply thrown away, so the output for any
+            // page is exactly what the sequential version produced; only the timing moves.
+            var preferredSw = Stopwatch.StartNew();
+            Bitmap specCopy = null;
+            Task<DocAiResult> specTask = null;
+            try
+            {
+                specCopy = new Bitmap(image);
+                Bitmap specBmp = specCopy;
+                specTask = Task.Run(() =>
+                {
+                    var r = AnalyzeAt(specBmp, PreferredLongSide);
+                    Log("preferred pass (" + PreferredLongSide + "px, speculative upright)", preferredSw);
+                    return r;
+                });
+            }
+            catch { specTask = null; }
+
             var rotSw = Stopwatch.StartNew();
             try
             {
@@ -301,6 +326,17 @@ namespace CROMS.Data
             }
             catch { rotation = 0; upright = image; }
             Log("rotation probe", rotSw);
+
+            bool useSpec = specTask != null && rotation == 0;
+            if (specTask != null && !useSpec)
+            {
+                // Sideways page: the speculative read is wasted. Let it finish in the
+                // background (Tesseract cannot be cancelled), observe its exception so it never
+                // surfaces later, and free its copy then.
+                Bitmap toFree = specCopy;
+                specTask.ContinueWith(t => { var _ = t.Exception; try { toFree.Dispose(); } catch { } });
+                preferredSw.Restart();
+            }
 
             try
             {
@@ -324,8 +360,7 @@ namespace CROMS.Data
                 // thread before either task starts.
                 Bitmap nativeCopy = wantNative ? new Bitmap(upright) : null;
 
-                var preferredSw = Stopwatch.StartNew();
-                Task<DocAiResult> preferredTask = Task.Run(() =>
+                Task<DocAiResult> preferredTask = useSpec ? specTask : Task.Run(() =>
                 {
                     var r = AnalyzeAt(upright, PreferredLongSide);
                     Log("preferred pass (" + PreferredLongSide + "px)", preferredSw);
@@ -343,7 +378,8 @@ namespace CROMS.Data
 
                 DocAiResult best;
                 try { best = preferredTask.Result; }
-                catch { if (nativeTask != null) { try { nativeTask.Wait(); } catch { } } nativeCopy?.Dispose(); throw; }
+                catch { if (nativeTask != null) { try { nativeTask.Wait(); } catch { } } nativeCopy?.Dispose(); if (useSpec) specCopy.Dispose(); throw; }
+                if (useSpec) specCopy.Dispose();
                 if (nativeTask != null)
                 {
                     DocAiResult native;

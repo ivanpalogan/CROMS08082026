@@ -52,6 +52,7 @@ namespace CROMS.DocTest
                 // native-resolution pass on a RESOLVED-but-low-confidence layout, not only an
                 // unresolved one. Kept as a harness flag so a before/after --truth run is a
                 // one-flag comparison, never a code edit.
+                if (args[i] == "--pagels" && i + 1 < args.Length) { int pls; if (int.TryParse(args[++i], out pls)) OcrSession.PageLongSideOverride = pls; continue; }
                 if (args[i] == "--retry") { DocumentAI.EnableLowConfidenceNativeRetry = true; continue; }
                 if (args[i] == "--words")
                 {
