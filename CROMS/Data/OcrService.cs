@@ -951,6 +951,66 @@ namespace CROMS.Data
             into.Add(read);
         }
 
+        /// <summary>
+        /// How much dark ink sits in each of the given 0-1 page rectangles, as a fraction of
+        /// the rectangle. Used to find a hand-struck X in a tick box, which OCR cannot read
+        /// as text: the engine returns the PRINTED options ("1 Single 2 Twin 3 Triplet") and
+        /// the X simply vanishes, so the answer has to come from where the ink is.
+        /// <para/>
+        /// Ink is anything clearly darker than that rectangle's own paper (its median grey),
+        /// so a shadow or a yellow tint does not count. Rows that are dark across most of the
+        /// width are the printed underline the X is written on, not the X, and are ignored.
+        /// </summary>
+        public double[] InkIn(RectangleF[] norms)
+        {
+            var result = new double[norms.Length];
+            for (int i = 0; i < norms.Length; i++)
+            {
+                Rectangle box = Denormalize(norms[i]);
+                if (box.Width < 6 || box.Height < 4) continue;
+
+                byte[] gray = new byte[box.Width * box.Height];
+                lock (OcrService.GdiLock)
+                {
+                    using (var crop = new Bitmap(box.Width, box.Height, PixelFormat.Format24bppRgb))
+                    {
+                        using (var g = Graphics.FromImage(crop))
+                            g.DrawImage(_source, new Rectangle(0, 0, box.Width, box.Height), box, GraphicsUnit.Pixel);
+                        BitmapData d = crop.LockBits(new Rectangle(0, 0, box.Width, box.Height),
+                            ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                        try
+                        {
+                            var buf = new byte[Math.Abs(d.Stride) * box.Height];
+                            Marshal.Copy(d.Scan0, buf, 0, buf.Length);
+                            for (int y = 0; y < box.Height; y++)
+                                for (int x = 0; x < box.Width; x++)
+                                {
+                                    int p = y * d.Stride + x * 3;
+                                    gray[y * box.Width + x] = (byte)(buf[p + 2] * 0.299 + buf[p + 1] * 0.587 + buf[p] * 0.114);
+                                }
+                        }
+                        finally { crop.UnlockBits(d); }
+                    }
+                }
+
+                var sorted = (byte[])gray.Clone();
+                Array.Sort(sorted);
+                int paper = sorted[sorted.Length / 2];
+                int cut = (int)(paper * 0.62);
+
+                int ink = 0;
+                for (int y = 0; y < box.Height; y++)
+                {
+                    int rowInk = 0;
+                    for (int x = 0; x < box.Width; x++) if (gray[y * box.Width + x] < cut) rowInk++;
+                    if (rowInk > box.Width * 0.55) continue;      // the printed underline, not the X
+                    ink += rowInk;
+                }
+                result[i] = ink / (double)(box.Width * box.Height);
+            }
+            return result;
+        }
+
         private Rectangle Denormalize(RectangleF norm)
         {
             int x = (int)Math.Round(norm.X * _sourceWidth);

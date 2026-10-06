@@ -61,7 +61,17 @@ namespace CROMS.Data
             Shape = shape; Mode = mode; Required = required; Choices = choices; Core = core;
         }
 
+        /// <summary>
+        /// Where the hand-struck X goes for each entry of <see cref="Choices"/>, in the same
+        /// order, in template coordinates. A tick box cannot be read as text - the engine
+        /// returns the printed options and the X disappears - so when these are given the
+        /// answer is the slot that actually holds ink (see <see cref="OcrSession.InkIn"/>).
+        /// </summary>
+        public RectangleF[] TickSlots;
+
         public FieldSpec InRow(string rowGroup) { RowGroup = rowGroup; return this; }
+
+        public FieldSpec WithTicks(params RectangleF[] slots) { TickSlots = slots; return this; }
 
         public FieldSpec KeepingLabelWords() { KeepLabelWords = true; return this; }
     }
@@ -334,12 +344,25 @@ namespace CROMS.Data
                 new FieldSpec("ChildFirst",        "Child First Name",     0.238f, 0.1705f, 0.155f, 0.0220f, FieldShape.Name, OcrRegionMode.Block, true).InRow("child1993"),
                 new FieldSpec("ChildMiddle",       "Child Middle Name",    0.393f, 0.1705f, 0.148f, 0.0220f, FieldShape.Name, OcrRegionMode.Block).InRow("child1993"),
                 new FieldSpec("ChildLast",         "Child Last Name",      0.541f, 0.1705f, 0.140f, 0.0220f, FieldShape.Name, OcrRegionMode.Block, true).InRow("child1993"),
+                // The tick slots sit on the printed blank before each option, measured on the 1993
+                // reference scan (the X is struck just above that underline).
                 new FieldSpec("Sex",               "Sex",                  0.200f, 0.2075f, 0.190f, 0.0155f, FieldShape.Choice, OcrRegionMode.Sparse, true,
-                              new[] { "Male", "Female" }),
-                new FieldSpec("DateOfBirth",       "Date of Birth",        0.500f, 0.2035f, 0.185f, 0.0195f, FieldShape.Date, OcrRegionMode.Block),
+                              new[] { "Male", "Female" })
+                    .WithTicks(new RectangleF(0.170f, 0.2030f, 0.048f, 0.0135f),
+                               new RectangleF(0.256f, 0.2030f, 0.044f, 0.0135f)),
+                // The value row only: starting above y 0.2085 takes in the printed "(day) (month)
+                // (year)" hint, which read into the date as junk. Wider to the LEFT than the
+                // reference value because a typist does not always start in the same place - on
+                // an NSO copy "20 February 2005" began 0.05 further left and the day was cut off.
+                new FieldSpec("DateOfBirth",       "Date of Birth",        0.470f, 0.2085f, 0.190f, 0.0135f, FieldShape.Date, OcrRegionMode.Block),
                 new FieldSpec("PlaceOfBirth",      "Place of Birth",       0.170f, 0.2495f, 0.500f, 0.0165f, FieldShape.Place),
                 new FieldSpec("TypeOfBirth",       "Type of Birth",        0.180f, 0.2790f, 0.210f, 0.0170f, FieldShape.Choice, OcrRegionMode.Sparse, false,
-                              new[] { "Single", "Twin", "Triplet" }),
+                              new[] { "Single", "Twin", "Triplet" })
+                    // Measured on a 4x gridded crop: each slot is the blank above one printed
+                    // underline and clear of the printed "1 Single / 2 Twin / 3 Triplet" text.
+                    .WithTicks(new RectangleF(0.170f, 0.2735f, 0.034f, 0.0115f),
+                               new RectangleF(0.272f, 0.2735f, 0.032f, 0.0115f),
+                               new RectangleF(0.208f, 0.2860f, 0.034f, 0.0090f)),
                 new FieldSpec("BirthOrder",        "Birth Order",          0.185f, 0.3095f, 0.115f, 0.0160f, FieldShape.Choice, OcrRegionMode.Line, false,
                               new[] { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh" }),
                 new FieldSpec("Weight",            "Weight at Birth (g)",  0.460f, 0.3095f, 0.140f, 0.0160f, FieldShape.Number),
@@ -1045,9 +1068,47 @@ namespace CROMS.Data
                 }
 
                 Repair(spec, read);
+                if (spec.TickSlots != null && spec.Choices != null && spec.TickSlots.Length == spec.Choices.Length)
+                    ApplyTick(session, spec, fit, read);
                 resultsArr[i] = read;
             });
             return resultsArr.ToList();
+        }
+
+        /// <summary>
+        /// Answer a tick-box field from WHERE THE INK IS. The text read from the region is the
+        /// printed option list, so matching it picked whichever option word came first or was
+        /// read best - "Male" for every sex, "Triplet" for a single birth (Birth.jpg,
+        /// 2026-10-06). The slot holding a hand-struck X is the answer; with no clear winner
+        /// the field is left blank for the operator rather than guessed.
+        /// </summary>
+        private static void ApplyTick(OcrSession session, FieldSpec spec, PageFit fit, FieldRead read)
+        {
+            RectangleF[] mapped = spec.TickSlots.Select(s => fit.Map(s)).ToArray();
+            double[] ink = session.InkIn(mapped);
+
+            int top = 0;
+            for (int i = 1; i < ink.Length; i++) if (ink[i] > ink[top]) top = i;
+            double second = 0;
+            for (int i = 0; i < ink.Length; i++) if (i != top && ink[i] > second) second = ink[i];
+
+            try { DocumentAI.Diag?.Invoke("tick " + spec.Key + ": " + string.Join(" ",
+                spec.Choices.Select((c, i) => c + "=" + ink[i].ToString("0.000")))); } catch { }
+
+            const double minInk = 0.04;
+            if (ink[top] >= minInk && ink[top] >= second * 2.0)
+            {
+                read.Value = spec.Choices[top];
+                read.Issue = null;
+                double ratio = second <= 0.0001 ? 10 : ink[top] / second;
+                read.Confidence = ratio >= 4 ? 88 : 72;
+            }
+            else
+            {
+                read.Value = "";
+                read.Confidence = 0;
+                read.Issue = "No clear tick mark found in the boxes - choose it from the scan";
+            }
         }
 
         /// <summary>
