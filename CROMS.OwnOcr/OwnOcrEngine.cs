@@ -57,8 +57,11 @@ namespace CROMS.OwnOcr
 
         public static Analysis Analyze(Bitmap bmp)
         {
-            GrayImage gray = GrayImage.FromBitmap(bmp);
+            return Analyze(GrayImage.FromBitmap(bmp));
+        }
 
+        public static Analysis Analyze(GrayImage gray)
+        {
             // First look at the native size, only to learn how big the characters are.
             double scale = 1.0;
             {

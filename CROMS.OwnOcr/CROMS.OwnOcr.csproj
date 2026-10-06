@@ -52,6 +52,12 @@
     <Compile Include="LineRemover.cs" />
     <Compile Include="Resampler.cs" />
     <Compile Include="Segmenter.cs" />
+    <Compile Include="Charset.cs" />
+    <Compile Include="Features.cs" />
+    <Compile Include="Dataset.cs" />
+    <Compile Include="Synth.cs" />
+    <Compile Include="Classifier.cs" />
+    <Compile Include="OwnOcrReader.cs" />
     <Compile Include="OwnOcrEngine.cs" />
     <Compile Include="DebugRender.cs" />
   </ItemGroup>

@@ -17,6 +17,14 @@ namespace CROMS.OwnOcr
         public bool FromSplit;                 // cut out of a wider piece, not a whole component
         public float[] Image;                  // Size*Size, 0 = paper, 1 = ink
 
+        // Where the box sat against its line, in units of the line's cap height. The picture
+        // already shows this inside a fixed frame, but only coarsely (20 px for 1.6 cap
+        // heights); these keep the exact figures for telling . from , from -.
+        public float RelW;        // width / cap height
+        public float RelTop;      // (top - cap line) / cap height     (0 = at the cap line)
+        public float RelBottom;   // (bottom - baseline) / cap height  (0 = on the baseline)
+        public float Aspect;      // width / height of the box
+
         public int Width { get { return Right - Left + 1; } }
         public int Height { get { return Bottom - Top + 1; } }
     }
@@ -297,6 +305,11 @@ namespace CROMS.OwnOcr
             if (count < 4) return null;   // a sliver left by a cut is not a character
 
             var cell = new GlyphCell { Left = l, Right = r, Top = t, Bottom = bt, FromSplit = split };
+            double capHeight = a.Line.CapHeight;
+            cell.RelW = (float)(cell.Width / capHeight);
+            cell.RelTop = (float)((t - a.Line.CapTop) / capHeight);
+            cell.RelBottom = (float)((bt - a.Line.Baseline) / capHeight);
+            cell.Aspect = (float)cell.Width / Math.Max(1, cell.Height);
 
             // The picture is taken in a frame fixed to the LINE, not to the character: the
             // frame runs from a little above the cap line to below the baseline, so a full
