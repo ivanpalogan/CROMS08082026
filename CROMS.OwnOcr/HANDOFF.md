@@ -1,6 +1,6 @@
 # Own OCR engine - hand-off (read this first in a new window)
 
-Last updated 2026-10-06, end of Day 6 of the 7-day plan. Commits are made AUTOMATICALLY by a hook (messages 'auto: claude update') and are already on origin/main; I did not make them.
+Last updated 2026-10-06, end of Day 7 of the 7-day plan (COMPLETE). The write-up is WRITEUP.md. Commits are made AUTOMATICALLY by a hook (messages 'auto: claude update') and are already on origin/main; I did not make them.
 
 ## What this is
 The professor's requirement: **write an OCR engine from scratch.** Constraints agreed with the user:
