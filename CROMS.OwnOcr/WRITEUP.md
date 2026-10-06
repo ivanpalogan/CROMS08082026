@@ -42,7 +42,7 @@ field crop
  13 lexicon repair                    Lexicon
 ```
 
-`DebugRender` draws every stage into one picture, which is how most bugs were found (figure in section 9).
+`DebugRender` draws every stage into one picture, which is how most bugs were found (Figure 1, section 10).
 
 Notes on the stages that needed real design:
 
@@ -195,7 +195,7 @@ Demo of every stage on one crop (writes a picture):
 CROMS.OwnOcr.Bench\bin\Debug\CROMS.OwnOcr.Bench.exe debug <crop.png> <outFolder>
 ```
 
-Figure for the report: `CROMS.OwnOcr\data\demo\nice__MotherFirst_debug.png` shows the stages for the field "SHEILA": (1) the crop, (2) adaptive threshold, (3) the table rule found and removed in red, (4) the chosen line with each character box (green whole, magenta cut), (5) the 20x20 normalised characters. It also shows a real failure: the E is cut into two pieces, so the engine reads `SHIIILA`. That is the splitting problem of section 6.1 in one picture. (The picture is a real certificate: for a printed report, fine; do not publish it.)
+Figure 1 shows the stages for the field "SHEILA" (produced by the `debug` command above, saved as `CROMS.OwnOcr\data\demo\nice__MotherFirst_debug.png`): (1) the crop, (2) adaptive threshold, (3) the table rule found and removed in red, (4) the chosen line with each character box (green whole, magenta cut), (5) the 20x20 normalised characters. It also shows a real failure: the E is cut into two pieces, so the engine reads `SHIIILA`. That is the splitting problem of section 6.1 in one picture.
 
 Benchmarks:
 
