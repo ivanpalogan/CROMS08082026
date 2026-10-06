@@ -324,7 +324,11 @@ namespace CROMS.Data
                 rotation = OcrService.DetectRotation(image);
                 if (rotation != 0) upright = OcrService.Rotate(image, rotation);
             }
-            catch { rotation = 0; upright = image; }
+            catch (Exception ex)
+            {
+                try { Diag?.Invoke("rotation probe FAILED: " + ex.GetType().Name + ": " + ex.Message); } catch { }
+                rotation = 0; upright = image;
+            }
             Log("rotation probe", rotSw);
 
             // VERIFY a proposed turn against the real extraction instead of trusting the probe.
@@ -341,12 +345,21 @@ namespace CROMS.Data
                 try { specRes = specTask.Result; } catch { specRes = null; }
                 if (specRes != null && string.IsNullOrEmpty(specRes.Error) && specRes.ExtractedCount >= 8)
                 {
+                    // A form template that fitted the page AS GIVEN (printed labels found at
+                    // their template positions, several agreeing) cannot be sideways: a turned
+                    // page does not line its labels up. No need to spend a second ~14s page read
+                    // proving it (Birth.jpg 2026-10-06: 51s -> 37s).
+                    bool templateFitted = !string.IsNullOrEmpty(specRes.LayoutCode);
                     DocAiResult turnedRes = null;
-                    try { turnedRes = AnalyzeAt(upright, PreferredLongSide); } catch { turnedRes = null; }
-                    if (turnedRes == null || Score(specRes) >= Score(turnedRes))
+                    if (!templateFitted)
                     {
-                        try { Diag?.Invoke("rotation " + rotation + " REJECTED: page as given reads better ("
-                            + Score(specRes) + " vs " + (turnedRes == null ? -1 : Score(turnedRes)) + ")"); } catch { }
+                        try { turnedRes = AnalyzeAt(upright, PreferredLongSide); } catch { turnedRes = null; }
+                    }
+                    if (templateFitted || turnedRes == null || Score(specRes) >= Score(turnedRes))
+                    {
+                        try { Diag?.Invoke("rotation " + rotation + " REJECTED: " + (templateFitted
+                            ? "a form template fits the page as given"
+                            : "page as given reads better (" + Score(specRes) + " vs " + (turnedRes == null ? -1 : Score(turnedRes)) + ")")); } catch { }
                         if (!ReferenceEquals(upright, image)) upright.Dispose();
                         upright = image;
                         rotation = 0;

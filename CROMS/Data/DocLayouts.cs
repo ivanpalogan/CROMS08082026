@@ -807,9 +807,12 @@ namespace CROMS.Data
                     if (w.Confidence < 40 || !rx.IsMatch(w.Text)) continue;
                     list.Add(new PointF((w.X + w.Width / 2f) / page.PageWidth, (w.Y + w.Height / 2f) / page.PageHeight));
                 }
+                try { DocumentAI.Diag?.Invoke("wide anchor " + a.Pattern + " template " + a.At.X.ToString("0.000") + "," + a.At.Y.ToString("0.000")
+                    + " hits " + string.Join(" ", list.Select(h => h.X.ToString("0.000") + "," + h.Y.ToString("0.000")))); } catch { }
                 if (list.Count == 0) continue;
                 tmpl.Add(a.At); hits.Add(list);
             }
+            try { DocumentAI.Diag?.Invoke("wide fit: " + tmpl.Count + " of " + layout.Anchors.Count + " anchors found on the page"); } catch { }
             if (tmpl.Count < 4) return none;
 
             const float tolY = 0.004f, tolX = 0.008f;
@@ -837,6 +840,7 @@ namespace CROMS.Data
                             if (inl > bestY || (inl == bestY && err < bestYErr)) { bestY = inl; bestYErr = err; sy = s; oy = o; }
                         }
                 }
+            try { DocumentAI.Diag?.Invoke("wide fit: " + bestY + " anchors agree on y (scale " + sy.ToString("0.000") + ")"); } catch { }
             if (bestY < 4) return none;
 
             // Anchors that sit on the fitted rows, each with the hit(s) on that row.
@@ -869,6 +873,7 @@ namespace CROMS.Data
                             if (inl > bestX || (inl == bestX && err < bestXErr)) { bestX = inl; bestXErr = err; sx = s; ox = o; }
                         }
                 }
+            try { DocumentAI.Diag?.Invoke("wide fit: " + bestX + " anchors agree on x (scale " + sx.ToString("0.000") + ")"); } catch { }
             if (bestX < 3) return none;
 
             var fit = new PageFit { ScaleX = sx, OffsetX = ox, ScaleY = sy, OffsetY = oy };

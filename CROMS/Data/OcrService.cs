@@ -206,6 +206,7 @@ namespace CROMS.Data
             //    page was upside down instead).
             float confidence;
             int reported = OsdOrientation(source, out confidence);
+            try { DocumentAI.Diag?.Invoke("rotation: OSD " + reported + " conf " + confidence.ToString("0.00")); } catch { }
             if (reported >= 0 && confidence >= trustOsdAt)
                 return (360 - reported) % 360;   // OSD reports how far the page IS turned
 
@@ -225,7 +226,16 @@ namespace CROMS.Data
             long[] scores = new long[4];
             int[] hits = new int[4];
             System.Threading.Tasks.Parallel.For(0, 4, i => { int h; scores[i] = ProbeScore(source, i * 90, probe, out h); hits[i] = h; });
+            // A probe that scores exactly 0 is almost always the engine returning an empty read
+            // when four engines start at once, not a page with no text at any angle: a sideways
+            // page still scores a few thousand at the wrong angles. Measured 2026-10-06 on
+            // palogan_n.jpg turned 90 degrees: 1 run in ~6 returned 0 for three of the four
+            // angles, the upright one won by default and the page stayed sideways. Read each
+            // zero again once, one at a time, before trusting it.
+            for (int i = 0; i < 4; i++)
+                if (scores[i] == 0) { int h; scores[i] = ProbeScore(source, i * 90, probe, out h); hits[i] = h; }
             long upright = scores[0];
+            try { DocumentAI.Diag?.Invoke("rotation: probe " + string.Join(" ", scores)); } catch { }
             int axis = 0; long axisScore = upright;
             for (int i = 1; i < 4; i++)
             {
@@ -368,9 +378,10 @@ namespace CROMS.Data
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // A rotation that will not even process is not the best one.
+                try { DocumentAI.Diag?.Invoke("rotation probe " + degrees + " FAILED: " + ex.GetType().Name + ": " + ex.Message); } catch { }
                 return 0;
             }
         }
@@ -378,14 +389,22 @@ namespace CROMS.Data
         /// <summary>Rotate by a right angle. 0 returns a copy, so the caller always owns the result.</summary>
         public static Bitmap Rotate(Bitmap src, int degrees)
         {
-            var copy = new Bitmap(src);
-            switch (((degrees % 360) + 360) % 360)
+            // Under the GDI lock like every other GDI+ call here. The four rotation probes run
+            // in parallel and each copies the SAME source bitmap; unlocked, 1 run in ~6 threw
+            // "Object is currently in use elsewhere" inside three of the four probes, the
+            // catch below scored them 0, and a sideways page silently stayed sideways
+            // (palogan_n.jpg turned 90, 2026-10-06).
+            lock (GdiLock)
             {
-                case 90: copy.RotateFlip(RotateFlipType.Rotate90FlipNone); break;
-                case 180: copy.RotateFlip(RotateFlipType.Rotate180FlipNone); break;
-                case 270: copy.RotateFlip(RotateFlipType.Rotate270FlipNone); break;
+                var copy = new Bitmap(src);
+                switch (((degrees % 360) + 360) % 360)
+                {
+                    case 90: copy.RotateFlip(RotateFlipType.Rotate90FlipNone); break;
+                    case 180: copy.RotateFlip(RotateFlipType.Rotate180FlipNone); break;
+                    case 270: copy.RotateFlip(RotateFlipType.Rotate270FlipNone); break;
+                }
+                return copy;
             }
-            return copy;
         }
 
         /// <summary>Resize so the longest side is exactly the target (up or down).</summary>
