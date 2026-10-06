@@ -1,6 +1,6 @@
 # Own OCR engine - hand-off (read this first in a new window)
 
-Last updated 2026-10-06, end of Day 4 of the 7-day plan. Nothing here is committed or pushed.
+Last updated 2026-10-06, end of Day 5 of the 7-day plan. Commits are made AUTOMATICALLY by a hook (messages 'auto: claude update') and are already on origin/main; I did not make them.
 
 ## What this is
 The professor's requirement: **write an OCR engine from scratch.** Constraints agreed with the user:
@@ -14,11 +14,10 @@ Backup taken before any work: `C:\Users\ivan palogan\CROMS_Backups\2026-10-06_pr
 (`CROMS_repo.bundle` + `croms_db.sql`) and git tag `backup-pre-own-ocr-2026-10-06`.
 Restore code: `git clone CROMS_repo.bundle restored`. Restore DB: `mysql croms < croms_db.sql`.
 
-## Uncommitted work (git status)
-Modified: `.gitignore`, `CLAUDE.md`, `CROMS.DocTest/CROMS.DocTest.csproj`, `CROMS.DocTest/Program.cs`.
-New: `CROMS.DocTest/CropDump.cs`, `CROMS.OwnOcr/`, `CROMS.OwnOcr.Bench/`.
-Per CLAUDE.md git rules: commit only these files when the task is done or the user says so; never force push.
-`CROMS.OwnOcr/data/` is gitignored on purpose (real citizens' certificate crops = PII).
+## Git state
+An automatic hook ('auto: claude update') commits and pushes the working tree, so the engine code, the
+Bench, CropDump and the Courier Prime font (SIL OFL) are ALREADY on origin/main. Checked: nothing under
+CROMS.OwnOcr/data/ is tracked (gitignored: real citizens' certificate crops = PII). Do not add data/ to git.
 
 ## Pipeline (CROMS.OwnOcr, library)
 image -> grayscale -> bicubic upscale (glyphs to ~40 px) -> adaptive threshold -> table-rule removal ->
@@ -40,7 +39,8 @@ split wide pieces -> 20x20 baseline-normalised glyph pictures -> features -> k-N
 | Synth | renders lines from fonts + degrades them, runs them through the engine, labels cells |
 | Dataset | binary save/load of labelled glyphs |
 | Classifier | `KnnClassifier` (balanced per class, distance-weighted vote) |
-| OwnOcrReader | image -> text. **Written, NOT YET BUILT OR RUN** |
+| SplitSearch | classifier-scored DP splitter (experimental, off by default - see results) |
+| OwnOcrReader | image -> text; options LettersOnly, CaseConsistency, optional scorer for the DP splitter |
 
 Bench (`CROMS.OwnOcr.Bench`, console, not in the .sln) modes:
 `debug`, `segment`, `gen`, `realset`, `sheet`, `eval [--tune]`, `read` (last one written, not run).
@@ -52,26 +52,28 @@ Bench (`CROMS.OwnOcr.Bench`, console, not in the .sln) modes:
 - `real.bin`  : 325 glyphs cut from real crops where the character count matched. `Bench realset <crops> <out>`.
   NOTE it has a little label noise (a count can match by coincidence) so real accuracy is slightly UNDER-stated.
 
-## Results so far
-- Segmentation (character COUNT equals the paper): **55% exact, 75% within +/-1** (72 printed-text crops).
-  Birth 1993 12/15, death 12/15, birth 2007 9/20, marriage typewriter only 7/22.
-- Classifier, per character: synthetic hold-out 92.5%, **REAL glyphs 73.2%** (untuned). 8-setting weight
-  sweep showed the default weights (1,1,1) are best within noise (325 test glyphs is small).
-  Common mistakes: i->l, c->e, o->e, r->R, l->1, I->1 (look-alikes; context/dictionary repair is Day 6).
-- Speed: ~38 ms per crop front half; k-NN with 62k references is slow (~20 ms per glyph).
+## Results so far (end of Day 5)
+- Segmentation (character COUNT equals the paper): 55% exact, 75% within +/-1 (plain splitter).
+- Classifier, per character: synthetic hold-out 92.5%, REAL glyphs 73.2%. Weight sweep: defaults best.
+- WHOLE ENGINE per FIELD (72 printed-text crops, `Bench read <crops> <synth.bin> --nodp --letters --case`):
+  **own 16.7% exact / 58.0% character similarity vs CROMS/Tesseract 43.1% / 71.4%.**
+  By sample (similarity ours vs Tesseract): birth 2007 71 vs 92; faded 1993 photocopy 68 vs 65 (ours level/ahead);
+  death 71 vs 82; marriage typewriter 31 vs 50.
+- Classifier-guided DP splitting (4 variants + a reject class) did NOT beat the plain splitter; full table and
+  the reasons are in CLAUDE.md (Day 5 entry). The plain splitter is the default; DP stays behind switches.
+- Field knowledge helps a little: LettersOnly + CaseConsistency (12.5/56.3 -> 16.7/58.0).
+- Speed: front half ~38 ms/crop; k-NN ~20 ms/glyph with 62k refs; the read benchmark takes ~70 s.
 
 ## NEXT STEPS (in order)
-1. Build the Bench (MSBuild, see below) and run `read <cropsDir> <synth.bin>` - the first honest
-   "own engine vs CROMS/Tesseract" per-field number. Look at the printed examples.
-2. Day 5: replace the thinnest-column cut with dynamic programming. Candidate cut columns = valleys of the
-   column ink profile; score each candidate segment with the classifier; pick the best path. For typewriter
-   print also estimate the constant character PITCH. This is where marriage (7/22) should improve.
-3. Day 6: dictionary / lookalike correction (places from the PSGC tables, months, nationalities, case repair
-   o/O s/S c/C), then re-run `read` and write the comparison table. Keep Tesseract as fallback in CROMS.
-4. Speed: shrink the reference set (prototypes per class) so DP scoring is affordable.
-5. Day 7: write-up for the professor (pipeline, the four segmentation lessons, numbers, limits).
-6. Log each step in `CLAUDE.md` (the project convention) and commit when the user says.
-
+1. Day 6a - the classifier is the bottleneck (73% per glyph). Biggest likely gain: close the synthetic->real gap.
+   Train WITH real glyphs (leave-one-document-out so the score stays honest) and/or make the synthetic ink heavier.
+2. Day 6b - dictionary / lookalike repair: lexicon from the PSGC tables + nationalities/religions/occupations
+   (public names only; NOT persons' names, NOT the test truth), snap a word to a UNIQUE near match (edit distance
+   scaled by length), never invent. Re-run `read` and report.
+3. Speed: prototypes (k-means per class) instead of 60k raw references.
+4. Day 7 - write-up for the professor: pipeline, the four segmentation lessons, the negative DP result and why,
+   the honest table vs Tesseract, limits. Keep Tesseract as the production engine and fallback.
+5. Log each step in CLAUDE.md; commit only when the user says.
 ## Build / run (PowerShell; the leading-slash `/p:` form is mangled by Git Bash, use `-p:`)
 ```
 $ms="C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\MSBuild\Current\Bin\MSBuild.exe"
@@ -90,6 +92,9 @@ trusting any DocTest accuracy number from current source).
 - "Most ink" is the wrong test for which text line is the value; "touching letters cut at the thinnest
   column" cuts inside an H; the typical glyph width is polluted by merged pairs (use the upper quartile).
 - Render lock: GDI+ rendering in Synth is under a lock; analysis runs in parallel.
+- The Write/Edit file tools turn typed \u00D1-style escapes into literal characters: check new sources for non-ASCII bytes.
+- A leftover Bench process (killed background run) locks CROMS.OwnOcr.dll: Stop-Process CROMS.OwnOcr.Bench before rebuilding.
+- synth.bin now contains 30,824 reject samples; synth_noreject.bin is the older set.
 
 ## Paste this into the new window
 > Continue the own-OCR capstone work. Read `CROMS.OwnOcr/HANDOFF.md` and the last entries of `CLAUDE.md`

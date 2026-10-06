@@ -78,6 +78,16 @@ namespace CROMS.OwnOcr
         /// </summary>
         public Prediction[] Rank(float[] q, int top, out float nearest)
         {
+            return Rank(q, top, out nearest, null);
+        }
+
+        /// <summary>
+        /// As above, but only examples whose label is allowed take part. This is how what is KNOWN
+        /// about a field is used: a name has no digits, so a name field is read with digits (and
+        /// the reject class) switched off and an '1' can no longer be chosen over an 'I'.
+        /// </summary>
+        public Prediction[] Rank(float[] q, int top, out float nearest, bool[] allowed)
+        {
             int k = Math.Min(K, _n);
             var bestD = new float[k];
             var bestI = new int[k];
@@ -85,6 +95,7 @@ namespace CROMS.OwnOcr
 
             for (int i = 0; i < _n; i++)
             {
+                if (allowed != null && !allowed[_labels[i]]) continue;
                 int o = i * _dim;
                 float d = 0;
                 for (int j = 0; j < _dim; j++)

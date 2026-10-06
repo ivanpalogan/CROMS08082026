@@ -75,6 +75,10 @@ namespace CROMS.OwnOcr.Bench
             var reader = new OwnOcrReader(new KnnClassifier(all, 600, 3), noDp ? null : new KnnClassifier(all, 150, 5));
             reader.SplitPenalty = penalty;
             reader.GlobalMerge = useGlobal;
+            // Every field in this benchmark is text (names, places, nationality, occupation), so
+            // field knowledge may be switched on: no digits, one letter case per word.
+            reader.LettersOnly = opts.Contains("--letters");
+            reader.CaseConsistency = opts.Contains("--case");
             if (debugDir != null) Directory.CreateDirectory(debugDir);
 
             List<Row> rows = ReadManifest(dir)

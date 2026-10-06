@@ -33,6 +33,14 @@ namespace CROMS.OwnOcr
         /// <summary>Number of labels including the reject class.</summary>
         public static int LabelCount { get { return Chars.Length + 1; } }
 
+        /// <summary>Labels satisfying a test on their character (the reject class never does).</summary>
+        public static bool[] Mask(System.Func<char, bool> test)
+        {
+            var m = new bool[LabelCount];
+            for (int i = 0; i < Chars.Length; i++) m[i] = test(Chars[i]);
+            return m;
+        }
+
         public static char At(int index) { return index >= 0 && index < Chars.Length ? Chars[index] : '\0'; }
     }
 }

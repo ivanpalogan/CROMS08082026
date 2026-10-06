@@ -19,8 +19,9 @@ namespace CROMS.OwnOcr
     /// Image in, text out: the whole engine in one place.
     /// <para/>
     /// It runs the front half (threshold, rule removal, line choice, character split), asks the
-    /// classifier what each character is, and puts spaces back where the gaps between
-    /// characters are word-sized.
+    /// classifier what each character is, puts spaces back where the gaps between characters are
+    /// word-sized, and then applies what is known about the FIELD: a name or a place has no
+    /// digits, and a word keeps one letter case.
     /// </summary>
     public sealed class OwnOcrReader
     {
@@ -32,6 +33,21 @@ namespace CROMS.OwnOcr
 
         /// <summary>Search the whole line at once (can also merge broken letters) instead of each clump alone.</summary>
         public bool GlobalMerge { set { SplitSearch.GlobalMerge = value; } }
+
+        /// <summary>
+        /// The field holds text, not numbers (names, places, nationality, occupation): digits are
+        /// not offered as an answer. Without this, I read as 1 and O as 0 whenever the shapes agree.
+        /// </summary>
+        public bool LettersOnly;
+
+        /// <summary>A word is all capitals, Capitalised or all lower case - not a mixture. Decided by vote.</summary>
+        public bool CaseConsistency;
+
+        // Which labels may be chosen. The reject class is never printable.
+        private static readonly bool[] AnyCharacter = Charset.Mask(c => true);
+        private static readonly bool[] NoDigits = Charset.Mask(c => !char.IsDigit(c));
+        private static readonly bool[] UpperOnly = Charset.Mask(c => !char.IsDigit(c) && !char.IsLower(c));
+        private static readonly bool[] LowerOnly = Charset.Mask(c => !char.IsDigit(c) && !char.IsUpper(c));
 
         /// <param name="knn">Names each character. The larger the reference set the better.</param>
         /// <param name="scorer">
@@ -62,32 +78,88 @@ namespace CROMS.OwnOcr
                 if (better.Count > 0) a.Cells = better;
             }
 
-            var sb = new StringBuilder();
-            double scoreSum = 0;
+            int n = a.Cells.Count;
+
+            // ---- words: where the gap between characters is word-sized -----------------------
             var gaps = new List<double>();
-            for (int i = 0; i + 1 < a.Cells.Count; i++)
+            for (int i = 0; i + 1 < n; i++)
                 gaps.Add(Math.Max(0, a.Cells[i + 1].Left - a.Cells[i].Right - 1));
             double medianGap = gaps.Count == 0 ? 0 : gaps.OrderBy(g => g).ToList()[gaps.Count / 2];
             double spaceGap = Math.Max(0.30 * a.Line.CapHeight, 2.5 * medianGap);
 
-            for (int i = 0; i < a.Cells.Count; i++)
+            var wordOf = new int[n];
+            var spaceBefore = new bool[n];
+            int word = 0;
+            for (int i = 1; i < n; i++)
             {
-                Prediction[] ranked = _knn.Rank(Features.FromCell(a.Cells[i]), 5);
-                if (ranked.Length == 0) continue;
+                if (a.Cells[i].Left - a.Cells[i - 1].Right - 1 > spaceGap) { word++; spaceBefore[i] = true; }
+                wordOf[i] = word;
+            }
 
-                if (i > 0 && a.Cells[i].Left - a.Cells[i - 1].Right - 1 > spaceGap) sb.Append(' ');
+            // ---- first reading of every character ----------------------------------------------
+            bool[] allowed = LettersOnly ? NoDigits : AnyCharacter;
+            var feats = new float[n][];
+            var ranked = new Prediction[n][];
+            for (int i = 0; i < n; i++)
+            {
+                feats[i] = Features.FromCell(a.Cells[i]);
+                float d;
+                ranked[i] = _knn.Rank(feats[i], 5, out d, allowed);
+            }
 
-                // The best NAMEABLE character: "not a character" is a verdict about the box, not
-                // something to print. If every candidate is a reject, say so with a question mark
-                // rather than inventing a letter.
-                Prediction pick = ranked.FirstOrDefault(p => p.Label != Charset.Reject);
-                if (pick == null) { sb.Append('?'); }
-                else { sb.Append(pick.Char); scoreSum += pick.Score; }
-                result.Candidates.Add(ranked);
+            // ---- one letter case per word -----------------------------------------------------
+            if (CaseConsistency)
+            {
+                for (int w = 0; w <= word; w++)
+                {
+                    List<int> idx = Enumerable.Range(0, n).Where(i => wordOf[i] == w).ToList();
+                    int upper = 0, lower = 0;
+                    foreach (int i in idx)
+                    {
+                        if (ranked[i].Length == 0) continue;
+                        char c = ranked[i][0].Char;
+                        if (char.IsUpper(c)) upper++; else if (char.IsLower(c)) lower++;
+                    }
+                    if (upper + lower < 2) continue;   // an initial or a single letter: nothing to be consistent with
+
+                    bool[] mask; bool titleFirst = false;
+                    if (upper >= 0.6 * (upper + lower)) mask = UpperOnly;                       // SHEILA
+                    else if (ranked[idx[0]].Length > 0 && char.IsUpper(ranked[idx[0]][0].Char) && upper <= 2)
+                    { mask = LowerOnly; titleFirst = true; }                                      // Sheila
+                    else mask = LowerOnly;                                                       // sheila
+
+                    for (int k = 0; k < idx.Count; k++)
+                    {
+                        int i = idx[k];
+                        if (titleFirst && k == 0) continue;   // the capital stays as read
+                        float d;
+                        Prediction[] again = _knn.Rank(feats[i], 5, out d, Intersect(mask, allowed));
+                        if (again.Length > 0) ranked[i] = again;
+                    }
+                }
+            }
+
+            // ---- write the text -----------------------------------------------------------------
+            var sb = new StringBuilder();
+            double scoreSum = 0;
+            for (int i = 0; i < n; i++)
+            {
+                if (ranked[i].Length == 0) continue;
+                if (spaceBefore[i]) sb.Append(' ');
+                sb.Append(ranked[i][0].Char);
+                scoreSum += ranked[i][0].Score;
+                result.Candidates.Add(ranked[i]);
             }
             result.Text = sb.ToString();
             result.Confidence = result.Candidates.Count == 0 ? 0 : scoreSum / result.Candidates.Count;
             return result;
+        }
+
+        private static bool[] Intersect(bool[] a, bool[] b)
+        {
+            var r = new bool[a.Length];
+            for (int i = 0; i < r.Length; i++) r[i] = a[i] && b[i];
+            return r;
         }
     }
 }
