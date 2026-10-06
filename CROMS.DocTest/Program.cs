@@ -31,9 +31,21 @@ namespace CROMS.DocTest
             bool rawText = false;
             float wordsFrom = 0f;
             string truthDir = null;
+            string dumpDir = null, dumpSamples = null;
             var files = new System.Collections.Generic.List<string>();
             for (int i = 0; i < args.Length; i++)
             {
+                // Data set for the own OCR engine (CROMS.OwnOcr): every field region as a PNG
+                // plus truth and the Tesseract reading. See CropDump.cs.
+                if (args[i] == "--dump-crops" && i + 1 < args.Length)
+                {
+                    dumpDir = args[++i];
+                    dumpSamples = i + 1 < args.Length && !args[i + 1].StartsWith("--")
+                        ? args[++i]
+                        : Path.Combine(Environment.GetFolderPath(
+                            Environment.SpecialFolder.UserProfile), "Downloads");
+                    continue;
+                }
                 if (args[i] == "--rotate" && i + 1 < args.Length) { int.TryParse(args[++i], out rotate); continue; }
                 if (args[i] == "--diag") { diag = true; continue; }
                 // Task-A experiment (2026-09-29, OFF by default in the app): also try the
@@ -67,6 +79,8 @@ namespace CROMS.DocTest
 
             // Ground-truth mode: the only run that says whether the RECORD is right.
             if (truthDir != null) return Truth.Run(truthDir);
+
+            if (dumpDir != null) return CropDump.Run(dumpDir, dumpSamples);
 
             // Calibration mode: every printed word with its NORMALISED box, which is the
             // template space DocLayouts field rectangles are stated in. This is how a new

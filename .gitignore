@@ -367,3 +367,8 @@ CROMS_AllApps_Bundle.zip
 CROMS_UI_UX_Mockups.zip
 output/
 tmp/
+
+# Own-OCR crops are real citizens' certificate crops (PII) - never commit
+CROMS.OwnOcr/data/
+CROMS.OwnOcr/**/bin/
+CROMS.OwnOcr/**/obj/

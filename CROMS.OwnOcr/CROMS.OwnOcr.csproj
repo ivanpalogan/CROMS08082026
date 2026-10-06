@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <!--
+    CROMS.OwnOcr - an OCR engine written from scratch for the capstone.
+
+    The only dependencies are the .NET Framework base class library and System.Drawing
+    (used for pixel access and for rendering training glyphs from installed fonts). No
+    Tesseract, no OpenCV, no ML library, no NuGet package, and no reference to CROMS:
+    the engine takes a Bitmap and returns text, so it can be benchmarked on its own.
+  -->
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{3C1E6A52-8D07-4B7A-A2D4-5E9F1B6C0A21}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>CROMS.OwnOcr</RootNamespace>
+    <AssemblyName>CROMS.OwnOcr</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GrayImage.cs" />
+    <Compile Include="BinaryImage.cs" />
+    <Compile Include="Binarizer.cs" />
+    <Compile Include="ConnectedComponents.cs" />
+    <Compile Include="LineRemover.cs" />
+    <Compile Include="Resampler.cs" />
+    <Compile Include="Segmenter.cs" />
+    <Compile Include="OwnOcrEngine.cs" />
+    <Compile Include="DebugRender.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
