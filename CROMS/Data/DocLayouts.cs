@@ -417,6 +417,13 @@ namespace CROMS.Data
                     new AnchorSpec(@"^CITIZENSHIP",       0.2200f, 0.5173f),
                     new AnchorSpec(@"^MARRIAGE$",         0.3440f, 0.5644f),
                     new AnchorSpec(@"^ATTENDANT$",        0.2190f, 0.6154f),
+                    // Two labels in the MIDDLE of the sheet. Every other anchor sits in the left
+                    // column (x 0.20-0.34), which pins the horizontal OFFSET but can say nothing
+                    // about horizontal SCALE - so a page framed differently across the width
+                    // (an NSO copy with a REMARKS column beside the form, Birth.jpg 2026-10-06)
+                    // could never be fitted. Positions measured on the 1993 reference scan.
+                    new AnchorSpec(@"^MULTIPLE$",         0.4593f, 0.2710f),
+                    new AnchorSpec(@"^WEIGHT$",           0.4919f, 0.3050f),
                 },
                 Fields = f
             };
