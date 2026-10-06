@@ -617,6 +617,20 @@ namespace CROMS.Data
                     fit.RefineToRulings(layout, session.Rulings());
                     if (!fit.Trustworthy)
                     {
+                        // A page framed very differently from the reference scan (wide margins,
+                        // or an NSO copy with a REMARKS column) fails the ordinary fit's narrow
+                        // scale range. Try the wide, strict fit before giving up on the template.
+                        PageFit wide = PageFit.FromWide(layout, ocr);
+                        if (wide.Trustworthy)
+                        {
+                            wide.RefineToRulings(layout, session.Rulings());
+                            try { Diag?.Invoke(tag + "wide fit accepted: scale " + wide.ScaleX.ToString("0.000") + "x"
+                                + wide.ScaleY.ToString("0.000") + ", " + wide.SquareInliers + " agreeing"); } catch { }
+                            fit = wide;
+                        }
+                    }
+                    if (!fit.Trustworthy)
+                    {
                         result.LayoutRejected = string.Format(CultureInfo.InvariantCulture,
                             "{0} does not fit this page ({1} anchor(s), {2} agreeing, {3} ruling(s)) — "
                             + "read by printed labels instead",

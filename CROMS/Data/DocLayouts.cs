@@ -700,6 +700,109 @@ namespace CROMS.Data
         }
 
         /// <summary>
+        /// Second chance for a page framed very differently from the reference scan: a
+        /// photograph with wide margins, or an NSO copy that adds a REMARKS column beside
+        /// the form (Birth.jpg 2026-10-06: the form fills about 70% of the page width, so the
+        /// ordinary fit - scale limited to 0.96-1.04 - found 6 anchors and none agreed, and
+        /// the whole certificate fell back to the label path, which loses the table rows).
+        /// <para/>
+        /// Same consensus idea as <see cref="Fit1D"/> but with ANY plausible scale and offset,
+        /// and it is deliberately strict to make up for that: at least four anchors must
+        /// agree on the vertical axis and three on the horizontal one, all to within a few
+        /// pixels. A template that does not belong to the page does not line eight printed
+        /// labels up like that. Returns an untouched fit (0 anchors) when it cannot.
+        /// </summary>
+        public static PageFit FromWide(FormLayout layout, OcrResult page)
+        {
+            var none = new PageFit();
+            if (page == null || page.Words == null || page.Words.Count == 0 ||
+                page.PageWidth == 0 || page.PageHeight == 0 || layout.Anchors == null) return none;
+
+            var tmpl = new List<PointF>();
+            var hits = new List<List<PointF>>();
+            foreach (AnchorSpec a in layout.Anchors)
+            {
+                var rx = new Regex(a.Pattern, RegexOptions.IgnoreCase);
+                var list = new List<PointF>();
+                foreach (OcrWord w in page.Words)
+                {
+                    if (w.Confidence < 40 || !rx.IsMatch(w.Text)) continue;
+                    list.Add(new PointF((w.X + w.Width / 2f) / page.PageWidth, (w.Y + w.Height / 2f) / page.PageHeight));
+                }
+                if (list.Count == 0) continue;
+                tmpl.Add(a.At); hits.Add(list);
+            }
+            DocumentAI.Diag?.Invoke("wide: anchors with hits " + tmpl.Count + " of " + layout.Anchors.Count);
+            if (tmpl.Count < 4) return none;
+
+            const float tolY = 0.004f, tolX = 0.008f;
+
+            // Vertical axis first: the anchors are spread most widely there, so it fixes the scale.
+            float sy = 1f, oy = 0f; int bestY = 0; double bestYErr = double.MaxValue;
+            for (int i = 0; i < tmpl.Count; i++)
+                for (int j = i + 1; j < tmpl.Count; j++)
+                {
+                    float dt = tmpl[j].Y - tmpl[i].Y;
+                    if (Math.Abs(dt) < 0.12f) continue;
+                    foreach (PointF hi in hits[i])
+                        foreach (PointF hj in hits[j])
+                        {
+                            float s = (hj.Y - hi.Y) / dt;
+                            if (s < 0.5f || s > 1.8f) continue;
+                            float o = hi.Y - tmpl[i].Y * s;
+                            int inl = 0; double err = 0;
+                            for (int k = 0; k < tmpl.Count; k++)
+                            {
+                                float best = hits[k].Min(h => Math.Abs(h.Y - (tmpl[k].Y * s + o)));
+                                if (best > tolY) continue;
+                                inl++; err += best;
+                            }
+                            if (inl > bestY || (inl == bestY && err < bestYErr)) { bestY = inl; bestYErr = err; sy = s; oy = o; }
+                        }
+                }
+            DocumentAI.Diag?.Invoke("wide: Y inliers " + bestY + " scale " + sy.ToString("0.000") + " off " + oy.ToString("0.000"));
+            if (bestY < 4) return none;
+
+            // Anchors that sit on the fitted rows, each with the hit(s) on that row.
+            var onRow = new List<Tuple<PointF, List<PointF>>>();
+            for (int k = 0; k < tmpl.Count; k++)
+            {
+                var row = hits[k].Where(h => Math.Abs(h.Y - (tmpl[k].Y * sy + oy)) <= tolY).ToList();
+                if (row.Count > 0) onRow.Add(Tuple.Create(tmpl[k], row));
+            }
+
+            float sx = 1f, ox = 0f; int bestX = 0; double bestXErr = double.MaxValue;
+            for (int i = 0; i < onRow.Count; i++)
+                for (int j = i + 1; j < onRow.Count; j++)
+                {
+                    float dt = onRow[j].Item1.X - onRow[i].Item1.X;
+                    if (Math.Abs(dt) < 0.06f) continue;
+                    foreach (PointF hi in onRow[i].Item2)
+                        foreach (PointF hj in onRow[j].Item2)
+                        {
+                            float s = (hj.X - hi.X) / dt;
+                            if (s < 0.3f || s > 1.8f) continue;
+                            float o = hi.X - onRow[i].Item1.X * s;
+                            int inl = 0; double err = 0;
+                            foreach (var a in onRow)
+                            {
+                                float best = a.Item2.Min(h => Math.Abs(h.X - (a.Item1.X * s + o)));
+                                if (best > tolX) continue;
+                                inl++; err += best;
+                            }
+                            if (inl > bestX || (inl == bestX && err < bestXErr)) { bestX = inl; bestXErr = err; sx = s; ox = o; }
+                        }
+                }
+            DocumentAI.Diag?.Invoke("wide: X inliers " + bestX + " scale " + sx.ToString("0.000") + " off " + ox.ToString("0.000"));
+            if (bestX < 3) return none;
+
+            var fit = new PageFit { ScaleX = sx, OffsetX = ox, ScaleY = sy, OffsetY = oy };
+            fit.AnchorsMatched = tmpl.Count;
+            fit.SquareInliers = Math.Min(bestX, bestY);
+            return fit;
+        }
+
+        /// <summary>
         /// How many anchors the fitted placement actually lands on. The vertical
         /// tolerance is the same half-row <see cref="Fit1D"/> uses; the horizontal one is
         /// looser because these columns are wide and a small x error costs nothing.
