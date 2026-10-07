@@ -15,7 +15,7 @@ namespace CROMS.MarriageTest
     /// priority lanes and the refusal cases. Part B hands each ticket to the staff side. All data is
     /// tagged ZZF... and removed afterwards.
     /// </summary>
-    internal static class FlowsTest
+    internal static partial class FlowsTest
     {
         public static int Pass, Fail;
         private static readonly string Tag = "ZZF" + DateTime.Now.ToString("HHmmss");
@@ -72,6 +72,7 @@ namespace CROMS.MarriageTest
                 Cleanup();
                 KioskPart();
                 StaffPart();
+                QueuePart();
             }
             catch (Exception ex) { Fail++; Console.WriteLine("CRASH: " + ex); }
             finally
@@ -367,6 +368,7 @@ namespace CROMS.MarriageTest
                 Db.Push("DELETE FROM queue_ticket_forwards WHERE ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
                 Db.Push("DELETE FROM queue_tickets WHERE id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
             }
+            CleanupQueue();
         }
 
         private static int Leftovers()
@@ -375,6 +377,7 @@ namespace CROMS.MarriageTest
             n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM queue_tickets WHERE full_name LIKE '%ZZF%'").Rows[0][0]);
             n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM ctc_requests WHERE owner_last LIKE '%ZZF%'").Rows[0][0]);
             n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM breqs_requests WHERE owner_last LIKE '%ZZF%'").Rows[0][0]);
+            n += LeftoversQueue();
             return n;
         }
     }

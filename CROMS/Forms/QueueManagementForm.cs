@@ -37,6 +37,8 @@ namespace CROMS.Forms
             NextStepGlow.Wire(_btnCallClient, 8);
             SetupServingArea();
             SetupQueueContextMenu();
+            dgvQueue.CellMouseDown += RememberPick;
+            dgvPriority.CellMouseDown += RememberPick;
             SetupSyncTimer();
             SetChipFilter("ALL");
             SetCue(_txtSearch, "Search queue number or service…");
@@ -1036,10 +1038,42 @@ namespace CROMS.Forms
                   "  —  serve ahead of the regular queue (RA 11261)";
         }
 
-        private static void Bind(DataGridView grid, DataView view)
+        // The ticket the operator clicked on purpose (0 = nobody). A DataGridView auto-selects its
+        // first row on every bind, and this list is newest-first, so "whatever is selected" is NOT a
+        // choice the operator made - it was how Call Next ended up calling the newest regular client
+        // instead of the oldest. Only a real click sets this; it survives the timer-driven rebind.
+        private int _pickedTicketId;
+
+        private void Bind(DataGridView grid, DataView view)
         {
             grid.DataSource = view;
             if (grid.Columns.Contains("id")) grid.Columns["id"].Visible = false;
+            grid.ClearSelection();
+            grid.CurrentCell = null;
+            if (_pickedTicketId > 0)
+            {
+                DataGridViewRow row = RowForTicket(grid, _pickedTicketId);
+                if (row != null) row.Selected = true;
+            }
+        }
+
+        private static DataGridViewRow RowForTicket(DataGridView grid, int ticketId)
+        {
+            if (!grid.Columns.Contains("id")) return null;
+            foreach (DataGridViewRow r in grid.Rows)
+            {
+                object v = r.Cells["id"].Value;
+                if (v != null && v != DBNull.Value && Convert.ToInt32(v) == ticketId) return r;
+            }
+            return null;
+        }
+
+        private void RememberPick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            var grid = sender as DataGridView;
+            if (grid == null || e.RowIndex < 0 || e.RowIndex >= grid.Rows.Count || !grid.Columns.Contains("id")) return;
+            object v = grid.Rows[e.RowIndex].Cells["id"].Value;
+            _pickedTicketId = (v == null || v == DBNull.Value) ? 0 : Convert.ToInt32(v);
         }
 
         private string _baseFilter = "";
@@ -1284,6 +1318,7 @@ namespace CROMS.Forms
         /// </summary>
         private void AcceptTicket(int id, string code, int window, bool outOfOrder)
         {
+            _pickedTicketId = 0;   // the pick (if any) has been used
             Db.Push("UPDATE queue_tickets SET status = 'Accepted', window_no = @w, " +
                     "accepted_window = @w, accepted_at = NOW(), " +
                     "is_priority_ticket = @pri WHERE id = @id",
@@ -1305,9 +1340,29 @@ namespace CROMS.Forms
         /// </summary>
         private DataGridView SelectedQueueGrid()
         {
-            if (dgvPriority.SelectedRows.Count > 0) return dgvPriority;
-            if (dgvQueue.SelectedRows.Count > 0) return dgvQueue;
+            // A grid always has its first row auto-selected, and the priority lane lists every
+            // priority ticket of the day - including ones already accepted or completed. Counting
+            // such a row as "the operator picked this ticket" made Call Next answer "already
+            // accepted, can't be called again" instead of calling the next waiting client. Only a
+            // row that can actually be called counts as a pick; anything else falls back to FIFO.
+            if (_pickedTicketId == 0) return null;
+            foreach (DataGridView g in new[] { dgvPriority, dgvQueue })
+            {
+                DataGridViewRow row = RowForTicket(g, _pickedTicketId);
+                if (row == null || !IsCallableRow(row)) continue;
+                g.ClearSelection();
+                row.Selected = true;
+                return g;
+            }
+            _pickedTicketId = 0;   // the picked ticket is gone or no longer waiting: back to FIFO
             return null;
+        }
+
+        private static bool IsCallableRow(DataGridViewRow row)
+        {
+            if (row == null || row.DataGridView == null || !row.DataGridView.Columns.Contains("Status")) return false;
+            string s = row.Cells["Status"].Value == null ? null : row.Cells["Status"].Value.ToString();
+            return s == "Waiting" || s == "For Receiving";
         }
 
         /// <summary>
