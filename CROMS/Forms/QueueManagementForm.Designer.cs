@@ -632,8 +632,9 @@ namespace CROMS.Forms
             chip.BackColor = UiTheme.Chrome;
             chip.ForeColor = UiTheme.Muted;
             chip.AutoSize = false;
-            chip.Size = new Size(104, 30);
-            chip.Margin = new Padding(0, 8, 6, 0);
+            // Seven chips have to fit the filter column on a 1366px screen (about 650px): 7 x (88 + 4).
+            chip.Size = new Size(88, 30);
+            chip.Margin = new Padding(0, 8, 4, 0);
             chip.Click += new EventHandler(this.chip_Click);
         }
 

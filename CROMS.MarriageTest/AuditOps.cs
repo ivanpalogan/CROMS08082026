@@ -164,9 +164,22 @@ namespace CROMS.MarriageTest
             st = Db.Pull("SELECT stage FROM petitions WHERE id=" + idLg).Rows[0][0].ToString();
             Check("Legitimation case advances Filed -> Under Review", st == "UnderReview", st);
 
-            // case documents checklist (migration 52)
-            long petReq = Count("SELECT COUNT(*) FROM marriage_requirement_types WHERE applies_to='Petition'");
-            Check("Case Documents checklist has requirement types (migration 52 applied)", petReq > 0, "Petition requirement types in the database: " + petReq);
+            // case documents checklist (migration 52): one generic slot for every type, five for a Court Order
+            int[] expectDocs = { 1, 1, 1, 1, 1, 5 };
+            for (int i = 0; i < 6; i++)
+            {
+                int pid = Convert.ToInt32(t.Rows[i]["id"]);
+                PetitionDocumentService.SyncRequirements(codes[i], pid);
+                int got = PetitionDocumentService.Requirements(pid).Count;
+                Check("case documents for " + codes[i] + ": " + expectDocs[i] + " expected", got == expectDocs[i], got + " rows");
+            }
+            // filing fee vs acknowledgment: exactly one is offered, from the fee schedule
+            for (int i = 0; i < 6; i++)
+            {
+                Call(f, "LoadPetition", Convert.ToInt32(t.Rows[i]["id"])); Pump(3);
+                var fee = (Button)Fld(f, "btnFee"); var ack = (Button)Fld(f, "btnAck");
+                Check(codes[i] + ": exactly one of 'Record Filing Fee' / 'Print Acknowledgment' is offered", fee.Visible != ack.Visible, "fee=" + fee.Visible + " ack=" + ack.Visible);
+            }
 
             // edit + delete
             Call(f, "LoadPetition", idRa);

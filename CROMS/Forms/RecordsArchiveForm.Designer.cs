@@ -93,11 +93,14 @@ namespace CROMS.Forms
             // lblCount
             //
             this.lblCount.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.lblCount.AutoSize = true;
+            // Right-aligned in a fixed box that ends before Refresh: as a growing AutoSize label the long
+            // search caption ran under the Refresh button and off the edge of the window.
+            this.lblCount.AutoSize = false;
+            this.lblCount.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             this.lblCount.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblCount.Location = new System.Drawing.Point(1105, 93);
+            this.lblCount.Location = new System.Drawing.Point(809, 87);
             this.lblCount.Name = "lblCount";
-            this.lblCount.Size = new System.Drawing.Size(70, 15);
+            this.lblCount.Size = new System.Drawing.Size(460, 20);
             this.lblCount.TabIndex = 4;
             this.lblCount.Text = "0 record(s)";
             //

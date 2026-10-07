@@ -282,7 +282,9 @@ namespace CROMS.Forms
 
         private Control BuildGeneralPage()
         {
-            var page = new Panel { BackColor = Color.White };
+            // AutoScroll: the Mobile Capture block at the bottom is below a 1366x768 screen, and without a
+            // scrollbar its buttons could not be reached at all.
+            var page = new Panel { BackColor = Color.White, AutoScroll = true };
 
             page.Controls.Add(new Label
             {
