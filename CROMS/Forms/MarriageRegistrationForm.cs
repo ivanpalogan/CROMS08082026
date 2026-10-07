@@ -234,7 +234,7 @@ namespace CROMS.Forms
             btnTabMarriages.ForeColor = _tab == "Marriages" ? Color.White : UiTheme.Ink;
             btnTabPending.BackColor = _tab == "Pending" ? UiTheme.Accent : UiTheme.Chrome;
             btnTabPending.ForeColor = _tab == "Pending" ? Color.White : UiTheme.Ink;
-            btnTabLicenses.Text = "APPLICATIONS & LICENSES · " + _licenses.Count;
+            btnTabLicenses.Text = "APPLICATIONS && LICENSES · " + _licenses.Count;
             btnTabMarriages.Text = "MARRIAGES · " + _marriages.Rows.Count;
             btnTabPending.Text = "PENDING REGISTRATIONS · " + pendingCount;
             btnTabLicenses.Invalidate(); btnTabMarriages.Invalidate(); btnTabPending.Invalidate();

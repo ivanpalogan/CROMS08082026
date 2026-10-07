@@ -82,8 +82,10 @@ namespace CROMS.Forms
             // tlpHeader
             //
             this.tlpHeader.ColumnCount = 2;
-            this.tlpHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
-            this.tlpHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            // Title takes what the buttons leave: three action buttons need ~600px and used to wrap onto
+            // the KPI row (and clip) when the 50/50 split gave them only half of a 1366px screen.
+            this.tlpHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tlpHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             this.tlpHeader.Controls.Add(this.pnlTitle, 0, 0);
             this.tlpHeader.Controls.Add(this.flpActions, 1, 0);
             this.tlpHeader.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -112,10 +114,13 @@ namespace CROMS.Forms
             //
             // lblSubtitle
             //
-            this.lblSubtitle.AutoSize = true;
+            this.lblSubtitle.AutoSize = false;
+            this.lblSubtitle.AutoEllipsis = true;
+            this.lblSubtitle.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.lblSubtitle.Padding = new System.Windows.Forms.Padding(2, 0, 0, 0);
+            this.lblSubtitle.Height = 20;
             this.lblSubtitle.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblSubtitle.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
-            this.lblSubtitle.Location = new System.Drawing.Point(2, 38);
             this.lblSubtitle.Name = "lblSubtitle";
             this.lblSubtitle.UseMnemonic = false;
             this.lblSubtitle.Text = "Municipal Form 90 (application & licence)  ·  Municipal Form 97 (certificate of marriage)  ·  PSA / OCRG transmittal";
@@ -125,6 +130,9 @@ namespace CROMS.Forms
             this.flpActions.Controls.Add(this.btnRegister);
             this.flpActions.Controls.Add(this.btnLicense);
             this.flpActions.Controls.Add(this.btnPsa);
+            this.flpActions.AutoSize = true;
+            this.flpActions.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.flpActions.WrapContents = false;
             this.flpActions.Dock = System.Windows.Forms.DockStyle.Fill;
             this.flpActions.FlowDirection = System.Windows.Forms.FlowDirection.RightToLeft;
             this.flpActions.Margin = new System.Windows.Forms.Padding(0);
@@ -278,7 +286,7 @@ namespace CROMS.Forms
             this.btnTabLicenses.Name = "btnTabLicenses";
             this.btnTabLicenses.Size = new System.Drawing.Size(250, 34);
             this.btnTabLicenses.UseMnemonic = false;
-            this.btnTabLicenses.Text = "APPLICATIONS & LICENSES";
+            this.btnTabLicenses.Text = "APPLICATIONS && LICENSES";
             this.btnTabLicenses.UseVisualStyleBackColor = false;
             this.btnTabLicenses.Click += new System.EventHandler(this.btnTabLicenses_Click);
             //
