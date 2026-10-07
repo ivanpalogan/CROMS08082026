@@ -1657,10 +1657,9 @@ namespace CROMS.Forms
 
             if (c.Rows.Count == 0)
             {
-                // No claim row — just show the kiosk face photo so staff can still verify.
-                ShowClaimImages(ticketId, null);
-                if (lblClaimStatus != null)
-                    lblClaimStatus.Text = "Loaded queue ticket, but no claim request is linked.";
+                // No claim row: the kiosk stopped creating one (2026-09-28, the ID QR moved to
+                // this window). Show what the kiosk did capture and point at the next step.
+                PrepareFromBareTicket(ticketId, queueCode, requestedOn);
                 return;
             }
 
@@ -1704,6 +1703,90 @@ namespace CROMS.Forms
             ShowClaimImages(ticketId, claimId);
             ApplyState("ForRelease");   // a pickup claim has no transaction; it releases here
             txtClaimant.Focus();
+        }
+
+        /// <summary>
+        /// A kiosk pick-up ticket with no claim_requests row. Pre-fills the claimant name
+        /// (joined, never split - a split guess mangles two-word surnames), shows contact,
+        /// valid ID type and queue number, and keeps the kiosk photo. A linked transaction
+        /// opens the normal path; otherwise the worklist is searched by the client's name and
+        /// NOTHING is auto-selected - guessing whose document to hand over is the error this
+        /// screen exists to prevent. Writes nothing.
+        /// </summary>
+        private void PrepareFromBareTicket(int ticketId, string queueCode, string requestedOn)
+        {
+            DataTable t;
+            try
+            {
+                t = Db.Pull("SELECT full_name, contact_no, valid_id_type, transaction_id " +
+                            "FROM queue_tickets WHERE id = @tid LIMIT 1", new MySqlParameter("@tid", ticketId));
+            }
+            catch (MySqlException ex) when (ex.Number == 1054)   // migration 34 not applied
+            {
+                t = Db.Pull("SELECT full_name, contact_no, NULL AS valid_id_type, transaction_id " +
+                            "FROM queue_tickets WHERE id = @tid LIMIT 1", new MySqlParameter("@tid", ticketId));
+            }
+            DataRow r = t.Rows.Count > 0 ? t.Rows[0] : null;
+            string name = r == null ? "" : Convert.ToString(r["full_name"]).Trim();
+            string contact = r == null ? "" : Convert.ToString(r["contact_no"]).Trim();
+            string idType = r == null ? "" : Convert.ToString(r["valid_id_type"]).Trim();
+
+            // A ticket the kiosk linked to a request (previous queue number typed) keeps the
+            // normal path: ForRelease opens ready, a parked one opens on the Waiting tab.
+            if (r != null && r["transaction_id"] != DBNull.Value)
+            {
+                long txn = Convert.ToInt64(r["transaction_id"]);
+                DataTable stt = Db.Pull("SELECT status FROM transactions WHERE id = @t LIMIT 1",
+                    new MySqlParameter("@t", txn));
+                string st = stt.Rows.Count > 0 ? stt.Rows[0]["status"].ToString() : "";
+                int mode = st == "ForRelease" ? 0 : (st == "WaitingToRelease" || st == "ForPrint") ? 1 : -1;
+                if (mode >= 0)
+                {
+                    SetListMode(mode);
+                    PreselectTransaction(txn);
+                    if (_selectedTxnId == txn)
+                    {
+                        if (!string.IsNullOrWhiteSpace(name)) txtClaimant.Text = name;
+                        return;
+                    }
+                }
+            }
+
+            // No usable request: search the worklist for this person, select nothing.
+            SetListMode(0);
+            if (!string.IsNullOrWhiteSpace(name)) txtClaimant.Text = name;
+            if (txtSearch != null)
+            {
+                txtSearch.Text = name;
+                if (name.Length > 0) DoSearch();
+            }
+            int matches = dgvPending.Rows.Count;
+            if (lblValidation != null) lblValidation.Text = "";
+            ShowClaimImages(ticketId, null);
+
+            // Workspace shows the visit itself; the Release action stays off until a request is picked.
+            _pnlEmpty.Visible = false;
+            _pnlClaim.Visible = false;
+            _wHead.Visible = true;
+            lblSelected.Text = name.Length > 0 ? name : (queueCode ?? "Kiosk pick-up");
+            _wMeta.Text = Join(" \u00B7 ", "Kiosk pick-up", queueCode);
+            _pill.Text = "No request linked";
+            _pill.SetTone(UiTheme.WarningTint, Amber);
+            SetSummary(
+                "Queue No", queueCode,
+                "Visited", requestedOn,
+                "Client (kiosk)", name,
+                "Contact", contact,
+                "Valid ID to present", idType);
+            string who = name.Length > 0 ? name : "this client";
+            SetNote("No request is linked to this visit. " +
+                    (matches > 0
+                        ? "Matching requests for " + who + " are listed on the left; select one, or ask for the previous queue number."
+                        : "No pending release matches " + who + "; ask for the previous queue number or the transaction number, and search for it on the left."),
+                    UiTheme.WarningTint, Amber);
+            PrimaryButton("Release document", Chip, Faint, false);
+            _nextLab.Text = "Next: select the client's request on the left";
+            OrderBody();
         }
 
         /// <summary>Loads the kiosk face photo (by ticket id) and the uploaded ID (by claim id).</summary>

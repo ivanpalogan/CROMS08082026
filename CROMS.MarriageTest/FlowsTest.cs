@@ -342,14 +342,44 @@ namespace CROMS.MarriageTest
 
             Guard("Release & Claim opens a kiosk CLAIM ticket", () =>
             {
+                int tid = _ids["CLAIM"];
+                string kioskName = Convert.ToString(Db.Pull("SELECT full_name FROM queue_tickets WHERE id=@t",
+                    new MySqlParameter("@t", tid)).Rows[0][0]).Trim();
+
+                // Bare pick-up ticket: no claim_requests row, no transaction.
                 object f = NewForm("ReleaseClaimForm");
-                Call(f, "PrepareFromQueueTicket", _ids["CLAIM"]);
+                Call(f, "PrepareFromQueueTicket", tid);
                 string status = Txt(f, "lblClaimStatus");
-                // Not asserted as pass/fail: it documents what the officer sees. The kiosk no
-                // longer creates a claim_requests row (the ID QR moved to this window), so a bare
-                // pick-up ticket opens with no claimant details.
-                Console.WriteLine("  INFO  CLAIM ticket opens with: \"" + status + "\"");
-                Check("  Release & Claim opened without error", true);
+                Check("  claimant box holds the kiosk name (joined, not split)", Txt(f, "txtClaimant") == kioskName,
+                      "\"" + Txt(f, "txtClaimant") + "\" vs \"" + kioskName + "\"");
+                Check("  status line names the next step", !status.Contains("no claim request is linked") &&
+                      status.Contains("No request is linked") && status.Contains("previous queue number"), status);
+                Check("  worklist search pre-filled with the name", Txt(f, "txtSearch") == kioskName, Txt(f, "txtSearch"));
+                Check("  nothing auto-selected", Fld(f, "_selectedTxnId") == null && Fld(f, "_pickupClaimId") == null);
+                Check("  Release stays disabled", !((System.Windows.Forms.Control)Fld(f, "btnRelease")).Enabled);
+                Check("  claim row NOT created here", Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM claim_requests WHERE queue_ticket_id=@t",
+                      new MySqlParameter("@t", tid)).Rows[0][0]) == 0);
+
+                // Same ticket linked to a ready transaction: the normal path is kept.
+                long txn = Db.Insert("INSERT INTO transactions (txn_code, client_name, type, status) " +
+                                     "VALUES (@c, @n, 'Certification', 'ForRelease')",
+                                     new MySqlParameter("@c", Tag + "-CLM"), new MySqlParameter("@n", kioskName));
+                try
+                {
+                    Db.Push("UPDATE queue_tickets SET transaction_id=@x WHERE id=@t",
+                            new MySqlParameter("@x", txn), new MySqlParameter("@t", tid));
+                    object g = NewForm("ReleaseClaimForm");
+                    Call(g, "PrepareFromQueueTicket", tid);
+                    object sel = Fld(g, "_selectedTxnId");
+                    Check("  linked ForRelease ticket preselects its transaction", sel != null && Convert.ToInt64(sel) == txn,
+                          sel == null ? "none selected" : sel.ToString());
+                    Check("  linked ticket keeps the claimant name", Txt(g, "txtClaimant") == kioskName, Txt(g, "txtClaimant"));
+                }
+                finally
+                {
+                    Db.Push("UPDATE queue_tickets SET transaction_id=NULL WHERE id=@t", new MySqlParameter("@t", tid));
+                    Db.Push("DELETE FROM transactions WHERE id=@x", new MySqlParameter("@x", txn));
+                }
             });
         }
 
