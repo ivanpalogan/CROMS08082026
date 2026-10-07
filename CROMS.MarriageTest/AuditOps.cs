@@ -63,6 +63,9 @@ namespace CROMS.MarriageTest
             Try("Release & Claim / PSA Copies / Fees open with no ticket", () => OpenNoTicket(shell));
             Try("Certificate previews (Crystal / replica / facts certifications) open and close without printing", () => CertificatePreviewCheck(shell, wd));
             Try("Document Processing end to end: scan -> read -> edit -> commit -> duplicate refused -> auto-fill", () => OcrEndToEnd(shell, wd));
+            Try("Users & sign-in: accounts, last-admin protection, lock-out, deactivated account", () => UsersLoginCheck(shell, wd));
+            Try("Master Files: add, duplicate, edit, delete a lookup value", () => MasterEditCheck(shell, wd));
+            Try("Certificate templates and Mobile Capture status (read-only)", () => TemplatesMobileCheck());
             Try("Death Registration entry dialog: every step renders", () => DeathRenderCheck(shell, wd));
             Try("Staff bypass / override: reasoned, audited, role-gated", BypassCheck);
             Try("Migrations vs code: features that need an unapplied migration", MigrationFeatureCheck);
@@ -423,6 +426,179 @@ namespace CROMS.MarriageTest
             }
         }
 
+        // -------------------------------------------------------------- master files CRUD
+        private static void MasterEditCheck(Form shell, DialogWatchdog wd)
+        {
+            Form f = Go(shell, "masterfiles");
+            var cbo = All(f).OfType<ComboBox>().First(c => c.Items.Count > 5);
+            int idx = -1;
+            for (int i = 0; i < cbo.Items.Count; i++) if (cbo.Items[i].ToString() == "Religions") idx = i;
+            Check("Master Files lists Religions", idx >= 0);
+            if (idx < 0) return;
+            cbo.SelectedIndex = idx; Pump(6);
+            var name = (TextBox)Fld(f, "txtName");
+            var grid = (DataGridView)Fld(f, "dgvItems");
+            long n0 = Count("SELECT COUNT(*) FROM religions");
+
+            Call(f, "btnNew_Click", null, EventArgs.Empty);
+            int m0 = wd.Count; Call(f, "btnAdd_Click", null, EventArgs.Empty);
+            Check("adding with a blank name is refused", wd.Saw(m0, "Enter a name") && Count("SELECT COUNT(*) FROM religions") == n0);
+            name.Text = "ZZA Faith";
+            Call(f, "btnAdd_Click", null, EventArgs.Empty); Pump(4);
+            Check("a new lookup value is added", Count("SELECT COUNT(*) FROM religions WHERE name='ZZA Faith'") == 1);
+            name.Text = "ZZA Faith";
+            m0 = wd.Count; Call(f, "btnAdd_Click", null, EventArgs.Empty); Pump(4);
+            long dup = Count("SELECT COUNT(*) FROM religions WHERE name='ZZA Faith'");
+            Check("the same value cannot be added twice (" + dup + " row)", dup == 1);
+            string msg = string.Join(" / ", wd.Since(m0));
+            Check("the duplicate is explained in plain words, not as a database error", msg.Contains("already in this list"), msg.Length > 200 ? msg.Substring(0, 200) : msg);
+
+            // select it in the grid, edit, delete
+            int row = -1;
+            for (int i = 0; i < grid.Rows.Count; i++) if (Convert.ToString(grid.Rows[i].Cells["Name"].Value) == "ZZA Faith") row = i;
+            if (row < 0) { Check("the new value appears in the list", false); return; }
+            Call(f, "dgvItems_CellClick", grid, new DataGridViewCellEventArgs(0, row));
+            name.Text = "ZZA Faith 2";
+            Call(f, "btnUpdate_Click", null, EventArgs.Empty); Pump(4);
+            Check("the value can be renamed", Count("SELECT COUNT(*) FROM religions WHERE name='ZZA Faith 2'") == 1);
+            row = -1;
+            for (int i = 0; i < grid.Rows.Count; i++) if (Convert.ToString(grid.Rows[i].Cells["Name"].Value) == "ZZA Faith 2") row = i;
+            Call(f, "dgvItems_CellClick", grid, new DataGridViewCellEventArgs(0, row));
+            Call(f, "btnDelete_Click", null, EventArgs.Empty); Pump(4);
+            Check("an unused value can be deleted", Count("SELECT COUNT(*) FROM religions WHERE name LIKE 'ZZA%'") == 0 && Count("SELECT COUNT(*) FROM religions") == n0);
+
+            // a value in use cannot be deleted
+            DataTable used = Db.Pull("SELECT r.id, r.name FROM religions r WHERE EXISTS (SELECT 1 FROM marriages m WHERE m.husband_religion_id = r.id) LIMIT 1");
+            if (used.Rows.Count == 1)
+            {
+                row = -1; string un = used.Rows[0]["name"].ToString();
+                for (int i = 0; i < grid.Rows.Count; i++) if (Convert.ToString(grid.Rows[i].Cells["Name"].Value) == un) row = i;
+                if (row >= 0)
+                {
+                    Call(f, "dgvItems_CellClick", grid, new DataGridViewCellEventArgs(0, row));
+                    m0 = wd.Count; Call(f, "btnDelete_Click", null, EventArgs.Empty); Pump(4);
+                    Check("a value used by records ('" + un + "') cannot be deleted", Count("SELECT COUNT(*) FROM religions WHERE name='" + un.Replace("'", "''") + "'") == 1 && wd.Saw(m0, "in use"));
+                }
+            }
+        }
+
+        // -------------------------------------------------------------- templates + mobile capture (read-only)
+        private static void TemplatesMobileCheck()
+        {
+            Type ts = typeof(Db).Assembly.GetType("CROMS.Data.TemplateStore", true);
+            var known = ((System.Collections.IEnumerable)ts.GetProperty("KnownForms").GetValue(null)).Cast<object>().ToList();
+            Check("template store knows the certification forms (" + known.Count + ")", known.Count >= 3);
+            foreach (object k in known)
+            {
+                string code = (string)k.GetType().GetField("FormCode").GetValue(k);
+                object t = ts.GetMethod("GetActive").Invoke(null, new object[] { code });
+                int n = t == null ? -1 : ((System.Collections.ICollection)t.GetType().GetField("Elements").GetValue(t)).Count;
+                Check("template '" + code + "' loads with elements (" + n + ")", t != null && n > 5);
+            }
+            Type fc = typeof(Db).Assembly.GetType("CROMS.Data.Form97Capture", true);
+            object[] a = { null };
+            bool ready = (bool)fc.GetMethod("TrustedLinkReady").Invoke(null, a);
+            Note("Mobile Capture trusted link ready: " + ready + (ready ? "" : " - " + a[0]));
+            Check("Mobile Capture never hands out a raw-IP / plain-HTTP link", ready || !string.IsNullOrEmpty((string)a[0]));
+            string url = (string)fc.GetMethod("BuildMobileUrl").Invoke(null, new object[] { "TESTTOKEN" });
+            Check("the capture link is either https://<hostname>... or empty", string.IsNullOrEmpty(url) || (url.StartsWith("https://") && !System.Text.RegularExpressions.Regex.IsMatch(url, @"^https://\d+\.\d+\.\d+\.\d+")), url);
+        }
+
+        // -------------------------------------------------------------- users + sign-in
+        private static void UsersLoginCheck(Form shell, DialogWatchdog wd)
+        {
+            Form f = Go(shell, "users");
+            var user = (TextBox)Fld(f, "txtUsername"); var full = (TextBox)Fld(f, "txtFullName");
+            var pass = (TextBox)Fld(f, "txtPassword"); var conf = (TextBox)Fld(f, "txtConfirm");
+            var role = (ComboBox)Fld(f, "cboRole"); var active = (CheckBox)Fld(f, "chkActive");
+            Check("role list offers exactly Admin and Staff", role.Items.Count == 2 && role.Items.Contains("Admin") && role.Items.Contains("Staff"), string.Join(",", role.Items.Cast<object>()));
+            long users0 = Count("SELECT COUNT(*) FROM users");
+
+            // a Staff session cannot create accounts
+            Login("Staff");
+            try
+            {
+                Call(f, "ClearForm"); user.Text = "zzastaffmade"; full.Text = "ZZA Test"; pass.Text = "Passw0rd!x"; conf.Text = "Passw0rd!x"; role.SelectedItem = "Staff";
+                int m0 = wd.Count; Call(f, "AddUser");
+                Check("Staff cannot add a user", Count("SELECT COUNT(*) FROM users WHERE username='zzastaffmade'") == 0 && wd.Saw(m0, "Administrator can manage"));
+            }
+            finally { Login("Admin"); }
+
+            // validation
+            int m1 = wd.Count;
+            Call(f, "ClearForm"); Call(f, "AddUser");
+            Check("blank form is refused with a message", wd.Saw(m1, "required") && Count("SELECT COUNT(*) FROM users") == users0);
+            user.Text = "zzaofficer"; full.Text = "ZZA Officer"; role.SelectedItem = "Staff"; pass.Text = "short"; conf.Text = "short";
+            m1 = wd.Count; Call(f, "AddUser");
+            Check("a too-short password is refused", wd.Saw(m1, "at least") && Count("SELECT COUNT(*) FROM users WHERE username='zzaofficer'") == 0);
+            pass.Text = "Passw0rd!x"; conf.Text = "Different1!";
+            m1 = wd.Count; Call(f, "AddUser");
+            Check("mismatched confirmation is refused", wd.Saw(m1, "do not match") && Count("SELECT COUNT(*) FROM users WHERE username='zzaofficer'") == 0);
+
+            // create, duplicate, hash
+            conf.Text = "Passw0rd!x"; role.SelectedItem = "Staff";
+            Call(f, "AddUser");
+            Check("a valid Staff account is created", Count("SELECT COUNT(*) FROM users WHERE username='zzaofficer' AND role='Staff' AND is_active=1") == 1);
+            string hash = Db.Pull("SELECT password_hash FROM users WHERE username='zzaofficer'").Rows[0][0].ToString();
+            Check("the password is stored hashed, never in clear", hash != "Passw0rd!x" && PasswordHasher.Verify("Passw0rd!x", hash) && !PasswordHasher.Verify("wrong", hash));
+            Call(f, "ClearForm"); user.Text = "zzaofficer"; full.Text = "dup"; pass.Text = "Passw0rd!x"; conf.Text = "Passw0rd!x"; role.SelectedItem = "Staff";
+            m1 = wd.Count; Call(f, "AddUser");
+            Check("a duplicate username is refused", wd.Saw(m1, "already taken") && Count("SELECT COUNT(*) FROM users WHERE username='zzaofficer'") == 1);
+
+            // last-admin protection
+            int adminId = Convert.ToInt32(Db.Pull("SELECT id FROM users WHERE role='Admin' AND is_active=1 ORDER BY id LIMIT 1").Rows[0][0]);
+            long admins = Count("SELECT COUNT(*) FROM users WHERE role='Admin' AND is_active=1");
+            DataRow adm0 = Db.Pull("SELECT username, full_name, role, is_active FROM users WHERE id=" + adminId).Rows[0];   // restored below whatever happens
+            SetFld(f, "_selUserId", (int?)adminId);
+            user.Text = "admin"; full.Text = "Administrator"; pass.Text = ""; conf.Text = ""; role.SelectedItem = "Staff"; active.Checked = true;
+            m1 = wd.Count; Call(f, "UpdateUser");
+            Check("demoting the only active Administrator is refused (" + admins + " active admin)", admins != 1 || (wd.Saw(m1, "no active Administrator") && Count("SELECT COUNT(*) FROM users WHERE id=" + adminId + " AND role='Admin'") == 1));
+            role.SelectedItem = "Admin"; active.Checked = false;
+            m1 = wd.Count; Call(f, "UpdateUser");
+            Check("deactivating the only active Administrator is refused", admins != 1 || Count("SELECT COUNT(*) FROM users WHERE id=" + adminId + " AND is_active=1") == 1);
+            Db.Push("UPDATE users SET username=@u, full_name=@f, role=@r, is_active=@a WHERE id=@id",
+                    new MySqlParameter("@u", adm0["username"]), new MySqlParameter("@f", adm0["full_name"]), new MySqlParameter("@r", adm0["role"]),
+                    new MySqlParameter("@a", adm0["is_active"]), new MySqlParameter("@id", adminId));
+            Call(f, "ClearForm");
+
+            // sign-in
+            Type lt = typeof(Db).Assembly.GetType("CROMS.Forms.LoginForm", true);
+            Func<string, string, string> attempt = (u, pw) =>
+            {
+                Form lf = (Form)Activator.CreateInstance(lt, true);
+                try
+                {
+                    ((TextBox)Fld(lf, "txtUser")).Text = u; ((TextBox)Fld(lf, "txtPass")).Text = pw;
+                    Call(lf, "btnSignIn_Click", null, EventArgs.Empty);
+                    return ((Label)Fld(lf, "lblMsg")).Text + (lf.DialogResult == DialogResult.OK ? "<OK>" : "");
+                }
+                finally { lf.Dispose(); }
+            };
+            string r = attempt("", "");
+            Check("sign-in with nothing typed asks for username and password", r.Contains("Enter your username"), r);
+            r = attempt("zzaofficer", "wrong-password");
+            Check("a wrong password gives the generic message", r == "Invalid username or password.", r);
+            r = attempt("zzanobodyhere", "whatever");
+            Check("an unknown user gets the SAME message (no user enumeration)", r == "Invalid username or password.", r);
+            for (int i = 0; i < 4; i++) attempt("zzaofficer", "wrong-" + i);
+            r = attempt("zzaofficer", "Passw0rd!x");
+            Check("after 5 wrong tries the account is locked even for the right password", r.StartsWith("Too many attempts"), r);
+            long fails = Count("SELECT COUNT(*) FROM audit_log WHERE action='Login' AND details LIKE 'Failed sign-in for ''zza%'");
+            Check("failed sign-ins are written to the audit log (" + fails + ")", fails >= 5);
+            // a second user to prove a correct sign-in and a deactivated account
+            Db.Push("INSERT INTO users (username, password_hash, full_name, role, is_active, must_change_password) VALUES ('zzaactive', @h, 'ZZA Active', 'Staff', 1, 0), ('zzaoff', @h, 'ZZA Off', 'Staff', 0, 0), ('zzaforce', @h, 'ZZA Force', 'Staff', 1, 1)", new MySqlParameter("@h", PasswordHasher.Hash("Passw0rd!x")));
+            Session.User = null;
+            r = attempt("zzaactive", "Passw0rd!x");
+            Check("a correct sign-in succeeds and starts a Staff session", r.EndsWith("<OK>") && Session.User != null && Session.User.Role == "Staff" && Session.User.Username == "zzaactive", r);
+            Login("Admin");
+            r = attempt("zzaforce", "Passw0rd!x");
+            Check("an account created or reset by an admin must change its password at first sign-in", r.Contains("must set a new password") && !r.EndsWith("<OK>") && Session.User == null, r);
+            Login("Admin");
+            r = attempt("zzaoff", "Passw0rd!x");
+            Check("a deactivated account cannot sign in", r.Contains("deactivated") && !r.EndsWith("<OK>"), r);
+            Login("Admin");
+        }
+
         // -------------------------------------------------------------- OCR end to end
         private static void OcrEndToEnd(Form shell, DialogWatchdog wd)
         {
@@ -596,27 +772,30 @@ namespace CROMS.MarriageTest
         // -------------------------------------------------------------- cleanup
         private static void OperationsCleanup()
         {
-            try
+            // Each statement on its own: one refusal (a foreign key, a missing table) must not leave the rest undone.
+            var steps = new List<string>();
+            if (_auditBefore > 0) steps.Add("DELETE FROM audit_log WHERE id > " + _auditBefore);
+            steps.Add("DELETE FROM audit_log WHERE user_id IN (SELECT id FROM users WHERE username LIKE 'zza%')");
+            if (_ocrBatchBefore > 0)   // never delete by id before the baseline is known
             {
-                if (_ocrBatchBefore > 0)   // never delete by id before the baseline is known
-                {
-                    Db.Push("DELETE FROM ocr_field_audit WHERE scan_id IN (SELECT scan_id FROM ocr_batch WHERE id > " + _ocrBatchBefore + ")");
-                    Db.Push("DELETE FROM ocr_batch WHERE id > " + _ocrBatchBefore);
-                }
-                if (_birthsBefore > 0) Db.Push("DELETE FROM births WHERE id > " + _birthsBefore + " AND record_source='OCR-Backlog'");
-                Db.Push("DELETE FROM marriage_history WHERE entity='License' AND entity_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
-                Db.Push("DELETE FROM marriage_requirements WHERE owner_type='License' AND owner_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
-                Db.Push("DELETE FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%'");
-                Db.Push("DELETE FROM client_service_slips WHERE requester_name LIKE 'ZZA%'");
-                Db.Push("DELETE FROM marriage_requirements WHERE owner_type='Petition' AND owner_id IN (SELECT id FROM petitions WHERE requester_name LIKE 'ZZA%')");
-                Db.Push("DELETE FROM petitions WHERE requester_name LIKE 'ZZA%'");
-                Db.Push("DELETE FROM window_transactions WHERE window_id IN (SELECT id FROM windows WHERE window_name='ZZA Win')");
-                Db.Push("DELETE FROM windows WHERE window_name='ZZA Win'");
-                Db.Push("DELETE FROM deaths WHERE full_name LIKE '%ZZA%'");
-                if (_auditBefore > 0)
-                    Db.Push("DELETE FROM audit_log WHERE id > " + _auditBefore);
+                steps.Add("DELETE FROM ocr_field_audit WHERE scan_id IN (SELECT scan_id FROM ocr_batch WHERE id > " + _ocrBatchBefore + ")");
+                steps.Add("DELETE FROM ocr_batch WHERE id > " + _ocrBatchBefore);
             }
-            catch (Exception ex) { Console.WriteLine("ops cleanup: " + ex.Message); }
+            if (_birthsBefore > 0) steps.Add("DELETE FROM births WHERE id > " + _birthsBefore + " AND record_source='OCR-Backlog'");
+            steps.Add("DELETE FROM marriage_history WHERE entity='License' AND entity_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
+            steps.Add("DELETE FROM marriage_requirements WHERE owner_type='License' AND owner_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
+            steps.Add("DELETE FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%'");
+            steps.Add("DELETE FROM users WHERE username LIKE 'zza%'");
+            steps.Add("DELETE FROM client_service_slips WHERE requester_name LIKE 'ZZA%'");
+            steps.Add("DELETE FROM marriage_requirements WHERE owner_type='Petition' AND owner_id IN (SELECT id FROM petitions WHERE requester_name LIKE 'ZZA%')");
+            steps.Add("DELETE FROM petitions WHERE requester_name LIKE 'ZZA%'");
+            steps.Add("DELETE FROM window_transactions WHERE window_id IN (SELECT id FROM windows WHERE window_name='ZZA Win')");
+            steps.Add("DELETE FROM windows WHERE window_name='ZZA Win'");
+            steps.Add("DELETE FROM deaths WHERE full_name LIKE '%ZZA%'");
+            steps.Add("DELETE FROM religions WHERE name LIKE 'ZZA%'");
+            foreach (string sql in steps)
+                try { Db.Push(sql); }
+                catch (Exception ex) { Console.WriteLine("ops cleanup: " + ex.Message + "  <- " + sql); }
         }
     }
 }

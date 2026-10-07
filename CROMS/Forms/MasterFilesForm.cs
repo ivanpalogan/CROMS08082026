@@ -149,6 +149,7 @@ namespace CROMS.Forms
         {
             string table = Table();
             if (table == null || !Require()) return;
+            if (IsDuplicate(table, txtName.Text, null)) return;
             try
             {
                 Db.Push("INSERT INTO " + table + " (name) VALUES (@n)",
@@ -169,6 +170,7 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
+            if (IsDuplicate(table, txtName.Text, _selectedId)) return;
             try
             {
                 Db.Push("UPDATE " + table + " SET name = @n WHERE id = @id",
@@ -214,6 +216,30 @@ namespace CROMS.Forms
             txtName.Focus();
         }
 
+        /// <summary>
+        /// A plain pick-list must not hold the same value twice: the dropdowns on every form would
+        /// show it twice and records would split between the two. The column collation is case- and
+        /// accent-insensitive, so "catholic" and "Catholic" count as the same. Barangay and
+        /// municipality names are exempt - the same name legitimately exists in many places (the
+        /// PSGC list repeats thousands of them), so those are told apart by their parent, not by name.
+        /// </summary>
+        private bool IsDuplicate(string table, string name, int? exceptId)
+        {
+            if (table == "barangays" || table == "municipalities") return false;
+            try
+            {
+                DataTable dt = Db.Pull("SELECT id FROM " + table + " WHERE name = @n" + (exceptId.HasValue ? " AND id <> @id" : ""),
+                    exceptId.HasValue
+                        ? new[] { new MySqlParameter("@n", name.Trim()), new MySqlParameter("@id", exceptId.Value) }
+                        : new[] { new MySqlParameter("@n", name.Trim()) });
+                if (dt.Rows.Count == 0) return false;
+                MessageBox.Show("\"" + name.Trim() + "\" is already in this list.", "Already exists",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return true;
+            }
+            catch (Exception ex) { Fail(ex); return true; }
+        }
+
         private bool Require()
         {
             if (string.IsNullOrWhiteSpace(txtName.Text))
@@ -227,8 +253,7 @@ namespace CROMS.Forms
 
         private static void Fail(Exception ex)
         {
-            MessageBox.Show("Operation failed: " + ex.Message, "Error",
-                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            ErrorLog.Report(null, "MasterFiles", ex, "save that change");
         }
     }
 }
