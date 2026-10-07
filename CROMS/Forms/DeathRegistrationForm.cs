@@ -869,6 +869,14 @@ namespace CROMS.Forms
                 _formName = r["form_name"].ToString();
 
             SplitFullName(Str(r["full_name"]), out string lastN, out string firstN, out string middleN);
+            // Saved cells win over the word-count guess; records written before they were kept
+            // (or by the OCR path) still fall back to the split.
+            if (dt.Columns.Contains("last_name") && dt.Columns.Contains("first_name") &&
+                (Str(r["last_name"]).Length > 0 || Str(r["first_name"]).Length > 0))
+            {
+                lastN = Str(r["last_name"]); firstN = Str(r["first_name"]);
+                middleN = dt.Columns.Contains("middle_name") ? Str(r["middle_name"]) : "";
+            }
             txtLastName.Text = lastN;
             txtFirstName.Text = firstN;
             txtMiddleName.Text = middleN;
@@ -1139,17 +1147,17 @@ namespace CROMS.Forms
             "prepared_by, prepared_by_title, prepared_by_date, " +
             "received_by, received_by_title, received_by_date, " +
             "registered_by, registered_by_title, registered_by_date, " +
-            "form_code, form_name, full_name, book_volume, book_page, sex, civil_status, age, date_of_birth, citizenship, date_of_death, time_of_death, place_of_death, " +
+            "form_code, form_name, full_name, first_name, middle_name, last_name, book_volume, book_page, sex, civil_status, age, date_of_birth, citizenship, date_of_death, time_of_death, place_of_death, " +
             "religion_name, immediate_cause, antecedent_cause, underlying_cause, medical_certifier, " +
             "certifier_license_no, disposal_method, place_of_disposal, date_of_disposal, permit_type";
 
         private const string ValuePlaceholders =
             "@iname, @irel, @iaddr, @idate, @prep, @preptitle, @prepdate, @recv, @recvtitle, @recvdate, @regby, @regbytitle, @regbydate, " +
-            "@form_code, @form_name, @name, @bookvol, @bookpage, @sex, @civil, @age, @dob, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
+            "@form_code, @form_name, @name, @fn, @mn, @ln, @bookvol, @bookpage, @sex, @civil, @age, @dob, @citizen, @dod, @tod, @place, @religion, @imm, @ant, @und, @cert, " +
             "@lic, @disp, @dplace, @ddate, @permit";
 
         private const string SetClause =
-            "form_code=@form_code, form_name=@form_name, full_name=@name, book_volume=@bookvol, book_page=@bookpage, " +
+            "form_code=@form_code, form_name=@form_name, full_name=@name, first_name=@fn, middle_name=@mn, last_name=@ln, book_volume=@bookvol, book_page=@bookpage, " +
             "sex=@sex, civil_status=@civil, age=@age, date_of_birth=@dob, citizenship=@citizen, " +
             "informant_name=@iname, informant_relationship=@irel, informant_address=@iaddr, " +
             "informant_date=@idate, prepared_by=@prep, prepared_by_title=@preptitle, " +
@@ -1168,6 +1176,11 @@ namespace CROMS.Forms
                 new MySqlParameter("@form_code", _formCode),
                 new MySqlParameter("@form_name", _formName),
                 new MySqlParameter("@name", FullName()),
+                // The three cells are stored too: full_name alone cannot be split back reliably
+                // ("Dela Cruz" is one surname), so a reload would put half of it in Middle Name.
+                new MySqlParameter("@fn", NullIfEmpty(txtFirstName.Text.Trim())),
+                new MySqlParameter("@mn", NullIfEmpty(txtMiddleName.Text.Trim())),
+                new MySqlParameter("@ln", NullIfEmpty(txtLastName.Text.Trim())),
                 new MySqlParameter("@bookvol", S(txtBookVol)),
                 new MySqlParameter("@bookpage", S(txtBookPage)),
                 new MySqlParameter("@sex", Combo(cboSex)),
