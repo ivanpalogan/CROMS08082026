@@ -384,7 +384,7 @@ namespace CROMS.Data
             {
                 string tail = string.Join(" ", words.Skip(words.Length - take));
                 string key = Normalise(tail);
-                string hit = names.FirstOrDefault(n => Normalise(n) == key);
+                string hit = names.FirstOrDefault(n => Fold(Normalise(n)) == key);
                 if (hit == null) continue;
                 words = words.Take(words.Length - take).ToArray();
                 return hit;
@@ -405,6 +405,32 @@ namespace CROMS.Data
             string name = words[words.Length - 2] + " " + words[words.Length - 1];
             words = words.Take(words.Length - 2).ToArray();
             return name;
+        }
+
+        /// <summary>
+        /// The pool's own spelling when <paramref name="text"/> IS one of its entries (case, accent and
+        /// punctuation ignored), otherwise empty. No fuzzy matching: used to accept a header value
+        /// ("Province CAGAYAN") only when it is exactly a real province or municipality.
+        /// </summary>
+        public static string ExactEntry(string pool, string text)
+        {
+            string key = Fold(Normalise(text));
+            if (key.Length < 3) return "";
+            List<string> names = Pool(pool);
+            string hit = names.FirstOrDefault(n => Fold(Normalise(n)) == key);
+            if (hit == null) return "";
+            // Prefer the accented spelling when both are on file ("Penablanca" legacy vs the official one).
+            string accented = names.FirstOrDefault(n => Fold(Normalise(n)) == key && HasAccent(n));
+            return accented ?? hit;
+        }
+
+        /// <summary>"Tuguegarao City" is a municipality even when the office never recorded it: "City" is part of its official name.</summary>
+        public static string CityName(string text)
+        {
+            string[] words = (text ?? "").Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length < 2 || !words[words.Length - 1].Equals("City", StringComparison.OrdinalIgnoreCase)) return "";
+            if (words.Take(words.Length - 1).Any(w => w.Count(char.IsLetter) < 3)) return "";
+            return string.Join(" ", words);
         }
 
         private static List<string> Pool(string category)

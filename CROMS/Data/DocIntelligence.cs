@@ -99,6 +99,22 @@ namespace CROMS.Data
                     f.Confidence = Math.Max(0, f.Confidence - 10);
                 }
 
+                // LABEL PATH: first / middle / last are cut from ONE line of text by counting words (last =
+                // last word, middle = the one before, first = the rest). The page pass often drops a
+                // whole cell of the typewriter row, so "SHELLIAN CLEAR TALOSIG" (real name SHELLIAN CLEAR
+                // BALOSO TALOSIG) came out first SHELLIAN / middle CLEAR at 88-96% with a green tick.
+                // The split is a guess here, so it must not look sure; a name read from its own cell
+                // (the region path) is unaffected.
+                if (!f.FromRegion && f.RegionConfidence == 0 && r.LayoutCode == null &&
+                    (r.Kind == DocKind.Birth || r.Kind == DocKind.Death) &&
+                    (f.Key.EndsWith("First", StringComparison.Ordinal) || f.Key.EndsWith("Middle", StringComparison.Ordinal) ||
+                     f.Key.EndsWith("Last", StringComparison.Ordinal)) && !string.IsNullOrWhiteSpace(f.Value))
+                {
+                    if (f.Confidence > UncertainBelow - 1) f.Confidence = UncertainBelow - 1;
+                    if (string.IsNullOrEmpty(f.Issue))
+                        f.Issue = "Cut from one line of text by word count, not read from its own box — check which words are the first, middle and last name";
+                }
+
                 // A civil-registry name is written with a capital. A name read with a lower-case
                 // initial ("gheila" for Sheila, "gilbert") means the FIRST LETTER was misread -
                 // and the engine still reported 90-96% confidence on it, so the grid showed a
@@ -267,28 +283,50 @@ namespace CROMS.Data
             string[] tokens = Tokens(value);
             if (tokens.Length == 0) return 50;
 
-            var used = new List<OcrWord>();
+            // Several words on a page can spell the same token ("Cagayan" in the header AND in the
+            // place of birth). Each later token takes the word NEAREST those already matched, so a
+            // value's box hugs one stretch of text. That only works if the FIRST word is right: it
+            // used to be the first one in reading order, i.e. the header copy, so "Cagayan Valley
+            // Medical Center" chained from the header "CAGAYAN" and drew a 265px box over the page.
+            // Try every candidate for the first matched token as the seed and keep the chain that
+            // matches the most tokens and spans the least area.
+            List<OcrWord> used = null;
             var scores = new List<int>();
+            int firstTok = -1;
+            for (int t = 0; t < tokens.Length && firstTok < 0; t++)
+                if (ocr.Words.Any(w => string.Equals(Norm(w.Text), tokens[t], StringComparison.OrdinalIgnoreCase))) firstTok = t;
 
-            foreach (string token in tokens)
+            if (firstTok >= 0)
             {
-                // Several words on a page can spell the same token ("Pasay", "City"). Take the
-                // one NEAREST the words already matched, so a value's box hugs one stretch of
-                // text instead of stitching together copies from different parts of the page.
-                var matches = ocr.Words
-                    .Where(w => !used.Contains(w) &&
-                                string.Equals(Norm(w.Text), token, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (matches.Count == 0) continue;
-                OcrWord hit = matches[0];
-                if (used.Count > 0 && matches.Count > 1)
+                var seeds = ocr.Words
+                    .Where(w => string.Equals(Norm(w.Text), tokens[firstTok], StringComparison.OrdinalIgnoreCase))
+                    .Take(12).ToList();
+                double bestArea = double.MaxValue; int bestCount = -1;
+                foreach (OcrWord seed in seeds)
                 {
-                    double cx = used.Average(w => w.X + w.Width / 2.0), cy = used.Average(w => w.Y + w.Height / 2.0);
-                    hit = matches.OrderBy(w => Math.Pow(w.X + w.Width / 2.0 - cx, 2) + Math.Pow(w.Y + w.Height / 2.0 - cy, 2)).First();
+                    var chain = new List<OcrWord> { seed };
+                    for (int t = 0; t < tokens.Length; t++)
+                    {
+                        if (t == firstTok) continue;
+                        var matches = ocr.Words
+                            .Where(w => !chain.Contains(w) &&
+                                        string.Equals(Norm(w.Text), tokens[t], StringComparison.OrdinalIgnoreCase))
+                            .ToList();
+                        if (matches.Count == 0) continue;
+                        double cx = chain.Average(w => w.X + w.Width / 2.0), cy = chain.Average(w => w.Y + w.Height / 2.0);
+                        chain.Add(matches.OrderBy(w => Math.Pow(w.X + w.Width / 2.0 - cx, 2) + Math.Pow(w.Y + w.Height / 2.0 - cy, 2)).First());
+                    }
+                    int x1 = chain.Min(w => w.X), y1 = chain.Min(w => w.Y);
+                    int x2 = chain.Max(w => w.X + w.Width), y2 = chain.Max(w => w.Y + w.Height);
+                    double area = (double)(x2 - x1) * (y2 - y1);
+                    // With a single matched word every seed ties on "span"; keep the first in reading order
+                    // (the old behaviour) instead of letting the smallest word box win at random.
+                    if (chain.Count > bestCount || (chain.Count > 1 && chain.Count == bestCount && area < bestArea))
+                    { bestCount = chain.Count; bestArea = area; used = chain; }
                 }
-                used.Add(hit);
-                scores.Add(hit.Confidence);
             }
+            if (used == null) used = new List<OcrWord>();
+            foreach (OcrWord w in used) scores.Add(w.Confidence);
 
             if (scores.Count == 0) return 50;
 
@@ -302,6 +340,16 @@ namespace CROMS.Data
                 if (ocr.PageHeight > 0 && ocr.PageWidth > 0 &&
                     (region.Height > ocr.PageHeight * 0.12 || region.Width > ocr.PageWidth * 0.75))
                     region = Rectangle.Empty;
+                // A value is one or two lines of text. A box several lines tall made of words that sit on
+                // different rows is a stitched box (the Place of Birth composite chained its "Cagayan"
+                // from the page header, 267px tall around 20px text): drop it rather than point at a
+                // stretch of the page that is not the value.
+                else if (region != Rectangle.Empty)
+                {
+                    var heights = used.Select(w => w.Height).OrderBy(h => h).ToList();
+                    int median = heights[heights.Count / 2];
+                    if (median > 0 && region.Height > median * 3.5) region = Rectangle.Empty;
+                }
             }
 
             int mean = (int)Math.Round(scores.Average());

@@ -264,6 +264,8 @@ namespace CROMS.Data
         /// too small to have one at all (nothing to retry with).
         /// </summary>
         public static bool EnableLowConfidenceNativeRetry = false;
+        /// <summary>Test-only: skip the layout templates and read by printed labels.</summary>
+        public static bool ForceLabelPath = false;
 
         /// <summary>
         /// Below this OverallConfidence, a RESOLVED layout is still considered "worth a second
@@ -638,6 +640,13 @@ namespace CROMS.Data
                 // whether the coordinates land on it. If they do not, this is a form the
                 // library does not have — read it by its labels instead of forcing it
                 // through the wrong boxes.
+                // Test-only (CROMS.DocTest --labelpath): read the page by its printed labels even when a
+                // template fits, to audit the fallback path every unknown revision is read through.
+                if (ForceLabelPath && layout != null)
+                {
+                    result.LayoutRejected = layout.Code + " skipped (label path forced for testing)";
+                    layout = null;
+                }
                 PageFit fit = null;
                 if (layout != null)
                 {
@@ -1261,8 +1270,8 @@ namespace CROMS.Data
             string sex = tickF && !tickM ? "Female"
                        : tickM && !tickF ? "Male"
                        : printedBoth ? ""
-                       : Regex.IsMatch(text, @"\bFemale\b", IC) ? "Female"
-                       : Regex.IsMatch(text, @"\bMale\b", IC) ? "Male" : "";
+                       : Regex.IsMatch(childBlock, @"\bFemale\b", IC) ? "Female"
+                       : Regex.IsMatch(childBlock, @"\bMale\b", IC) ? "Male" : "";
 
             // Date of birth as "12 June 2018" (day month-name year), from the child's block only.
             // A date that cannot be read there stays blank: a later date on the page is a
@@ -1333,7 +1342,18 @@ namespace CROMS.Data
             // printed his section heading as "14, NAME".
             string motherOcc = OccupationIn(lines, motherIdx,
                 fatherIdx >= 0 ? fatherIdx : lines.Length);
-            string fatherOcc = OccupationIn(lines, fatherIdx, lines.Length);
+            // The father's block ends where the marriage-of-parents / attendant rows begin. Searched to
+            // the END of the page it returned "Nurse" for a farmer: the attendant row prints the options
+            // "Physician  Nurse  Midwife  Hilot" and that printed caption was taken as his occupation.
+            int fatherEnd = lines.Length;
+            if (fatherIdx >= 0)
+            {
+                fatherEnd = Math.Min(lines.Length, fatherIdx + 9);
+                for (int i = fatherIdx + 1; i < Math.Min(lines.Length, fatherIdx + 9); i++)
+                    if (Regex.IsMatch(lines[i], @"ATTENDANT|MARRIAGE\s+OF\s+(THE\s+)?PARENT|PLACE\s+OF\s+MARRIAGE|\bPhysician\b|\bMidwife\b", RegexOptions.IgnoreCase))
+                    { fatherEnd = i; break; }
+            }
+            string fatherOcc = OccupationIn(lines, fatherIdx, fatherEnd);
 
             // Registry no is usually handwritten → OCR often can't read it (leave blank).
             Match rm = Regex.Match(text, @"(20\d{2}|19\d{2})\s*[-–—]\s*(\d{3,5})");
@@ -1368,6 +1388,7 @@ namespace CROMS.Data
                 new DocField("Nationality",      "Nationality",         nationality,    low || nationality == ""),
                 new DocField("Informant",        "Informant",           informant,      low || informant == ""),
             };
+            AddHeaderPlaces(f, lines, low);
             return f;
         }
 
@@ -1427,6 +1448,46 @@ namespace CROMS.Data
             };
         }
 
+        /// <summary>
+        /// The printed header's "Province" and "City/Municipality" values, read by label. Accepted ONLY
+        /// when the text is exactly a real province / municipality (the national province list, the office's
+        /// municipality table, or "<name> City"): no fuzzy matching, so a misread header is left blank
+        /// rather than repaired into a different place. The label pass used to produce neither field.
+        /// </summary>
+        private static void AddHeaderPlaces(List<DocField> fields, string[] lines, bool low)
+        {
+            string province = "", city = "";
+            int n = Math.Min(lines.Length, 28);
+            for (int i = 0; i < n && (province == "" || city == ""); i++)
+            {
+                string line = lines[i];
+                Match pm = Regex.Match(line, @"^\W*Province\b[\s:.\-_|]*(.*)$", RegexOptions.IgnoreCase);
+                if (pm.Success && province == "")
+                {
+                    string v = pm.Groups[1].Value;
+                    if (v.Trim().Length == 0 && i + 1 < n) v = lines[i + 1];
+                    province = DocVocabulary.ExactEntry(DocVocabulary.Provinces, StripHeaderNoise(v));
+                    continue;
+                }
+                Match cm = Regex.Match(line, @"^\W*C\w{1,3}\s*/\s*Municip\w*\b[\s:.\-_|]*(.*)$", RegexOptions.IgnoreCase);
+                if (cm.Success && city == "")
+                {
+                    string v = cm.Groups[1].Value;
+                    if (v.Trim().Length == 0 && i + 1 < n) v = lines[i + 1];
+                    v = StripHeaderNoise(v);
+                    city = DocVocabulary.ExactEntry(DocVocabulary.Municipalities, v);
+                    if (city == "") city = DocVocabulary.CityName(v);
+                }
+            }
+            fields.Insert(0, new DocField("CityMunicipality", "City / Municipality", city, low || city == ""));
+            fields.Insert(0, new DocField("Province", "Province", province, low || province == ""));
+        }
+
+        private static string StripHeaderNoise(string v)
+        {
+            return Regex.Replace(v ?? "", @"[^\p{L}\s.\-]", " ").Trim(' ', '.', '-', '_');
+        }
+
         // ---- Death Certificate extraction (PSA Municipal Form 103) ---------
         // Deceased name is three cells (First | Middle | Last) below the "NAME" heading.
         // Sex / civil status / age / date / place read off their labels and keywords.
@@ -1475,7 +1536,7 @@ namespace CROMS.Data
             Match rm = Regex.Match(text, @"(20\d{2}|19\d{2})\s*[-–—]\s*(\d{3,5})");
             string regNo = rm.Success ? rm.Groups[1].Value + "-" + rm.Groups[2].Value : "";
 
-            return new List<DocField>
+            var deathFields = new List<DocField>
             {
                 new DocField("RegistryNo",     "Registry Number",      regNo,    low || regNo == ""),
                 new DocField("DeceasedFirst",  "Deceased First Name",  df,       low || df == ""),
@@ -1489,6 +1550,8 @@ namespace CROMS.Data
                 new DocField("DateOfDeath",    "Date of Death",        dod,      low || dod == ""),
                 new DocField("PlaceOfDeath",   "Place of Death",       place,    low || place == ""),
             };
+            AddHeaderPlaces(deathFields, lines, low);
+            return deathFields;
         }
 
         // ---- two-column form layout (Municipal Form 97) ---------------------

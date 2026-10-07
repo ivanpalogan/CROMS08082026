@@ -56,6 +56,7 @@ namespace CROMS.DocTest
                 // unresolved one. Kept as a harness flag so a before/after --truth run is a
                 // one-flag comparison, never a code edit.
                 if (args[i] == "--pagels" && i + 1 < args.Length) { int pls; if (int.TryParse(args[++i], out pls)) OcrSession.PageLongSideOverride = pls; continue; }
+                if (args[i] == "--labelpath") { DocumentAI.ForceLabelPath = true; continue; }
                 if (args[i] == "--retry") { DocumentAI.EnableLowConfidenceNativeRetry = true; continue; }
                 // Second opinion from the own OCR engine (CROMS.OwnOcr): --noown measures the pipeline
                 // without it, --owndiag prints what it replaced. Default = as the app runs.
@@ -190,7 +191,7 @@ namespace CROMS.DocTest
                     Console.WriteLine("    " + f.Label.PadRight(22) +
                         (f.Value ?? "").PadRight(34).Substring(0, Math.Max(34, (f.Value ?? "").Length)) +
                         " " + (f.Confidence + "%").PadLeft(5) + "  " + flag +
-                        (f.RegionNorm.IsEmpty ? "  [no region]" : "  [" + f.RegionNorm.X.ToString("0.000") + "," + f.RegionNorm.Y.ToString("0.000") + " " + f.RegionNorm.Width.ToString("0.000") + "x" + f.RegionNorm.Height.ToString("0.000") + (f.FromRegion ? "" : " label") + "]") +
+                        (!f.Region.IsEmpty ? "  {px " + f.Region.X + "," + f.Region.Y + " " + f.Region.Width + "x" + f.Region.Height + "}" : "") + (f.RegionNorm.IsEmpty ? "  [no region]" : "  [" + f.RegionNorm.X.ToString("0.000") + "," + f.RegionNorm.Y.ToString("0.000") + " " + f.RegionNorm.Width.ToString("0.000") + "x" + f.RegionNorm.Height.ToString("0.000") + (f.FromRegion ? "" : " label") + "]") +
                         (f.Corrected ? "  (was \"" + f.OcrValue + "\")" : "") +
                         (string.IsNullOrEmpty(f.Issue) ? "" : "  " + f.Issue));
                 }
