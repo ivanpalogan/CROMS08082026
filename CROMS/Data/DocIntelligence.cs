@@ -62,7 +62,21 @@ namespace CROMS.Data
 
                 Rectangle region;
                 int pageScore = ScoreValue(f.Value ?? "", ocr, out region);
-                if (region != Rectangle.Empty) f.Region = region;
+                // The box the operator is shown must be where the value was READ FROM. A value
+                // read from its own region already carries that box, so it wins: matching a
+                // short value ("3", "1", "4") back onto the page text lands on the first "3"
+                // anywhere - the "3." of "3. DATE OF BIRTH", the "1" of "Page 1 of 1", the
+                // registry number - and zooms the review screen onto the wrong part of the
+                // certificate. The page match is only a fallback for fields with no region.
+                if (!f.RegionNorm.IsEmpty && r.PageWidth > 0 && r.PageHeight > 0)
+                {
+                    f.Region = new Rectangle(
+                        (int)Math.Round(f.RegionNorm.X * r.PageWidth),
+                        (int)Math.Round(f.RegionNorm.Y * r.PageHeight),
+                        (int)Math.Round(f.RegionNorm.Width * r.PageWidth),
+                        (int)Math.Round(f.RegionNorm.Height * r.PageHeight));
+                }
+                else if (region != Rectangle.Empty) f.Region = region;
 
                 // A value read from its own REGION keeps the confidence that read earned
                 // (agreement between renderings). Scoring it by matching it back onto the
@@ -83,6 +97,21 @@ namespace CROMS.Data
                     // A corrected value is a repaired reading, not a fresh one: it never
                     // scores as high as a clean read of the same field.
                     f.Confidence = Math.Max(0, f.Confidence - 10);
+                }
+
+                // A civil-registry name is written with a capital. A name read with a lower-case
+                // initial ("gheila" for Sheila, "gilbert") means the FIRST LETTER was misread -
+                // and the engine still reported 90-96% confidence on it, so the grid showed a
+                // green tick on a wrong name. Capitalise it, and never let it read as sure.
+                if (IsNameKey(f.Key) && !string.IsNullOrWhiteSpace(f.Value))
+                {
+                    string cased = CapitaliseNameWords(f.Value);
+                    if (!string.Equals(cased, f.Value, StringComparison.Ordinal))
+                    {
+                        f.Value = cased;
+                        f.Corrected = true;
+                        f.Confidence = Math.Min(f.Confidence, UncertainBelow - 8);
+                    }
                 }
             }
 
@@ -243,10 +272,20 @@ namespace CROMS.Data
 
             foreach (string token in tokens)
             {
-                OcrWord hit = ocr.Words
-                    .Where(w => !used.Contains(w))
-                    .FirstOrDefault(w => string.Equals(Norm(w.Text), token, StringComparison.OrdinalIgnoreCase));
-                if (hit == null) continue;
+                // Several words on a page can spell the same token ("Pasay", "City"). Take the
+                // one NEAREST the words already matched, so a value's box hugs one stretch of
+                // text instead of stitching together copies from different parts of the page.
+                var matches = ocr.Words
+                    .Where(w => !used.Contains(w) &&
+                                string.Equals(Norm(w.Text), token, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (matches.Count == 0) continue;
+                OcrWord hit = matches[0];
+                if (used.Count > 0 && matches.Count > 1)
+                {
+                    double cx = used.Average(w => w.X + w.Width / 2.0), cy = used.Average(w => w.Y + w.Height / 2.0);
+                    hit = matches.OrderBy(w => Math.Pow(w.X + w.Width / 2.0 - cx, 2) + Math.Pow(w.Y + w.Height / 2.0 - cy, 2)).First();
+                }
                 used.Add(hit);
                 scores.Add(hit.Confidence);
             }
@@ -258,6 +297,11 @@ namespace CROMS.Data
                 int x1 = used.Min(w => w.X), y1 = used.Min(w => w.Y);
                 int x2 = used.Max(w => w.X + w.Width), y2 = used.Max(w => w.Y + w.Height);
                 region = Rectangle.FromLTRB(x1, y1, x2, y2);
+                // Words that are far apart are not one value: a box spanning half the page
+                // points at nothing. No box is more honest than a wrong one.
+                if (ocr.PageHeight > 0 && ocr.PageWidth > 0 &&
+                    (region.Height > ocr.PageHeight * 0.12 || region.Width > ocr.PageWidth * 0.75))
+                    region = Rectangle.Empty;
             }
 
             int mean = (int)Math.Round(scores.Average());
@@ -622,6 +666,24 @@ namespace CROMS.Data
         private static bool IsNumericKey(string key)
         {
             return key == "RegistryNo" || key == "Weight" || key == "Age";
+        }
+
+        private static readonly HashSet<string> NameParticles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { "de", "del", "dela", "delos", "delas", "de la", "la", "las", "los", "san", "santa", "sta", "van", "von", "y", "ng" };
+
+        /// <summary>Capital initial on every word of a name, except the particles that are written
+        /// lower-case in a real surname ("dela Cruz", "de los Santos").</summary>
+        private static string CapitaliseNameWords(string value)
+        {
+            string[] words = value.Split(' ');
+            for (int i = 0; i < words.Length; i++)
+            {
+                string w = words[i];
+                if (w.Length == 0 || !char.IsLower(w[0])) continue;
+                if (words.Length > 1 && NameParticles.Contains(w.Trim('.'))) continue;
+                words[i] = char.ToUpperInvariant(w[0]) + w.Substring(1);
+            }
+            return string.Join(" ", words);
         }
 
         private static bool IsNameKey(string key)

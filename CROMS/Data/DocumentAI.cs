@@ -1296,6 +1296,17 @@ namespace CROMS.Data
             string placeHosp = pp.Length > 0 ? pp[0] : "";
             string placeMuni = pp.Length > 1 ? pp[1] : "";
             string placeProv = pp.Length > 2 ? pp[2] : "";
+            // A home birth is written "<sitio>, <barangay>, <municipality>, <province>": more
+            // than three parts. The province is always LAST and the municipality just before
+            // it, so everything earlier is the facility/address. Taking the first three put
+            // the municipality in the Province box ("Peiablanca" as the province of a
+            // Cagayan birth).
+            if (pp.Length > 3)
+            {
+                placeProv = pp[pp.Length - 1];
+                placeMuni = pp[pp.Length - 2];
+                placeHosp = string.Join(", ", pp.Take(pp.Length - 2));
+            }
 
             // The three cells are ruled, not punctuated, so OCR usually returns the whole row
             // as one run with no commas in it. Splitting on commas alone then left the entire

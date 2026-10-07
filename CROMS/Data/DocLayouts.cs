@@ -1308,9 +1308,19 @@ namespace CROMS.Data
             // and the office knows each of them individually. Repairing the whole string
             // against the whole string almost never matches; repairing component by
             // component is what actually mends "Peflablanca" without touching the rest.
+            // The address ends at the province: cut stray ink read after it first.
+            string original = read.Value;
+            string trimmed = DocVocabulary.TrimAfterProvince(read.Value);
+            bool changed = false;
+            if (!string.Equals(trimmed, read.Value, StringComparison.Ordinal))
+            {
+                read.OcrValue = read.OcrValue ?? read.Value;
+                read.Value = trimmed;
+                changed = true;
+            }
+
             string[] parts = read.Value.Split(',');
             var mended = new List<string>();
-            bool changed = false;
 
             foreach (string part in parts)
             {
@@ -1334,7 +1344,7 @@ namespace CROMS.Data
 
             if (!changed || mended.Count == 0) return;
 
-            string was = read.Value;
+            string was = original;
             read.Value = string.Join(", ", mended);
             read.Repaired = true;
             // A mended reading is not a clean one: it can never score as high as something

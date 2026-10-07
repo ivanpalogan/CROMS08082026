@@ -335,6 +335,41 @@ namespace CROMS.Data
         }
 
         /// <summary>
+        /// An address written "..., Municipality, Province" ENDS at the province. Whatever the
+        /// scan reads after it ("Peñablanca, Cagayan. f- 7") is a ruled line, a tick or the
+        /// edge of the next cell, never part of the place. Cuts the trailing run when - and only
+        /// when - the last component starts with a province this office or the national list
+        /// knows; anything else is returned untouched.
+        /// </summary>
+        public static string TrimAfterProvince(string place)
+        {
+            if (string.IsNullOrWhiteSpace(place)) return place;
+            int comma = place.LastIndexOf(',');
+            string head = comma >= 0 ? place.Substring(0, comma + 1) + " " : "";
+            string last = comma >= 0 ? place.Substring(comma + 1).Trim() : place.Trim();
+            string[] words = last.Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (words.Length < 2) return place;
+
+            List<string> provinces = Pool(Provinces);
+            if (provinces.Count == 0) return place;
+
+            // longest province name first, so "Davao del Norte" is not cut back to "Davao"
+            for (int take = Math.Min(4, words.Length - 1); take >= 1; take--)
+            {
+                string lead = Normalise(string.Join(" ", words.Take(take)));
+                if (lead.Length < 4) continue;
+                string hit = provinces.FirstOrDefault(p => Normalise(p) == lead);
+                if (hit == null) continue;
+                // Only STRAY INK is cut: every trailing word must be a fragment of at most two
+                // letters ("f-", "7"). A real word after a province name is part of the place -
+                // "Cagayan Valley Medical Center" begins with a province and must stay whole.
+                if (words.Skip(take).Any(w => w.Count(char.IsLetter) > 2)) continue;
+                return head + hit;
+            }
+            return place;
+        }
+
+        /// <summary>
         /// Removes and returns the longest run of trailing words that names something in
         /// <paramref name="pool"/>, in the pool's own spelling. Longest-first so a two-word
         /// name is never truncated to its last word.
