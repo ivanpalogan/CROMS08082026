@@ -29,6 +29,8 @@ namespace CROMS.DocTest
             bool diag = false;
             bool words = false;
             bool rawText = false;
+            bool noOwn = false, ownDiag = false;
+            string selfTestImage = null, selfTestKey = null, selfTestBad = null;
             float wordsFrom = 0f;
             string truthDir = null;
             string dumpDir = null, dumpSamples = null;
@@ -54,6 +56,15 @@ namespace CROMS.DocTest
                 // one-flag comparison, never a code edit.
                 if (args[i] == "--pagels" && i + 1 < args.Length) { int pls; if (int.TryParse(args[++i], out pls)) OcrSession.PageLongSideOverride = pls; continue; }
                 if (args[i] == "--retry") { DocumentAI.EnableLowConfidenceNativeRetry = true; continue; }
+                // Second opinion from the own OCR engine (CROMS.OwnOcr): --noown measures the pipeline
+                // without it, --owndiag prints what it replaced. Default = as the app runs.
+                if (args[i] == "--noown") { noOwn = true; continue; }
+                // --ownselftest <image> <fieldKey> <garbledValue>: read the page, overwrite that field with a
+                // garbled value, run the second opinion and report whether it repaired it. Proves the
+                // replace path, which the real samples never exercise (Tesseract + vocabulary already
+                // get every closed-list field right or too garbled to repair).
+                if (args[i] == "--ownselftest" && i + 3 < args.Length) { selfTestImage = args[++i]; selfTestKey = args[++i]; selfTestBad = args[++i]; continue; }
+                if (args[i] == "--owndiag") { ownDiag = true; continue; }
                 if (args[i] == "--words")
                 {
                     words = true;
@@ -77,6 +88,17 @@ namespace CROMS.DocTest
                 Console.WriteLine("FAIL: Tesseract 'eng' language data not found.");
                 return 1;
             }
+
+            if (noOwn) OwnOcrHybrid.Enabled = false;
+            else if (!OwnOcrHybrid.WaitReady(120000))
+                Console.WriteLine("note: own OCR engine unavailable (" + OwnOcrHybrid.LoadError + ") - running without it.");
+            if (ownDiag)
+            {
+                var prev = DocumentAI.Diag;
+                DocumentAI.Diag = m => { if (m != null && m.IndexOf("own second opinion", StringComparison.Ordinal) >= 0) Console.WriteLine("  " + m); if (prev != null) prev(m); };
+            }
+
+            if (selfTestImage != null) return OwnSelfTest(selfTestImage, selfTestKey, selfTestBad);
 
             // Ground-truth mode: the only run that says whether the RECORD is right.
             if (truthDir != null) return Truth.Run(truthDir);
@@ -177,6 +199,27 @@ namespace CROMS.DocTest
         /// grouped into printed rows so a form's rows can be read off directly. Only the
         /// part of the page from <paramref name="from"/> downwards is printed.
         /// </summary>
+        private static int OwnSelfTest(string path, string key, string bad)
+        {
+            using (Bitmap raw = DocumentAI.LoadImage(path))
+            {
+                DocAiResult r = DocumentAI.Analyze(raw);
+                Bitmap page = r.RotationApplied == 0 ? new Bitmap(raw) : OcrService.Rotate(raw, r.RotationApplied);
+                using (page)
+                {
+                    DocField f = r.Fields.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase));
+                    if (f == null) { Console.WriteLine("FAIL: no field " + key); return 1; }
+                    Console.WriteLine("before: " + key + " = '" + f.Value + "'  conf " + f.Confidence + "  region " + !f.RegionNorm.IsEmpty);
+                    f.Value = bad; f.Corrected = false;
+                    f.Confidence = 95;
+                    int n = OwnOcrHybrid.Apply(page, r, Console.WriteLine);
+                    DocIntelligence.Revalidate(r);
+                    Console.WriteLine("after : " + key + " = '" + f.Value + "'  conf " + f.Confidence + "  corrected " + f.Corrected + "  status " + f.Status + "  replaced " + n);
+                    return n > 0 ? 0 : 2;
+                }
+            }
+        }
+
         private static void DumpRawText(string path, int rotate)
         {
             Console.WriteLine(new string('=', 78));

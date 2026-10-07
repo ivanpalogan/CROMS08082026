@@ -1,0 +1,6 @@
+Single
+Married
+Widowed
+Separated
+Divorced
+Annulled

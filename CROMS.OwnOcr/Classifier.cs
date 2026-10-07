@@ -46,19 +46,7 @@ namespace CROMS.OwnOcr
         /// </summary>
         public KnnClassifier(List<Sample> train, List<Sample> extra, float extraWeight, int maxPerClass, int seed)
         {
-            // Balanced subset.
-            var rng = new Random(seed);
-            var chosen = new List<Sample>();
-            foreach (var group in train.GroupBy(s => s.Label))
-            {
-                var items = group.ToList();
-                // The reject class is not one shape but every wrong way to cut a line, so it gets
-                // several times the room of a letter.
-                int cap = group.Key == Charset.Reject ? maxPerClass * 4 : maxPerClass;
-                if (items.Count > cap)
-                    items = items.OrderBy(_ => rng.Next()).Take(cap).ToList();
-                chosen.AddRange(items);
-            }
+            var chosen = Select(train, maxPerClass, seed);
 
             int synthCount = chosen.Count;
             if (extra != null) chosen.AddRange(extra);
@@ -74,6 +62,28 @@ namespace CROMS.OwnOcr
                 Array.Copy(f, 0, _data, i * _dim, _dim);
                 _labels[i] = chosen[i].Label;
             }
+        }
+
+        /// <summary>
+        /// The balanced, per-class-capped reference set the classifier actually keeps. Public so the
+        /// set can be saved once and loaded later without the 56 MB training file (the app ships
+        /// only this subset). The same call with the same seed always gives the same list.
+        /// </summary>
+        public static List<Sample> Select(List<Sample> train, int maxPerClass, int seed)
+        {
+            var rng = new Random(seed);
+            var chosen = new List<Sample>();
+            foreach (var group in train.GroupBy(s => s.Label))
+            {
+                var items = group.ToList();
+                // The reject class is not one shape but every wrong way to cut a line, so it gets
+                // several times the room of a letter.
+                int cap = group.Key == Charset.Reject ? maxPerClass * 4 : maxPerClass;
+                if (items.Count > cap)
+                    items = items.OrderBy(_ => rng.Next()).Take(cap).ToList();
+                chosen.AddRange(items);
+            }
+            return chosen;
         }
 
         /// <summary>The most likely characters for one feature vector, best first.</summary>

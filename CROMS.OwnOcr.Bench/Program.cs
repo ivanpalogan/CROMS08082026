@@ -33,6 +33,7 @@ namespace CROMS.OwnOcr.Bench
             if (args.Length >= 3 && args[0] == "dist") return Dist(args[1], args[2]);
             if (args.Length >= 3 && args[0] == "read") return ReadBench(args[1], args[2], args.Skip(3).ToArray());
             if (args.Length >= 4 && args[0] == "compare") return Compare(args[1], args[2], args[3]);
+            if (args.Length >= 3 && args[0] == "pack") return Pack(args[1], args[2]);
 
             Console.WriteLine("Usage: CROMS.OwnOcr.Bench.exe debug <imageOrFolder> <outFolder>");
             Console.WriteLine("       CROMS.OwnOcr.Bench.exe segment <cropsFolder> [outFolder]");
@@ -587,6 +588,7 @@ namespace CROMS.OwnOcr.Bench
                 }
                 sw.Stop(); ms.Add(sw.Elapsed.TotalMilliseconds);
                 recs.Add(new Rec { R = r, Own = Norm(raw), OwnRep = Norm(rep), Changed = changed, HasLex = kind != "",
+                                   OwnMember = lex.IsMember(r.Key, rep), TessMember = lex.IsMember(r.Key, r.Tesseract), Closed = lex.IsClosedListField(r.Key),
                                    Tess = Norm(r.Tesseract), Truth = Norm(r.Truth), Ms = sw.Elapsed.TotalMilliseconds });
             }
             int n = recs.Count;
@@ -641,6 +643,19 @@ namespace CROMS.OwnOcr.Bench
             }
 
             Console.WriteLine();
+            Console.WriteLine("HYBRID RULE D (candidate for the app): closed-list field, own result IS a list entry, Tesseract's is NOT -> own");
+            Console.WriteLine("  D            own used on {0,2} fields   {1}", recs.Count(x => x.Closed && x.OwnMember && !x.TessMember),
+                line(x => x.Closed && x.OwnMember && !x.TessMember ? x.OwnRep : x.Tess));
+            for (int t = 70; t <= 100; t += 10)
+            {
+                int T = t;
+                Console.WriteLine("  D, conf<{0,3}  own used on {1,2} fields   {2}", T, recs.Count(x => x.Closed && x.OwnMember && !x.TessMember && x.R.TessConf < T),
+                    line(x => x.Closed && x.OwnMember && !x.TessMember && x.R.TessConf < T ? x.OwnRep : x.Tess));
+            }
+            foreach (Rec x in recs.Where(x => x.Closed && x.OwnMember && !x.TessMember))
+                Console.WriteLine("    D swaps {0}/{1}: tess '{2}' ({3}%) -> own '{4}'   truth '{5}'   {6}", x.R.Sample, x.R.Key, x.Tess, x.R.TessConf, x.OwnRep, x.Truth,
+                    x.OwnRep == x.Truth ? "GAIN" : (x.Tess == x.Truth ? "LOSS" : "no change in correctness"));
+            Console.WriteLine();
             Console.WriteLine("BY DOCUMENT, exact fields (Tesseract / own+lexicon / rule A T=70)");
             foreach (var g in recs.GroupBy(x => x.R.Sample))
                 Console.WriteLine("  {0,-16} {1,2} fields   {2,2} / {3,2} / {4,2}", g.Key, g.Count(),
@@ -662,7 +677,19 @@ namespace CROMS.OwnOcr.Bench
 
         private sealed class Rec
         {
-            public Row R; public string Own, OwnRep, Tess, Truth; public bool Changed, HasLex; public double Ms;
+            public Row R; public string Own, OwnRep, Tess, Truth; public bool Changed, HasLex, OwnMember, TessMember, Closed; public double Ms;
+        }
+
+        // pack <synth.bin> <refs.bin>
+        // Saves exactly the reference set the classifier keeps (600 per class, 2400 reject, seed 3), so
+        // the app can ship ~15 MB instead of the 56 MB training file and still behave identically.
+        private static int Pack(string synthFile, string outFile)
+        {
+            var all = Dataset.Load(synthFile);
+            var chosen = KnnClassifier.Select(all, 600, 3);
+            Dataset.Save(outFile, chosen);
+            Console.WriteLine("packed {0} of {1} glyphs -> {2} ({3:0.0} MB)", chosen.Count, all.Count, outFile, new FileInfo(outFile).Length / 1048576.0);
+            return 0;
         }
 
         private static string Trunc(string s, int n) { return s.Length <= n ? s : s.Substring(0, n); }

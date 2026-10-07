@@ -453,6 +453,21 @@ namespace CROMS.Data
                     if (nativeWon) best = native;
                 }
                 best.RotationApplied = rotation;
+
+                // SECOND OPINION from the own OCR engine on closed-list fields (province,
+                // citizenship, religion, ...). Tesseract has already read the page; this only
+                // re-reads those few crops in parallel and replaces a value that is not on the
+                // field's list with one that is. Bounded by OwnOcrHybrid.BudgetMs; any failure
+                // leaves every value exactly as Tesseract produced it.
+                var ownSw = Stopwatch.StartNew();
+                try
+                {
+                    if (best.Fields.Count > 0 && OwnOcrHybrid.Apply(upright, best, Diag) > 0)
+                        DocIntelligence.Revalidate(best);
+                }
+                catch { /* never let the second opinion break a scan */ }
+                Log("own second opinion", ownSw);
+
                 var qualitySw = Stopwatch.StartNew();
                 AssessScanQuality(upright, best);
                 Log("scan quality assessment", qualitySw);

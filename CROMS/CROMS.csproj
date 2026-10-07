@@ -639,6 +639,7 @@
     <Compile Include="Data\DocVocabulary.cs" />
     <Compile Include="Data\DocLayouts.cs" />
     <Compile Include="Data\DocumentAI.cs" />
+    <Compile Include="Data\OwnOcrHybrid.cs" />
     <Compile Include="Data\LearningLibrary.cs" />
     <Compile Include="Data\ProfilePhoto.cs" />
     <Compile Include="Forms\SoftcopyViewer.cs">
@@ -831,6 +832,34 @@
     <None Include="Assets\Form102Blank1993.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="OwnOcrData\refs.bin">
+      <Link>OwnOcr\refs.bin</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="OwnOcrData\lexicon\barangays.txt">
+      <Link>OwnOcr\lexicon\barangays.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="OwnOcrData\lexicon\civil.txt">
+      <Link>OwnOcr\lexicon\civil.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="OwnOcrData\lexicon\municipalities.txt">
+      <Link>OwnOcr\lexicon\municipalities.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="OwnOcrData\lexicon\nationalities.txt">
+      <Link>OwnOcr\lexicon\nationalities.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="OwnOcrData\lexicon\provinces.txt">
+      <Link>OwnOcr\lexicon\provinces.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="OwnOcrData\lexicon\religions.txt">
+      <Link>OwnOcr\lexicon\religions.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="tessdata\eng.traineddata">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -954,4 +983,10 @@
     <Folder Include="x86\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <ProjectReference Include="..\CROMS.OwnOcr\CROMS.OwnOcr.csproj">
+      <Project>{3C1E6A52-8D07-4B7A-A2D4-5E9F1B6C0A21}</Project>
+      <Name>CROMS.OwnOcr</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

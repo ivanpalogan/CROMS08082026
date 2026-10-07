@@ -49,6 +49,16 @@ namespace CROMS.OwnOcr
             }
             _fold = seen.Keys.ToArray();
             _canon = _fold.Select(f => seen[f]).ToArray();
+            _set = new HashSet<string>(_fold);
+        }
+
+        private readonly HashSet<string> _set;
+
+        /// <summary>True when the text IS one of the entries (case, accents and punctuation ignored).</summary>
+        public bool Contains(string text)
+        {
+            string f = Fold(text);
+            return f.Length > 0 && _set.Contains(f);
         }
 
         public static Lexicon FromFile(string path)
@@ -252,6 +262,32 @@ namespace CROMS.OwnOcr
             s._placeWords = parts.Count == 0 ? null
                 : new Lexicon(parts.SelectMany(p => p.Words().Entries()));
             return s;
+        }
+
+        /// <summary>
+        /// The whole-phrase list a field is answered from (province, municipality, nationality,
+        /// religion, civil status), or null. Place-word fields (hospital, residence) and personal
+        /// names have no whole-phrase list, so they return null.
+        /// </summary>
+        private Lexicon PhraseLexiconFor(string key)
+        {
+            string k = (key ?? "").ToLowerInvariant();
+            if (k.Contains("citizenship") || k.Contains("nationality")) return _nationality;
+            if (k.Contains("religion")) return _religion;
+            if (k.Contains("civilstatus")) return _civil;
+            if (k == "province" || k.EndsWith("province")) return _province;
+            if (k.Contains("municipality")) return _municipality;
+            return null;
+        }
+
+        /// <summary>True when this field is answered from a closed whole-phrase list.</summary>
+        public bool IsClosedListField(string key) { return PhraseLexiconFor(key) != null; }
+
+        /// <summary>True when the text is exactly one entry of the field's closed list. False when the field has no such list.</summary>
+        public bool IsMember(string key, string text)
+        {
+            Lexicon lx = PhraseLexiconFor(key);
+            return lx != null && lx.Contains(text);
         }
 
         /// <summary>Repair a reading for this field. Fields with no public vocabulary (people's names, occupations) are returned untouched.</summary>

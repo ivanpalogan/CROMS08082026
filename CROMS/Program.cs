@@ -46,6 +46,14 @@ namespace CROMS
             // Put a clickable CROMS icon on the desktop (first run only).
             DesktopShortcut.Ensure();
 
+            // Load the own OCR engine's reference glyphs in the background (a few seconds) so it is
+            // ready as a second opinion by the time the first scan finishes. Set App.config
+            // OwnOcrSecondOpinion=false to switch it off.
+            if (string.Equals(ConfigurationManager.AppSettings["OwnOcrSecondOpinion"], "false", StringComparison.OrdinalIgnoreCase))
+                OwnOcrHybrid.Enabled = false;
+            else
+                OwnOcrHybrid.StartLoading();
+
             // Make sure we know where the database server is AND can reach it.
             // First run: ask for the server IP. Later: if the server moved / is
             // unreachable, re-ask instead of failing with a cryptic error.
