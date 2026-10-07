@@ -692,6 +692,14 @@ namespace CROMS.Data
                     new AnchorSpec(@"^Registry$",        0.6665f, 0.0970f),
                     new AnchorSpec(@"^MEDICAL$",         0.4630f, 0.2929f),
                     new AnchorSpec(@"^Signature$",       0.1660f, 0.5110f),
+                    // Wide-fit only (2026-10-07). A copy cropped below the form (Death Cert.png,
+                    // 606x755, no barcode strip) has the form body stretched ~10% taller relative
+                    // to the page, and only three header/body labels survive reading there, one
+                    // short of the four the wide fit needs. The footer line "TO BE FILLED-UP AT THE
+                    // OFFICE OF THE CIVIL REGISTRAR" is printed on every copy and spreads the
+                    // anchors down the page. Positions measured on palogan_n.jpg (the reference).
+                    new AnchorSpec(@"^OFFICE$",          0.3226f, 0.8494f, true),
+                    new AnchorSpec(@"^REGISTRAR$",       0.4766f, 0.8494f, true),
                 },
                 Fields = f
             };
@@ -1465,6 +1473,23 @@ namespace CROMS.Data
                 return;
             }
 
+            // Speckle off an EMPTY box: three or more fragments, none longer than three letters, read
+            // with weak engine confidence ("Se ee Sra" in the blank item-25 cemetery box of the death
+            // certificate, 43%). A real place or description has at least one whole word; an empty box
+            // is better reported as empty than as a weak-looking value. Two-token names ("Sta. Ana")
+            // and anything the engine was sure of are not touched.
+            if ((spec.Shape == FieldShape.Place || spec.Shape == FieldShape.Text) && win.Engine < 60)
+            {
+                var words = Regex.Matches(win.Value, @"[A-Za-zÀ-ɏ]+").Cast<Match>().ToList();
+                if (words.Count >= 3 && words.All(m => m.Length <= 3))
+                {
+                    into.Value = "";
+                    into.Confidence = 0;
+                    into.Issue = "Nothing usable read here — only stray marks (\"" + Shorten(win.Value) + "\"); the box may be empty";
+                    return;
+                }
+            }
+
             into.Value = win.Value;
             int agreement = Math.Min(100, 45 + win.Votes * 18);
             int blended = (int)Math.Round(agreement * 0.6 + win.Engine * 0.25 + win.Shape * 0.15);
@@ -1484,7 +1509,14 @@ namespace CROMS.Data
             if (into.Confidence > 99) into.Confidence = 99;
             if (into.Confidence < 1) into.Confidence = 1;
             if (win.Votes == 1 && groups.Count > 1)
+            {
                 into.Issue = "Readings disagree (" + Shorten(groups[1].Value) + "?) — check against the scan";
+                // A reading that carries the note "readings disagree" must not ALSO carry a green
+                // tick: death certificate blocks read "JASONI BAN CIEGO" (real: JASON M. SAN DIEGO),
+                // "REGISTRATION GEE Ce" and "BFCISTRAR" at 70-72% and showed Ok. No two renderings
+                // agreed, so keep it under the review line (UncertainBelow = 70).
+                if (into.Confidence > 69) into.Confidence = 69;
+            }
         }
 
         /// <summary>
@@ -1787,7 +1819,10 @@ namespace CROMS.Data
             Match m = Regex.Match(text, @"\b(\d{1,2})" + sep + @"([A-Za-z]{3,12})\.?([\-\./]|,?\s+)(\d{2}|\d{4})\b");
             if (!m.Success)
             {
-                Match m2 = Regex.Match(text, @"\b([A-Za-z]{3,12})\.?" + sep + @"(\d{1,2})([\-\./]|,?\s+)(\d{2}|\d{4})\b");
+                // "SEPTEMBER 1. 1999": a typed comma read as a full stop. The named month still
+                // fixes the order, so "[,.] + space" is accepted between day and year; a TWO-digit
+                // year after it is still refused by ExpandYear (separator is not a bare - . /).
+                Match m2 = Regex.Match(text, @"\b([A-Za-z]{3,12})\.?" + sep + @"(\d{1,2})([\-\./]|[,\.]?\s+)(\d{2}|\d{4})\b");
                 if (m2.Success)
                 {
                     string month2 = NearestMonth(m2.Groups[1].Value);

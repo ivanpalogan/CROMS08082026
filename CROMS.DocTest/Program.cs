@@ -29,6 +29,7 @@ namespace CROMS.DocTest
             bool diag = false;
             bool words = false;
             bool rawText = false;
+            string annotDir = null;
             bool noOwn = false, ownDiag = false;
             string selfTestImage = null, selfTestKey = null, selfTestBad = null;
             float wordsFrom = 0f;
@@ -72,6 +73,7 @@ namespace CROMS.DocTest
                     continue;
                 }
                 if (args[i] == "--rawtext") { rawText = true; continue; }
+                if (args[i] == "--annot" && i + 1 < args.Length) { annotDir = args[++i]; continue; }
                 if (args[i] == "--truth")
                 {
                     truthDir = i + 1 < args.Length && !args[i + 1].StartsWith("--")
@@ -172,6 +174,8 @@ namespace CROMS.DocTest
                 Console.WriteLine("  elapsed       : " + (int)(DateTime.Now - started).TotalMilliseconds + " ms");
                 Console.WriteLine();
 
+                if (annotDir != null) Annotate(path, rotate, r, annotDir);
+
                 foreach (DocField f in r.Fields)
                 {
                     string flag;
@@ -186,6 +190,7 @@ namespace CROMS.DocTest
                     Console.WriteLine("    " + f.Label.PadRight(22) +
                         (f.Value ?? "").PadRight(34).Substring(0, Math.Max(34, (f.Value ?? "").Length)) +
                         " " + (f.Confidence + "%").PadLeft(5) + "  " + flag +
+                        (f.RegionNorm.IsEmpty ? "  [no region]" : "  [" + f.RegionNorm.X.ToString("0.000") + "," + f.RegionNorm.Y.ToString("0.000") + " " + f.RegionNorm.Width.ToString("0.000") + "x" + f.RegionNorm.Height.ToString("0.000") + (f.FromRegion ? "" : " label") + "]") +
                         (f.Corrected ? "  (was \"" + f.OcrValue + "\")" : "") +
                         (string.IsNullOrEmpty(f.Issue) ? "" : "  " + f.Issue));
                 }
@@ -217,6 +222,34 @@ namespace CROMS.DocTest
                     Console.WriteLine("after : " + key + " = '" + f.Value + "'  conf " + f.Confidence + "  corrected " + f.Corrected + "  status " + f.Status + "  replaced " + n);
                     return n > 0 ? 0 : 2;
                 }
+            }
+        }
+
+        /// <summary>Draws every field's highlight box onto the page and saves it, so the box can be checked by eye.</summary>
+        private static void Annotate(string path, int rotate, DocAiResult r, string dir)
+        {
+            Directory.CreateDirectory(dir);
+            using (Bitmap raw = DocumentAI.LoadImage(path))
+            using (Bitmap start = rotate == 0 ? new Bitmap(raw) : OcrService.Rotate(raw, rotate))
+            using (Bitmap page = r.RotationApplied == 0 ? new Bitmap(start) : OcrService.Rotate(start, r.RotationApplied))
+            using (Bitmap canvas = new Bitmap(page.Width, page.Height))
+            using (Graphics g = Graphics.FromImage(canvas))
+            {
+                g.DrawImage(page, 0, 0, page.Width, page.Height);
+                using (var font = new Font("Arial", Math.Max(9, page.Width / 110f), FontStyle.Bold))
+                    foreach (DocField f in r.Fields)
+                    {
+                        if (f.RegionNorm.IsEmpty) continue;
+                        RectangleF b = new RectangleF(f.RegionNorm.X * page.Width, f.RegionNorm.Y * page.Height,
+                            f.RegionNorm.Width * page.Width, f.RegionNorm.Height * page.Height);
+                        Color c = string.IsNullOrWhiteSpace(f.Value) ? Color.Gray
+                            : f.Status == FieldStatus.Ok ? Color.LimeGreen : Color.OrangeRed;
+                        using (var pen = new Pen(c, 3)) g.DrawRectangle(pen, b.X, b.Y, b.Width, b.Height);
+                        g.DrawString(f.Key, font, new SolidBrush(c), b.X, Math.Max(0, b.Y - font.Height));
+                    }
+                string name = Path.GetFileNameWithoutExtension(path) + (rotate != 0 ? "_rot" + rotate : "") + "_annot.png";
+                canvas.Save(Path.Combine(dir, name), System.Drawing.Imaging.ImageFormat.Png);
+                Console.WriteLine("  annotated page saved: " + Path.Combine(dir, name));
             }
         }
 

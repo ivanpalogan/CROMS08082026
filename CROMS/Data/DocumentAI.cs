@@ -1399,7 +1399,10 @@ namespace CROMS.Data
             // so search around that label rather than taking the first date on the page
             // (which is usually the marriage LICENCE's issue date further down).
             string date = DateNearLabel(rows, @"D.{0,2}te\s+of\s+M|T[i1l]me\s+of\s+M");
-            if (date == "") date = FindDmy(text);
+            // Fallback: only the solemnizer's own "... this 18th day of August, 2023" wording. The old
+            // fallback took the FIRST dd Month yyyy anywhere on the page, which on a scan whose date row is
+            // unreadable is a spouse's DATE OF BIRTH - a birth date reported as the date of marriage.
+            if (date == "") date = FindDayOfMonthYear(text);
 
             string place = PlaceOfMarriage(rows, ruler);
             string solemn = SolemnizingOfficer(rows, ruler);
@@ -1458,7 +1461,14 @@ namespace CROMS.Data
             // ("if the deceased is female aged 35 - 40 years") and reported 40.
             string age = MatchRegex(text, @"\bAGE\b[^\n]{0,80}?\b(\d{1,3})\s*(?:years|yrs?|year)\b");
             if (age == "") age = MatchRegex(text, @"\b(\d{1,3})\s*(?:years|yrs?)\s+old\b");
-            string dod = FindDmy(text);
+            // The date belongs to the "DATE OF DEATH" label: the first date within two lines of it. The
+            // old code took the first date anywhere on the page, so a scan whose death date was unreadable
+            // reported the date of BIRTH (printed in the same row) as the date of death.
+            string dod = "";
+            int dodIdx = FindIdx(lines, @"D.TE\s+OF\s+DEA|DATE\s+OF\s+D\b");
+            if (dodIdx >= 0)
+                for (int k = dodIdx; k <= Math.Min(lines.Length - 1, dodIdx + 2) && dod == ""; k++)
+                    dod = FindDmy(lines[k]);
             string place = StripPrefix(LineAfter(lines, FindIdx(lines, @"P.?ACE\s+OF\s+DEATH")));
             string nat = Regex.IsMatch(text, @"Filipin[oa]", IC) ? "Filipino" : "";
 
@@ -1979,6 +1989,19 @@ namespace CROMS.Data
             if (string.IsNullOrWhiteSpace(value)) return false;
             int open = value.Count(c => c == '('), close = value.Count(c => c == ')');
             return open != close;
+        }
+
+        /// <summary>"this 18th day of August, 2023" - the day, month and year of a certification sentence.</summary>
+        private static string FindDayOfMonthYear(string text)
+        {
+            Match m = Regex.Match(text ?? "",
+                @"\b(\d{1,2})(?:st|nd|rd|th)?\s+day\s+of\s+([A-Za-z]{3,9})[,.\s]+((?:19|20)\d{2})\b",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) return "";
+            string[] fmts = { "d MMMM yyyy", "d MMM yyyy" };
+            return DateTime.TryParseExact(m.Groups[1].Value + " " + m.Groups[2].Value + " " + m.Groups[3].Value,
+                fmts, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime d)
+                ? d.ToString("yyyy-MM-dd") : "";
         }
 
         private static string FindDmy(string text)

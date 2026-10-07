@@ -166,29 +166,17 @@ namespace CROMS.DocTest
                     What = "Death — MF-103 (2016), PSA copy, 706 px",
                     Kind = DocKind.Death,
                     Layout = "MF-103 (2016)",
-                    Expect = new Dictionary<string, string>
-                    {
-                        { "Province", "PAMPANGA" },
-                        { "CityMunicipality", "ANGELES" },
-                        { "RegistryNo", "1999-76251" },
-                        { "DeceasedFirst", "GEORGE" },
-                        { "DeceasedMiddle", "DE GUZMAN" },
-                        { "DeceasedLast", "ABAD" },
-                        { "Sex", "Male" },
-                        { "DateOfDeath", "1999-08-29" },
-                        { "DateOfBirth", "1953-04-23" },
-                        { "Age", "46" },
-                        { "PlaceOfDeath", "ANGELES, PAMPANGA" },
-                        { "CivilStatus", "Married" },
-                        { "Religion", "CATHOLIC" },
-                        { "Citizenship", "FILIPINO" },
-                        { "Residence", "MABALACAT PAMPANGA" },
-                        { "Occupation", "CHECKER/ DISPATCHER" },
-                        { "FatherName", "FELIPE ABAD" },
-                        { "MotherMaidenName", "JUANITA ABAD" },
-                        { "CauseOfDeath", "CARDIOPULMONARY ARREST" },
-                        { "CorpseDisposal", "Burial" },
-                    }
+                    Expect = DeathTruth()
+                },
+                // Added 2026-10-07: the SAME death certificate as a 606x755 crop with no footer strip, so
+                // the form body is ~10% taller against the page. Fit test for the wide-fit footer anchors.
+                new Sample
+                {
+                    File = Path.Combine(dir, "Death Cert.png"),
+                    What = "Death — MF-103 (2016), same record, 606x755 crop (wide-fit check)",
+                    Kind = DocKind.Death,
+                    Layout = "MF-103 (2016)",
+                    Expect = DeathTruth()
                 },
                 new Sample
                 {
@@ -206,6 +194,33 @@ namespace CROMS.DocTest
                     Layout = "MF-97 (1993)",
                     Expect = MarriageTruth()
                 },
+            };
+        }
+
+        private static Dictionary<string, string> DeathTruth()
+        {
+            return new Dictionary<string, string>
+            {
+                { "Province", "PAMPANGA" },
+                { "CityMunicipality", "ANGELES" },
+                { "RegistryNo", "1999-76251" },
+                { "DeceasedFirst", "GEORGE" },
+                { "DeceasedMiddle", "DE GUZMAN" },
+                { "DeceasedLast", "ABAD" },
+                { "Sex", "Male" },
+                { "DateOfDeath", "1999-08-29" },
+                { "DateOfBirth", "1953-04-23" },
+                { "Age", "46" },
+                { "PlaceOfDeath", "ANGELES, PAMPANGA" },
+                { "CivilStatus", "Married" },
+                { "Religion", "CATHOLIC" },
+                { "Citizenship", "FILIPINO" },
+                { "Residence", "MABALACAT PAMPANGA" },
+                { "Occupation", "CHECKER/ DISPATCHER" },
+                { "FatherName", "FELIPE ABAD" },
+                { "MotherMaidenName", "JUANITA ABAD" },
+                { "CauseOfDeath", "CARDIOPULMONARY ARREST" },
+                { "CorpseDisposal", "Burial" },
             };
         }
 
