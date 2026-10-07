@@ -683,9 +683,15 @@ namespace CROMS.Kiosk
         }
 
         // -------------------------------------------------------- printing
+        /// <summary>Test seam only: when true, Submit saves everything but skips the thermal
+        /// printer and the modal confirmation, so an automated run cannot print or block.
+        /// Never set by the kiosk itself.</summary>
+        public static bool TestMode;
+
         private static void PrintTicket(string code, List<string> services, string priorityLane,
             string name, string spouseName, int ahead)
         {
+            if (TestMode) return;
             try
             {
                 using (var doc = new PrintDocument())
@@ -778,6 +784,7 @@ namespace CROMS.Kiosk
         // ------------------------------------------------ on-screen ticket
         private static void ShowTicket(string code, List<string> services)
         {
+            if (TestMode) return;
             using (var dlg = new Form())
             {
                 dlg.Text = "Your Queue Number";

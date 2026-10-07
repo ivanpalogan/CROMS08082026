@@ -156,11 +156,19 @@ namespace CROMS.Forms
             else if (p.Length == 2) { txtFirst.Text = p[0]; txtLast.Text = p[1]; }
             else
             {
+                // A surname particle (de, dela, del, delos, san, santa, sta, van, von, la, los,
+                // las) belongs to the word after it: "Juan De La Cruz" is surname "De La Cruz",
+                // not middle name "De La". Same rule the OCR name splitter applies.
+                int lastAt = p.Length - 1;
+                while (lastAt > 1 && SurnameParticles.Contains(p[lastAt - 1].ToLowerInvariant())) lastAt--;
                 txtFirst.Text = p[0];
-                txtLast.Text = p[p.Length - 1];
-                txtMiddle.Text = string.Join(" ", p, 1, p.Length - 2);
+                txtLast.Text = string.Join(" ", p, lastAt, p.Length - lastAt);
+                txtMiddle.Text = lastAt > 1 ? string.Join(" ", p, 1, lastAt - 1) : "";
             }
         }
+
+        private static readonly System.Collections.Generic.HashSet<string> SurnameParticles =
+            new System.Collections.Generic.HashSet<string> { "de", "del", "dela", "delos", "delas", "la", "las", "los", "san", "santa", "sta", "sta.", "van", "von" };
 
         private void ShowPhoto(object idImage)
         {
