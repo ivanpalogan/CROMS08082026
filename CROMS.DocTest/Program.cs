@@ -240,9 +240,11 @@ namespace CROMS.DocTest
                 using (var font = new Font("Arial", Math.Max(9, page.Width / 110f), FontStyle.Bold))
                     foreach (DocField f in r.Fields)
                     {
-                        if (f.RegionNorm.IsEmpty) continue;
-                        RectangleF b = new RectangleF(f.RegionNorm.X * page.Width, f.RegionNorm.Y * page.Height,
-                            f.RegionNorm.Width * page.Width, f.RegionNorm.Height * page.Height);
+                        if (f.RegionNorm.IsEmpty && f.Region.IsEmpty) continue;
+                        RectangleF b = !f.RegionNorm.IsEmpty
+                            ? new RectangleF(f.RegionNorm.X * page.Width, f.RegionNorm.Y * page.Height,
+                                f.RegionNorm.Width * page.Width, f.RegionNorm.Height * page.Height)
+                            : new RectangleF(f.Region.X, f.Region.Y, f.Region.Width, f.Region.Height);
                         Color c = string.IsNullOrWhiteSpace(f.Value) ? Color.Gray
                             : f.Status == FieldStatus.Ok ? Color.LimeGreen : Color.OrangeRed;
                         using (var pen = new Pen(c, 3)) g.DrawRectangle(pen, b.X, b.Y, b.Width, b.Height);

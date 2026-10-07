@@ -1427,7 +1427,13 @@ namespace CROMS.Data
 
             string place = PlaceOfMarriage(rows, ruler);
             string solemn = SolemnizingOfficer(rows, ruler);
-            string nat = Regex.IsMatch(text, @"Filipin[oa]", IC) ? "Filipino" : "";
+            // Each spouse's citizenship is read from ITS OWN cell of the "Citizenship" row. A page-wide
+            // "Filipino" is only a fallback: the parents' citizenship rows say Filipino too, and one
+            // shared value applied to both spouses is wrong for a marriage to a foreign national.
+            OcrWord hcWord, wcWord;
+            string hc = CitizenshipCell(rows, ruler, true, out hcWord);
+            string wc = CitizenshipCell(rows, ruler, false, out wcWord);
+            string nat = (hc == "" && wc == "" && Regex.IsMatch(text, @"Filipin[oa]", IC)) ? "Filipino" : "";
 
             Match rm = Regex.Match(text, @"(20\d{2}|19\d{2})\s*[-–—]\s*(\d{3,5})");
             string regNo = rm.Success ? rm.Groups[1].Value + "-" + rm.Groups[2].Value : "";
@@ -1444,6 +1450,8 @@ namespace CROMS.Data
                 new DocField("DateOfMarriage",  "Date of Marriage",     date,   low || date == ""),
                 new DocField("PlaceOfMarriage", "Place of Marriage",    place,  low || place == ""),
                 new DocField("Solemnizer",      "Solemnizing Officer",  solemn, low || solemn == ""),
+                new DocField("HusbandCitizenship", "Husband Citizenship", hc,   low || hc == "") { RegionNorm = WordBox(hcWord, ocr) },
+                new DocField("WifeCitizenship", "Wife Citizenship",       wc,   low || wc == "") { RegionNorm = WordBox(wcWord, ocr) },
                 new DocField("Nationality",     "Citizenship",          nat,    low || nat == ""),
             };
         }
@@ -1717,6 +1725,41 @@ namespace CROMS.Data
                 kept.Add(t);
             }
             return string.Join(" ", kept);
+        }
+
+        /// <summary>
+        /// One spouse's citizenship, from the cell of the row whose PRINTED label says "Citizenship". Accepted
+        /// only when a word in the cell IS one of the known citizenships (no fuzzy repair), so a misread
+        /// ("FilFipino" under the cell's overprinted hint) stays blank rather than becoming a guess.
+        /// </summary>
+        private static string CitizenshipCell(List<FormRow> rows, ColumnRuler ruler, bool husband, out OcrWord word)
+        {
+            word = null;
+            foreach (FormRow row in rows)
+            {
+                string label = row.Column(0, ruler.LabelEdge);
+                // The spouses' own citizenship row sits ABOVE the parents' block. Once the father's or
+                // mother's label is reached, a later "Citizenship" row belongs to a PARENT - a husband
+                // reported with his mother's citizenship - so stop.
+                if (Regex.IsMatch(label, @"F[a-z]{1,3}er|M[a-z]{1,3}er|Maiden", RegexOptions.IgnoreCase)) break;
+                if (!Regex.IsMatch(label, @"C.{0,2}[il1].{0,2}zen", RegexOptions.IgnoreCase)) continue;
+                int from = husband ? ruler.LabelEdge : ruler.Divider, to = husband ? ruler.Divider : ruler.WifeEdge;
+                foreach (OcrWord w in row.Words.Where(x => x.CenterX >= from && x.CenterX < to).OrderBy(x => x.X))
+                {
+                    string key = Regex.Replace(w.Text ?? "", @"[^A-Za-z]", "").ToLowerInvariant();
+                    string hit = DocLayouts.Citizenships.FirstOrDefault(c => c.ToLowerInvariant() == key);
+                    if (hit != null) { word = w; return hit; }
+                }
+            }
+            return "";
+        }
+
+        /// <summary>A word's box as a fraction of the page (empty when there is no word).</summary>
+        private static RectangleF WordBox(OcrWord w, OcrResult ocr)
+        {
+            if (w == null || ocr == null || ocr.PageWidth <= 0 || ocr.PageHeight <= 0) return RectangleF.Empty;
+            return new RectangleF((float)w.X / ocr.PageWidth, (float)w.Y / ocr.PageHeight,
+                                  (float)w.Width / ocr.PageWidth, (float)w.Height / ocr.PageHeight);
         }
 
         /// <summary>A date on, just above, or just below the row carrying a label.</summary>

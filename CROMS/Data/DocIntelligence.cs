@@ -115,6 +115,18 @@ namespace CROMS.Data
                         f.Issue = "Cut from one line of text by word count, not read from its own box — check which words are the first, middle and last name";
                 }
 
+                // MARRIAGE label path: the shared "Nationality" is "Filipino" found ANYWHERE on the page
+                // (the parents' citizenship rows say it too), not read from either spouse's own cell -
+                // it was applied to both spouses and boxed the father's row. Never let it look sure.
+                if (r.Kind == DocKind.Marriage && r.LayoutCode == null && f.Key == "Nationality" &&
+                    !string.IsNullOrWhiteSpace(f.Value))
+                {
+                    f.Region = Rectangle.Empty;   // the first "Filipino" on the page is usually a parent's row: no box beats a wrong one
+                    if (f.Confidence > UncertainBelow - 1) f.Confidence = UncertainBelow - 1;
+                    if (string.IsNullOrEmpty(f.Issue))
+                        f.Issue = "Found as a word on the page, not read from the husband's or wife's own citizenship cell — check both";
+                }
+
                 // A civil-registry name is written with a capital. A name read with a lower-case
                 // initial ("gheila" for Sheila, "gilbert") means the FIRST LETTER was misread -
                 // and the engine still reported 90-96% confidence on it, so the grid showed a
