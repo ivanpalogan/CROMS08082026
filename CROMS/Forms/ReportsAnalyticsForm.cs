@@ -124,7 +124,7 @@ namespace CROMS.Forms
         /// </summary>
         private void AddCollectionsTab()
         {
-            _collectionsPage = new TabPage("Fees & Collections") { BackColor = UiTheme.PageBg, UseVisualStyleBackColor = false };
+            _collectionsPage = new TabPage("Fees && Collections") { BackColor = UiTheme.PageBg, UseVisualStyleBackColor = false };
             _tabs.TabPages.Add(_collectionsPage);
         }
 

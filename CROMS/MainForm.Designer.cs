@@ -93,6 +93,7 @@
             this.headerLabel.Name = "headerLabel";
             this.headerLabel.Size = new System.Drawing.Size(114, 28);
             this.headerLabel.TabIndex = 0;
+            this.headerLabel.UseMnemonic = false;
             this.headerLabel.Text = "Dashboard";
             //
             // sidebarPanel
