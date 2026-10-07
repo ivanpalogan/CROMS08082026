@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -80,6 +80,8 @@ namespace CROMS.MarriageTest
             Form f = Control.FromHandle(h) as Form;
             // The shell under test is never touched: closing it would dispose every hosted module.
             if (f == null || f.GetType().Name == "MainForm" || !_handled.Add(h)) return;
+            // Screens under audit that belong to the kiosk / display apps: never closed by the watchdog.
+            if (f.GetType().Namespace != null && (f.GetType().Namespace.StartsWith("CROMS.Kiosk") || f.GetType().Namespace.StartsWith("CROMS.Display"))) return;
             Action<Form> rule;
             if (Rules.TryGetValue(f.GetType().Name, out rule))
             {

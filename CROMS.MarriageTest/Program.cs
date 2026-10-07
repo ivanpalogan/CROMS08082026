@@ -73,6 +73,7 @@ namespace CROMS.MarriageTest
                 return _fail;
             }
             if (args.Length > 0 && args[0] == "--birthtest") return BirthTest.Run();
+            if (args.Length > 1 && args[0] == "--audit") { int ar = AuditTest.Run(args[1]); Environment.Exit(ar); return ar; }   // kiosk screens leave foreground threads alive
             if (args.Length > 0 && args[0] == "--flows") { LoginAs("Admin"); return FlowsTest.Run(); }
             if (args.Length > 0 && args[0] == "--flowsclean") return FlowsTest.CleanOnly();
             if (args.Length > 1 && args[0] == "--birthrender")

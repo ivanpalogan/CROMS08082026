@@ -48,6 +48,9 @@
     <Compile Include="BirthTest.cs" />
     <Compile Include="FlowsTest.cs" />
     <Compile Include="FlowsQueue.cs" />
+    <Compile Include="AuditTest.cs" />
+    <Compile Include="AuditOps.cs" />
+    <Compile Include="AuditKiosk.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CROMS\CROMS.csproj">
