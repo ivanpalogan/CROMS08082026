@@ -78,10 +78,9 @@ namespace CROMS.MarriageTest
                 shell.Location = new Point(0, 0);
                 shell.Show(); wd.Ignore.Add(shell.Handle);
                 Pump();
-                ModulesPart(shell, wd);
-                RolesPart(shell, wd, mt);
+                if (OnlyFilter == null) { ModulesPart(shell, wd); RolesPart(shell, wd, mt); }
                 OperationsPart(shell, wd);
-                KioskDisplayPart(wd);
+                if (OnlyFilter == null) KioskDisplayPart(wd);
             }
             catch (Exception ex) { Fail++; Console.WriteLine("CRASH: " + ex); Report.Add("CRASH: " + ex); }
             finally

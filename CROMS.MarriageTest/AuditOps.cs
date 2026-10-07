@@ -18,7 +18,7 @@ namespace CROMS.MarriageTest
     internal static partial class AuditTest
     {
         private static readonly string ATag = "ZZA" + DateTime.Now.ToString("HHmmss");
-        private static long _auditBefore;
+        private static long _auditBefore, _ocrBatchBefore, _birthsBefore;
 
         private static Form Go(Form shell, string key)
         {
@@ -27,8 +27,12 @@ namespace CROMS.MarriageTest
             return f;
         }
 
+        /// <summary>AUDIT_ONLY=text runs only the operation checks whose title contains the text (and skips the module / role / kiosk sweeps).</summary>
+        public static string OnlyFilter { get { string v = Environment.GetEnvironmentVariable("AUDIT_ONLY"); return string.IsNullOrWhiteSpace(v) ? null : v.ToLowerInvariant(); } }
+
         private static void Try(string name, Action a)
         {
+            if (OnlyFilter != null && !name.ToLowerInvariant().Contains(OnlyFilter)) return;
             try { a(); }
             catch (Exception ex)
             {
@@ -44,6 +48,7 @@ namespace CROMS.MarriageTest
             Console.WriteLine("\n--- C. module operations (ZZA tag " + ATag + ")");
             OperationsCleanup();
             _auditBefore = Count("SELECT COALESCE(MAX(id),0) FROM audit_log");
+            _ocrBatchBefore = Count("SELECT COALESCE(MAX(id),0) FROM ocr_batch");
 
             Try("Dashboard: refresh + KPI figures agree with the database", () => DashboardCheck(shell));
             Try("Transaction History: list, filter, search", () => TransactionsCheck(shell));
@@ -57,6 +62,7 @@ namespace CROMS.MarriageTest
             Try("Certificate Request: validation refusal", () => CertRequestCheck(shell, wd));
             Try("Release & Claim / PSA Copies / Fees open with no ticket", () => OpenNoTicket(shell));
             Try("Certificate previews (Crystal / replica / facts certifications) open and close without printing", () => CertificatePreviewCheck(shell, wd));
+            Try("Document Processing end to end: scan -> read -> edit -> commit -> duplicate refused -> auto-fill", () => OcrEndToEnd(shell, wd));
             Try("Death Registration entry dialog: every step renders", () => DeathRenderCheck(shell, wd));
             Try("Staff bypass / override: reasoned, audited, role-gated", BypassCheck);
             Try("Migrations vs code: features that need an unapplied migration", MigrationFeatureCheck);
@@ -417,6 +423,86 @@ namespace CROMS.MarriageTest
             }
         }
 
+        // -------------------------------------------------------------- OCR end to end
+        private static void OcrEndToEnd(Form shell, DialogWatchdog wd)
+        {
+            string path = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", "nice.jpg");
+            if (!System.IO.File.Exists(path)) { Check("OCR sample scan present", false, path); return; }
+            Form f = Go(shell, "ocr");
+            Type dai = typeof(Db).Assembly.GetType("CROMS.Data.DocumentAI", true);
+            Bitmap img = (Bitmap)dai.GetMethod("LoadImage").Invoke(null, new object[] { path });
+            long batch0 = Count("SELECT COALESCE(MAX(id),0) FROM ocr_batch");
+            SetFld(f, "_image", img);
+            SetFld(f, "_scanBytes", System.IO.File.ReadAllBytes(path));
+            SetFld(f, "_sourceLabel", "nice.jpg");
+            var pb = (PictureBox)Fld(f, "pbScan"); pb.Image = img;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var task = (System.Threading.Tasks.Task)Call(f, "Analyze");
+            while (!task.IsCompleted && sw.Elapsed.TotalSeconds < 150) Pump(2);
+            Note("dialogs while reading: " + string.Join(" / ", wd.Since(0).Where(l => !l.StartsWith("COMMON")).Take(6)));
+            Check("Document Processing reads the scan within 150 s (" + (int)sw.Elapsed.TotalSeconds + " s)", task.IsCompleted);
+            if (!task.IsCompleted) return;
+            Pump(8);
+
+            object result = Fld(f, "_result");
+            Check("scan is classified as a birth certificate", result != null && Fld(f, "_kind").ToString() == "Birth", result == null ? "no result" : Fld(f, "_kind").ToString());
+            var grid = (DataGridView)Fld(f, "dgvFields");
+            int fieldRows = grid.Rows.Cast<DataGridViewRow>().Count(r => r.Tag != null && r.Tag.GetType().Name == "DocField");
+            Check("the review grid lists the extracted fields (" + fieldRows + ")", fieldRows >= 25);
+            Check("the run was logged to the batch list", Count("SELECT COUNT(*) FROM ocr_batch WHERE id > " + batch0) >= 1);
+
+            long birth0 = Count("SELECT COALESCE(MAX(id),0) FROM births");
+            _birthsBefore = birth0;
+            string where = "id > " + birth0 + " AND record_source='OCR-Backlog'";
+            try { Call(f, "GoToStep", 5); } catch (Exception ex) { Note("GoToStep: " + ex.Message); }
+            Pump(4);
+            var commit = (Button)Fld(f, "btnCommit");
+            Note("review hold: " + (result == null ? "n/a" : Member(result, "NeedsManualReview") + " / " + Member(result, "ReviewReason")));
+            Check("Commit is enabled on the last wizard step", commit.Enabled, commit.Text + " / review: " + ((object)Fld(f, "_result") == null ? "" : ""));
+            // By design a birth / death scan commits straight to the backlog; Auto-Fill is for marriage (and the birth wizard's return).
+            var auto = (Button)Fld(f, "btnAutoFill");
+            Check("Auto-Fill is off for a plain birth scan (it is saved directly)", !auto.Enabled, auto.Text + " enabled=" + auto.Enabled);
+            // "Preview on Form" shows the unsaved reading on the certificate with a watermark; it must open and close without printing.
+            int mP = wd.Count;
+            try { Call(f, "btnReport_Click", null, EventArgs.Empty); Pump(8); Check("Preview on Form opens and closes without printing", !wd.Since(mP).Any(l => l.StartsWith("COMMON|") && !l.Contains("cancelled"))); }
+            catch (Exception ex) { Check("Preview on Form opens", false, (ex.InnerException ?? ex).Message); }
+            if (commit.Enabled)
+            {
+                int mC = wd.Count;
+                Call(f, "btnCommit_Click", null, EventArgs.Empty); Pump(10);
+                Note("dialogs during Commit: " + string.Join(" / ", wd.Since(mC).Where(l => !l.StartsWith("COMMON")).Select(l => l.Length > 260 ? l.Substring(0, 260) : l)));
+                long made = Count("SELECT COUNT(*) FROM births WHERE " + where);
+                Check("Commit wrote exactly one birth record", made == 1, made + " rows");
+                if (made == 1)
+                {
+                    DataRow row = Db.Pull("SELECT status, record_source, form_code, first_name, last_name, date_of_birth, registry_no FROM births WHERE " + where).Rows[0];
+                    Check("it is marked as a digitized (OCR-Backlog) record on the right form", row["record_source"].ToString() == "OCR-Backlog" && row["form_code"].ToString().StartsWith("MF-102"), row["record_source"] + " / " + row["form_code"]);
+                    Note("registry no saved with the digitized record: " + (row["registry_no"] == DBNull.Value ? "NULL (blank - handwritten on the scan; Commit does not require it)" : row["registry_no"].ToString()));
+                    Check("name and date of birth were carried across", row["first_name"].ToString().Length > 0 && row["last_name"].ToString().Length > 0 && row["date_of_birth"] != DBNull.Value, row["first_name"] + " " + row["last_name"]);
+                    Check("the batch row says Committed and points at the record", Count("SELECT COUNT(*) FROM ocr_batch WHERE id > " + batch0 + " AND status='Committed' AND record_id IS NOT NULL") == 1);
+                    Check("per-field audit trail was written", Count("SELECT COUNT(*) FROM ocr_field_audit WHERE scan_id IN (SELECT scan_id FROM ocr_batch WHERE id > " + batch0 + ")") > 10);
+                    int m1 = wd.Count;
+                    Call(f, "btnCommit_Click", null, EventArgs.Empty); Pump(8);
+                    Check("pressing Commit a second time is refused ('already saved')", wd.Saw(m1, "Already saved") && Count("SELECT COUNT(*) FROM births WHERE " + where) == 1);
+                }
+            }
+        }
+        private static object Member(object o, string name)
+        {
+            var p = o.GetType().GetProperty(name, Any); if (p != null) return p.GetValue(o);
+            var f = o.GetType().GetField(name, Any); return f == null ? "?" : f.GetValue(o);
+        }
+        private static void SetFld(object o, string name, object v)
+        {
+            for (Type t = o.GetType(); t != null; t = t.BaseType)
+            {
+                FieldInfo fi = t.GetField(name, Any | BindingFlags.DeclaredOnly);
+                if (fi != null) { fi.SetValue(o, v); return; }
+            }
+            throw new MissingFieldException(o.GetType().Name, name);
+        }
+
         // -------------------------------------------------------------- death entry dialog render
         private static void DeathRenderCheck(Form shell, DialogWatchdog wd)
         {
@@ -512,6 +598,12 @@ namespace CROMS.MarriageTest
         {
             try
             {
+                if (_ocrBatchBefore > 0)   // never delete by id before the baseline is known
+                {
+                    Db.Push("DELETE FROM ocr_field_audit WHERE scan_id IN (SELECT scan_id FROM ocr_batch WHERE id > " + _ocrBatchBefore + ")");
+                    Db.Push("DELETE FROM ocr_batch WHERE id > " + _ocrBatchBefore);
+                }
+                if (_birthsBefore > 0) Db.Push("DELETE FROM births WHERE id > " + _birthsBefore + " AND record_source='OCR-Backlog'");
                 Db.Push("DELETE FROM marriage_history WHERE entity='License' AND entity_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
                 Db.Push("DELETE FROM marriage_requirements WHERE owner_type='License' AND owner_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
                 Db.Push("DELETE FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%'");

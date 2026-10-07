@@ -547,7 +547,13 @@ namespace CROMS.Forms
             {
                 SetBusy(true);
                 // Orientation probe + two resolution passes: seconds of work, off the UI thread.
-                DocAiResult r = await Task.Run(() => DocumentAI.Analyze(_image));
+                // The engine gets its OWN copy. _image is also what pbScan is painting, and GDI+ refuses
+                // a read on one thread while another is drawing the same bitmap ("Object is currently in
+                // use elsewhere"), so any repaint during the 20-40 s read would fail the whole scan.
+                Bitmap work = new Bitmap(_image);
+                DocAiResult r;
+                try { r = await Task.Run(() => DocumentAI.Analyze(work)); }
+                finally { work.Dispose(); }
                 SetBusy(false);
 
                 if (!string.IsNullOrEmpty(r.Error))
