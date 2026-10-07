@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -32,6 +32,7 @@ namespace CROMS.OwnOcr.Bench
             if (args.Length >= 3 && args[0] == "eval") return Eval(args[1], args[2], args.Length > 3 && args[3] == "--tune");
             if (args.Length >= 3 && args[0] == "dist") return Dist(args[1], args[2]);
             if (args.Length >= 3 && args[0] == "read") return ReadBench(args[1], args[2], args.Skip(3).ToArray());
+            if (args.Length >= 4 && args[0] == "compare") return Compare(args[1], args[2], args[3]);
 
             Console.WriteLine("Usage: CROMS.OwnOcr.Bench.exe debug <imageOrFolder> <outFolder>");
             Console.WriteLine("       CROMS.OwnOcr.Bench.exe segment <cropsFolder> [outFolder]");
@@ -476,7 +477,7 @@ namespace CROMS.OwnOcr.Bench
         // ------------------------------------------------------- segmentation accuracy
         private sealed class Row
         {
-            public string File, Sample, Key, Truth, Tesseract;
+            public string File, Sample, Key, Truth, Tesseract; public int TessConf;
         }
 
         // Keys whose stored truth is NOT the text as printed (normalised dates, an enum the
@@ -495,7 +496,8 @@ namespace CROMS.OwnOcr.Bench
             {
                 string[] c = line.Split('\t');
                 if (c.Length < 5) continue;
-                rows.Add(new Row { File = c[0], Sample = c[1], Key = c[2], Truth = c[3], Tesseract = c[4] });
+                int tc = 0; if (c.Length > 5) int.TryParse(c[5], out tc);
+                rows.Add(new Row { File = c[0], Sample = c[1], Key = c[2], Truth = c[3], Tesseract = c[4], TessConf = tc });
             }
             return rows;
         }
@@ -553,6 +555,114 @@ namespace CROMS.OwnOcr.Bench
             foreach (var t in bad.OrderByDescending(x => x.Item1).Take(20))
                 Console.WriteLine("  {0,-34} want {1,2}  got {2,2}   '{3}'", Trunc(t.Item2.File, 34), t.Item3, t.Item4, t.Item2.Truth);
             return 0;
+        }
+
+        // ------------------------------------------------ head to head + hybrid policies
+        // compare <crops> <synth.bin> <lexiconDir>
+        // Same crops and truth as `read`. For every field it keeps what each engine said and
+        // how long the own engine took, then asks: if the two were combined by a simple rule,
+        // would the result beat Tesseract alone? The whole threshold sweep is printed so the
+        // choice can be judged, not trusted.
+        private static int Compare(string dir, string synthFile, string lexDir)
+        {
+            var all = Dataset.Load(synthFile);
+            var reader = new OwnOcrReader(new KnnClassifier(all, 600, 3));
+            reader.LettersOnly = true; reader.CaseConsistency = true; reader.TrimEdgeMarks = true;
+            LexiconSet lex = LexiconSet.Load(lexDir);
+            List<Row> rows = ReadManifest(dir)
+                .Where(r => !NotPrintedAsStored.Any(s => r.Key.IndexOf(s, StringComparison.OrdinalIgnoreCase) >= 0))
+                .Where(r => File.Exists(Path.Combine(dir, r.File))).ToList();
+
+            var recs = new List<Rec>();
+            var ms = new List<double>();
+            foreach (Row r in rows)
+            {
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                string raw, rep; bool changed; string kind;
+                using (Bitmap bmp = new Bitmap(Path.Combine(dir, r.File)))
+                {
+                    ReadResult rr = reader.Read(bmp);
+                    RepairResult rp = lex.Repair(r.Key, rr);
+                    raw = rr.Text; rep = rp.Text; changed = rp.Changed; kind = rp.Kind;
+                }
+                sw.Stop(); ms.Add(sw.Elapsed.TotalMilliseconds);
+                recs.Add(new Rec { R = r, Own = Norm(raw), OwnRep = Norm(rep), Changed = changed, HasLex = kind != "",
+                                   Tess = Norm(r.Tesseract), Truth = Norm(r.Truth), Ms = sw.Elapsed.TotalMilliseconds });
+            }
+            int n = recs.Count;
+            Func<Func<Rec, string>, string> line = pick =>
+            {
+                int ex = 0, ci = 0; double sim = 0;
+                foreach (Rec x in recs)
+                {
+                    string t = pick(x);
+                    if (t == x.Truth) ex++;
+                    if (string.Equals(t, x.Truth, StringComparison.OrdinalIgnoreCase)) ci++;
+                    sim += Similarity(t, x.Truth);
+                }
+                return string.Format("{0,3}/{1}  exact {2,5:0.0}%   any case {3,5:0.0}%   similarity {4,5:0.0}%",
+                    ex, n, ex * 100.0 / n, ci * 100.0 / n, sim * 100 / n);
+            };
+
+            Console.WriteLine("{0} printed-text fields over every document that has crops", n);
+            Console.WriteLine();
+            Console.WriteLine("SINGLE ENGINES");
+            Console.WriteLine("  Tesseract (production)     " + line(x => x.Tess));
+            Console.WriteLine("  Own engine, raw            " + line(x => x.Own));
+            Console.WriteLine("  Own engine + lexicon       " + line(x => x.OwnRep));
+            Console.WriteLine("  Oracle (best of the two)   " + line(x => x.Tess == x.Truth ? x.Tess : x.OwnRep));
+            Console.WriteLine();
+            Console.WriteLine("OVERLAP  both right {0}   only Tesseract {1}   only own {2}   neither {3}",
+                recs.Count(x => x.Tess == x.Truth && x.OwnRep == x.Truth),
+                recs.Count(x => x.Tess == x.Truth && x.OwnRep != x.Truth),
+                recs.Count(x => x.Tess != x.Truth && x.OwnRep == x.Truth),
+                recs.Count(x => x.Tess != x.Truth && x.OwnRep != x.Truth));
+            Console.WriteLine();
+
+            Console.WriteLine("HYBRID RULE A: own+lexicon when Tesseract confidence < T, else Tesseract");
+            for (int t = 40; t <= 100; t += 10)
+            {
+                int T = t;
+                Console.WriteLine("  T={0,3}  own used on {1,2} fields   {2}", T, recs.Count(x => x.R.TessConf < T), line(x => x.R.TessConf < T ? x.OwnRep : x.Tess));
+            }
+            Console.WriteLine();
+            Console.WriteLine("HYBRID RULE B: own+lexicon only when the lexicon REPAIRED it (closed-list fields) and Tesseract conf < T");
+            for (int t = 60; t <= 100; t += 10)
+            {
+                int T = t;
+                Console.WriteLine("  T={0,3}  own used on {1,2} fields   {2}", T, recs.Count(x => x.Changed && x.R.TessConf < T), line(x => x.Changed && x.R.TessConf < T ? x.OwnRep : x.Tess));
+            }
+            Console.WriteLine();
+            Console.WriteLine("HYBRID RULE C: agree (any case) -> keep; disagree and Tesseract conf < T -> own");
+            for (int t = 50; t <= 90; t += 20)
+            {
+                int T = t;
+                Console.WriteLine("  T={0,3}  {1}", T, line(x => string.Equals(x.Tess, x.OwnRep, StringComparison.OrdinalIgnoreCase) ? x.Tess : (x.R.TessConf < T ? x.OwnRep : x.Tess)));
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("BY DOCUMENT, exact fields (Tesseract / own+lexicon / rule A T=70)");
+            foreach (var g in recs.GroupBy(x => x.R.Sample))
+                Console.WriteLine("  {0,-16} {1,2} fields   {2,2} / {3,2} / {4,2}", g.Key, g.Count(),
+                    g.Count(x => x.Tess == x.Truth), g.Count(x => x.OwnRep == x.Truth),
+                    g.Count(x => (x.R.TessConf < 70 ? x.OwnRep : x.Tess) == x.Truth));
+
+            ms.Sort();
+            Console.WriteLine();
+            Console.WriteLine("OWN ENGINE TIME per field: mean {0:0} ms   median {1:0} ms   95th {2:0} ms   max {3:0} ms   total {4:0.0} s for {5} fields",
+                ms.Average(), ms[ms.Count / 2], ms[(int)(ms.Count * 0.95)], ms[ms.Count - 1], ms.Sum() / 1000, n);
+            Console.WriteLine();
+            Console.WriteLine("EVERY FIELD");
+            foreach (Rec x in recs)
+                Console.WriteLine("  {0,-9}{1,-22} truth '{2}' | tess '{3}' ({4}%) {5} | own '{6}' {7}",
+                    Trunc(x.R.Sample, 9), Trunc(x.R.Key, 22), x.Truth, x.Tess, x.R.TessConf, x.Tess == x.Truth ? "OK" : "--",
+                    x.OwnRep, x.OwnRep == x.Truth ? "OK" : "--");
+            return 0;
+        }
+
+        private sealed class Rec
+        {
+            public Row R; public string Own, OwnRep, Tess, Truth; public bool Changed, HasLex; public double Ms;
         }
 
         private static string Trunc(string s, int n) { return s.Length <= n ? s : s.Substring(0, n); }
