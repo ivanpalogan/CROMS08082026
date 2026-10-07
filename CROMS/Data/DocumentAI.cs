@@ -1469,7 +1469,7 @@ namespace CROMS.Data
             for (int i = 0; i < n && (province == "" || city == ""); i++)
             {
                 string line = lines[i];
-                Match pm = Regex.Match(line, @"^\W*Province\b[\s:.\-_|]*(.*)$", RegexOptions.IgnoreCase);
+                Match pm = Regex.Match(line, @"^\W*\w{0,3}rovince\b[\s:.\-_|]*(.*)$", RegexOptions.IgnoreCase);
                 if (pm.Success && province == "")
                 {
                     string v = pm.Groups[1].Value;
@@ -1485,6 +1485,11 @@ namespace CROMS.Data
                     v = StripHeaderNoise(v);
                     city = DocVocabulary.ExactEntry(DocVocabulary.Municipalities, v);
                     if (city == "") city = DocVocabulary.CityName(v);
+                    // The typed header says "ANGELES"; the master list holds "Angeles City". The value is kept
+                    // exactly as printed - it is only ACCEPTED because "<printed> City" is a real municipality.
+                    if (city == "" && v.Count(char.IsLetter) >= 4 &&
+                        DocVocabulary.ExactEntry(DocVocabulary.Municipalities, v + " City") != "")
+                        city = v;
                 }
             }
             fields.Insert(0, new DocField("CityMunicipality", "City / Municipality", city, low || city == ""));
@@ -1493,7 +1498,9 @@ namespace CROMS.Data
 
         private static string StripHeaderNoise(string v)
         {
-            return Regex.Replace(v ?? "", @"[^\p{L}\s.\-]", " ").Trim(' ', '.', '-', '_');
+            // The header row also carries the next cell's printed label ("PAMPANGA   Registry No.").
+            v = Regex.Split(v ?? "", @"\s+Regis\w*", RegexOptions.IgnoreCase)[0];
+            return Regex.Replace(v,@"[^\p{L}\s.\-]", " ").Trim(' ', '.', '-', '_');
         }
 
         // ---- Death Certificate extraction (PSA Municipal Form 103) ---------
@@ -1506,20 +1513,28 @@ namespace CROMS.Data
                 .Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToArray();
             bool low = ocrConf < 90;
 
-            int ni = FindIdx(lines, @"NAME\s+OF\s+DECEASED");
-            if (ni < 0) ni = FindIdx(lines, @"\b1\s*\.?\s*NAME");
-            var (df, dm, dl) = SplitNameCells(NameAfter(lines, ni));
+            // The deceased's name is typed in ONE row with the sex in the last cell ("GEORGE DE GUZMAN
+            // ABAD MALE"). The numbered "1. NAME" label and the "(First) (Middle) (Last)" heading are
+            // often too damaged to anchor on, so the row is recognised by its own shape.
+            string rowSex;
+            string nameRow = DeathNameRow(lines, out rowSex);
+            if (nameRow == "")
+            {
+                int ni = FindIdx(lines, @"NAME\s+OF\s+DECEASED");
+                if (ni < 0) ni = FindIdx(lines, @"\b1\s*\.?\s*NAME");
+                nameRow = NameAfter(lines, ni);
+            }
+            var (df, dm, dl) = SplitNameCells(nameRow);
             string fullName = Clean(string.Join(" ", new[] { df, dm, dl }.Where(s => s.Length > 0)));
 
-            string sex = Regex.IsMatch(text, @"\bFemale\b", IC) ? "Female"
-                       : Regex.IsMatch(text, @"\bMale\b", IC) ? "Male" : "";
-
-            string civil = Regex.IsMatch(text, @"\bWidow", IC) ? "Widowed"
-                         : Regex.IsMatch(text, @"\bMarried\b", IC) ? "Married"
-                         : Regex.IsMatch(text, @"\bSeparated\b", IC) ? "Separated"
-                         : Regex.IsMatch(text, @"\bDivorced\b", IC) ? "Divorced"
-                         : Regex.IsMatch(text, @"\bAnnulled\b", IC) ? "Annulled"
-                         : Regex.IsMatch(text, @"\bSingle\b", IC) ? "Single" : "";
+            // Sex and civil status are typed words, but the form also PRINTS every option next to its
+            // label ("(Male/Female)", "Single/Married/Widow/Divorced"). Searching the whole page took
+            // "Female" from that caption for every deceased and "Widowed" for every civil status. Only a
+            // standalone word counts (not beside a "/" or a bracket), and two different answers mean the
+            // printed options were read, not an answer: blank.
+            string sex = rowSex != "" ? rowSex : StandaloneChoice(text, "Male|Female");
+            string civil = StandaloneChoice(text, "Single|Married|Widowed|Widower|Widow|Divorced|Annulled|Separated");
+            if (Regex.IsMatch(civil, "^Widow(er)?$", IC)) civil = "Widowed";
 
             // Anchored to the AGE box. Form 103 spells out the under-1-year brackets
             // ("b. IF UNDER 1 YEAR", "42 days to 1 year"), so an unanchored search for
@@ -1533,13 +1548,34 @@ namespace CROMS.Data
             // The date belongs to the "DATE OF DEATH" label: the first date within two lines of it. The
             // old code took the first date anywhere on the page, so a scan whose death date was unreadable
             // reported the date of BIRTH (printed in the same row) as the date of death.
-            string dod = "";
-            int dodIdx = FindIdx(lines, @"D.TE\s+OF\s+DEA|DATE\s+OF\s+D\b");
-            if (dodIdx >= 0)
-                for (int k = dodIdx; k <= Math.Min(lines.Length - 1, dodIdx + 2) && dod == ""; k++)
-                    dod = FindDmy(lines[k]);
-            string place = StripPrefix(LineAfter(lines, FindIdx(lines, @"P.?ACE\s+OF\s+DEATH")));
+            string dod = "", dobDeath = "";
+            int dodIdx = FindIdx(lines, @"D.TE\s+OF\s+(D|O)\w{0,3}TH|D.TE\s+OF\s+DEA");
+            // Date of death and date of birth share ONE typed row, death on the left ("29 AUGUST 1999
+            // 23 APRIL 1953"), and the damaged labels above it can sit a dozen lines away. A row with
+            // TWO dates is therefore read left to right. A row with a single date is ambiguous - it may
+            // be the birth date with the death date unread - so it is left blank rather than guessed.
+            int dateStop = FindIdx(lines, @"MEDICAL\s+CERT|CAUSE\s+OF\s+DEATH");
+            for (int k = Math.Max(0, dodIdx); k < lines.Length && (dateStop < 0 || k < dateStop) && dod == ""; k++)
+            {
+                var found = DmyMatches.Matches(lines[k]).Cast<Match>().Select(m => FindDmy(m.Value)).Where(d => d != "").ToList();
+                if (found.Count >= 2) { dod = found[0]; dobDeath = found[1]; }
+            }
+            // "ANGELES, PAMPANGA   MARRIED": place and civil status share a row. The place is accepted only
+            // when it ends in a real province, so a stray line can never be taken for one.
+            string place = "";
+            foreach (string ln in lines)
+            {
+                Match pm = Regex.Match(ln, @"^\W*([A-Za-z][A-Za-z .'\-]*,\s*[A-Za-z][A-Za-z .'\-]+?)\s+(?:MARRIED|SINGLE|WIDOWED?|WIDOWER|DIVORCED|ANNULLED|SEPARATED)\s*$");
+                if (!pm.Success) continue;
+                string cand = pm.Groups[1].Value.Trim();
+                string lastPart = cand.Substring(cand.LastIndexOf(',') + 1).Trim();
+                if (DocVocabulary.ExactEntry(DocVocabulary.Provinces, lastPart) != "") { place = cand; break; }
+            }
+            if (place == "") place = StripPrefix(LineAfter(lines, FindIdx(lines, @"P.?ACE\s+OF\s+DEATH")));
             string nat = Regex.IsMatch(text, @"Filipin[oa]", IC) ? "Filipino" : "";
+            string cause = DeathCause(lines);
+            // Typed in capitals; the printed caption "(Burial, Cremation or other, Specify)" is mixed case.
+            string disposal = StandaloneChoice(text, "Burial|Cremation", capsOnly: true);
 
             Match rm = Regex.Match(text, @"(20\d{2}|19\d{2})\s*[-–—]\s*(\d{3,5})");
             string regNo = rm.Success ? rm.Groups[1].Value + "-" + rm.Groups[2].Value : "";
@@ -1556,7 +1592,10 @@ namespace CROMS.Data
                 new DocField("Age",            "Age",                  age,      low || age == ""),
                 new DocField("Citizenship",    "Citizenship",          nat,      low || nat == ""),
                 new DocField("DateOfDeath",    "Date of Death",        dod,      low || dod == ""),
+                new DocField("DateOfBirth",    "Date of Birth",        dobDeath, low || dobDeath == ""),
                 new DocField("PlaceOfDeath",   "Place of Death",       place,    low || place == ""),
+                new DocField("CauseOfDeath",   "Cause of Death (immediate)", cause, low || cause == ""),
+                new DocField("CorpseDisposal", "Corpse Disposal",      disposal, low || disposal == ""),
             };
             AddHeaderPlaces(deathFields, lines, low);
             return deathFields;
@@ -2023,6 +2062,20 @@ namespace CROMS.Data
                  .ToArray();
             if (t.Length == 0) return ("", "", "");
 
+            // A surname particle belongs to the word after it ("DE GUZMAN", "DELA CRUZ", "SAN DIEGO"), so
+            // counting words cut "GEORGE DE GUZMAN ABAD" into first "GEORGE DE" / middle GUZMAN. Joined
+            // before the split, it reads first GEORGE / middle DE GUZMAN / last ABAD.
+            var particles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                { "de", "del", "dela", "delas", "delos", "san", "santa", "sta", "van", "von", "la", "los", "las" };
+            var merged = new List<string>();
+            for (int i = 0; i < t.Length; i++)
+            {
+                string cur = t[i];
+                while (particles.Contains(t[i]) && i + 1 < t.Length) { i++; cur += " " + t[i]; }
+                merged.Add(cur);
+            }
+            if (merged.Count > 0) t = merged.ToArray();
+
             if (t.Length > 3)
             {
                 string[] words = t.Where(x => x.Length > 1).ToArray();
@@ -2108,6 +2161,74 @@ namespace CROMS.Data
             return DateTime.TryParseExact(m.Groups[1].Value + " " + m.Groups[2].Value + " " + m.Groups[3].Value,
                 fmts, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime d)
                 ? d.ToString("yyyy-MM-dd") : "";
+        }
+
+        /// <summary>
+        /// The immediate cause of death: the typed capitals at the END of a line under the "CAUSE OF DEATH"
+        /// heading ("I. Immediate cause : a  CARDIOPULMONARY ARREST"). The caption is damaged differently on
+        /// every scan, so the typed run is recognised instead: two or more capitalised words, none of them
+        /// a printed label word. Searched only between that heading and the maternal-condition item.
+        /// </summary>
+        private static string DeathCause(string[] lines)
+        {
+            int start = FindIdx(lines, @"CAUSE\s+OF\s+DEATH");
+            if (start < 0) return "";
+            for (int i = start + 1; i < Math.Min(lines.Length, start + 14); i++)
+            {
+                if (Regex.IsMatch(lines[i], @"MATERNAL|EXTERNAL|AUTOPS", RegexOptions.IgnoreCase)) break;
+                Match m = Regex.Match(lines[i], @"([A-Z]{4,}(?:\s+[A-Z]{3,})+)\s*$");
+                if (!m.Success) continue;
+                string run = m.Groups[1].Value;
+                if (run.Split(' ').Any(w => DocLayouts.CommonLabelWords.Contains(w.ToLowerInvariant()))) continue;
+                return run;
+            }
+            return "";
+        }
+
+        /// <summary>Every "18th August 2023" style date in a line, for rows that carry more than one.</summary>
+        private static readonly Regex DmyMatches = new Regex(
+            @"\b\d{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}\s+(?:19|20)\d{2}\b", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// The deceased's name row of Form 103: three typed name cells and the sex cell on one line
+        /// ("GEORGE | DE GUZMAN ABAD MALE"). Recognised by that shape, which survives when the numbered
+        /// label and the "(First) (Middle) (Last)" heading do not. Returns the name part and the sex.
+        /// </summary>
+        private static string DeathNameRow(string[] lines, out string sex)
+        {
+            sex = "";
+            for (int i = 0; i < Math.Min(lines.Length, 70); i++)
+            {
+                string l = Regex.Replace(lines[i], @"[|_~]", " ").Trim();
+                Match m = Regex.Match(l, @"^([A-Z][A-Z'\-]+(?:\s+[A-Z][A-Z'\-]+){1,5})\s+(MALE|FEMALE)$");
+                if (!m.Success) continue;
+                sex = m.Groups[2].Value.Substring(0, 1) + m.Groups[2].Value.Substring(1).ToLowerInvariant();
+                return m.Groups[1].Value;
+            }
+            return "";
+        }
+
+        /// <summary>
+        /// The one option of <paramref name="options"/> (a regex alternation) that appears as a STANDALONE
+        /// word. A word beside a "/" or inside a bracket is a printed caption listing every choice, and
+        /// two different choices found means the caption was read - both return blank.
+        /// </summary>
+        private static string StandaloneChoice(string text, string options, bool capsOnly = false)
+        {
+            // The answer is typed in capitals on these forms while the printed options are mixed case, so an
+            // ALL-CAPS word is tried first; mixed case is only used when no capitals were read at all.
+            string pattern = @"(?<![/(\w\-])\b(" + options + @")\b(?![/)\w\-])";
+            foreach (RegexOptions opt in capsOnly ? new[] { RegexOptions.None } : new[] { RegexOptions.None, RegexOptions.IgnoreCase })
+            {
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                string p = opt == RegexOptions.None ? pattern.Replace(options, options.ToUpperInvariant()) : pattern;
+                foreach (Match m in Regex.Matches(text ?? "", p, opt)) seen.Add(m.Value);
+                if (seen.Count == 0) continue;
+                if (seen.Count != 1) return "";
+                string v = seen.First();
+                return v.Substring(0, 1).ToUpperInvariant() + v.Substring(1).ToLowerInvariant();
+            }
+            return "";
         }
 
         private static string FindDmy(string text)

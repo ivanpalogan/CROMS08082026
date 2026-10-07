@@ -7250,3 +7250,27 @@ FIXED:
   On Marriage Cert.jpg the spouse cells are unreadable (the row is overprinted by the "(City/Municipality)" hint), so both come back blank and the fallback shows flagged: honest, not an improvement in coverage. An earlier intermediate version read "Filipino" from the mother's row 11 into the husband's cell; caught by the box landing at y=1367 and fixed by the Father/Mother stop above.
 
 MEASURED: `--truth` 113/184, 36 wrong, 35 missing (identical to before); `--labelpath --truth` 24/184, 8 wrong, 152 missing (identical). Neither marriage ground-truth scan exercises a citizenship cell on the label path, so the new per-spouse read is verified only by the Marriage Cert.jpg dump above (blank where unreadable, never the parents' row). Built to a scratch folder; GUI not clicked.
+
+### 2026-10-07 (final) - Death LABEL-PATH audit: printed options taken as the answer, name/date rows unanchored, 4/20 -> 13/20 and 14/20
+Same method (`--labelpath`, boxes printed). Only these two scans carry a death certificate (palogan_n.jpg and its crop Death Cert.png); both reach the label path only when the template is skipped. Baseline: 4/20 correct on each, 0 wrong, 16 missing - the path read 4 fields (registry, sex, civil status, citizenship) and left the name, dates and place blank although the page text holds them.
+
+FINDINGS:
+  - Sex and Civil Status | MAPPING defect, latent | `ExtractDeath` searched the WHOLE page for "Female" then "Male", and "Widow" before "Married". Form 103 PRINTS every option beside its label ("(Male/Female)", "Single/Married/Widow..."), so on a cleanly read scan every deceased would be Female and every civil status Widowed. The samples only came out right because OCR garbled those captions.
+  - Deceased name | the typed row "GEORGE DE GUZMAN ABAD MALE" is in the page text, but both anchors ("1. NAME", "(First) (Middle) (Last)") are too damaged, so the name was blank; and a word-count split cuts "GEORGE DE GUZMAN ABAD" into first "GEORGE DE" / middle GUZMAN.
+  - Date of Death | my earlier fix (label-anchored, 2 lines) blanked it, because the label "DATE OF OCATH" sits ~13 lines above the typed row "29 AUGUST 1999  23 APRIL 1953". Date of death and birth share ONE row, death on the left.
+  - Province / City header | blank: "rovince PAMPANGA Registry No." (first letter lost, next cell's label glued on) and "ANGELES" (the master list holds "Angeles City").
+  - Place of Death | on Death Cert.png the place shares a row with the civil status ("ANGELES, PAMPANGA MARRIED"); on palogan_n.jpg the place row is not in the page text (recognition).
+  - Cause of death, corpse disposal, religion, residence, occupation, parents | typed rows present in the page text, never extracted by the label path.
+  - Age | absent from the page text (recognition).
+
+FIXED (all in `ExtractDeath` / helpers):
+  1. `StandaloneChoice`: sex / civil status / corpse disposal accept only a STANDALONE word (not beside "/" or inside a bracket), ALL-CAPS first (the answer is typed in capitals, the printed options are mixed case), and two different answers mean the caption was read, so blank.
+  2. `DeathNameRow`: the name row is recognised by its shape (2-6 capitalised words ending in MALE/FEMALE), which also gives the sex; falls back to the old anchors.
+  3. `SplitNameCells`: a surname particle (de, del, dela, delos, san, santa, sta, van, von, la, los, las) is joined to the word after it before the word-count split: GEORGE / DE GUZMAN / ABAD instead of "GEORGE DE" / GUZMAN / ABAD. (Applies to every label-path name, including birth.)
+  4. Date of death and date of birth: read from the first row holding TWO dates, left = death, right = birth; a row with one date stays blank (could be the birth date with the death date unread). New field `DateOfBirth` on the death label path.
+  5. Place of death from a "<place>, <PROVINCE>  <CIVIL STATUS>" row, accepted only if the part after the last comma is exactly a real province.
+  6. `AddHeaderPlaces`: label tolerant of a lost first letter ("rovince"), the next cell's "Registry ..." cut off, and a header city accepted as printed when "<printed> City" is a real municipality (value stays "ANGELES").
+  7. New label-path fields `CauseOfDeath` (typed capitals at the end of a line under the CAUSE OF DEATH heading, never a printed label word) and `CorpseDisposal` (ALL-CAPS "BURIAL"/"CREMATION" only).
+  Name cells stay capped at 69% with the word-count note (existing rule).
+
+MEASURED: label path forced: palogan_n.jpg 4/20 -> 13/20, Death Cert.png 4/20 -> 14/20, 0 wrong on both; whole set 24/184 -> 43/184, wrong 8 (unchanged), missing 152 -> 133. Normal path unchanged at 113/184, 36 wrong, 35 missing, every sample identical. Still missing on the label path: Age, Religion (the typed word reads "CATHOLIC" but the shared reader canonicalises to "Roman Catholic", which would not match the printed value), Residence, Occupation, Father's name, Mother's maiden name (their typed rows carry neighbouring cells' text), and Place of Death on palogan_n.jpg. Date of Death has no highlight box on palogan_n.jpg (the normalised date's tokens are not on the page as typed). Built to a scratch folder; GUI not clicked.
