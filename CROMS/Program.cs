@@ -153,12 +153,16 @@ namespace CROMS
 
                     // Window selection: claim a window (Online) + confirm what it handles.
                     // Skippable for staff not manning a window (e.g. admins).
+                    // The user is known now: build the screens that do not depend on the chosen window
+                    // while the operator is picking one.
+                    ModulePrebuilder.Start(MainForm.AllowedKeys(Session.User?.Role));
                     using (var assign = FormFade.In(new WindowAssignmentForm()))
                     {
                         if (assign.ShowDialog() != DialogResult.Abort) break;   // proceed into the app
                     }
 
                     // Logged out from the window screen — drop the session and ask again.
+                    ModulePrebuilder.Clear();
                     Session.User = null;
                     Session.WindowId = 0;
                     Session.WindowName = null;

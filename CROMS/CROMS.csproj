@@ -712,6 +712,7 @@
     <Compile Include="Modules\FieldLimit.cs" />
     <Compile Include="Modules\HoverFade.cs" />
     <Compile Include="Modules\LoadingSplash.cs" />
+    <Compile Include="Modules\ModulePrebuilder.cs" />
     <Compile Include="Modules\RecordFullDetail.cs" />
     <Compile Include="Modules\RegistryBookGallery.cs" />
     <Compile Include="Modules\ReasonPrompt.cs" />

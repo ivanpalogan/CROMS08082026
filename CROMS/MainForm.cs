@@ -47,6 +47,7 @@ namespace CROMS
             DarkenSidebarScrollbar();
             UiTheme.PolishButtons(this);   // hand cursor + hover on nav + header buttons
             StartWindowHeartbeat();
+            Shown += (s, e) => WarmHandles();
             // Open on the first module (Dashboard) by default.
             if (ModuleRegistry.All.Count > 0)
                 ShowModule(ModuleRegistry.All[0].Key);
@@ -756,7 +757,7 @@ namespace CROMS
             "books"
         };
 
-        private static HashSet<string> AllowedKeys(string role)
+        internal static HashSet<string> AllowedKeys(string role)
         {
             // Admin -> everything, incl. masterfiles/settings/users. Anything else (Staff, or a
             // missing/unknown role) -> the operational set only, so a bad value can never
@@ -860,10 +861,14 @@ namespace CROMS
         }
 
         /// <summary>Builds (first time) and caches the module's form inside the content panel.</summary>
-        private Form EnsureModule(ModuleInfo module)
+        private Form EnsureModule(ModuleInfo module, bool show = true)
         {
-            if (_cache.TryGetValue(module.Key, out var form)) return form;
-            form = module.Factory();
+            if (_cache.TryGetValue(module.Key, out var form))
+            {
+                if (show && !form.Visible) form.Show();
+                return form;
+            }
+            form = ModulePrebuilder.Take(module.Key) ?? module.Factory();
             form.TopLevel = false;
             form.FormBorderStyle = FormBorderStyle.None;
             form.Dock = DockStyle.Fill;
@@ -874,7 +879,10 @@ namespace CROMS
             contentPanel.Controls.Add(form);
             form.SendToBack();   // built in the background: must not cover the active module
             SuppressDuplicateModuleTitle(form, module.Title);
-            form.Show();
+            // A screen built in advance stays hidden: creating the window handles of every screen at
+            // once made the main window take ~7 s to appear. They are created in small steps after it
+            // is up (WarmHandles), or on the first click if that comes sooner.
+            if (show) form.Show();
             UiTheme.PolishButtons(form);   // consistent hand cursor + hover on every module's buttons
             return form;
         }
@@ -887,15 +895,41 @@ namespace CROMS
         /// </summary>
         public void PreloadModules(Action<string> progress)
         {
+            ModulePrebuilder.Finish();   // anything still being built during window selection
             foreach (var m in ModuleRegistry.All)
             {
                 if (_cache.ContainsKey(m.Key)) continue;
                 if (!_navButtons.TryGetValue(m.Key, out var btn) || !_navAllowed.Contains(btn)) continue;
                 progress?.Invoke("Preparing " + m.Title + "...");
-                try { EnsureModule(m); }
+                try { EnsureModule(m, show: false); }
                 catch (Exception ex) { ErrorLog.Write("Preload " + m.Key, ex); _cache.Remove(m.Key); }
             }
             if (_activeKey != null && _cache.TryGetValue(_activeKey, out var active)) active.BringToFront();
+        }
+
+        private Timer _warm;
+        private readonly Queue<Form> _warmQueue = new Queue<Form>();
+
+        /// <summary>After the main window is on screen, shows the hidden screens one at a time behind
+        /// the active one (a short pause each) so a later click only has to bring one forward.</summary>
+        private void WarmHandles()
+        {
+            foreach (var f in _cache.Values) if (!f.Visible) _warmQueue.Enqueue(f);
+            _warm = new Timer { Interval = 80 };
+            _warm.Tick += (s, e) =>
+            {
+                while (_warmQueue.Count > 0)
+                {
+                    var f = _warmQueue.Dequeue();
+                    if (f.IsDisposed || f.Visible) continue;
+                    // Show it behind the active screen so its first layout/paint is already done by
+                    // the time it is clicked (this is the cost that made the old startup ~7 s).
+                    try { f.Show(); f.SendToBack(); } catch { }
+                    return;   // one per tick
+                }
+                _warm.Stop(); _warm.Dispose(); _warm = null;
+            };
+            _warm.Start();
         }
 
         private const int WM_SETREDRAW = 0x000B;
