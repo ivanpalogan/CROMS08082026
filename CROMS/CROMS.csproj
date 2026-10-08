@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
@@ -970,6 +970,7 @@
     <None Include="Database\80_ctc_relationship_width.sql" />
     <None Include="Database\81_authorization_letter.sql" />
     <None Include="Database\82_birth_form_fields.sql" />
+    <None Include="Database\83_tighten_varchar_lengths.sql" />
     <None Include="Database\47_form3a_certification.sql" />
     <None Include="Database\48_office_email.sql" />
     <None Include="Database\47_staff_biodata.sql" />

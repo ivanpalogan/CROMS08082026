@@ -514,7 +514,7 @@ namespace CROMS.Forms
         private static TextBox Box(int x, int y) => new TextBox
         {
             Location = new Point(x, y), Size = new Size(372, 30), Font = new Font("Segoe UI", 12F),
-            BorderStyle = BorderStyle.FixedSingle, UseSystemPasswordChar = true
+            BorderStyle = BorderStyle.FixedSingle, UseSystemPasswordChar = true, MaxLength = 16
         };
 
         private void Save()

@@ -250,7 +250,7 @@ namespace CROMS.Forms
             this.lblNewPass.Name = "lblNewPass";
             this.lblNewPass.Size = new System.Drawing.Size(90, 15);
             this.lblNewPass.TabIndex = 7;
-            this.lblNewPass.Text = "New Password";
+            this.lblNewPass.Text = "New Password (8-16)";
             //
             // txtNewPass
             //
@@ -260,6 +260,7 @@ namespace CROMS.Forms
             this.txtNewPass.Size = new System.Drawing.Size(220, 25);
             this.txtNewPass.TabIndex = 8;
             this.txtNewPass.UseSystemPasswordChar = true;
+            this.txtNewPass.MaxLength = 16;
             //
             // lblConfirmPass
             //
@@ -280,6 +281,7 @@ namespace CROMS.Forms
             this.txtConfirmPass.Size = new System.Drawing.Size(220, 25);
             this.txtConfirmPass.TabIndex = 10;
             this.txtConfirmPass.UseSystemPasswordChar = true;
+            this.txtConfirmPass.MaxLength = 16;
             //
             // lblWorkHeader
             //

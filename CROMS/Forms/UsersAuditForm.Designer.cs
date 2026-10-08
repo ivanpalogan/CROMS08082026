@@ -1,4 +1,4 @@
-﻿namespace CROMS.Forms
+namespace CROMS.Forms
 {
     partial class UsersAuditForm
     {
@@ -237,7 +237,7 @@
             this.lblPassword.Name = "lblPassword";
             this.lblPassword.Size = new System.Drawing.Size(220, 15);
             this.lblPassword.TabIndex = 6;
-            this.lblPassword.Text = "Password (blank = keep on edit, min 8)";
+            this.lblPassword.Text = "Password (blank = keep on edit, 8-16 characters)";
             //
             // txtPassword
             //
@@ -247,6 +247,7 @@
             this.txtPassword.Size = new System.Drawing.Size(250, 25);
             this.txtPassword.TabIndex = 7;
             this.txtPassword.UseSystemPasswordChar = true;
+            this.txtPassword.MaxLength = 16;
             //
             // lblConfirm
             //
@@ -267,6 +268,7 @@
             this.txtConfirm.Size = new System.Drawing.Size(250, 25);
             this.txtConfirm.TabIndex = 9;
             this.txtConfirm.UseSystemPasswordChar = true;
+            this.txtConfirm.MaxLength = 16;
             //
             // chkActive
             //
