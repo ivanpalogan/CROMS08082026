@@ -654,6 +654,18 @@ namespace CROMS.Data
             {
                 if (dob > DateTime.Today)
                     Flag(Field(r, "DateOfBirth"), FieldStatus.Invalid, "date of birth is in the future");
+
+                // A certification (attendant, informant, office staff) is signed AFTER the
+                // child is born, so a signed date earlier than the birth is a misread digit
+                // (Birth Certificate.jpeg 2026-10-08: "13-Jun-18" read as 2016, shown green).
+                foreach (string key in new[] { "AttendantDate", "InformantDate", "PreparedByDate", "ReceivedByDate", "RegisteredByDate" })
+                {
+                    DocField f = Field(r, key);
+                    if (f == null || string.IsNullOrWhiteSpace(f.Value)) continue;
+                    if (DateTime.TryParse(f.Value, System.Globalization.CultureInfo.InvariantCulture,
+                            System.Globalization.DateTimeStyles.None, out DateTime signed) && signed < dob)
+                        Flag(f, FieldStatus.Conflict, "signed date is before the date of birth - check the year against the scan");
+                }
             }
         }
 
