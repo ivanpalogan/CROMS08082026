@@ -617,6 +617,7 @@
       <DependentUpon>BreqsDialogs.cs</DependentUpon>
     </Compile>
     <Compile Include="Modules\CtrlWheelZoom.cs" />
+    <Compile Include="Modules\PinchZoom.cs" />
     <Compile Include="Forms\ZoomPrintPreviewForm.cs">
       <SubType>Form</SubType>
     </Compile>

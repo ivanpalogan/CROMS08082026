@@ -234,6 +234,13 @@ namespace CROMS.Forms
             dgvFields.CellValueChanged += DgvFields_CellValueChanged;
             pbScan.Paint += PbScan_Paint;
 
+            // Two-finger pinch + drag on a touchscreen; Ctrl + wheel covers a mouse and a
+            // precision touchpad's pinch. All three zoom about the point under the fingers.
+            var pinch = new PinchZoom(ZoomAt, PanBy, pnlScanHost, pbScan);
+            var wheel = new CtrlWheelZoom(pnlScanHost,
+                dir => ZoomAt(dir > 0 ? 1.15f : 1f / 1.15f, Cursor.Position));
+            Disposed += (s, e) => { pinch.Dispose(); wheel.Dispose(); };
+
             // A phone scan lands here first (uploaded via the save-API, no on-device OCR) —
             // double-clicking a still-unopened 'Mobile' row loads it into the engine the same
             // way Load Image does, then runs the full desktop pipeline on it.
@@ -3086,12 +3093,45 @@ namespace CROMS.Forms
 
         private void Zoom(float factor)
         {
+            // Buttons zoom about the middle of the viewer.
+            var mid = new Point(pnlScanHost.ClientSize.Width / 2, pnlScanHost.ClientSize.Height / 2);
+            ZoomAt(factor, pnlScanHost.PointToScreen(mid));
+        }
+
+        /// <summary>
+        /// Zoom by <paramref name="factor"/> keeping the spot under <paramref name="screenPt"/>
+        /// where it is - what a pinch or Ctrl + wheel should do - instead of growing from the
+        /// top-left corner.
+        /// </summary>
+        private void ZoomAt(float factor, Point screenPt)
+        {
             if (_image == null) return;
+            Point cp = pnlScanHost.PointToClient(screenPt);
+            // Where the point sits in the picture, as a fraction, before resizing.
+            float fx = pbScan.Width > 0 ? (cp.X - pbScan.Left) / (float)pbScan.Width : 0.5f;
+            float fy = pbScan.Height > 0 ? (cp.Y - pbScan.Top) / (float)pbScan.Height : 0.5f;
+
+            float old = _zoom;
             _zoom = Math.Max(0.25f, Math.Min(6f, _zoom * factor));
+            if (Math.Abs(_zoom - old) < 0.0001f) return;
+
             pbScan.Size = new Size(
                 (int)(pnlScanHost.ClientSize.Width * _zoom),
                 (int)(pnlScanHost.ClientSize.Height * _zoom));
+            pnlScanHost.PerformLayout();
+            pnlScanHost.AutoScrollPosition = new Point(
+                Math.Max(0, (int)(fx * pbScan.Width - cp.X)),
+                Math.Max(0, (int)(fy * pbScan.Height - cp.Y)));
             pbScan.Invalidate();
+        }
+
+        /// <summary>Drag the page with the fingers: content moves the way the fingers do.</summary>
+        private void PanBy(int dx, int dy)
+        {
+            if (_image == null) return;
+            Point cur = pnlScanHost.AutoScrollPosition;   // negative of the scroll offset
+            pnlScanHost.AutoScrollPosition = new Point(
+                Math.Max(0, -cur.X - dx), Math.Max(0, -cur.Y - dy));
         }
 
         /// <summary>
