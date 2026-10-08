@@ -150,7 +150,7 @@ namespace CROMS.Forms
             p.Dob = MUi.Date(true); p.Age = MUi.Txt("-", 10F, FontStyle.Bold, UiTheme.Muted);
             p.Dob.MaxDate = DateTime.Today; // a birth date cannot be in the future
             p.ResProv = MUi.Combo(true); p.ResMuni = MUi.Combo(true); p.ResBrgy = MUi.Combo(true);
-            p.ResHouse = MUi.Box();
+            p.ResHouse = MUi.Box(); p.ResHouse.MaxLength = 100;
             p.Country = MUi.Combo(true); p.Province = MUi.Combo(true); p.Municipality = MUi.Combo(true);
             p.Cit = MUi.Combo(true, _nationalities); p.Civil = MUi.Combo(false, MarriageRules.CivilStatuses);
             p.Religion = MUi.Combo(true, Lookup("religions"));

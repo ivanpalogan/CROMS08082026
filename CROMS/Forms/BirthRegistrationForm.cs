@@ -2176,6 +2176,7 @@ namespace CROMS.Forms
             int[] resOrder = { 3, 0, 1, 2 };
             _mres = CreateLookupCells(txtMResidence, 4,
                 new[] { "House / St. (optional)", "Province", "Municipality", "Barangay" }, resOrder);
+            _mres[0].MaxLength = 100;   // house / street
             _mProvince = _mres[1];
             _mMunicipality = _mres[2];
             _mBarangay = _mres[3];
@@ -2185,6 +2186,7 @@ namespace CROMS.Forms
             _cboFOcc = CreateLookupCells(txtFOccupation, 1, null)[0];
             _fres = CreateLookupCells(txtFResidence, 4,
                 new[] { "House / St. (optional)", "Province", "Municipality", "Barangay" }, resOrder);
+            _fres[0].MaxLength = 100;   // house / street
             _fProvince = _fres[1];
             _fMunicipality = _fres[2];
             _fBarangay = _fres[3];
@@ -2205,6 +2207,7 @@ namespace CROMS.Forms
             ComboBox[] hospCells = CreateLookupCells(txtPlaceAddr, 2, new[] { "Barangay", "House No. / Street (optional)" });
             _hospBarangay = hospCells[0];
             _hospHouse = hospCells[1];
+            _hospHouse.MaxLength = 100;   // births.place_of_birth_house (migration 83)
 
             _pom = CreateLookupCells(txtMarrPlace, 3, new[] { "Church", "Province", "Municipality" });
             _pomProvince = _pom[1];

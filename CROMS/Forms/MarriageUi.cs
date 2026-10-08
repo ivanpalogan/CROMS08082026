@@ -886,6 +886,7 @@ namespace CROMS.Forms
 
         public AddrBox()
         {
+            House.MaxLength = 100;   // migration 83 width
             GeoLookup.LoadProvinces(Prov);
             GeoLookup.CascadeAddress(Prov, Muni, Brgy);
         }

@@ -160,6 +160,10 @@ namespace CROMS.Data
         public static void CascadeAddress(ComboBox province, ComboBox municipality, ComboBox barangay)
         {
             if (province == null || municipality == null) return;
+            // Same widths as the DB columns (migration 83), so a box cannot take more than the
+            // record can store.
+            province.MaxLength = 60; municipality.MaxLength = 80;
+            if (barangay != null) barangay.MaxLength = 80;
             // A Philippine place must be a listed one (or already in the Learning Library).
             // The lists are emptied for a foreign country, which is what switches this off.
             Func<bool> philippine = () => province.Items.Count > 1;

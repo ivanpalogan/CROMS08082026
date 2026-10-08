@@ -370,7 +370,7 @@ namespace CROMS.Forms
             Bind(p.Cit, Read("nationalities")); Bind(p.Rel, Read("religions"));
             // Residence is always a Philippine address on this form: province -> municipality ->
             // barangay each narrow the next (GeoLookup, same lists as Birth), house/street is typed.
-            p.ResProv = MUi.Combo(true); p.ResMuni = MUi.Combo(true); p.ResBrgy = MUi.Combo(true); p.ResHouse = MUi.Box();
+            p.ResProv = MUi.Combo(true); p.ResMuni = MUi.Combo(true); p.ResBrgy = MUi.Combo(true); p.ResHouse = MUi.Box(); p.ResHouse.MaxLength = 100;
             GeoLookup.LoadProvinces(p.ResProv);
             GeoLookup.CascadeAddress(p.ResProv, p.ResMuni, p.ResBrgy);
             GeoLookup.LoadCountries(p.BirthCountry);
