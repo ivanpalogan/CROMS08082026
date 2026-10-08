@@ -350,6 +350,10 @@ namespace CROMS.Forms
             FillLookup(_pod[0], "hospitals");
             GeoLookup.LoadProvinces(_pod[1]);
             GeoLookup.CascadePlace(_pod[1], _pod[2]);
+            // place_of_death is ONE 255-char column (facility, municipality, province): 100 + 80 + 60 + separators fits.
+            _pod[0].MaxLength = 100;
+            txtDispPlace.MaxLength = 200;   // deaths.place_of_disposal
+            txtCInfAddr.MaxLength = 200;    // deaths.informant_address
         }
 
         /// <summary>A single pick-only combo, replacing <paramref name="tb"/> in its own cell.</summary>

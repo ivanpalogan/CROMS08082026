@@ -2208,6 +2208,7 @@ namespace CROMS.Forms
             _hospBarangay = hospCells[0];
             _hospHouse = hospCells[1];
             _hospHouse.MaxLength = 100;   // births.place_of_birth_house (migration 83)
+            _pob[0].MaxLength = 100;      // facility: place_of_birth is one 255-char column (100 + 80 + 60 + separators)
             _hospBarangay.MaxLength = 80;   // births.place_of_birth_barangay (migration 83)
 
             _pom = CreateLookupCells(txtMarrPlace, 3, new[] { "Church", "Province", "Municipality" });
