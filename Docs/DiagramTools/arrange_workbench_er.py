@@ -161,7 +161,7 @@ def _component(nodes, edges, hgap, vgap):
     return out
 
 
-def er_layout(nodes, edges, hgap=50, vgap=110, iso_cols=8, iso_gap=40, comp_gap=160):
+def er_layout(nodes, edges, hgap=80, vgap=170, iso_cols=8, iso_gap=40, comp_gap=160):
     E = [(c, p) for (c, p) in edges if c in nodes and p in nodes and c != p]
     nb = {}
     for c, p in E:
