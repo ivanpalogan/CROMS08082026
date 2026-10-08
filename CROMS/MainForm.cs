@@ -786,7 +786,7 @@ namespace CROMS
                 // A sidebar click is an ordinary/manual transaction. It must never inherit
                 // whichever queue task the operator previously opened from Client Tasks.
                 QueueTaskContext.Clear();
-                ShowModule(key);
+                ShowModule(key, deferRefresh: true);
             }
         }
 
@@ -797,7 +797,7 @@ namespace CROMS
         /// <c>TopLevel = false</c>, so it renders in-place instead of as a separate
         /// window while staying a fully designable Form in the IDE.
         /// </summary>
-        private void ShowModule(string key)
+        private void ShowModule(string key, bool deferRefresh = false)
         {
             if (key == _activeKey) return;
 
@@ -818,53 +818,84 @@ namespace CROMS
                 return;
             }
 
-            // Switching modules used to repaint piece by piece (each control drawing itself as it was
-            // created or refreshed), so a screen visibly assembled itself. Now: a first-time module
-            // shows a "Loading ..." card at once, the content panel stops drawing while the module is
-            // built and refreshed, and the finished screen appears in one paint.
+            // The screen is swapped in with one paint: the content panel stops drawing while the
+            // module is brought forward, then everything is drawn at once. Modules are built ahead of
+            // time behind the startup screen (PreloadModules), so normally nothing is built here.
             bool live = contentPanel.IsHandleCreated && contentPanel.Visible;
-            Control loading = (live && !_cache.ContainsKey(key)) ? ShowLoadingCard(module.Title) : null;
-            Cursor.Current = Cursors.WaitCursor;
             if (live) SetRedraw(contentPanel, false);
+            Form form;
             try
             {
-                if (!_cache.TryGetValue(key, out var form))
-                {
-                    form = module.Factory();
-                    form.TopLevel = false;
-                    form.FormBorderStyle = FormBorderStyle.None;
-                    form.Dock = DockStyle.Fill;
-                    // Some module forms are laid out wider/taller than the content panel on
-                    // smaller screens; AutoScroll makes any clipped controls (e.g. the right-
-                    // side action buttons/panels) reachable instead of being cut off.
-                    form.AutoScroll = true;
-                    _cache[key] = form;
-                    contentPanel.Controls.Add(form);
-                    SuppressDuplicateModuleTitle(form, module.Title);
-                    form.Show();
-                    UiTheme.PolishButtons(form);   // consistent hand cursor + hover on every module's buttons
-                }
-
+                form = EnsureModule(module);
                 form.BringToFront();
-                // Cached forms are reused, so re-pull their data every time the module is
-                // shown — keeps cross-module views (e.g. Release & Claim's pending list) live.
-                if (form is IRefreshable refreshable) refreshable.RefreshData();
                 _activeKey = key;
                 headerLabel.Text = module.Title;
                 RefreshQueueHeader();
                 SetActiveButton(key);
+                // Cached forms are reused, so re-pull their data every time the module is shown -
+                // keeps cross-module views (e.g. Release & Claim's pending list) live. A sidebar click
+                // shows the screen FIRST and refreshes right after, so the click answers instantly.
+                // Hand-offs (GoToModule) stay synchronous: their caller fills the form next, and a
+                // refresh arriving later would wipe what it filled.
+                if (!deferRefresh && form is IRefreshable now) now.RefreshData();
             }
             finally
             {
-                if (loading != null) { contentPanel.Controls.Remove(loading); loading.Dispose(); }
                 if (live)
                 {
                     SetRedraw(contentPanel, true);
                     RedrawWindow(contentPanel.Handle, IntPtr.Zero, IntPtr.Zero,
                         RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
                 }
-                Cursor.Current = Cursors.Default;
             }
+
+            if (deferRefresh && form is IRefreshable later)
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    // Skip if the operator already moved on to another module.
+                    if (_activeKey == key && !form.IsDisposed) later.RefreshData();
+                }));
+            }
+        }
+
+        /// <summary>Builds (first time) and caches the module's form inside the content panel.</summary>
+        private Form EnsureModule(ModuleInfo module)
+        {
+            if (_cache.TryGetValue(module.Key, out var form)) return form;
+            form = module.Factory();
+            form.TopLevel = false;
+            form.FormBorderStyle = FormBorderStyle.None;
+            form.Dock = DockStyle.Fill;
+            // Some module forms are laid out wider/taller than the content panel on smaller
+            // screens; AutoScroll makes any clipped controls reachable instead of cut off.
+            form.AutoScroll = true;
+            _cache[module.Key] = form;
+            contentPanel.Controls.Add(form);
+            form.SendToBack();   // built in the background: must not cover the active module
+            SuppressDuplicateModuleTitle(form, module.Title);
+            form.Show();
+            UiTheme.PolishButtons(form);   // consistent hand cursor + hover on every module's buttons
+            return form;
+        }
+
+        /// <summary>
+        /// Builds every module this operator can open, so a sidebar click only brings an existing
+        /// screen forward (instant) instead of constructing it (up to ~2 s each). Called by Program
+        /// behind the startup screen. A module that fails to build is skipped and built on click,
+        /// where its own error shows as before.
+        /// </summary>
+        public void PreloadModules(Action<string> progress)
+        {
+            foreach (var m in ModuleRegistry.All)
+            {
+                if (_cache.ContainsKey(m.Key)) continue;
+                if (!_navButtons.TryGetValue(m.Key, out var btn) || !_navAllowed.Contains(btn)) continue;
+                progress?.Invoke("Preparing " + m.Title + "...");
+                try { EnsureModule(m); }
+                catch (Exception ex) { ErrorLog.Write("Preload " + m.Key, ex); _cache.Remove(m.Key); }
+            }
+            if (_activeKey != null && _cache.TryGetValue(_activeKey, out var active)) active.BringToFront();
         }
 
         private const int WM_SETREDRAW = 0x000B;
@@ -880,44 +911,6 @@ namespace CROMS
         private static void SetRedraw(Control c, bool on)
         {
             if (c.IsHandleCreated) SendMessage(c.Handle, WM_SETREDRAW, (IntPtr)(on ? 1 : 0), IntPtr.Zero);
-        }
-
-        /// <summary>A plain card over the content area naming the module being opened, painted
-        /// immediately so the click is answered before the (sometimes slow) module is built.</summary>
-        private Control ShowLoadingCard(string title)
-        {
-            var p = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.PageBg };
-            typeof(Control).GetProperty("DoubleBuffered",
-                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(p, true);
-            p.Paint += (s, e) =>
-            {
-                var g = e.Graphics;
-                g.SmoothingMode = SmoothingMode.AntiAlias;
-                var box = new Rectangle(p.ClientSize.Width / 2 - 170, p.ClientSize.Height / 2 - 48, 340, 96);
-                using (var path = new GraphicsPath())
-                {
-                    int d = 16;
-                    path.AddArc(box.Left, box.Top, d, d, 180, 90);
-                    path.AddArc(box.Right - d, box.Top, d, d, 270, 90);
-                    path.AddArc(box.Right - d, box.Bottom - d, d, d, 0, 90);
-                    path.AddArc(box.Left, box.Bottom - d, d, d, 90, 90);
-                    path.CloseFigure();
-                    using (var fill = new SolidBrush(UiTheme.Surface)) g.FillPath(fill, path);
-                    using (var line = new Pen(UiTheme.CardLine)) g.DrawPath(line, path);
-                }
-                using (var f = new Font("Segoe UI", 11f, FontStyle.Bold))
-                    TextRenderer.DrawText(g, "Opening " + title + "...", f,
-                        new Rectangle(box.Left, box.Top + 22, box.Width, 26), UiTheme.Ink,
-                        TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
-                using (var f = new Font("Segoe UI", 9f))
-                    TextRenderer.DrawText(g, "Please wait a moment.", f,
-                        new Rectangle(box.Left, box.Top + 52, box.Width, 20), UiTheme.Muted,
-                        TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
-            };
-            contentPanel.Controls.Add(p);
-            p.BringToFront();
-            p.Update();
-            return p;
         }
 
         /// <summary>Modules Client Tasks must never appear on — it is a per-window work

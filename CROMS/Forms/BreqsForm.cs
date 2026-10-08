@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
@@ -92,7 +92,7 @@ namespace CROMS.Forms
             _grid.Dock = DockStyle.Fill; _grid.ReadOnly = true; _grid.AllowUserToAddRows = false; _grid.AllowUserToDeleteRows = false;
             _grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect; _grid.MultiSelect = false; _grid.RowHeadersVisible = false;
             _grid.BackgroundColor = UiTheme.Surface; _grid.BorderStyle = BorderStyle.None;
-            _grid.SelectionChanged += (s, e) => { if (_grid.CurrentRow != null && _grid.CurrentRow.Cells["Id"].Value is int id) ShowDetail(id); };
+            _grid.SelectionChanged += (s, e) => { if (!_binding && _grid.CurrentRow != null && _grid.CurrentRow.Cells["Id"].Value is int id) ShowDetail(id); };
             _grid.CellFormatting += GridFormatting;
             listCard.Controls.Add(_grid);
 
@@ -106,6 +106,8 @@ namespace CROMS.Forms
         }
 
         // ================================================================ data
+        private bool _binding;
+
         private void LoadList()
         {
             try { _rows = BreqsService.List(_search.Text, _showClosed.Checked); }
@@ -120,14 +122,16 @@ namespace CROMS.Forms
                 dt.Rows.Add(r.Id, r.RequestNo, r.CreatedAt.HasValue ? r.CreatedAt.Value.ToString("dd MMM yyyy") : "", r.RequesterName, r.DocumentLine,
                             r.Copies, BreqsService.DisplayStatus(r, today, _s), r.Status == BreqsService.Submitted ? MUi.D(r.ExpectedDate) : "");
             int keep = _selectedId;
-            _grid.DataSource = dt;
+            // Binding and reselecting each fire SelectionChanged; build the detail once, below.
+            _binding = true;
+            try { _grid.DataSource = dt; } finally { _binding = false; }
             if (_grid.Columns.Contains("Id")) _grid.Columns["Id"].Visible = false;
             if (_grid.Columns.Contains("Document")) _grid.Columns["Document"].FillWeight = 180;
             if (_grid.Columns.Contains("Copies")) _grid.Columns["Copies"].FillWeight = 62;
 
             RefreshKpis();
             if (keep > 0 && SelectRow(keep)) return;
-            if (_grid.Rows.Count > 0) _grid.Rows[0].Selected = true;
+            if (_grid.Rows.Count > 0 && _grid.Rows[0].Cells["Id"].Value is int first) SelectRow(first);
             else ShowDetail(0);
         }
 
@@ -136,7 +140,8 @@ namespace CROMS.Forms
             foreach (DataGridViewRow row in _grid.Rows)
                 if (row.Cells["Id"].Value is int v && v == id)
                 {
-                    _grid.CurrentCell = row.Cells[1];
+                    _binding = true;
+                    try { _grid.CurrentCell = row.Cells[1]; } finally { _binding = false; }
                     ShowDetail(id);
                     return true;
                 }
@@ -181,6 +186,16 @@ namespace CROMS.Forms
 
         // ================================================================ detail
         private void ShowDetail(int id)
+        {
+            // Rebuilt while HIDDEN: disposing ~30 visible child controls repaints the transparent
+            // card behind each one and measured 1.4 s; hidden, the whole rebuild is ~0.4 s.
+            bool wasVisible = _detail.Visible;
+            _detail.Visible = false;
+            try { BuildDetail(id); }
+            finally { _detail.Visible = wasVisible; }
+        }
+
+        private void BuildDetail(int id)
         {
             _selectedId = id;
             _detail.SuspendLayout();

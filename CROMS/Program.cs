@@ -169,7 +169,13 @@ namespace CROMS
             // window fade in once it is ready, instead of an empty pause and then a sudden pop.
             LoadingSplash.Show("Opening CROMS...");
             MainForm main;
-            try { main = new MainForm(); }
+            try
+            {
+                main = new MainForm();
+                // Build every screen now, behind the splash, so each sidebar click is instant later.
+                main.PreloadModules(LoadingSplash.SetStatus);
+                LoadingSplash.SetStatus("Opening CROMS...");
+            }
             catch { LoadingSplash.Close(); throw; }
             FormFade.In(main, 260);
             main.Shown += (s, e) => LoadingSplash.Close(false);
