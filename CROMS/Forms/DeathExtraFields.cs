@@ -72,6 +72,12 @@ namespace CROMS.Forms
             Row(t, "Transfer permit no. (24b)", _transferNo, "Permit date issued (24b)", _transferDate);
             Row(t, "Reviewed by - health officer", _reviewedBy, "Date reviewed", _reviewedDate);
 
+            // Widths of the deaths columns these feed (migration 57), so typing stops where the record can hold it.
+            _intImm.MaxLength = 40; _intAnt.MaxLength = 40; _intUnd.MaxLength = 40; _otherCond.MaxLength = 255;
+            _manner.MaxLength = 120; _extPlace.MaxLength = 120; _attendant.MaxLength = 80;
+            _certTitle.MaxLength = 80; _certAddr.MaxLength = 200;
+            _burialNo.MaxLength = 40; _transferNo.MaxLength = 40; _reviewedBy.MaxLength = 120;
+
             Page.Controls.Add(t);
         }
 

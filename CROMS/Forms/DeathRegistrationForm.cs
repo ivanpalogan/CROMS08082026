@@ -354,6 +354,17 @@ namespace CROMS.Forms
             _pod[0].MaxLength = 100;
             txtDispPlace.MaxLength = 200;   // deaths.place_of_disposal
             txtCInfAddr.MaxLength = 200;    // deaths.informant_address
+            // Widths of the deaths columns each box feeds, so typing stops where the record can no longer hold it.
+            // full_name (150) is the three name cells joined, so first 50 + middle 40 + last 50 + 2 spaces fits.
+            txtFirstName.MaxLength = 50; txtMiddleName.MaxLength = 40; txtLastName.MaxLength = 50;
+            txtBookVol.MaxLength = 30; txtBookPage.MaxLength = 20;
+            txtCInfName.MaxLength = 120; txtCInfRelOther.MaxLength = 50;   // relationship column is 60: "Others - " + 50
+            txtCPrepBy.MaxLength = 120; txtCPrepTitle.MaxLength = 80;
+            txtCRecvBy.MaxLength = 120; txtCRecvTitle.MaxLength = 80;
+            txtCRegBy.MaxLength = 120; txtCRegTitle.MaxLength = 80;
+            txtCertifier.MaxLength = 120; txtLicense.MaxLength = 50;
+            _cboDImm.MaxLength = 200; _cboDAnt.MaxLength = 200; _cboDUnd.MaxLength = 200;
+            _cboInfRel.MaxLength = 60;
         }
 
         /// <summary>A single pick-only combo, replacing <paramref name="tb"/> in its own cell.</summary>
