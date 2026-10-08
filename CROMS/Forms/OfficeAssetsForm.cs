@@ -37,6 +37,8 @@ namespace CROMS.Forms
         public OfficeAssetsForm()
         {
             InitializeComponent();
+            FieldLimit.FromDb("office_profile", "office_name", _txtOffice, "municipality", _txtMunicipality,
+                "province", _txtProvince, "registrar_name", _txtRegistrar, "registrar_title", _txtTitle);
         }
 
         // ===================================================================

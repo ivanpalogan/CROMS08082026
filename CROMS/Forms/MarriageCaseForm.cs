@@ -27,6 +27,7 @@ namespace CROMS.Forms
         {
             _id = marriageId;
             InitializeComponent();
+            FieldLimit.Cap(255, _basisNotes, _delayReason, _reviewNotes);   // marriages.exemption_notes / delay_reason / registrar_review_notes
         }
 
         private static void Stack(Control host, List<Control> items)

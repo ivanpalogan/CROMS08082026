@@ -331,6 +331,13 @@ namespace CROMS.Forms
         public CertificateRequestForm()
         {
             InitializeComponent();
+
+            // Boxes stop at the width of the column they save into. The three name boxes are joined
+            // into transactions.client_name (120): 44 + 30 + 44 + 2 spaces fits.
+            FieldLimit.Cap(44, txtFirst, txtLast);
+            FieldLimit.Cap(30, txtMiddle);
+            FieldLimit.Cap(3, txtCopies);
+            FieldLimit.FromDb("certificate_requests", "purpose", txtPurpose);
             cboCertType.Items.AddRange(new object[] { "CTC", "Negative" });
             cboCertType.SelectedItem = "CTC";
             cboRecordType.Items.AddRange(new object[] { "Birth", "Marriage", "Death" });

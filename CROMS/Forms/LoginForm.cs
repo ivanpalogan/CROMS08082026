@@ -39,6 +39,7 @@ namespace CROMS.Forms
         public LoginForm()
         {
             InitializeComponent();
+            FieldLimit.Cap(50, txtUser);                 // users.username
 
             // Show / hide the password — btnEye is owner-drawn as a vector eye icon
             // (Tag="noskin" tells UiTheme to leave its painting to us).

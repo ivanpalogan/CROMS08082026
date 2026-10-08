@@ -79,6 +79,13 @@ namespace CROMS.Kiosk
             IdNumberMask.Attach(_txtIdNo, _cboIdType);
             AutoCaps.Attach(_txtFirst, _txtMiddle, _txtLast, _txtFirst2, _txtMiddle2, _txtLast2);
             _txtContact.MaxLength = 20;
+            // Widths of the columns these feed. full_name (queue_tickets, 120) is First + Middle + Last
+            // joined, so 40 + 30 + 40 + 2 spaces fits; the spouse name column is 150.
+            foreach (TextBox t in new[] { _txtFirst, _txtLast, _txtFirst2, _txtLast2 }) t.MaxLength = 40;
+            foreach (TextBox t in new[] { _txtMiddle, _txtMiddle2 }) t.MaxLength = 30;
+            _txtIdNo.MaxLength = 60;          // valid-ID number
+            _txtClaimTicket.MaxLength = 30;   // a queue ticket code
+            _txtSubOrg.MaxLength = 150;       // queue_tickets.submitted_by_org
             _txtContact.KeyPress += ContactKeyPress;
             _txtContact.TextChanged += (s, e) => FormatContact();
             // The camera-state line draws its own status dot (no emoji).

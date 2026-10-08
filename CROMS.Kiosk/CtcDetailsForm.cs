@@ -49,6 +49,8 @@ namespace CROMS.Kiosk
             NameField.Attach(_spouseMiddle, true, "Full name or initial");
             NameField.Attach(_ownerSuffix, true, "Jr., Sr., III");
             NameField.Attach(_spouseSuffix, true, "Jr., Sr., III");
+            // Suffix columns are 20 wide and the registry number 40 (the name boxes are 60, the column width).
+            _ownerSuffix.MaxLength = 20; _spouseSuffix.MaxLength = 20; _registryNo.MaxLength = 40;
             AutoCaps.Attach(_ownerFirst, _ownerMiddle, _ownerLast, _ownerSuffix,
                 _spouseFirst, _spouseMiddle, _spouseLast, _spouseSuffix);
             WireErrorClearing();

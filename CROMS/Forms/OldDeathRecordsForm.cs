@@ -43,6 +43,38 @@ namespace CROMS.Forms
         {
             Text = "Death Record";
             InitializeComponent();
+
+            FieldLimit.Cap(3, txtAge);
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("deaths",
+                "age", txtAge,
+                "antecedent_cause", txtAntecedent,
+                "book_page", txtBookPage,
+                "book_volume", txtBookVol,
+                "citizenship", txtCitizenship,
+                "civil_status", txtCivil,
+                "digitized_by", txtDigitizedBy,
+                "disposal_method", txtDisposal,
+                "encoding_method", txtEncodingMethod,
+                "first_name", txtFirst,
+                "immediate_cause", txtImmediate,
+                "informant_address", txtInfAddr,
+                "informant_name", txtInfName,
+                "informant_relationship", txtInfRel,
+                "last_name", txtLast,
+                "middle_name", txtMiddle,
+                "place_of_death", txtPlace,
+                "place_of_disposal", txtDisposalPlace,
+                "prepared_by", txtPrepName,
+                "prepared_by_title", txtPrepTitle,
+                "received_by", txtRecvName,
+                "received_by_title", txtRecvTitle,
+                "registered_by", txtRegByName,
+                "registered_by_title", txtRegByTitle,
+                "registry_no", txtReg,
+                "religion_name", txtReligion,
+                "source_reference", txtSourceRef,
+                "underlying_cause", txtUnderlying);
             LoadBooks();
         }
 

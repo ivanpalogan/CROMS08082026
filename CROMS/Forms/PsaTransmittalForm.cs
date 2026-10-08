@@ -137,6 +137,7 @@ namespace CROMS.Forms
                 var office = MUi.Box();
                 try { office.Text = "PSA Provincial Statistical Office - " + Db.Pull("SELECT province FROM office_profile LIMIT 1").Rows[0][0]; } catch { }
                 var refNo = MUi.Box(); var rem = MUi.Box();
+                FieldLimit.Cap(150, office); FieldLimit.Cap(80, refNo); FieldLimit.Cap(255, rem);   // psa_transmittal_batches
                 var body = new Panel { Dock = DockStyle.Fill, Padding = new Padding(18, 12, 18, 0) };
                 var list = new List<Control> { MUi.Field("Submission date", date), MUi.Field("Submission method", method), MUi.Field("Receiving office", office),
                                                MUi.Field("Reference number (receipt / tracking / endorsement no.)", refNo), MUi.Field("Remarks", rem) };

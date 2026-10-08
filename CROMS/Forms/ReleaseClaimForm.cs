@@ -88,6 +88,10 @@ namespace CROMS.Forms
         public ReleaseClaimForm()
         {
             InitializeComponent();
+
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("releases", "claimant_name", txtClaimant,
+                "representative_id_type", txtIdType, "representative_id_number", txtIdNum);
             PopulateIdTypes();
             PopulateCameras();
             BuildResponsiveLayout();     // docked card layout (replaces the absolute one)

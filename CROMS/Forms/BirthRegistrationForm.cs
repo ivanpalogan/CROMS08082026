@@ -2231,6 +2231,9 @@ namespace CROMS.Forms
             FieldLimit.Cap(60, _cboInfRel);                     // informant_relationship
             FieldLimit.Cap(50, txtInfRelOther);
             FieldLimit.Cap(255, txtRemarks);
+            FieldLimit.Cap(5, txtWeight);                                       // grams
+            FieldLimit.Cap(3, txtMAge, txtFAge);                                // ages
+            FieldLimit.Cap(2, txtMBornAlive, txtMLiving, txtMDead);             // children counts
 
             _attAddr = CreateLookupCells(txtAttAddress, 3, new[] { "Province", "Municipality", "Barangay" });
             _attProvince = _attAddr[0];

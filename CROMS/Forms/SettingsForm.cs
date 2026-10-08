@@ -1904,11 +1904,11 @@ namespace CROMS.Forms
             ClientSize = new Size(420, 392);
 
             Controls.Add(Cap("Window Name", 20, 20));
-            _name = Field(20, 44); _name.Text = name ?? "";
+            _name = Field(20, 44); _name.Text = name ?? ""; _name.MaxLength = 50;   // windows.window_name
             Controls.Add(_name);
 
             Controls.Add(Cap("Description (optional)", 20, 92));
-            _desc = Field(20, 116); _desc.Text = desc ?? "";
+            _desc = Field(20, 116); _desc.Text = desc ?? ""; _desc.MaxLength = 255;   // windows.description
             Controls.Add(_desc);
 
             Controls.Add(Cap("Status", 20, 164));

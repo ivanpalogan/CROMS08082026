@@ -1217,7 +1217,7 @@ namespace CROMS.Modules
             "Referred to another office",
         };
 
-        private readonly ComboBox _reason = new ComboBox();
+        private readonly ComboBox _reason = new ComboBox { MaxLength = 255 };   // abandon_reason column is 255
 
         private AbandonReasonDialog(string title, string explain)
         {

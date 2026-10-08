@@ -24,6 +24,7 @@ namespace CROMS.Forms
         {
             _birthId = birthId;
             InitializeComponent();
+            FieldLimit.Cap(500, _txtEvaluation);         // births.delayed_evaluation
         }
 
         private void LoadCase()

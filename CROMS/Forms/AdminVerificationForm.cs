@@ -1,3 +1,4 @@
+using CROMS.Modules;
 using System;
 using System.Data;
 using System.Windows.Forms;
@@ -31,6 +32,7 @@ namespace CROMS.Forms
         public AdminVerificationForm()
         {
             InitializeComponent();
+            FieldLimit.Cap(50, txtUser);                 // users.username
         }
 
         private void btnVerify_Click(object sender, EventArgs e)

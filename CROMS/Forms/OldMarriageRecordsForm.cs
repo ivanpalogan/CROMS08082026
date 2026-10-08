@@ -45,6 +45,32 @@ namespace CROMS.Forms
         {
             Text = "Marriage Record";
             InitializeComponent();
+
+            FieldLimit.Cap(3, txtHAge, txtWAge);
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("marriages",
+                "book_page", txtBookPage,
+                "book_volume", txtBookVol,
+                "digitized_by", txtDigitizedBy,
+                "encoding_method", txtEncodingMethod,
+                "husband_age", txtHAge,
+                "husband_civil_status", txtHCivil,
+                "husband_first_name", txtHFirst,
+                "husband_last_name", txtHLast,
+                "husband_middle_name", txtHMiddle,
+                "husband_place_of_birth", txtHPlace,
+                "place_of_marriage", txtPlaceOfMarriage,
+                "registry_no", txtReg,
+                "remarks", txtRemarks,
+                "solemnizer", txtSolemnizer,
+                "source_reference", txtSourceRef,
+                "time_of_marriage", txtMarriageTime,
+                "wife_age", txtWAge,
+                "wife_civil_status", txtWCivil,
+                "wife_first_name", txtWFirst,
+                "wife_last_name", txtWLast,
+                "wife_middle_name", txtWMiddle,
+                "wife_place_of_birth", txtWPlace);
             LoadBooks();
         }
 

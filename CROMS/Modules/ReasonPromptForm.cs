@@ -11,6 +11,7 @@ namespace CROMS.Modules
         public ReasonPromptForm(string action, string target)
         {
             InitializeComponent();
+            FieldLimit.Cap(255, txtReason);              // every reason column is 255
             Text = action + " - Reason Required";
             lblTitle.Text = action + " requires a reason";
             lblSub.Text = "State why " + (target ?? "this record") + " is being " + action.ToLower() + "d. " +

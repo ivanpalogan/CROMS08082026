@@ -52,6 +52,13 @@ namespace CROMS.Forms
         {
             InitializeComponent();
 
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("payments", "or_number", _txtOr, "reference_no", _txtRef, "remarks", _txtRemarks,
+                "payer_name", _wPayer);
+            FieldLimit.FromDb("payments", "or_number", _wOr, "reference_no", _wRef, "remarks", _wRemarks);
+            FieldLimit.Cap(12, _txtTendered, _wTendered, _wUnit);   // money amounts
+            FieldLimit.FromDb("payments", "purpose", _wPurpose);
+
             _cboMethod.Items.AddRange(PaymentService.Methods);
             _cboMethod.SelectedIndex = 0;
             _txtTendered.TextChanged += (s, e) => Recalc();

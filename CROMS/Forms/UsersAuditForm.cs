@@ -30,6 +30,12 @@ namespace CROMS.Forms
         public UsersAuditForm()
         {
             InitializeComponent();
+
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("users", "username", txtUsername, "full_name", txtFullName);
+            FieldLimit.FromDb("staff_biodata", "employee_no", txtBioEmployeeNo, "position", txtBioPosition,
+                "civil_status", txtBioCivilStatus, "address", txtBioAddress, "contact_no", txtBioContactNo,
+                "emergency_contact_name", txtBioEmergencyName, "emergency_contact_no", txtBioEmergencyNo);
             LoadUsers();
             LoadUserPicker();
             LoadBiodata();

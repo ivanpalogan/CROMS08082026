@@ -29,6 +29,12 @@ namespace CROMS.Forms
         public StaffBiodataForm()
         {
             InitializeComponent();
+
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("users", "full_name", txtFullName);
+            FieldLimit.FromDb("staff_biodata", "employee_no", txtEmployeeNo, "position", txtPosition,
+                "civil_status", txtCivilStatus, "address", txtAddress, "contact_no", txtContactNo,
+                "emergency_contact_name", txtEmergencyName, "emergency_contact_no", txtEmergencyNo);
             pnlAvatar.Paint += (s, e) => AvatarPainter.Draw(e.Graphics, pnlAvatar.ClientRectangle, _photoBytes, Session.User?.FullName);
             LockAsReadOnly();
             LoadAccount();

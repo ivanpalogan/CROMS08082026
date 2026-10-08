@@ -357,6 +357,7 @@ namespace CROMS.Forms
             // Widths of the deaths columns each box feeds, so typing stops where the record can no longer hold it.
             // full_name (150) is the three name cells joined, so first 50 + middle 40 + last 50 + 2 spaces fits.
             txtFirstName.MaxLength = 50; txtMiddleName.MaxLength = 40; txtLastName.MaxLength = 50;
+            txtAge.MaxLength = 3;
             txtBookVol.MaxLength = 30; txtBookPage.MaxLength = 20;
             txtCInfName.MaxLength = 120; txtCInfRelOther.MaxLength = 50;   // relationship column is 60: "Others - " + 50
             txtCPrepBy.MaxLength = 120; txtCPrepTitle.MaxLength = 80;

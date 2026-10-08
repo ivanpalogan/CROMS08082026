@@ -43,6 +43,36 @@ namespace CROMS.Forms
         {
             Text = "Birth Record";
             InitializeComponent();
+
+            FieldLimit.Cap(5, txtWeight);   // grams
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("births",
+                "book_page", txtBookPage,
+                "book_volume", txtBookVol,
+                "digitized_by", txtDigitizedBy,
+                "encoding_method", txtEncodingMethod,
+                "father_citizenship", txtFCit,
+                "father_first_name", txtFFirst,
+                "father_last_name", txtFLast,
+                "father_middle_name", txtFMiddle,
+                "father_occupation", txtFOcc,
+                "father_religion", txtFRel,
+                "first_name", txtFirst,
+                "last_name", txtLast,
+                "middle_name", txtMiddle,
+                "mother_citizenship", txtMCit,
+                "mother_first_name", txtMFirst,
+                "mother_last_name", txtMLast,
+                "mother_middle_name", txtMMiddle,
+                "mother_occupation", txtMOcc,
+                "mother_religion", txtMRel,
+                "place_of_birth", txtPlace,
+                "registry_no", txtReg,
+                "remarks", txtRemarks,
+                "source_reference", txtSourceRef,
+                "time_of_birth", txtTob,
+                "type_of_birth", txtTypeOfBirth,
+                "weight_grams", txtWeight);
             LoadBooks();
         }
 

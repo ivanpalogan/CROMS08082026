@@ -49,6 +49,10 @@ namespace CROMS.Kiosk
             IdNumberMask.Attach(_txtIdNo, _cboIdType);
             AutoCaps.Attach(_txtOwnerFirst, _txtOwnerMiddle, _txtOwnerLast,
                 _txtSpouseFirst, _txtSpouseMiddle, _txtSpouseLast, _txtFather, _txtMother);
+            // Widths of the breqs_requests columns these feed.
+            foreach (TextBox t in new[] { _txtOwnerFirst, _txtOwnerMiddle, _txtOwnerLast, _txtSpouseFirst, _txtSpouseMiddle, _txtSpouseLast, _txtIdNo }) t.MaxLength = 60;
+            _txtFather.MaxLength = 150; _txtMother.MaxLength = 150;
+            _txtCity.MaxLength = 80; _txtProvince.MaxLength = 60;
 
             // One certificate per request: picking one clears the others.
             _pillBirth.CheckedChanged += (s, e) => { if (_pillBirth.Checked) { _pillMarriage.SetChecked(false); _pillDeath.SetChecked(false); } ApplyDocType(); };

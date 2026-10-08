@@ -86,7 +86,11 @@ namespace CROMS.Forms
         public PetitionsForm()
         {
             InitializeComponent();
+
             BuildLayout();
+            // Boxes stop at the width of the column they save into (read from the database).
+            FieldLimit.FromDb("petitions", "remarks", txtRemarks, "requester_name", txtRequester,
+                "requester_relationship", txtRelationship);
             UiTheme.Polish(this);
             LoadGrid();
             ClearForm();
@@ -1151,7 +1155,7 @@ namespace CROMS.Forms
             y += 32;
 
             Controls.Add(Cap("Treasury Official Receipt No.", y)); y += 24;
-            _txtOr = Field(y); Controls.Add(_txtOr); y += 40;
+            _txtOr = Field(y); _txtOr.MaxLength = 50; Controls.Add(_txtOr);   // payments.or_number y += 40;
 
             Controls.Add(Cap("Date Paid", y)); y += 24;
             _dtpPaid = new DateTimePicker
@@ -1162,7 +1166,7 @@ namespace CROMS.Forms
             Controls.Add(_dtpPaid); y += 44;
 
             Controls.Add(Cap("Amount (PHP)", y)); y += 24;
-            _txtAmount = Field(y); Controls.Add(_txtAmount); y += 44;
+            _txtAmount = Field(y); _txtAmount.MaxLength = 12; Controls.Add(_txtAmount);   // money amount y += 44;
 
             var record = new Button
             {

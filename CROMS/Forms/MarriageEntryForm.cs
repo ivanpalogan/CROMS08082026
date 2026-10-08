@@ -138,6 +138,10 @@ namespace CROMS.Forms
             FieldLimit.Cap(80, _solPos, _recvTitle);
             FieldLimit.Cap(150, _licPlace);
             FieldLimit.Cap(255, _remarks, _delay);
+            FieldLimit.FromDb("marriages", "exemption_notes", _exNotes, "license_no", _oopLicNo,
+                "registered_by_name", _registeredByName, "submitted_by_rep_name", _repName,
+                "submitted_by_rep_org", _repOrg, "exemption_basis", _exBasis);
+            FieldLimit.Cap(100, _church);                // churches.name
             foreach (SP sp in new[] { _h, _w })
             {
                 FieldLimit.Cap(50, sp.First, sp.Middle, sp.Last, sp.FatherCit, sp.MotherCit);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Windows.Forms;
 using CROMS.Data;
+using CROMS.Modules;
 using MySql.Data.MySqlClient;
 
 namespace CROMS.Forms
@@ -135,6 +136,7 @@ namespace CROMS.Forms
 
             _selectedId = null;
             txtName.Clear();
+            FieldLimit.FromDb(table, "name", txtName);   // each master table has its own name width
         }
 
         private void dgvItems_CellClick(object sender, DataGridViewCellEventArgs e)

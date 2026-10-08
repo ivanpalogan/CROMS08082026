@@ -90,7 +90,8 @@ namespace CROMS.Forms
                 FieldLimit.Cap(80, pb.Country);
             }
             FieldLimit.Cap(255, _remarks, _finding);   // remarks / impediment_note
-            FieldLimit.Cap(40, _orNo);                 // payment_or_no
+            FieldLimit.Cap(40, _orNo);
+            FieldLimit.Cap(12, _orAmt);                // money amount                 // payment_or_no
 
             if (licenseId.HasValue)
             {
