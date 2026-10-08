@@ -774,6 +774,20 @@ namespace CROMS.Data
         }
 
         /// <summary>First/middle/last/maiden name cells of a person, e.g. MotherFirst, FatherLast, ChildMiddle.</summary>
+        /// <summary>True when another name cell of the same person (Mother, Father, ...) already holds this value.</summary>
+        private static bool SiblingNameHas(DocAiResult result, string key, string value)
+        {
+            Match m = Regex.Match(key ?? "", @"^(Child|Mother|Father|Husband|Wife|Deceased)", RegexOptions.IgnoreCase);
+            if (!m.Success) return false;
+            foreach (DocField f in result.Fields)
+            {
+                if (string.Equals(f.Key, key, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!IsPersonNameKey(f.Key) || !f.Key.StartsWith(m.Value, StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals((f.Value ?? "").Trim(), (value ?? "").Trim(), StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+
         private static bool IsPersonNameKey(string key)
         {
             return Regex.IsMatch(key ?? "", @"^(Child|Mother|Father|Husband|Wife|Deceased)(First|Middle|Last)$",
@@ -861,8 +875,13 @@ namespace CROMS.Data
                 // passes the field's own shape rules.
                 if (have != null && !string.IsNullOrWhiteSpace(have.Value) && have.FromRegion
                     && have.RegionConfidence < 90 && IsPersonNameKey(p.Key)
-                    && !string.Equals(have.Value, p.Value, StringComparison.OrdinalIgnoreCase))
+                    && !string.Equals(have.Value, p.Value, StringComparison.OrdinalIgnoreCase)
+                    && !SiblingNameHas(result, p.Key, p.Value))
                 {
+                    // (SiblingNameHas: a label value that is already another cell of the SAME
+                    // person is that cell's name read from the shifted row - Birth Certificate.jpeg
+                    // 2026-10-08: the box read SHEILA, the label pass offered ARTICULO, which was
+                    // already the mother's middle name, and it replaced the correct first name.)
                     int labelScore = DocIntelligence.ScoreValue(p.Value, ocr, out System.Drawing.Rectangle _);
                     int vscore;
                     string v = RegionReader.Vet(layout, p.Key, p.Value, out vscore);
