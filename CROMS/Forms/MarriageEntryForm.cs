@@ -1372,7 +1372,7 @@ namespace CROMS.Forms
                             RefreshRail();
                             dlg.DialogResult = DialogResult.OK;
                         }
-                        catch (Exception ex) { lblStatus.Text = "Could not save: " + ex.Message; applied = false; poll.Start(); }
+                        catch (Exception ex) { lblStatus.Text = "Could not save: " + ErrorLog.Text(ex); applied = false; poll.Start(); }
                     }
                 };
                 poll.Start();

@@ -232,7 +232,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not record payment:\n" + ex.Message, "Not recorded", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Could not record payment:\n" + ErrorLog.Text(ex), "Not recorded", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 
@@ -439,7 +439,7 @@ namespace CROMS.Forms
                 PrintReceipt();
                 ClearWalkIn();
             }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Not recorded", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { MessageBox.Show(this, ErrorLog.Text(ex), "Not recorded", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         private void ClearWalkIn()
@@ -493,7 +493,7 @@ namespace CROMS.Forms
                 _fGrid.Columns["Amount (PHP)"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
                 _fGrid.Columns["Fee"].FillWeight = 200; _fGrid.Columns["On the office card"].FillWeight = 180;
             }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Fee schedule", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { MessageBox.Show(this, ErrorLog.Text(ex), "Fee schedule", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         private void SaveFees()
@@ -518,7 +518,7 @@ namespace CROMS.Forms
                 LoadFees();
                 ReloadFeeCombo();
             }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, "Fee schedule", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { MessageBox.Show(this, ErrorLog.Text(ex), "Fee schedule", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         // ================================================================ printing (58mm slip)

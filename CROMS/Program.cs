@@ -24,6 +24,11 @@ namespace CROMS
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // Last-resort net for a save path nobody guarded: log the real exception and show one
+            // plain sentence (for "Data too long" it names the column) instead of .NET's raw crash box.
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += (s, e) => ErrorLog.ShowUnhandled(e.Exception);
+
             // Launcher: pick what opens on THIS computer. Display / Kiosk launch as their own
             // sibling .exe and this process exits; Admin (and "Run All Three") continue here.
             LauncherChoice choice = LauncherForm.Ask();

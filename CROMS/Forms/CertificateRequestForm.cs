@@ -658,7 +658,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not create request: " + ex.Message, "Error",
+                MessageBox.Show("Could not create request: " + ErrorLog.Text(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

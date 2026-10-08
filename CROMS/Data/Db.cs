@@ -1,4 +1,5 @@
 using System.Configuration;
+using System.Text.RegularExpressions;
 using System.Data;
 using MySql.Data.MySqlClient;
 
@@ -21,6 +22,26 @@ namespace CROMS.Data
         // takes effect without a restart. Falls back to the App.config "Croms"
         // string when no server has been configured on this PC.
         private static string ConnectionString => ServerConfig.EffectiveConnectionString;
+
+        /// <summary>
+        /// Exception-filter helper (always returns false, so nothing is caught or rethrown):
+        /// notes which table a "Data too long" (1406) write was aimed at on <c>ex.Data["table"]</c>,
+        /// so <c>ErrorLog</c> can name the column AND its limit. Costs nothing on any other error.
+        /// </summary>
+        internal static bool TagTable(MySqlException ex, string sql)
+        {
+            try
+            {
+                if (ex != null && ex.Number == 1406 && sql != null)
+                {
+                    Match m = Regex.Match(sql, @"^\s*(?:INSERT\s+(?:IGNORE\s+)?INTO|REPLACE\s+INTO|UPDATE)\s+`?(\w+)`?",
+                        RegexOptions.IgnoreCase);
+                    if (m.Success) ex.Data["table"] = m.Groups[1].Value;
+                }
+            }
+            catch { }
+            return false;
+        }
 
         /// <summary>Returns true if a connection to the database can be opened.</summary>
         public static bool IsConnected()
@@ -46,7 +67,8 @@ namespace CROMS.Data
             using (var cmd = new MySqlCommand(sql, conn))
             {
                 conn.Open();
-                return cmd.ExecuteNonQuery();
+                try { return cmd.ExecuteNonQuery(); }
+                catch (MySqlException ex) when (TagTable(ex, sql)) { throw; }
             }
         }
 
@@ -65,7 +87,8 @@ namespace CROMS.Data
                 if (parameters != null)
                     cmd.Parameters.AddRange(parameters);
                 conn.Open();
-                return cmd.ExecuteNonQuery();
+                try { return cmd.ExecuteNonQuery(); }
+                catch (MySqlException ex) when (TagTable(ex, sql)) { throw; }
             }
         }
 
@@ -109,7 +132,8 @@ namespace CROMS.Data
                 if (parameters != null)
                     cmd.Parameters.AddRange(parameters);
                 conn.Open();
-                cmd.ExecuteNonQuery();
+                try { cmd.ExecuteNonQuery(); }
+                catch (MySqlException ex) when (TagTable(ex, sql)) { throw; }
                 return cmd.LastInsertedId;
             }
         }

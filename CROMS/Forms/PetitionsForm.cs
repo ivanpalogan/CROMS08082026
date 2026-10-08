@@ -1087,7 +1087,7 @@ namespace CROMS.Forms
 
         private static string Str(object v) => v == null || v == DBNull.Value ? "" : v.ToString();
         private static void Fail(Exception ex) =>
-            MessageBox.Show("Operation failed: " + ex.Message, "Error",
+            MessageBox.Show("Operation failed: " + ErrorLog.Text(ex), "Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
@@ -1237,7 +1237,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Filing Fee", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ErrorLog.Text(ex), "Filing Fee", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 

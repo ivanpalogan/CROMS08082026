@@ -534,7 +534,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                _msg.Text = "Could not save: " + ex.Message;
+                _msg.Text = "Could not save: " + ErrorLog.Text(ex);
             }
         }
     }

@@ -54,6 +54,11 @@ namespace CROMS.Data
             MySqlException my = Find(ex);
             if (my != null)
             {
+                // 1406: a value is longer than its column. Name the column - "Sorry, we could not save
+                // this" would send the clerk hunting for a problem that is one over-long box.
+                if (my.Number == 1406)
+                    return TooLongSentence(my);
+
                 // 1054 / 1146: a column or table a newer build expects is not in this database yet.
                 // The rest of the project degrades on this rather than crashing; here it is a
                 // sentence that names the real remedy.
@@ -72,6 +77,46 @@ namespace CROMS.Data
             return "Sorry, we could not " + doing + " this just now. Please try again, or ask the staff for help.";
         }
 
+        /// <summary>
+        /// Text for a catch block that shows an exception's own message: the plain sentence for
+        /// "Data too long" (error 1406), which names the column, and <c>ex.Message</c> for everything
+        /// else, so existing messages (including business rules) are unchanged.
+        /// </summary>
+        public static string Text(Exception ex)
+        {
+            MySqlException my = Find(ex);
+            if (my != null && my.Number == 1406) return TooLongSentence(my);
+            return ex == null ? "" : ex.Message;
+        }
+
+        /// <summary>The column named in MySQL's "Data too long for column 'x' at row 1", or null.</summary>
+        public static string TooLongColumn(Exception ex)
+        {
+            MySqlException my = Find(ex);
+            if (my == null || my.Number != 1406 || my.Message == null) return null;
+            int a = my.Message.IndexOf('\'');
+            if (a < 0) return null;
+            int b = my.Message.IndexOf('\'', a + 1);
+            return b > a + 1 ? my.Message.Substring(a + 1, b - a - 1) : null;
+        }
+
+        private static string TooLongSentence(MySqlException my)
+        {
+            string col = TooLongColumn(my);
+            string table = my.Data != null && my.Data.Contains("table") ? my.Data["table"] as string : null;
+            if (string.IsNullOrEmpty(col))
+                return "One of the entries is too long to be saved. Please shorten the longest text and try again.";
+
+            string name = col.Replace('_', ' ');
+            string limit = "";
+            if (!string.IsNullOrEmpty(table))
+            {
+                int w = Modules.FieldLimit.WidthOf(table, col);
+                if (w > 0) limit = " (the most it can hold is " + w + " characters)";
+            }
+            return "The \"" + name + "\" entry is too long to be saved" + limit + ". Please shorten it and try again.";
+        }
+
         /// <summary>Logs, then tells the user. The one call a catch block needs.</summary>
         public static void Report(IWin32Window owner, string where, Exception ex, string doing)
         {
@@ -83,6 +128,22 @@ namespace CROMS.Data
                 else MessageBox.Show(msg, "Something went wrong", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch { /* nothing more can be done if even a message box fails */ }
+        }
+
+        /// <summary>
+        /// For <c>Application.ThreadException</c>: an exception that escaped every catch block on the
+        /// UI thread. Logged in full; the user sees the friendly sentence (a too-long value names its
+        /// column), and the app keeps running instead of showing the raw .NET crash dialog.
+        /// </summary>
+        public static void ShowUnhandled(Exception ex)
+        {
+            Write("Unhandled UI exception", ex);
+            try
+            {
+                MessageBox.Show(Friendly(ex, "complete") + "\n\n(Technical details were saved for the administrator.)",
+                    "Something went wrong", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            catch { }
         }
 
         private static MySqlException Find(Exception ex)

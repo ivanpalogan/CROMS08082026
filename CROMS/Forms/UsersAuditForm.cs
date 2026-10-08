@@ -415,7 +415,7 @@ namespace CROMS.Forms
         }
 
         private static void Fail(Exception ex) =>
-            MessageBox.Show("Operation failed: " + ex.Message, "Error",
+            MessageBox.Show("Operation failed: " + ErrorLog.Text(ex), "Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 }

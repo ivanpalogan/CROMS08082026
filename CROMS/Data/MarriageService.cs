@@ -44,7 +44,8 @@ namespace CROMS.Data
             using (var cmd = new MySqlCommand(sql, c, t))
             {
                 cmd.Parameters.AddRange(ps);
-                return cmd.ExecuteNonQuery();
+                try { return cmd.ExecuteNonQuery(); }
+                catch (MySqlException ex) when (Db.TagTable(ex, sql)) { throw; }
             }
         }
 
@@ -53,7 +54,8 @@ namespace CROMS.Data
             using (var cmd = new MySqlCommand(sql, c, t))
             {
                 cmd.Parameters.AddRange(ps);
-                cmd.ExecuteNonQuery();
+                try { cmd.ExecuteNonQuery(); }
+                catch (MySqlException ex) when (Db.TagTable(ex, sql)) { throw; }
                 return cmd.LastInsertedId;
             }
         }

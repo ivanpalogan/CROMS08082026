@@ -973,7 +973,7 @@ namespace CROMS.Forms
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Could not save: " + ex.Message, "Seal / Stamp",
+                    MessageBox.Show("Could not save: " + ErrorLog.Text(ex), "Seal / Stamp",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }

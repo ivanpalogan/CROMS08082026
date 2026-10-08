@@ -240,7 +240,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not save: " + ex.Message, kind.ToString(),
+                MessageBox.Show("Could not save: " + ErrorLog.Text(ex), kind.ToString(),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

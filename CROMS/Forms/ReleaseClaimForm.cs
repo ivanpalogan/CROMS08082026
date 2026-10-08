@@ -2205,7 +2205,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not release: " + ex.Message, "Error",
+                MessageBox.Show("Could not release: " + ErrorLog.Text(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -2288,7 +2288,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not release: " + ex.Message, "Error",
+                MessageBox.Show("Could not release: " + ErrorLog.Text(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

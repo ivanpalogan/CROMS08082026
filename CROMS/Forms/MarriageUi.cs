@@ -423,7 +423,7 @@ namespace CROMS.Forms
 
         public static void Fail(IWin32Window owner, Exception ex)
         {
-            MessageBox.Show(owner, ex.Message, "Could not complete", MessageBoxButtons.OK,
+            MessageBox.Show(owner, ErrorLog.Text(ex), "Could not complete", MessageBoxButtons.OK,
                 ex is UnauthorizedAccessException ? MessageBoxIcon.Warning : MessageBoxIcon.Error);
         }
 

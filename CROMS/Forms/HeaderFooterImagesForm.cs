@@ -274,7 +274,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Could not save: " + ex.Message, row.Caption,
+                MessageBox.Show(this, "Could not save: " + ErrorLog.Text(ex), row.Caption,
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
