@@ -130,6 +130,22 @@ namespace CROMS.Forms
             BuildLicense();
             BuildSolemnization();
             BuildCertification();
+
+            // Widths of the marriages columns each box feeds (typing and pasting stop at the limit).
+            FieldLimit.Cap(30, _reg, _book, _tom);
+            FieldLimit.Cap(20, _page);
+            FieldLimit.Cap(120, _sol, _w1, _w2, _recvBy);
+            FieldLimit.Cap(80, _solPos, _recvTitle);
+            FieldLimit.Cap(150, _licPlace);
+            FieldLimit.Cap(255, _remarks, _delay);
+            foreach (SP sp in new[] { _h, _w })
+            {
+                FieldLimit.Cap(50, sp.First, sp.Middle, sp.Last, sp.FatherCit, sp.MotherCit);
+                FieldLimit.Cap(80, sp.BirthCountry);
+                FieldLimit.Cap(120, sp.Father, sp.Mother);
+                FieldLimit.Cap(150, sp.ConsentName);
+                FieldLimit.Cap(60, sp.ConsentRel);
+            }
             UiTheme.Polish(this);
 
             _loading = true;

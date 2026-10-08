@@ -2215,6 +2215,23 @@ namespace CROMS.Forms
             _pomProvince = _pom[1];
             _pomMunicipality = _pom[2];
 
+            // Widths of the births columns each box feeds (typing and pasting stop at the limit).
+            FieldLimit.Cap(30, txtRegNo, txtBook);
+            FieldLimit.Cap(20, txtBookPage);
+            FieldLimit.Cap(50, txtFirstName, txtMiddleName, txtLastName);
+            FieldLimit.Cap(80, _pobCountry);
+            FieldLimit.Cap(50, txtMFirst, txtMMiddle, txtMLast, txtFFirst, txtFMiddle, txtFLast,
+                _cboMCit, _cboMRel, _cboFCit, _cboFRel);
+            FieldLimit.Cap(80, _cboMOcc, _cboFOcc);
+            FieldLimit.Cap(100, _pom[0]);                       // church; parents_marriage_place is the 3 cells joined
+            FieldLimit.Cap(120, txtAttName, txtInfName, txtPreparedBy, txtReceivedBy, txtRegisteredBy);
+            FieldLimit.Cap(80, txtAttTitle, txtPreparedTitle, txtReceivedTitle, txtRegisteredTitle);
+            FieldLimit.Cap(40, cboAttType);                     // attendant_type
+            FieldLimit.Cap(30, txtAttTypeOther);                // "Others - " + detail fits the 40-char column
+            FieldLimit.Cap(60, _cboInfRel);                     // informant_relationship
+            FieldLimit.Cap(50, txtInfRelOther);
+            FieldLimit.Cap(255, txtRemarks);
+
             _attAddr = CreateLookupCells(txtAttAddress, 3, new[] { "Province", "Municipality", "Barangay" });
             _attProvince = _attAddr[0];
             _attMunicipality = _attAddr[1];

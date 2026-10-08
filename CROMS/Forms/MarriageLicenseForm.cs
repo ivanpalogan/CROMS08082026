@@ -81,6 +81,16 @@ namespace CROMS.Forms
             // Six citizenship boxes per applicant pair now read this list; load it once.
             _nationalities = Lookup("nationalities").ToList();
             InitializeComponent();
+            // Widths of the marriage_licenses columns each box feeds (typing and pasting stop at the limit).
+            foreach (PartyBox pb in new[] { _h, _w })
+            {
+                FieldLimit.Cap(60, pb.First, pb.Middle, pb.Last, pb.FFirst, pb.FMiddle, pb.FLast,
+                    pb.MFirst, pb.MMiddle, pb.MLast, pb.CFirst, pb.CMiddle, pb.CLast,
+                    pb.Cit, pb.Religion, pb.FCit, pb.MCit, pb.CCit, pb.CRel);
+                FieldLimit.Cap(80, pb.Country);
+            }
+            FieldLimit.Cap(255, _remarks, _finding);   // remarks / impediment_note
+            FieldLimit.Cap(40, _orNo);                 // payment_or_no
 
             if (licenseId.HasValue)
             {
