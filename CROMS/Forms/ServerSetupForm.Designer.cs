@@ -63,6 +63,7 @@ namespace CROMS.Forms
             //
             // _txtHost
             //
+            this._txtHost.MaxLength = 255;   // a host name / IP address
             this._txtHost.Font = new Font("Segoe UI", 11F);
             this._txtHost.Location = new Point(24, 126);
             this._txtHost.Size = new Size(260, 28);
@@ -75,6 +76,7 @@ namespace CROMS.Forms
             //
             // _txtPort
             //
+            this._txtPort.MaxLength = 5;     // 1-65535
             this._txtPort.Font = new Font("Segoe UI", 11F);
             this._txtPort.Location = new Point(302, 126);
             this._txtPort.Size = new Size(114, 28);

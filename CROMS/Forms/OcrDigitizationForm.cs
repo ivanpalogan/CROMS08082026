@@ -225,6 +225,7 @@ namespace CROMS.Forms
             // Clicking a field name also zooms the scan onto where that value was read.
             dgvFields.CurrentCellChanged += DgvFields_ZoomOnSelect;
             dgvFields.CellEndEdit += DgvFields_CellEndEdit;
+            dgvFields.EditingControlShowing += DgvFields_EditingControlShowing;
             dgvFields.CurrentCellDirtyStateChanged += (s, e) =>
             {
                 if (dgvFields.IsCurrentCellDirty && dgvFields.CurrentCell != null
@@ -1798,7 +1799,7 @@ namespace CROMS.Forms
                     "Not classified", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            if (!RequiredFieldsPresent()) return;
+            if (!RequiredFieldsPresent() || !ValuesFitColumns()) return;
             if (!Confirm("auto-fill " + ModuleName(_kind))) return;
 
             Dictionary<string, string> vals = Values();
@@ -2123,6 +2124,78 @@ namespace CROMS.Forms
             }
         }
 
+        /// <summary>
+        /// Widest value the record can store for a grid field, read from the column the field is
+        /// saved into (0 = no known limit: a date, a number, or a field that is not saved as text).
+        /// The grid, Commit, Draft and Auto-Fill all use this one answer, so a box and its column
+        /// cannot disagree.
+        /// </summary>
+        private int LimitFor(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return 0;
+            string table = TableFor(_kind);
+            if (string.IsNullOrEmpty(table)) return 0;
+            switch (key)
+            {
+                // `deaths` keeps one joined full_name (150): first 50 + middle 40 + last 50 + 2 spaces fits.
+                case "DeceasedFirst": case "DeceasedLast": return 50;
+                case "DeceasedMiddle": return 40;
+                case "FullName": return 150;
+                case "BookVolume": return FieldLimit.WidthOf(table, "book_volume");
+                case "BookPage": return FieldLimit.WidthOf(table, "book_page");
+                case "Nationality": return FieldLimit.WidthOf(table, "mother_citizenship");
+                // One religion value is written to BOTH parents' columns on a birth: use the narrower.
+                case "Religion" when table == "births":
+                    return Math.Min(FieldLimit.WidthOf(table, "mother_religion"), FieldLimit.WidthOf(table, "father_religion"));
+                case "PlaceOfMarriage": return FieldLimit.WidthOf(table, "place_of_marriage");
+            }
+            string col;
+            if (_formDef != null && _formDef.Columns.TryGetValue(key, out col))
+                return FieldLimit.WidthOf(table, col);
+            return 0;
+        }
+
+        /// <summary>Typing and pasting in a grid cell stop at the column width.</summary>
+        private void DgvFields_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+            TextBox tb = e.Control as TextBox;
+            if (tb == null) return;
+            DataGridViewRow row = dgvFields.CurrentRow;
+            DocField f = row == null ? null : row.Tag as DocField;
+            tb.MaxLength = (f != null && dgvFields.CurrentCell != null
+                && dgvFields.CurrentCell.OwningColumn.Name == "Value") ? Math.Max(0, LimitFor(f.Key)) : 0;
+        }
+
+        /// <summary>
+        /// A value the scan produced (not typed, so no box stopped it) can still be longer than
+        /// its column. Refuse to save or route it and say which field, instead of letting MySQL
+        /// answer "Data too long".
+        /// </summary>
+        private bool ValuesFitColumns()
+        {
+            if (_result == null) return true;
+            var bad = new List<string>();
+            DocField first = null;
+            foreach (DocField f in _result.Fields)
+            {
+                int w = LimitFor(f.Key);
+                int n = V(f.Key).Length;
+                if (w > 0 && n > w)
+                {
+                    bad.Add(f.Label + " (" + n + " characters, the record holds " + w + ")");
+                    if (first == null) first = f;
+                }
+            }
+            if (bad.Count == 0) return true;
+            foreach (DataGridViewRow r in dgvFields.Rows)
+                if (r.Tag == first) { r.Visible = true; dgvFields.CurrentCell = r.Cells["Value"]; break; }
+            MessageBox.Show(this,
+                "These values are too long to be saved:\n\n  " + string.Join("\n  ", bad) +
+                "\n\nShorten them in the grid (usually a scan misread), then continue.",
+                "Value too long", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
         private bool ReadyToSave()
         {
             if (_result == null || _kind == DocKind.Unknown)
@@ -2154,7 +2227,7 @@ namespace CROMS.Forms
                     "Held for review", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }
-            return RequiredFieldsPresent();
+            return RequiredFieldsPresent() && ValuesFitColumns();
         }
 
         /// <summary>

@@ -156,7 +156,7 @@ namespace CROMS.Forms
                 dlg.ClientSize = new System.Drawing.Size(360, 130);
 
                 dlg.Controls.Add(new Label { Text = label, AutoSize = true, Location = new System.Drawing.Point(16, 16), Font = new System.Drawing.Font("Segoe UI", 9.75F) });
-                var txt = new TextBox { Text = initial, Location = new System.Drawing.Point(16, 44), Size = new System.Drawing.Size(328, 28), Font = new System.Drawing.Font("Segoe UI", 11F) };
+                var txt = new TextBox { Text = initial, Location = new System.Drawing.Point(16, 44), Size = new System.Drawing.Size(328, 28), Font = new System.Drawing.Font("Segoe UI", 11F), MaxLength = 50 };   // windows.window_name is VARCHAR(50)
                 dlg.Controls.Add(txt);
 
                 var ok = new Button { Text = "OK", DialogResult = DialogResult.OK, Location = new System.Drawing.Point(168, 84), Size = new System.Drawing.Size(80, 32), FlatStyle = FlatStyle.Flat };
