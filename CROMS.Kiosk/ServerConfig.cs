@@ -120,8 +120,26 @@ namespace CROMS.Kiosk
             get
             {
                 var cs = ConfigurationManager.ConnectionStrings["Croms"];
-                return cs != null ? cs.ConnectionString : "";
+                return cs != null ? RequireTls(cs.ConnectionString) : "";
             }
+        }
+
+        /// <summary>
+        /// Data Privacy Act: names, IDs and scans must not cross the LAN in clear. Whatever the
+        /// config says, a Disabled/Preferred SslMode is raised to Required. VerifyCA and
+        /// VerifyFull are left alone (an office that installs the CA may choose them).
+        /// </summary>
+        private static string RequireTls(string cs)
+        {
+            if (string.IsNullOrEmpty(cs)) return cs;
+            try
+            {
+                var b = new MySqlConnectionStringBuilder(cs);
+                if (b.SslMode == MySqlSslMode.Disabled || b.SslMode == MySqlSslMode.Preferred)
+                    b.SslMode = MySqlSslMode.Required;
+                return b.ConnectionString;
+            }
+            catch { return cs; }
         }
 
         // LAN account used automatically for a REMOTE server (root is localhost-only;

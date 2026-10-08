@@ -205,7 +205,7 @@ This is the reworked component. Three separate Windows applications share one da
   LAN/Wi-Fi/mobile-hotspot. There is **no local offline cache and no store-and-forward sync** —
   if the DB server is unreachable, the app shows the Connect-to-Server screen instead of
   working offline.
-- MySQL connection uses `SslMode=Disabled` on the LAN.
+- MySQL connections use TLS (`SslMode=Required`, enforced in code since 2026-10-09).
 - Companion mobile apps are served from the staff PC itself: CROMS auto-starts two Ionic/Angular
   dev servers on launch (`IonicServerManager.cs`) — the certificate scanner on port 4200 (http)
   and the **claimapp** ID-upload app on port 4300 — plus a Node save-API. Phones reach them over
