@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using CROMS.Data;
 using CROMS.Forms;
+using CROMS.Modules;
 
 namespace CROMS
 {
@@ -48,6 +49,10 @@ namespace CROMS
                     break;   // then continue into the Admin app below
             }
 
+            // From here until the sign-in window there is work but nothing on screen; the splash
+            // says what is happening instead of leaving a blank pause before a window pops up.
+            LoadingSplash.Show("Starting CROMS...");
+
             // Put a clickable CROMS icon on the desktop (first run only).
             DesktopShortcut.Ensure();
 
@@ -67,7 +72,9 @@ namespace CROMS
             // sweeping the LAN on every launch of the server machine.
             ServerBeacon.BeatNow();
 
-            if (!EnsureServerReachable()) return;   // user chose Exit
+            LoadingSplash.SetStatus("Connecting to the database...");
+            if (!EnsureServerReachable()) { LoadingSplash.Close(); return; }   // user chose Exit
+            LoadingSplash.SetStatus("Starting services...");
 
             // Keep reconnecting if the server's Wi-Fi/hotspot IP changes mid-session,
             // or if this PC drifts onto a database nobody is serving.
@@ -125,13 +132,15 @@ namespace CROMS
             // just authorized, resume their session (and window) so they aren't forced
             // to re-enter the password. One-time, short-lived, account-bound token;
             // false for every normal launch → login is required as usual.
+            LoadingSplash.SetStatus("Almost ready...");
             if (!SessionResume.TryConsume())
             {
+                LoadingSplash.Close();
                 // Sign-in and window selection are one loop: the window screen's Log out button
                 // comes straight back here rather than dropping the operator into the app.
                 while (true)
                 {
-                    using (var login = new LoginForm())
+                    using (var login = FormFade.In(new LoginForm()))
                     {
                         if (login.ShowDialog() != DialogResult.OK)
                         {
@@ -144,7 +153,7 @@ namespace CROMS
 
                     // Window selection: claim a window (Online) + confirm what it handles.
                     // Skippable for staff not manning a window (e.g. admins).
-                    using (var assign = new WindowAssignmentForm())
+                    using (var assign = FormFade.In(new WindowAssignmentForm()))
                     {
                         if (assign.ShowDialog() != DialogResult.Abort) break;   // proceed into the app
                     }
@@ -156,7 +165,15 @@ namespace CROMS
                 }
             }
 
-            Application.Run(new MainForm());
+            // Building the main window queries the dashboard; show the splash meanwhile and let the
+            // window fade in once it is ready, instead of an empty pause and then a sudden pop.
+            LoadingSplash.Show("Opening CROMS...");
+            MainForm main;
+            try { main = new MainForm(); }
+            catch { LoadingSplash.Close(); throw; }
+            FormFade.In(main, 260);
+            main.Shown += (s, e) => LoadingSplash.Close(false);
+            Application.Run(main);
         }
 
         /// <summary>
@@ -175,6 +192,8 @@ namespace CROMS
             // server_beacon is freshest, and only sweeps the LAN when the database in
             // effect is unreachable or unserved.
             if (ServerConfig.EnsureBestServer() && Db.IsConnected()) return true;
+
+            LoadingSplash.Close();   // the setup window needs the screen
 
             string msg = ServerConfig.IsConfigured
                 ? "Couldn't reach the CROMS database at " + ServerConfig.Host +

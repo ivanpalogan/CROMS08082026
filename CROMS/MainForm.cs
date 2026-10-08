@@ -818,31 +818,106 @@ namespace CROMS
                 return;
             }
 
-            if (!_cache.TryGetValue(key, out var form))
+            // Switching modules used to repaint piece by piece (each control drawing itself as it was
+            // created or refreshed), so a screen visibly assembled itself. Now: a first-time module
+            // shows a "Loading ..." card at once, the content panel stops drawing while the module is
+            // built and refreshed, and the finished screen appears in one paint.
+            bool live = contentPanel.IsHandleCreated && contentPanel.Visible;
+            Control loading = (live && !_cache.ContainsKey(key)) ? ShowLoadingCard(module.Title) : null;
+            Cursor.Current = Cursors.WaitCursor;
+            if (live) SetRedraw(contentPanel, false);
+            try
             {
-                form = module.Factory();
-                form.TopLevel = false;
-                form.FormBorderStyle = FormBorderStyle.None;
-                form.Dock = DockStyle.Fill;
-                // Some module forms are laid out wider/taller than the content panel on
-                // smaller screens; AutoScroll makes any clipped controls (e.g. the right-
-                // side action buttons/panels) reachable instead of being cut off.
-                form.AutoScroll = true;
-                _cache[key] = form;
-                contentPanel.Controls.Add(form);
-                SuppressDuplicateModuleTitle(form, module.Title);
-                form.Show();
-                UiTheme.PolishButtons(form);   // consistent hand cursor + hover on every module's buttons
-            }
+                if (!_cache.TryGetValue(key, out var form))
+                {
+                    form = module.Factory();
+                    form.TopLevel = false;
+                    form.FormBorderStyle = FormBorderStyle.None;
+                    form.Dock = DockStyle.Fill;
+                    // Some module forms are laid out wider/taller than the content panel on
+                    // smaller screens; AutoScroll makes any clipped controls (e.g. the right-
+                    // side action buttons/panels) reachable instead of being cut off.
+                    form.AutoScroll = true;
+                    _cache[key] = form;
+                    contentPanel.Controls.Add(form);
+                    SuppressDuplicateModuleTitle(form, module.Title);
+                    form.Show();
+                    UiTheme.PolishButtons(form);   // consistent hand cursor + hover on every module's buttons
+                }
 
-            form.BringToFront();
-            // Cached forms are reused, so re-pull their data every time the module is
-            // shown — keeps cross-module views (e.g. Release & Claim's pending list) live.
-            if (form is IRefreshable refreshable) refreshable.RefreshData();
-            _activeKey = key;
-            headerLabel.Text = module.Title;
-            RefreshQueueHeader();
-            SetActiveButton(key);
+                form.BringToFront();
+                // Cached forms are reused, so re-pull their data every time the module is
+                // shown — keeps cross-module views (e.g. Release & Claim's pending list) live.
+                if (form is IRefreshable refreshable) refreshable.RefreshData();
+                _activeKey = key;
+                headerLabel.Text = module.Title;
+                RefreshQueueHeader();
+                SetActiveButton(key);
+            }
+            finally
+            {
+                if (loading != null) { contentPanel.Controls.Remove(loading); loading.Dispose(); }
+                if (live)
+                {
+                    SetRedraw(contentPanel, true);
+                    RedrawWindow(contentPanel.Handle, IntPtr.Zero, IntPtr.Zero,
+                        RDW_ERASE | RDW_FRAME | RDW_INVALIDATE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+                }
+                Cursor.Current = Cursors.Default;
+            }
+        }
+
+        private const int WM_SETREDRAW = 0x000B;
+        private const uint RDW_INVALIDATE = 0x0001, RDW_ERASE = 0x0004, RDW_ALLCHILDREN = 0x0080,
+                           RDW_UPDATENOW = 0x0100, RDW_FRAME = 0x0400;
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        private static extern bool RedrawWindow(IntPtr hWnd, IntPtr rect, IntPtr region, uint flags);
+
+        private static void SetRedraw(Control c, bool on)
+        {
+            if (c.IsHandleCreated) SendMessage(c.Handle, WM_SETREDRAW, (IntPtr)(on ? 1 : 0), IntPtr.Zero);
+        }
+
+        /// <summary>A plain card over the content area naming the module being opened, painted
+        /// immediately so the click is answered before the (sometimes slow) module is built.</summary>
+        private Control ShowLoadingCard(string title)
+        {
+            var p = new Panel { Dock = DockStyle.Fill, BackColor = UiTheme.PageBg };
+            typeof(Control).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.SetValue(p, true);
+            p.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var box = new Rectangle(p.ClientSize.Width / 2 - 170, p.ClientSize.Height / 2 - 48, 340, 96);
+                using (var path = new GraphicsPath())
+                {
+                    int d = 16;
+                    path.AddArc(box.Left, box.Top, d, d, 180, 90);
+                    path.AddArc(box.Right - d, box.Top, d, d, 270, 90);
+                    path.AddArc(box.Right - d, box.Bottom - d, d, d, 0, 90);
+                    path.AddArc(box.Left, box.Bottom - d, d, d, 90, 90);
+                    path.CloseFigure();
+                    using (var fill = new SolidBrush(UiTheme.Surface)) g.FillPath(fill, path);
+                    using (var line = new Pen(UiTheme.CardLine)) g.DrawPath(line, path);
+                }
+                using (var f = new Font("Segoe UI", 11f, FontStyle.Bold))
+                    TextRenderer.DrawText(g, "Opening " + title + "...", f,
+                        new Rectangle(box.Left, box.Top + 22, box.Width, 26), UiTheme.Ink,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix | TextFormatFlags.EndEllipsis);
+                using (var f = new Font("Segoe UI", 9f))
+                    TextRenderer.DrawText(g, "Please wait a moment.", f,
+                        new Rectangle(box.Left, box.Top + 52, box.Width, 20), UiTheme.Muted,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.NoPrefix);
+            };
+            contentPanel.Controls.Add(p);
+            p.BringToFront();
+            p.Update();
+            return p;
         }
 
         /// <summary>Modules Client Tasks must never appear on — it is a per-window work
