@@ -926,13 +926,13 @@ namespace CROMS.Forms
             foreach (string c in SearchWorkingColumns)
                 if (grid.Columns.Contains(c)) grid.Columns[c].Visible = false;
 
-            SetWeight("Type", 9);
-            SetWeight("Registry No", 14);
-            SetWeight("Name", 30);
-            SetWeight("Event Date", 13);
-            SetWeight("Book", 8);
+            SetWeight("Type", 12);
+            SetWeight("Registry No", 17);
+            SetWeight("Name", 26);
+            SetWeight("Event Date", 14);
+            SetWeight("Book", 9);
             SetWeight("Page", 7);
-            SetWeight("Status", 19);
+            SetWeight("Status", 15);
 
             foreach (DataGridViewRow row in grid.Rows)
                 foreach (DataGridViewCell cell in row.Cells)

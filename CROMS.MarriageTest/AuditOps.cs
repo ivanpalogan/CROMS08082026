@@ -658,6 +658,20 @@ namespace CROMS.MarriageTest
             catch (Exception ex) { Check("Preview on Form opens", false, (ex.InnerException ?? ex).Message); }
             if (commit.Enabled)
             {
+                // Commit writes a finished record into the registry, so a blank registry number is refused.
+                int mR = wd.Count;
+                Call(f, "btnCommit_Click", null, EventArgs.Empty); Pump(8);
+                Check("Commit refuses a blank registry number (nothing written)", wd.Saw(mR, "Registry Number needed") && Count("SELECT COUNT(*) FROM births WHERE " + where) == 0);
+                foreach (DataGridViewRow gr in grid.Rows)
+                {
+                    object df = gr.Tag;
+                    if (df != null && df.GetType().Name == "DocField" && Convert.ToString(Member(df, "Key")) == "RegistryNo")
+                    {
+                        var vp = df.GetType().GetProperty("Value", Any); if (vp != null) vp.SetValue(df, "2099-B-9201");
+                        else { var vf = df.GetType().GetField("Value", Any); if (vf != null) vf.SetValue(df, "2099-B-9201"); }
+                        gr.Cells["Value"].Value = "2099-B-9201";
+                    }
+                }
                 int mC = wd.Count;
                 Call(f, "btnCommit_Click", null, EventArgs.Empty); Pump(10);
                 Note("dialogs during Commit: " + string.Join(" / ", wd.Since(mC).Where(l => !l.StartsWith("COMMON")).Select(l => l.Length > 260 ? l.Substring(0, 260) : l)));
@@ -667,7 +681,7 @@ namespace CROMS.MarriageTest
                 {
                     DataRow row = Db.Pull("SELECT status, record_source, form_code, first_name, last_name, date_of_birth, registry_no FROM births WHERE " + where).Rows[0];
                     Check("it is marked as a digitized (OCR-Backlog) record on the right form", row["record_source"].ToString() == "OCR-Backlog" && row["form_code"].ToString().StartsWith("MF-102"), row["record_source"] + " / " + row["form_code"]);
-                    Note("registry no saved with the digitized record: " + (row["registry_no"] == DBNull.Value ? "NULL (blank - handwritten on the scan; Commit does not require it)" : row["registry_no"].ToString()));
+                    Note("registry no saved with the digitized record: " + (row["registry_no"] == DBNull.Value ? "NULL" : row["registry_no"].ToString()));
                     Check("name and date of birth were carried across", row["first_name"].ToString().Length > 0 && row["last_name"].ToString().Length > 0 && row["date_of_birth"] != DBNull.Value, row["first_name"] + " " + row["last_name"]);
                     Check("the batch row says Committed and points at the record", Count("SELECT COUNT(*) FROM ocr_batch WHERE id > " + batch0 + " AND status='Committed' AND record_id IS NOT NULL") == 1);
                     Check("per-field audit trail was written", Count("SELECT COUNT(*) FROM ocr_field_audit WHERE scan_id IN (SELECT scan_id FROM ocr_batch WHERE id > " + batch0 + ")") > 10);

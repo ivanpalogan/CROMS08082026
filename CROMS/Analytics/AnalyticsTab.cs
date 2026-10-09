@@ -54,10 +54,15 @@ namespace CROMS.Analytics
                 Dock = DockStyle.Top,
                 Height = SummaryCard.CardHeight + 14,
                 FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
+                // Wrap: four cards plus the Customize and Print buttons are wider than a 1366px
+                // screen, and a non-wrapping strip pushed the buttons off the right edge. The strip
+                // grows to as many rows as it needs (see FitCardStrip).
+                WrapContents = true,
                 AutoScroll = false,
                 BackColor = UiTheme.PageBg
             };
+            CardStrip.SizeChanged += (s, e) => FitCardStrip();
+            CardStrip.ControlAdded += (s, e) => FitCardStrip();
 
             _banner = new Label
             {
@@ -96,6 +101,21 @@ namespace CROMS.Analytics
             var card = new SummaryCard(caption, accent);
             CardStrip.Controls.Add(card);
             return card;
+        }
+
+        private bool _fittingStrip;
+
+        /// <summary>Grows the KPI strip to the number of rows its cards and buttons wrap onto.</summary>
+        private void FitCardStrip()
+        {
+            if (_fittingStrip || CardStrip == null || CardStrip.Width <= 0) return;
+            _fittingStrip = true;
+            try
+            {
+                int want = Math.Max(SummaryCard.CardHeight + 14, CardStrip.GetPreferredSize(new Size(CardStrip.Width, 0)).Height);
+                if (CardStrip.Height != want) CardStrip.Height = want;
+            }
+            finally { _fittingStrip = false; }
         }
 
         protected T AddWidget<T>(T widget) where T : AnalyticsWidget

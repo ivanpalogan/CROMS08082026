@@ -1,4 +1,4 @@
-﻿namespace CROMS.Forms
+namespace CROMS.Forms
 {
     partial class OcrDigitizationForm
     {
@@ -157,9 +157,9 @@
             // btnZoomOut
             //
             this.btnZoomOut.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnZoomOut.Location = new System.Drawing.Point(168, 22);
+            this.btnZoomOut.Location = new System.Drawing.Point(136, 22);
             this.btnZoomOut.Name = "btnZoomOut";
-            this.btnZoomOut.Size = new System.Drawing.Size(60, 30);
+            this.btnZoomOut.Size = new System.Drawing.Size(80, 30);
             this.btnZoomOut.TabIndex = 0;
             this.btnZoomOut.Text = "Zoom −";
             this.btnZoomOut.UseVisualStyleBackColor = true;
@@ -172,7 +172,7 @@
             this.btnSeal.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.btnSeal.Location = new System.Drawing.Point(20, 22);
             this.btnSeal.Name = "btnSeal";
-            this.btnSeal.Size = new System.Drawing.Size(140, 30);
+            this.btnSeal.Size = new System.Drawing.Size(108, 30);
             this.btnSeal.TabIndex = 35;
             this.btnSeal.Text = "Seal / Stamp";
             this.btnSeal.UseVisualStyleBackColor = true;
@@ -181,9 +181,9 @@
             // btnZoomIn
             //
             this.btnZoomIn.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnZoomIn.Location = new System.Drawing.Point(236, 22);
+            this.btnZoomIn.Location = new System.Drawing.Point(224, 22);
             this.btnZoomIn.Name = "btnZoomIn";
-            this.btnZoomIn.Size = new System.Drawing.Size(60, 30);
+            this.btnZoomIn.Size = new System.Drawing.Size(80, 30);
             this.btnZoomIn.TabIndex = 1;
             this.btnZoomIn.Text = "Zoom +";
             this.btnZoomIn.UseVisualStyleBackColor = true;
@@ -192,7 +192,7 @@
             // btnDeskew
             //
             this.btnDeskew.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.btnDeskew.Location = new System.Drawing.Point(304, 22);
+            this.btnDeskew.Location = new System.Drawing.Point(312, 22);
             this.btnDeskew.Name = "btnDeskew";
             this.btnDeskew.Size = new System.Drawing.Size(90, 30);
             this.btnDeskew.TabIndex = 2;
@@ -292,7 +292,7 @@
             this.btnDraft.Name = "btnDraft";
             this.btnDraft.Size = new System.Drawing.Size(110, 40);
             this.btnDraft.TabIndex = 25;
-            this.btnDraft.Text = "Save as Draft";
+            this.btnDraft.Text = "Save Draft";
             this.btnDraft.UseVisualStyleBackColor = true;
             this.btnDraft.Click += new System.EventHandler(this.btnDraft_Click);
             //
@@ -416,7 +416,7 @@
             this.btnReview.Name = "btnReview";
             this.btnReview.Size = new System.Drawing.Size(170, 40);
             this.btnReview.TabIndex = 30;
-            this.btnReview.Text = "Send to Manual Review";
+            this.btnReview.Text = "Manual Review";
             this.btnReview.UseVisualStyleBackColor = false;
             this.btnReview.Click += new System.EventHandler(this.btnReview_Click);
             //

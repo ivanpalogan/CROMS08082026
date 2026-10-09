@@ -275,6 +275,7 @@ namespace CROMS.Forms
             this.pnlListBar.Controls.Add(this.lblListCount);
             this.pnlListBar.Dock = System.Windows.Forms.DockStyle.Top;
             this.pnlListBar.Height = 46;
+            this.pnlListBar.WrapContents = false;   // the count label stays on the bar instead of wrapping below it
             this.pnlListBar.Name = "pnlListBar";
             //
             // btnTabLicenses
@@ -324,7 +325,9 @@ namespace CROMS.Forms
             //
             // lblListCount
             //
-            this.lblListCount.AutoSize = true;
+            this.lblListCount.AutoSize = false;
+            this.lblListCount.AutoEllipsis = true;
+            this.lblListCount.Size = new System.Drawing.Size(330, 20);
             this.lblListCount.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblListCount.ForeColor = System.Drawing.Color.FromArgb(91, 100, 114);
             this.lblListCount.Margin = new System.Windows.Forms.Padding(0, 12, 0, 0);

@@ -204,6 +204,17 @@ namespace CROMS.Forms
         private readonly Dictionary<string, string> _keyToSection =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>Keeps the subtitle's right edge clear of the header buttons (anchored to the right).</summary>
+        private void FitSubtitle()
+        {
+            int left = ClientSize.Width;
+            foreach (Control c in Controls)
+            {
+                if (c is Button && (c.Anchor & AnchorStyles.Right) != 0 && c.Top < lblSubtitle.Bottom && c.Bottom > lblSubtitle.Top - 40)
+                    left = Math.Min(left, c.Left);
+            }
+            lblSubtitle.Width = Math.Max(300, left - lblSubtitle.Left - 16);
+        }
         public OcrDigitizationForm()
         {
             InitializeComponent();
@@ -218,6 +229,13 @@ namespace CROMS.Forms
 
             lblSubtitle.Text = "Load a scanned certificate or registry page. CROMS identifies the " +
                 "document, extracts its fields with a confidence for each, and flags anything to check.";
+
+            // The header buttons are anchored to the right edge; on a narrow screen the subtitle ran
+            // underneath them. Keep it clear of the leftmost one and let it wrap.
+            lblSubtitle.AutoSize = false;
+            lblSubtitle.Height = 34;
+            FitSubtitle();
+            Resize += (s, e) => FitSubtitle();
 
             // Comparing the grid against the scan is the whole review step, so selecting a
             // field draws its box on the page.

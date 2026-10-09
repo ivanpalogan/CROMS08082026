@@ -535,8 +535,16 @@ namespace CROMS.Forms
         {
             StyleListGrid(dgvBirths, new Dictionary<string, float>
             {
-                { "Registry No", 15 }, { "Child", 38 }, { "Sex", 8 }, { "DOB", 13 }, { "Book", 9 }, { "Page", 7 }, { "Status", 13 }
+                { "Registry No", 16 }, { "Child", 34 }, { "Sex", 9 }, { "DOB", 14 }, { "Book", 9 }, { "Page", 8 }, { "Status", 14 }
             });
+            if (dgvBirths.Width < 800)
+            {
+                // A 1366px screen leaves the list under 750px: one size down so the headings and the
+                // Sex / Book / Page values are not cut to "S..." and "B...".
+                dgvBirths.DefaultCellStyle.Font = Px(16f);
+                dgvBirths.ColumnHeadersDefaultCellStyle.Font = Px(16f, FontStyle.Bold);
+                dgvBirths.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
+            }
             if (_dgvPending != null)
             {
                 StyleListGrid(_dgvPending, new Dictionary<string, float>

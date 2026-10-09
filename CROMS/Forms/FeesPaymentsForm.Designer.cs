@@ -242,7 +242,7 @@ namespace CROMS.Forms
             this.lblMethodCap.AutoSize = true;
             this.lblMethodCap.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblMethodCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblMethodCap.Location = new System.Drawing.Point(18, 32);
+            this.lblMethodCap.Location = new System.Drawing.Point(18, 25);
             this.lblMethodCap.Name = "lblMethodCap";
             this.lblMethodCap.Size = new System.Drawing.Size(97, 15);
             this.lblMethodCap.TabIndex = 0;
@@ -263,7 +263,7 @@ namespace CROMS.Forms
             this.lblRefCap.AutoSize = true;
             this.lblRefCap.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblRefCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblRefCap.Location = new System.Drawing.Point(18, 88);
+            this.lblRefCap.Location = new System.Drawing.Point(18, 81);
             this.lblRefCap.Name = "lblRefCap";
             this.lblRefCap.Size = new System.Drawing.Size(150, 15);
             this.lblRefCap.TabIndex = 2;
@@ -282,7 +282,7 @@ namespace CROMS.Forms
             this.lblOrCap.AutoSize = true;
             this.lblOrCap.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblOrCap.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(73)))), ((int)(((byte)(80)))), ((int)(((byte)(87)))));
-            this.lblOrCap.Location = new System.Drawing.Point(18, 144);
+            this.lblOrCap.Location = new System.Drawing.Point(18, 137);
             this.lblOrCap.Name = "lblOrCap";
             this.lblOrCap.Size = new System.Drawing.Size(112, 15);
             this.lblOrCap.TabIndex = 4;

@@ -48,16 +48,37 @@ namespace CROMS.Forms
         // Debounce: one query when the operator stops typing, not one per keystroke.
         private readonly Timer _searchTimer = new Timer { Interval = 300 };
 
+        private Control[] _editPane;
+        private int _editLeft, _gridLeft, _editWidth;
+
+        /// <summary>Grid gets the width the editor does not need; the editor follows the grid's right edge.</summary>
+        private void LayoutPanes()
+        {
+            if (_editPane == null || ClientSize.Width <= 0) return;
+            dgvItems.Left = _gridLeft;
+            dgvItems.Width = Math.Max(460, ClientSize.Width - _gridLeft - _editWidth - 48);
+            int delta = dgvItems.Right + 24 - _editLeft;
+            if (delta == 0) return;
+            foreach (Control c in _editPane) c.Left += delta;
+            _editLeft += delta;
+        }
+
         public MasterFilesForm()
         {
             InitializeComponent();
 
-            // Fill the list to the right edge and pin the edit controls to the right, so a wide
-            // window has no dead gap between the grid and the (previously left-floating) editor.
-            dgvItems.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-            foreach (Control c in new Control[] { lblName, txtName, btnAdd, btnUpdate, btnDelete, btnNew, lblHint, lblCount })
-                c.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-
+            // The list takes the width left over after the editor and the editor sits right beside
+            // it. Pinning both to the right edge (the earlier approach) kept each at its DESIGN
+            // distance from that edge, so on a narrower window the list collapsed to ~265px and
+            // clipped every column (Barangays: Name / Municipality / Province).
+            dgvItems.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left;
+            _editPane = new Control[] { lblName, txtName, btnAdd, btnUpdate, btnDelete, btnNew, lblHint, lblCount };
+            foreach (Control c in _editPane) c.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            _editLeft = lblName.Left;
+            _gridLeft = dgvItems.Left;
+            _editWidth = 400;
+            Resize += (s, e) => LayoutPanes();
+            Load += (s, e) => LayoutPanes();
             _searchTimer.Tick += (s, e) => { _searchTimer.Stop(); LoadItems(); };
             Disposed += (s, e) => _searchTimer.Dispose();
 

@@ -93,6 +93,7 @@ namespace CROMS.Modules
                 }
                 else if (c is DataGridView g) StyleGrid(g);
                 else if (c is ComboBox cb) MakeSearchable(cb);
+                else if (c is Label || c is CheckBox || c is RadioButton) ClearCardBackdrop(c);
                 if (c.HasChildren) Polish(c);
             }
         }
@@ -155,6 +156,26 @@ namespace CROMS.Modules
 
         // Kept for existing call sites — same as Polish (buttons + grids + fonts).
         public static void PolishButtons(Control root) => Polish(root);
+
+        /// <summary>
+        /// A CardPanel paints its own white face and keeps the PAGE colour as its BackColor, so a
+        /// label dropped on it without an explicit Transparent inherits the page grey and shows as
+        /// a grey patch on the white card (seen on Petitions, Birth and Records Archive). Only a
+        /// control whose colour is exactly that inherited page colour is cleared - a label that was
+        /// given its own colour on purpose (a callout, a pill) is left alone.
+        /// </summary>
+        private static void ClearCardBackdrop(Control c)
+        {
+            for (Control p = c.Parent; p != null; p = p.Parent)
+            {
+                if (p is CardPanel)
+                {
+                    if (c.BackColor == p.BackColor && c.BackColor != Color.Transparent)
+                        c.BackColor = Color.Transparent;
+                    return;
+                }
+            }
+        }
 
         // ------------------------------------------------------------------ fonts
         /// <summary>

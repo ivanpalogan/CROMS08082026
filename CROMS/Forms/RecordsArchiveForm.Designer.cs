@@ -70,7 +70,8 @@ namespace CROMS.Forms
             // treeCategories
             //
             this.treeCategories.Anchor = (System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left);
-            this.treeCategories.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.treeCategories.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.treeCategories.ShowNodeToolTips = true;   // the long category names are cut off on a narrow screen
             this.treeCategories.FullRowSelect = true;
             this.treeCategories.HideSelection = false;
             this.treeCategories.ItemHeight = 26;

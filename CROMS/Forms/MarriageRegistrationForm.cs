@@ -36,7 +36,7 @@ namespace CROMS.Forms
             SetupKpi(kpiValid, "Valid licences", KpiCard.Icon.DocumentTick, UiTheme.AccentTint, UiTheme.Accent);
             SetupKpi(kpiExpiring, "Expiring soon", KpiCard.Icon.QueuePerson, UiTheme.DangerTint, UiTheme.Danger);
             SetupKpi(kpiAwaiting, "Awaiting Form 97", KpiCard.Icon.InboxTray, UiTheme.AccentTint, UiTheme.Accent);
-            SetupKpi(kpiPsa, "Pending PSA transmittal", KpiCard.Icon.InboxTray, UiTheme.Chrome, UiTheme.Muted);
+            SetupKpi(kpiPsa, "Pending PSA", KpiCard.Icon.InboxTray, UiTheme.Chrome, UiTheme.Muted);
             kpiPosting.Click += (s, e) => Filter("Licenses", "posting");
             kpiReady.Click += (s, e) => Filter("Licenses", "Ready to Issue");
             kpiValid.Click += (s, e) => Filter("Licenses", "valid");

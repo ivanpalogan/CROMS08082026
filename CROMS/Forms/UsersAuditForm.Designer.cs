@@ -1,4 +1,4 @@
-﻿namespace CROMS.Forms
+namespace CROMS.Forms
 {
     partial class UsersAuditForm
     {
@@ -237,7 +237,7 @@
             this.lblPassword.Name = "lblPassword";
             this.lblPassword.Size = new System.Drawing.Size(220, 15);
             this.lblPassword.TabIndex = 6;
-            this.lblPassword.Text = "Password (blank = keep on edit, 8-16 characters)";
+            this.lblPassword.Text = "Password (8-16; blank = keep)";
             //
             // txtPassword
             //
@@ -291,7 +291,7 @@
             this.btnAdd.ForeColor = System.Drawing.Color.White;
             this.btnAdd.Location = new System.Drawing.Point(14, 364);
             this.btnAdd.Name = "btnAdd";
-            this.btnAdd.Size = new System.Drawing.Size(122, 38);
+            this.btnAdd.Size = new System.Drawing.Size(108, 38);
             this.btnAdd.TabIndex = 11;
             this.btnAdd.Text = "Add User";
             this.btnAdd.UseVisualStyleBackColor = false;
@@ -303,9 +303,9 @@
             this.btnUpdate.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnUpdate.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.btnUpdate.ForeColor = System.Drawing.Color.White;
-            this.btnUpdate.Location = new System.Drawing.Point(142, 364);
+            this.btnUpdate.Location = new System.Drawing.Point(128, 364);
             this.btnUpdate.Name = "btnUpdate";
-            this.btnUpdate.Size = new System.Drawing.Size(122, 38);
+            this.btnUpdate.Size = new System.Drawing.Size(140, 38);
             this.btnUpdate.TabIndex = 12;
             this.btnUpdate.Text = "Save Changes";
             this.btnUpdate.UseVisualStyleBackColor = false;

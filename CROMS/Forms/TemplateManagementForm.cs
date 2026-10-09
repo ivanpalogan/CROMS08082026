@@ -63,6 +63,7 @@ namespace CROMS.Forms
                 ForeColor = UiTheme.Ink,
                 BackColor = Color.Transparent,
                 AutoSize = false,
+                UseMnemonic = false,
                 Size = new Size(324, 44),
                 Location = new Point(18, 36),
             };
