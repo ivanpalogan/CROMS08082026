@@ -352,7 +352,7 @@ namespace CROMS.Forms
             catch (Exception ex)
             {
                 SetBusy(false);
-                Msg("Cannot reach the database: " + ex.Message);
+                Msg(CROMS.Data.ErrorLog.Text(ex));
                 return;
             }
 

@@ -1431,7 +1431,7 @@ namespace CROMS.Forms
             }
             catch (UnauthorizedAccessException ex)
             {
-                MessageBox.Show(this, ex.Message, "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, CROMS.Data.ErrorLog.Text(ex), "Not allowed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
             catch (Exception ex) { MUi.Fail(this, ex); }
         }

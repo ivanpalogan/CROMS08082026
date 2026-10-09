@@ -280,7 +280,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not remove: " + ex.Message, kind.ToString(),
+                MessageBox.Show("Could not remove: " + CROMS.Data.ErrorLog.Reason(ex), kind.ToString(),
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -313,7 +313,7 @@ namespace CROMS.Forms
             {
                 MessageBox.Show(
                     "Could not save. If the table is missing, run database migration " +
-                    "26_form_identity.sql.\n\n" + ex.Message, "Office details",
+                    "26_form_identity.sql.\n\n" + CROMS.Data.ErrorLog.Reason(ex), "Office details",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

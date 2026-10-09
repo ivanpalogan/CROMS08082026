@@ -307,7 +307,7 @@ namespace CROMS.Forms
             try { loaded = DocumentAI.LoadImageBytes(certificate); }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Could not open the captured photo: " + ex.Message, "Mobile Capture",
+                MessageBox.Show(this, "Could not open the captured photo: " + CROMS.Data.ErrorLog.Reason(ex), "Mobile Capture",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -496,7 +496,7 @@ namespace CROMS.Forms
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Could not open the image: " + ex.Message, "Document",
+                    MessageBox.Show("Could not open the image: " + CROMS.Data.ErrorLog.Reason(ex), "Document",
                         MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
@@ -658,7 +658,7 @@ namespace CROMS.Forms
                 SetBusy(false);
                 _result = null;
                 ApplyResultToUi();
-                MessageBox.Show("OCR failed: " + ex.Message, "Error",
+                MessageBox.Show("OCR failed: " + CROMS.Data.ErrorLog.Reason(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1840,6 +1840,7 @@ namespace CROMS.Forms
         private void btnCommit_Click(object sender, EventArgs e)
         {
             if (!ReadyToSave()) return;
+            if (!RegistryNumberPresent()) return;
             string table = TableFor(_kind);
             string registry = RegistryWord(_kind);
             if (!Confirm("commit to the " + registry + " registry")) return;
@@ -2196,6 +2197,36 @@ namespace CROMS.Forms
             return false;
         }
 
+        /// <summary>
+        /// COMMIT writes a finished record straight into the registry, and the registry number is
+        /// that record's legal key - the number written in the physical civil registry book. A
+        /// scan often cannot read it (it is handwritten, or typed over its own printed caption),
+        /// and a blank would be saved as NULL: a "Registered" certificate no one can look up by
+        /// number. So Commit refuses a blank number. Save as Draft does not - a draft is meant to
+        /// be finished later, once the operator has the ledger in front of them.
+        /// </summary>
+        private bool RegistryNumberPresent()
+        {
+            if (V("RegistryNo").Length > 0) return true;
+            foreach (DataGridViewRow r in dgvFields.Rows)
+            {
+                DocField f = r.Tag as DocField;
+                if (f != null && f.Key == "RegistryNo")
+                {
+                    r.Visible = true;
+                    dgvFields.CurrentCell = r.Cells["Value"];
+                    break;
+                }
+            }
+            MessageBox.Show(this,
+                "The Registry Number is blank.\n\n" +
+                "A record committed to the registry has to carry the number written in the physical " +
+                "civil registry book, because that number is how it is found later. Type it into the " +
+                "Registry Number row, then Commit again.\n\n" +
+                "If you do not have the ledger yet, use Save as Draft and finish the record later.",
+                "Registry Number needed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
         private bool ReadyToSave()
         {
             if (_result == null || _kind == DocKind.Unknown)
@@ -3091,7 +3122,7 @@ namespace CROMS.Forms
             try { loaded = DocumentAI.LoadImageBytes(bytes); }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not open the scan: " + ex.Message, "Document",
+                MessageBox.Show("Could not open the scan: " + CROMS.Data.ErrorLog.Reason(ex), "Document",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return false;
             }

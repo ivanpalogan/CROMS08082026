@@ -79,7 +79,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Client Service Slip", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, CROMS.Data.ErrorLog.Text(ex), "Client Service Slip", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
 

@@ -73,6 +73,14 @@ namespace CROMS.MarriageTest
                 return _fail;
             }
             if (args.Length > 0 && args[0] == "--birthtest") return BirthTest.Run();
+            if (args.Length > 0 && args[0] == "--recycle")
+            {
+                try { LoginAs("Admin"); RecycleTest.Run(); RecycleUiTest.Run(); }
+                catch (Exception ex) { RecycleTest.Fail++; Console.WriteLine("CRASH: " + ex); }
+                finally { RecycleTest.Cleanup(); int left = RecycleTest.Leftovers(); if (left == 0) RecycleTest.Pass++; else RecycleTest.Fail++; Console.WriteLine((left == 0 ? "  PASS  " : "  FAIL  ") + "zero strays after cleanup   -> " + left + " left"); }
+                Console.WriteLine("PASSED " + RecycleTest.Pass + "   FAILED " + RecycleTest.Fail);
+                return RecycleTest.Fail;
+            }
             if (args.Length > 1 && args[0] == "--areaA") { int ra = AreaA.Run(args[1]); Environment.Exit(ra); return ra; }
             if (args.Length > 1 && args[0] == "--audit") { int ar = AuditTest.Run(args[1]); Environment.Exit(ar); return ar; }   // kiosk screens leave foreground threads alive
             if (args.Length > 0 && args[0] == "--flows") { LoginAs("Admin"); return FlowsTest.Run(); }

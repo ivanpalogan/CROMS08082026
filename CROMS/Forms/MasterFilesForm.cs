@@ -131,7 +131,7 @@ namespace CROMS.Forms
             catch (Exception ex)
             {
                 dgvItems.DataSource = null;
-                lblCount.Text = "Could not load this list: " + ex.Message;
+                lblCount.Text = "Could not load this list: " + CROMS.Data.ErrorLog.Reason(ex);
             }
 
             _selectedId = null;

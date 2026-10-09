@@ -307,7 +307,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Could not remove: " + ex.Message, row.Caption,
+                MessageBox.Show(this, "Could not remove: " + CROMS.Data.ErrorLog.Reason(ex), row.Caption,
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

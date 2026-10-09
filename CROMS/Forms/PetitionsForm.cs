@@ -138,7 +138,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblContextHint.Text = "Queue ticket " + ticketCode + " — could not read kiosk details: " + ex.Message;
+                lblContextHint.Text = "Queue ticket " + ticketCode + " — could not read kiosk details: " + CROMS.Data.ErrorLog.Reason(ex);
             }
             txtRelationship.Focus();
         }
@@ -962,7 +962,7 @@ namespace CROMS.Forms
             try { ClientServiceSlip.Show(slip, this); }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "The case was saved, but its service slip could not be shown: " + ex.Message,
+                MessageBox.Show(this, "The case was saved, but its service slip could not be shown: " + CROMS.Data.ErrorLog.Reason(ex),
                     "Client Service Slip", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }

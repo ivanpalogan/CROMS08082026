@@ -543,7 +543,8 @@ namespace CROMS.Kiosk
             catch (Exception ex)
             {
                 SetCamState(false);
-                _lblCamStatus.Text = "Camera error: " + ex.Message;
+                KioskCore.LogError(ex);
+                _lblCamStatus.Text = "The camera could not be started. Please ask the staff for help.";
             }
         }
 
@@ -678,7 +679,8 @@ namespace CROMS.Kiosk
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Sorry, your request could not be submitted:\n" + ex.Message,
+                KioskCore.LogError(ex);
+                MessageBox.Show("Sorry, your request could not be submitted just now. Please try again, or ask the staff for help.",
                     "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

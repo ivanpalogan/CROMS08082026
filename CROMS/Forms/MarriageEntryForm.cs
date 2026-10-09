@@ -1084,7 +1084,7 @@ namespace CROMS.Forms
                 if (ofd.ShowDialog(this) != DialogResult.OK) return;
                 byte[] bytes;
                 try { bytes = File.ReadAllBytes(ofd.FileName); }
-                catch (Exception ex) { MessageBox.Show(this, "Could not read the file: " + ex.Message, "Scan", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                catch (Exception ex) { MessageBox.Show(this, "Could not read the file: " + CROMS.Data.ErrorLog.Reason(ex), "Scan", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 ReviewCapturedCertificate(bytes, null, Path.GetFileName(ofd.FileName));
             }
         }
@@ -1399,7 +1399,7 @@ namespace CROMS.Forms
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(this, "Could not save the file: " + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show(this, "Could not save the file: " + CROMS.Data.ErrorLog.Reason(ex), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
                 }
             }

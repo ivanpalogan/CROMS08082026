@@ -27,7 +27,7 @@ namespace CROMS.Data
             }
             catch (Exception ex)
             {
-                MessageBox.Show(owner, ex.Message, "Print Acknowledgment Slip",
+                MessageBox.Show(owner, CROMS.Data.ErrorLog.Text(ex), "Print Acknowledgment Slip",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

@@ -75,7 +75,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Could not start a mobile capture session:\n" + ex.Message,
+                MessageBox.Show(this, "Could not start a mobile capture session:\n" + CROMS.Data.ErrorLog.Reason(ex),
                     "Mobile Capture", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 DialogResult = DialogResult.Cancel;
                 return;

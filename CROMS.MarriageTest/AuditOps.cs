@@ -778,8 +778,8 @@ namespace CROMS.MarriageTest
             Check("migration 48 (office e-mail) applied", col48b);
             bool m52 = Count("SELECT COUNT(*) FROM document_requirement_types WHERE applies_to='Petition'") > 0;
             Check("migration 52 (petition documents) applied", m52);
-            bool m69 = Count("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='croms' AND table_name='births' AND column_name='is_deleted'") > 0;
-            Check("migration 69 (soft delete) applied", m69, "ReasonPrompt exists but no delete path uses it");
+            bool m86 = Count("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='croms' AND table_name='deleted_records'") > 0;
+            Check("migration 86 (deleted records / undo) applied", m86);
         }
 
         // -------------------------------------------------------------- cleanup

@@ -1035,7 +1035,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not open the certificate preview: " + ex.Message, "Print",
+                MessageBox.Show("Could not open the certificate preview: " + CROMS.Data.ErrorLog.Reason(ex), "Print",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }

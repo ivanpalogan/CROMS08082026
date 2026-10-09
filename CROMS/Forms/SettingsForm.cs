@@ -782,9 +782,18 @@ namespace CROMS.Forms
             btnExport.Click += (s, e) => ExportMonitoringCsv();
             tab.Controls.Add(btnExport);
 
+            // Deleted civil registry records are kept whole and can be restored from here.
+            var btnDeleted = new Button
+            {
+                Text = "Deleted Records...", Location = new Point(224, fy + 54), Size = new Size(140, 30),
+                FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 9.5F)
+            };
+            btnDeleted.Click += (s, e) => { using (var f = new DeletedRecordsForm()) f.ShowDialog(this); };
+            tab.Controls.Add(btnDeleted);
+
             lblMonCount = new Label
             {
-                Text = "", AutoSize = true, Location = new Point(230, fy + 62),
+                Text = "", AutoSize = true, Location = new Point(376, fy + 62),
                 Font = new Font("Segoe UI", 9F), ForeColor = Color.FromArgb(108, 117, 125)
             };
             tab.Controls.Add(lblMonCount);
@@ -931,7 +940,7 @@ namespace CROMS.Forms
             catch (Exception ex)
             {
                 dgvMonitor.DataSource = null;
-                lblMonCount.Text = "Could not load activity: " + ex.Message;
+                lblMonCount.Text = "Could not load activity: " + CROMS.Data.ErrorLog.Reason(ex);
             }
         }
 

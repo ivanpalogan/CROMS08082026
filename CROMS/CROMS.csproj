@@ -394,6 +394,12 @@
     <Compile Include="Forms\SettingsForm.Designer.cs">
       <DependentUpon>SettingsForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\DeletedRecordsForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\DeletedRecordsForm.Designer.cs">
+      <DependentUpon>DeletedRecordsForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\RecordsArchiveForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -550,6 +556,7 @@
     <Compile Include="Data\Db.cs" />
     <Compile Include="Data\ErrorLog.cs" />
     <Compile Include="Data\RegistryNumber.cs" />
+    <Compile Include="Data\RecordRecycle.cs" />
     <Compile Include="Data\MarriageRules.cs" />
     <Compile Include="Data\MarriageService.cs" />
     <Compile Include="Data\BirthCertificatePrinter.cs" />
@@ -959,7 +966,7 @@
     <None Include="Database\66_capture_doc_role.sql" />
     <None Include="Database\67_kiosk_submitted_by.sql" />
     <None Include="Database\68_old_records_source.sql" />
-    <None Include="Database\69_soft_delete_reason.sql" />
+    <None Include="Database\86_deleted_records.sql" />
     <None Include="Database\70_digitization_metadata.sql" />
     <None Include="Database\71_old_marriage_records_source.sql" />
     <None Include="Database\72_client_service_slip.sql" />

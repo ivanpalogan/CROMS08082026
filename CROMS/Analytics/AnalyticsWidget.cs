@@ -291,7 +291,7 @@ namespace CROMS.Analytics
             {
                 ShowEmpty(EmptyStatePanel.Kind.Error,
                     "This chart could not be loaded.",
-                    ex.Message);
+                    CROMS.Data.ErrorLog.Reason(ex));
             }
         }
 

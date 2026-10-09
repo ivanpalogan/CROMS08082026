@@ -544,7 +544,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Could not load records: " + ex.Message, "Preview with a record",
+                MessageBox.Show(this, "Could not load records: " + CROMS.Data.ErrorLog.Reason(ex), "Preview with a record",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -659,7 +659,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Could not apply the " + band.ToLowerInvariant() + ": " + ex.Message,
+                MessageBox.Show(this, "Could not apply the " + band.ToLowerInvariant() + ": " + CROMS.Data.ErrorLog.Reason(ex),
                     "Apply failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

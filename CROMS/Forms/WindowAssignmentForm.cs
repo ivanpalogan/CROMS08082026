@@ -110,7 +110,7 @@ namespace CROMS.Forms
             // app down; fall into a graceful dead-end instead and let the operator continue.
             string loadError = null;
             try { LoadWindowsAndAssignments(); }
-            catch (Exception ex) { loadError = ex.Message; }
+            catch (Exception ex) { loadError = CROMS.Data.ErrorLog.Reason(ex); }
 
             if (loadError != null || _wins.Count == 0)
             {
@@ -598,7 +598,7 @@ namespace CROMS.Forms
                         Db.Push("INSERT INTO window_service_assignments (window_id, service_code) VALUES (@w, @c)",
                             new MySqlParameter("@w", windowId), new MySqlParameter("@c", code));
             }
-            catch (Exception ex) { error = ex.Message; }
+            catch (Exception ex) { error = CROMS.Data.ErrorLog.Reason(ex); }
         }
 
         private void btnStart_Click(object sender, EventArgs e)
@@ -637,7 +637,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblMsg.Text = "Could not claim the window: " + ex.Message;
+                lblMsg.Text = "Could not claim the window: " + CROMS.Data.ErrorLog.Reason(ex);
                 return;
             }
 

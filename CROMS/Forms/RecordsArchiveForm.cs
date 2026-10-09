@@ -320,7 +320,7 @@ namespace CROMS.Forms
             catch (Exception ex)
             {
                 grid.DataSource = null;
-                lblCount.Text = "Load failed: " + ex.Message;
+                lblCount.Text = "Load failed: " + CROMS.Data.ErrorLog.Reason(ex);
             }
         }
 
@@ -513,7 +513,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not load the record: " + ex.Message, "Records Archive",
+                MessageBox.Show("Could not load the record: " + CROMS.Data.ErrorLog.Reason(ex), "Records Archive",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -698,7 +698,7 @@ namespace CROMS.Forms
                     btnMf90.Click += (s, e) =>
                     {
                         try { Mf90Form.Show(MarriageService.LoadLicense((int)licenseId), dlg); }
-                        catch (Exception ex) { MessageBox.Show(dlg, "Could not render the application: " + ex.Message, "Form 90", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+                        catch (Exception ex) { MessageBox.Show(dlg, "Could not render the application: " + CROMS.Data.ErrorLog.Reason(ex), "Form 90", MessageBoxButtons.OK, MessageBoxIcon.Error); }
                     };
                     imagesPanel.Controls.Add(btnMf90);
                 }
@@ -913,7 +913,7 @@ namespace CROMS.Forms
             catch (Exception ex)
             {
                 grid.DataSource = null;
-                lblCount.Text = "Search failed: " + ex.Message;
+                lblCount.Text = "Search failed: " + CROMS.Data.ErrorLog.Reason(ex);
             }
         }
 

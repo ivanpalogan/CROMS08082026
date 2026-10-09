@@ -58,7 +58,7 @@ namespace CROMS.Forms
             try { Process.Start(new ProcessStartInfo(exe) { WorkingDirectory = Path.GetDirectoryName(exe) }); }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not start " + projectName + ": " + ex.Message,
+                MessageBox.Show("Could not start " + projectName + ": " + CROMS.Data.ErrorLog.Reason(ex),
                     "CROMS Launcher", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }

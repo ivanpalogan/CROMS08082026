@@ -71,7 +71,7 @@ namespace CROMS.Forms
                     new MySqlParameter("@l", like));
                 _dgvResults.DataSource = dt;
             }
-            catch (MySqlException ex) { _lblStatus.Text = "Search failed: " + ex.Message; }
+            catch (MySqlException ex) { _lblStatus.Text = "Search failed: " + CROMS.Data.ErrorLog.Reason(ex); }
         }
 
         private void LoadSelected()

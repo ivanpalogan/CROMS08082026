@@ -69,7 +69,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblBooksHeader.Text = "Could not load books: " + ex.Message;
+                lblBooksHeader.Text = "Could not load books: " + CROMS.Data.ErrorLog.Reason(ex);
             }
             ShowGallery();
         }
@@ -168,7 +168,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblBookMeta.Text = "Could not load records: " + ex.Message;
+                lblBookMeta.Text = "Could not load records: " + CROMS.Data.ErrorLog.Reason(ex);
             }
         }
 

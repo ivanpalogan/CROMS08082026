@@ -663,12 +663,30 @@ namespace CROMS.Forms
 
         private bool DoDelete(long id)
         {
-            if (MessageBox.Show("Delete this old marriage record? This cannot be undone.", "Confirm delete",
+            if (MessageBox.Show("Delete this old marriage record? An administrator can restore it later (Settings > Audit Trail > Deleted Records).", "Confirm delete",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return false;
 
-            Db.Push("DELETE FROM marriages WHERE id = @id AND record_source = 'OCR-Backlog'",
-                new MySqlParameter("@id", id));
-            Audit.Write(Audit.Delete, "marriages", id, "Old marriage record deleted (OCR-Backlog)");
+            string reason = CROMS.Modules.ReasonPrompt.Ask(this, "Delete", "this old marriage record");
+            if (reason == null) return false;     // cancelled or left blank - nothing is deleted
+
+            try
+            {
+                // Archived whole (scans included) and removed in one transaction, and only a
+                // digitized backlog record - never a registered one - is allowed through here.
+                CROMS.Data.RecordRecycle.Delete("marriages", id, reason, "OCR-Backlog");
+            }
+            catch (MySqlException ex) when (ex.Number == 1451)
+            {
+                MessageBox.Show("This record is referenced elsewhere and can't be deleted.", "In use",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(CROMS.Data.ErrorLog.Text(ex), "Delete", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return false;
+            }
+            Audit.Write(Audit.Delete, "marriages", id, "Old marriage record deleted (OCR-Backlog). Reason: " + reason);
             LoadGrid();
             return true;
         }

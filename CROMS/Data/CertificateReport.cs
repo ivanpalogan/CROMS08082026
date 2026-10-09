@@ -185,7 +185,7 @@ namespace CROMS.Data
                     // certificate at all: say what happened, then print it ourselves.
                     MessageBox.Show(
                         "The Crystal report for this form could not be opened, so CROMS " +
-                        "printed the certificate itself instead.\n\n" + ex.Message,
+                        "printed the certificate itself instead.\n\n" + CROMS.Data.ErrorLog.Reason(ex),
                         "Crystal report unavailable", MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                 }
@@ -371,7 +371,7 @@ namespace CROMS.Data
             {
                 MessageBox.Show(
                     "The report view `" + def.ReportView + "` is missing. Run database " +
-                    "migration 26_form_identity.sql, which creates it.\n\n" + ex.Message,
+                    "migration 26_form_identity.sql, which creates it.\n\n" + CROMS.Data.ErrorLog.Reason(ex),
                     "Report view missing", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return null;
             }

@@ -91,7 +91,7 @@ namespace CROMS.Forms
                 decimal sum = t.AsEnumerable().Sum(r => Convert.ToDecimal(r["Amount"]));
                 _lSummary.Text = t.Rows.Count + " payment" + (t.Rows.Count == 1 ? "" : "s") + "   -   total PHP " + sum.ToString("N2");
             }
-            catch (Exception ex) { _lSummary.Text = "Could not load the log: " + ex.Message; }
+            catch (Exception ex) { _lSummary.Text = "Could not load the log: " + CROMS.Data.ErrorLog.Reason(ex); }
         }
 
         // ================================================================ monthly collection
@@ -171,7 +171,7 @@ namespace CROMS.Forms
                     ? "PHP " + _month.Unitemised.ToString("N2") + " was recorded before fee lines existed and is shown as not itemised - which fees it covered was never recorded."
                     : _month.Payments == 0 ? "No payments recorded in this month." : "";
             }
-            catch (Exception ex) { _mSummary.Text = "Could not load the month: " + ex.Message; }
+            catch (Exception ex) { _mSummary.Text = "Could not load the month: " + CROMS.Data.ErrorLog.Reason(ex); }
         }
 
         // ================================================================ shared

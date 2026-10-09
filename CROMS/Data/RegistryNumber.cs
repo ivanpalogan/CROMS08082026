@@ -45,6 +45,22 @@ namespace CROMS.Data
 
             int next = (dt.Rows.Count > 0 && dt.Rows[0]["n"] != DBNull.Value)
                 ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
+
+            // The number of a DELETED record stays reserved (deleted_records, migration 86): if the
+            // newest record is deleted, MAX over the live table alone would hand its number to the
+            // next registration, and restoring the deleted record would then collide with it.
+            try
+            {
+                DataTable dd = Db.Pull(
+                    "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(registry_no, '-', -1) AS UNSIGNED)), 0) + 1 AS n " +
+                    "FROM deleted_records WHERE source_table = @t AND registry_no LIKE @p",
+                    new MySqlParameter("@t", Table(table)),
+                    new MySqlParameter("@p", year + "-" + kind + "-%"));
+                if (dd.Rows.Count > 0 && dd.Rows[0]["n"] != DBNull.Value)
+                    next = Math.Max(next, Convert.ToInt32(dd.Rows[0]["n"]));
+            }
+            catch (MySqlException ex) when (ex.Number == 1146) { /* migration 86 not applied yet */ }
+
             return string.Format("{0}-{1}-{2:D4}", year, kind, next);
         }
 

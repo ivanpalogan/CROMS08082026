@@ -115,7 +115,7 @@ namespace CROMS.Forms
                 if (dlg.ShowDialog(this) == DialogResult.OK)
                 {
                     try { _doc.Print(); }
-                    catch (Exception ex) { MessageBox.Show(this, ex.Message, "Print failed", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+                    catch (Exception ex) { MessageBox.Show(this, CROMS.Data.ErrorLog.Text(ex), "Print failed", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
                 }
         }
 

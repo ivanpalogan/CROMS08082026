@@ -256,7 +256,7 @@ namespace CROMS.Forms
                         catch (Exception ex)
                         {
                             ocr = null;
-                            status.Text = "OCR could not read this file (" + ex.Message + "). You can still attach it after checking it yourself.";
+                            status.Text = "OCR could not read this file (" + CROMS.Data.ErrorLog.Reason(ex) + "). You can still attach it after checking it yourself.";
                             verdict.Text = "Not read - check by eye"; verdict.ForeColor = UiTheme.Warning;
                         }
                         finally { choose.Enabled = true; ok.Enabled = bytes != null; }

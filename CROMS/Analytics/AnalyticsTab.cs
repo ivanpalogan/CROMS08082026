@@ -207,7 +207,7 @@ namespace CROMS.Analytics
                 }
                 catch (Exception ex)
                 {
-                    ShowBanner("Summary figures could not be loaded: " + ex.Message);
+                    ShowBanner("Summary figures could not be loaded: " + CROMS.Data.ErrorLog.Reason(ex));
                 }
                 LoadWidgets();
             }

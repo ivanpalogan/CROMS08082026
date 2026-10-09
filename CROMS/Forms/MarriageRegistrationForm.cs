@@ -73,7 +73,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblListCount.Text = "Could not load the marriage workflow: " + ex.Message + "  (is migration 33_marriage_workflow.sql applied?)";
+                lblListCount.Text = "Could not load the marriage workflow: " + CROMS.Data.ErrorLog.Reason(ex) + "  (is migration 33_marriage_workflow.sql applied?)";
                 return;
             }
             board.Settings = _s;

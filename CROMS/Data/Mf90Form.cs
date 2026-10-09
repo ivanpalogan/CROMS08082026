@@ -287,7 +287,7 @@ namespace CROMS.Data
                     // A broken report must not leave the clerk without the form: say so and
                     // print it anyway, from the same cells.
                     System.Windows.Forms.MessageBox.Show(owner,
-                        "The Crystal report for Form 90 could not be opened, so CROMS will show the form itself.\n\n" + ex.Message,
+                        "The Crystal report for Form 90 could not be opened, so CROMS will show the form itself.\n\n" + CROMS.Data.ErrorLog.Reason(ex),
                         "Crystal report unavailable", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Warning);
                 }
             }

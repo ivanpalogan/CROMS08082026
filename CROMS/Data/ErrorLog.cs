@@ -78,17 +78,60 @@ namespace CROMS.Data
         }
 
         /// <summary>
-        /// Text for a catch block that shows an exception's own message: the plain sentence for
-        /// "Data too long" (error 1406), which names the column, and <c>ex.Message</c> for everything
-        /// else, so existing messages (including business rules) are unchanged.
+        /// A message the code threw ON PURPOSE for the person at the keyboard ("a request that is
+        /// requested cannot be marked released", "Only an administrator can..."). These are
+        /// written as sentences, so they are shown as they are. Matched on the EXACT type: a
+        /// framework exception that happens to derive from one of these (ObjectDisposedException,
+        /// ArgumentOutOfRangeException, ArgumentNullException) is a bug, not a message.
+        /// </summary>
+        private static bool IsRuleMessage(Exception ex)
+        {
+            if (ex == null) return false;
+            Type t = ex.GetType();
+            return t == typeof(InvalidOperationException) || t == typeof(ArgumentException) ||
+                   t == typeof(UnauthorizedAccessException) || t == typeof(NotSupportedException);
+        }
+
+        /// <summary>
+        /// Text for a catch block that shows the exception as the WHOLE message. A "Data too long"
+        /// (error 1406) names the column; a business-rule message the code wrote itself is shown
+        /// as written; anything else (a SQL error, a null reference, a file or device failure) is
+        /// logged in full and replaced by one plain sentence - raw exception text means nothing
+        /// to a clerk and can quote the data being saved.
         /// </summary>
         public static string Text(Exception ex)
         {
+            if (ex == null) return "";
             MySqlException my = Find(ex);
             if (my != null && my.Number == 1406) return TooLongSentence(my);
-            return ex == null ? "" : ex.Message;
+            if (IsRuleMessage(ex)) return ex.Message;
+            Write("shown to the user", ex);
+            return Friendly(ex, "complete");
         }
 
+        /// <summary>
+        /// The same decision as <see cref="Text"/>, but a short reason that reads after a lead-in
+        /// such as "Could not load the log: " or "Camera error: " - lower-case, no "Sorry", no
+        /// instructions. For the catch blocks that were doing <c>"Could not x: " + ex.Message</c>.
+        /// </summary>
+        public static string Reason(Exception ex)
+        {
+            if (ex == null) return "";
+            MySqlException my = Find(ex);
+            if (my != null && my.Number == 1406) return TooLongSentence(my);
+            if (IsRuleMessage(ex)) return ex.Message;
+            Write("shown to the user", ex);
+            if (my != null)
+            {
+                if (my.Number == 1054 || my.Number == 1146 || my.Number == 1364)
+                    return "this computer's database has not been updated for this version yet (ask the administrator to run the latest database update)";
+                if (my.Number == 0 || my.Number == 1042 || my.Number == 1043 || my.Number == 1045 ||
+                    my.Number == 1053 || my.Number == 2002 || my.Number == 2003 || my.Number == 2006 ||
+                    my.Number == 2013)
+                    return "the records database could not be reached (check that the server PC is on and connected)";
+            }
+            return "an unexpected problem occurred (the details were saved for the administrator)";
+        }
         /// <summary>The column named in MySQL's "Data too long for column 'x' at row 1", or null.</summary>
         public static string TooLongColumn(Exception ex)
         {

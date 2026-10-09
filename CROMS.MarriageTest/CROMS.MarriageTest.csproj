@@ -46,6 +46,8 @@
     <Compile Include="FeesTest.cs" />
     <Compile Include="BirthRender.cs" />
     <Compile Include="BirthTest.cs" />
+    <Compile Include="RecycleTest.cs" />
+    <Compile Include="RecycleUiTest.cs" />
     <Compile Include="FlowsTest.cs" />
     <Compile Include="FlowsQueue.cs" />
     <Compile Include="AuditTest.cs" />

@@ -289,7 +289,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not resume: " + ex.Message, "Error",
+                MessageBox.Show("Could not resume: " + CROMS.Data.ErrorLog.Reason(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -382,7 +382,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not prepare the ID-upload QR: " + ex.Message, "Error",
+                MessageBox.Show("Could not prepare the ID-upload QR: " + CROMS.Data.ErrorLog.Reason(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -410,7 +410,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Could not prepare the letter QR: " + ex.Message, "Error",
+                MessageBox.Show("Could not prepare the letter QR: " + CROMS.Data.ErrorLog.Reason(ex), "Error",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -1426,7 +1426,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblCamStatus.Text = "Could not list cameras: " + ex.Message;
+                lblCamStatus.Text = "Could not list cameras: " + CROMS.Data.ErrorLog.Reason(ex);
             }
         }
 
@@ -1850,7 +1850,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                lblCamStatus.Text = "Camera error: " + ex.Message;
+                lblCamStatus.Text = "Camera error: " + CROMS.Data.ErrorLog.Reason(ex);
             }
         }
 
@@ -2239,7 +2239,7 @@ namespace CROMS.Forms
             catch (Exception ex)
             {
                 MessageBox.Show("Released, but the certificate could not be opened for printing: " +
-                    ex.Message + "\n\nPrint it from the registration screen.",
+                    CROMS.Data.ErrorLog.Reason(ex) + "\n\nPrint it from the registration screen.",
                     "Print", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }

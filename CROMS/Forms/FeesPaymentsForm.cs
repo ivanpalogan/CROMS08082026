@@ -157,7 +157,7 @@ namespace CROMS.Forms
             }
             catch (Exception ex)
             {
-                _assessed = new PaymentLine { Description = "Fee lookup failed: " + ex.Message, Quantity = 1, UnitAmount = 0m };
+                _assessed = new PaymentLine { Description = "Fee lookup failed: " + CROMS.Data.ErrorLog.Reason(ex), Quantity = 1, UnitAmount = 0m };
             }
             Recalc();
         }
@@ -535,7 +535,7 @@ namespace CROMS.Forms
                 using (var dlg = new PrintDialog { Document = doc })
                     if (dlg.ShowDialog() == DialogResult.OK) doc.Print();
             }
-            catch (Exception ex) { MessageBox.Show("Could not print the slip: " + ex.Message, "Print slip", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            catch (Exception ex) { MessageBox.Show("Could not print the slip: " + CROMS.Data.ErrorLog.Reason(ex), "Print slip", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
 
         private void DrawReceipt(object sender, PrintPageEventArgs e)

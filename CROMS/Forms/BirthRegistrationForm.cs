@@ -1788,14 +1788,17 @@ namespace CROMS.Forms
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            if (MessageBox.Show("Delete this birth record?", "Confirm delete",
+            IWin32Window delOwner = _entryDialog ?? (IWin32Window)this;
+            if (MessageBox.Show(delOwner, "Delete this birth record? An administrator can restore it later (Settings > Audit Trail > Deleted Records).", "Confirm delete",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
+            string reason = CROMS.Modules.ReasonPrompt.Ask(delOwner, "Delete", "this birth record");
+            if (reason == null) return;           // cancelled or left blank - nothing is deleted
             try
             {
-                Db.Push("DELETE FROM births WHERE id = @id",
-                    new MySqlParameter("@id", _editingId.Value));
-                Audit.Write(Audit.Delete, "births", _editingId.Value, null);
-                MessageBox.Show("Record deleted.", "Deleted",
+                // Archived whole (scans included) and removed in one transaction.
+                CROMS.Data.RecordRecycle.Delete("births", _editingId.Value, reason);
+                Audit.Write(Audit.Delete, "births", _editingId.Value, "Reason: " + reason);
+                MessageBox.Show(delOwner, "Record deleted. An administrator can restore it from Settings > Audit Trail > Deleted Records.", "Deleted",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 ClearForm();
                 ShowListView();
