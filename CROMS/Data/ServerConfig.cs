@@ -177,6 +177,30 @@ namespace CROMS.Data
             }
         }
 
+        /// <summary>The live registry's schema name. Anything else is a demo / test copy.</summary>
+        public const string LiveDatabaseName = "croms";
+
+        /// <summary>Schema name in the effective connection string (empty if unknown).</summary>
+        public static string DatabaseName
+        {
+            get
+            {
+                try { return new MySqlConnectionStringBuilder(EffectiveConnectionString).Database ?? ""; }
+                catch { return ""; }
+            }
+        }
+
+        /// <summary>
+        /// True when <paramref name="database"/> is a named, non-live schema (croms_demo, croms_test...).
+        /// An empty name is NOT demo: only an explicit different name raises the badge.
+        /// </summary>
+        public static bool IsDemoName(string database) =>
+            !string.IsNullOrWhiteSpace(database) &&
+            !string.Equals(database.Trim(), LiveDatabaseName, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>True when this run is connected to a demo / test schema instead of the live registry.</summary>
+        public static bool IsDemoEnvironment => IsDemoName(DatabaseName);
+
         /// <summary>
         /// Build a connection string for an arbitrary host/port off the same
         /// credential template (used by the setup screen's Test button).

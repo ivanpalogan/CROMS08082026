@@ -7462,3 +7462,68 @@ Both items left over from the hand-style pass are fixed.
  - CHIPS (the small filter buttons above the queue table: All / New Reg. / CTC / Marriage / Death / Petition / Claim, each with a live count): they were a fixed 88px wide, so "New Reg. 0" and "Marriage 0" were cut off at 1366px. They now size to their own text (AutoSize + 8px padding); all seven fit and read in full.
  - SEARCH BOXES: a WinForms TextBox cannot recolour or round its border (FixedSingle is always the dark system line), which is why every search box looked like a leftover beside the cards. New Modules/SearchHost.cs puts the box inside a painted field - rounded, white, hairline border that turns accent-blue while typing, magnifier icon. The TextBox itself is kept (same name, events, Text), so no screen's code changed; the host takes its place in the layout (same parent, same TableLayoutPanel cell/span, same flow index, Dock/Anchor/Margin/Size). UiTheme.Polish applies it to any box named txtSearch* / search* / txtQuery* / txtMonSearch* the first time a screen is shown, so Queue, Birth, Death, Release & Claim, BREQS, Petitions, Records Archive, Transactions, Master Files, Registry Books, the Old record screens, the Form 3A/B/C finders and Settings all get it. The hint text (Win32 cue banner) is read before the box is moved and put back afterwards. Petitions used a label laid over the box as its hint; it now uses a real cue banner so the box can be wrapped. Release, Petitions and BREQS built their boxes in code with no Name, so they were given one.
  - VERIFIED: whole-system audit 283 pass / 0 fail (was 267/10 before the hand pass); the Queue, Birth and Archive renders were read - chips complete, search boxes rounded with the hint text showing. A PowerShell harness cannot show the hint text (no visual-styles manifest), so the check that it survives wrapping was made in the audit exe. Not hand-clicked.
+
+### 2026-10-10 - Demo/test environment (croms_demo) built, and fictional sample data entered (demo first, then live)
+Two tasks done together: an isolated copy of the system that can be created, reset and thrown away, and a seeder that
+fills a database with realistic FICTIONAL records. Both documented for the office in Docs\Environment_Design.md,
+Docs\Environment_README.md and Scripts\SampleData\README.md. No schema change, no migration, no new package.
+
+ENVIRONMENT (Scripts\Environment, PowerShell, no password in any file).
+  - New-DemoEnvironment / Apply-Migrations / Reset / Refresh-FromLive / Remove / Start / Test scripts. Schema croms_demo,
+    own account croms_demo_app@localhost (DML on croms_demo only; SHOW GRANTS read back, SELECT on croms.births denied).
+  - Structure comes from a mysqldump --no-data of live with every `croms`. qualifier rewritten: the four certificate views
+    read the DEMO tables (checked). Reference data (24 tables, incl. 42,029 barangays) is copied live -> demo with
+    INSERT ... SELECT (read-only on live); 35 transactional tables stay empty. Test entries typed into the live master files
+    (SQL fragments, markup, an emoji, aaaa...) are filtered out of the DEMO copy only.
+  - Every destructive script refuses croms, an empty name, or anything not croms_demo*/croms_test*, and refuses without
+    -Confirm; nothing defaults to croms. Proven by running each with -Schema croms / mydb / no -Confirm.
+  - Passwords: administrator login read from CROMS\App.config at run time into a temp --defaults-extra-file; demo account
+    password generated, shown once, kept DPAPI-protected in %APPDATA%\CROMS\demo-env.cfg. Generated .exe.config files go to
+    %LOCALAPPDATA%\CROMS\Demo\App (outside repo and OneDrive), ACL = current user. CHOICE: a separate output folder rather than
+    APP_CONFIG_FILE, because the launcher starts the kiosk and display as child processes that must inherit the demo config.
+  - Migration ledger table _env_migrations; 88 files up to 86 are the baseline; re-running an old migration after 85 would
+    re-create the old table names, the ledger prevents it. Verified: a real migration (86 un-marked) applied once, second run 0.
+  - Refresh-FromLive copies REFERENCE tables only. Registry tables hold names/addresses/IDs/photos/signatures over hundreds of
+    columns; a mask I could not make trustworthy was not built (skipped on purpose, said so in the script and design note).
+  - Indicator: ServerConfig.DatabaseName/IsDemoName/IsDemoEnvironment; MainForm adds an orange "DEMO ENVIRONMENT - <schema>" label to
+    the header bar and the window title. New CROMS.MarriageTest --envbadge (13 checks). Test harness queries that hardcoded
+    table_schema='croms' now use DATABASE().
+  - A bug found by running it: Save-DemoSecret wrote "password=" and the protected blob as two lines (PowerShell comma/+ precedence);
+    fixed and the file repaired in place.
+  VERIFIED: create from nothing, Apply-Migrations x2 (second changes nothing), Reset x2, Remove then create again; demo suites
+  against croms_demo: default PASSED 77, --birthtest 50, --recycle 49, --envbadge 13; whole-system audit (--audit) on the demo:
+  259 pass / 3 fail (the 3 are harness-only: it looks for the kiosk/display builds beside its own folder, and 'OCR batch list 0 vs 0'
+  is the harness refusing an empty ocr_batch). croms row counts of every table + table/column/view counts IDENTICAL before and
+  after all environment work (65-line fingerprint). Dashboard, Birth, Marriage, Queue, Fees, Reports rendered and read.
+
+SAMPLE DATA (CROMS.SampleData console project, not in the .sln; Scripts\SampleData\Run-SampleData.ps1).
+  Uses RegistryNumber rules, MarriageService (licence -> posting -> requirements -> issue -> Form 97 -> steps), BreqsService,
+  PaymentService (Official Receipts, fee lines, payment log), DelayedBirthService, PetitionDocumentService, LookupStore. Every row is
+  tagged "SAMPLE DATA 2026" in a text column of its own table; --cleanup removes exactly those rows (children through their tagged
+  parents, never an id range; audit_log never touched). Idempotent: a second run prints "already seeded - skipped" per block (done
+  on demo AND live). --database must equal the schema reached or it refuses. Deterministic (fixed random seed).
+  Created (same numbers on demo and live): 60 births (50 Registered / 4 Pending Approval / 6 Draft, 6 delayed with affidavit
+  checklist, 2 twin sets + 1 triplet set, parents-not-married cases), 30 deaths (27 / 3 Pending Verification, ages computed),
+  22 licence applications (Draft 2, Posting 3, On Hold 1, Cancelled 1, Issued 13 incl. 3 expiring, Expired 2; consent 18-20,
+  advice 21-25, widowed, foreign) and 20 marriages (8 licence-linked at Capture/For Review/Verify/Register/Final Scan/Returned,
+  12 Registered digitized registry entries), 2 PSA transmittal batches, 15 petitions/cases (6 types, all stages), 30 certificate
+  requests with transactions at ForPrint 3 / ForPayment 4 / ForRelease 5 / WaitingToRelease 3 / Released 13 / Cancelled 2, 46
+  payments with items, 13 releases, 10 PSA copy requests, 109 queue tickets over 14 days (152 service rows, 24 CTC intake rows).
+  LIVE RESULT (before -> after): births 74->134, deaths 55->85, marriage_licenses 54->76, marriages 53->73, petitions 55->70,
+  transactions/certificate_requests 30->60, payments/items 23->69, releases 15->28, psa_copy_requests 1->11, queue_tickets 39->148,
+  queue_ticket_services 15->167, kiosk_ctc_intake 3->27, document_requirements 81->393, marriage_case_history 33->360, audit_log
+  809->960 (written by the services). Tables/columns/views 64/1238/4 unchanged. Also added by LookupStore: 3 churches, 1
+  hospital, 1 occupation, 2 causes of death. After seeding live: default suite 77, --birthtest 50, --recycle 49 all PASSED.
+  DECISIONS / NOT DONE: (1) Register() needs a confirmed final registered Form 97 (a scan) and no scans are attached, so the
+  Registered marriages are digitized registry-book entries (record_source OCR-Backlog, encoding Manual) and the 8 modern ones stop at
+  the step the app leaves them in. (2) PSA copies stop at Submitted/No Record/Cancelled (Received needs a scan). (3) No queue
+  ticket is left Waiting/Serving - Call Next would offer a sample client to a real window - so the Dashboard "Waiting now" is 0 and
+  "today" figures are empty when run on a weekend (today, 2026-10-10, is a Saturday). (4) History timestamps written by the
+  services (marriage_case_history, psa_copy_history, audit_log) carry the run time; the records' own dates are spread 2024-2026.
+  (5) Contact numbers left blank. (6) Pending Approval births are up to 4 months old (selection window), a cosmetic oddity.
+  (7) Live: the audit render (--audit) was NOT run against live (it writes and removes its own rows); the same screens were
+  rendered on the demo with identical data. (8) MY MISTAKE: the second live seed run reused the same backup file name and overwrote
+  the first pre-seed dump; the pre-seed state is preserved as CROMS_Backups\2026-10-10_pre-sample-data\croms_pre_seed.sql (a copy
+  of the 2026-10-09 pre-environment dump - live was fingerprint-identical to it) and the script now never overwrites a backup.
+  OPEN FROM BEFORE, unchanged: the MySQL root password and the croms_user LAN password are in tracked App.config files and in
+  .claude\settings.local.json; the demo password is not stored anywhere readable.

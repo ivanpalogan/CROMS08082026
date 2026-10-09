@@ -263,7 +263,7 @@ namespace CROMS.MarriageTest
             F<TextBox>("txtFirstName").Text = "Fee"; F<TextBox>("txtLastName").Text = Tag + "F"; F<ComboBox>("cboSex").SelectedItem = "Male";
             var fee = F<TextBox>("txtFee"); var or = F<TextBox>("txtFeeOr");
             Console.WriteLine("    txtFee max " + fee.MaxLength + "   txtFeeOr max " + or.MaxLength);
-            DataTable w = Db.Pull("SELECT character_maximum_length FROM information_schema.columns WHERE table_schema='croms' AND table_name='payments' AND column_name='or_number'");
+            DataTable w = Db.Pull("SELECT character_maximum_length FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='payments' AND column_name='or_number'");
             int orw = Convert.ToInt32(w.Rows[0][0]);
             Console.WriteLine("    payments.or_number width " + orw);
             foreach (string s in new[] { "abc", "-5", "0", "3.7", "1e5", "99999999999", "1,000", "250.123" })

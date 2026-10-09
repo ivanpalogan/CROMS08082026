@@ -73,6 +73,7 @@ namespace CROMS.MarriageTest
                 return _fail;
             }
             if (args.Length > 0 && args[0] == "--birthtest") return BirthTest.Run();
+            if (args.Length > 0 && args[0] == "--envbadge") { int er = EnvBadgeTest.Run(); Environment.Exit(er); return er; }
             if (args.Length > 0 && args[0] == "--recycle")
             {
                 try { LoginAs("Admin"); RecycleTest.Run(); RecycleUiTest.Run(); }

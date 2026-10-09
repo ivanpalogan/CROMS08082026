@@ -504,6 +504,26 @@ namespace CROMS
 
             bar.Controls.Add(chip);   // pinned to the far right
 
+            // Demo / test copy of the registry: a loud orange badge so nobody mistakes it for the
+            // live office data (shown whenever the connected schema is not "croms").
+            if (ServerConfig.IsDemoEnvironment)
+            {
+                var demo = new Label
+                {
+                    Text = "DEMO ENVIRONMENT  ·  " + ServerConfig.DatabaseName,
+                    AutoSize = false,
+                    Size = new Size(260, 30),
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    BackColor = Color.FromArgb(234, 88, 12),
+                    ForeColor = Color.White,
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+                    Margin = new Padding(0, 13, 10, 10),
+                    Tag = "demo-badge"
+                };
+                bar.Controls.Add(demo);
+                Text += "  -  DEMO ENVIRONMENT (" + ServerConfig.DatabaseName + ")";
+            }
+
             // "Update" button — only on client PCs (a server share to pull from
             // exists). Lets staff pull the latest app build from the server over
             // the LAN with one click, no re-copying files.

@@ -1,17 +1,18 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <!-- End-to-end workflow test for the marriage module. NOT in the .sln, like
-       CROMS.DocTest: build it with  msbuild CROMS.MarriageTest\CROMS.MarriageTest.csproj
-       It drives CROMS.Data.MarriageService - the same code the screens call - against
-       the live database, then deletes every row it created. -->
+  <!-- Sample-data seeder (fictional Cagayan Valley records for demos and training). NOT in the
+       .sln, like CROMS.MarriageTest: build it with  msbuild CROMS.SampleData\CROMS.SampleData.csproj
+       It drives the application's own services (RegistryNumber, MarriageService, BreqsService,
+       PaymentService, DelayedBirthService) and tags every row it writes "SAMPLE DATA 2026", so
+       the cleanup mode removes exactly those rows and nothing else. -->
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{A3E1C9D2-5B7F-4F6A-8C21-7D2E9B4F1A90}</ProjectGuid>
+    <ProjectGuid>{5C2D7E41-93B0-4A6F-8E15-2B9F6D0A47C3}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>CROMS.MarriageTest</RootNamespace>
-    <AssemblyName>CROMS.MarriageTest</AssemblyName>
+    <RootNamespace>CROMS.SampleData</RootNamespace>
+    <AssemblyName>CROMS.SampleData</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -42,23 +43,13 @@
   <ItemGroup>
     <None Include="App.config" />
     <Compile Include="Program.cs" />
-    <Compile Include="BreqsTest.cs" />
-    <Compile Include="FeesTest.cs" />
-    <Compile Include="BirthRender.cs" />
-    <Compile Include="BirthTest.cs" />
-    <Compile Include="EnvBadgeTest.cs" />
-    <Compile Include="RecycleTest.cs" />
-    <Compile Include="RecycleUiTest.cs" />
-    <Compile Include="FlowsTest.cs" />
-    <Compile Include="FlowsQueue.cs" />
-    <Compile Include="AuditTest.cs" />
-    <Compile Include="AuditOps.cs" />
-    <Compile Include="AuditKiosk.cs" />
-    <Compile Include="AreaA.cs" />
-    <Compile Include="AreaABirth.cs" />
-    <Compile Include="AreaADeath.cs" />
-    <Compile Include="AreaAMarriage.cs" />
-    <Compile Include="AreaAStubs.cs" />
+    <Compile Include="Gen.cs" />
+    <Compile Include="SeedBirths.cs" />
+    <Compile Include="SeedDeaths.cs" />
+    <Compile Include="SeedMarriages.cs" />
+    <Compile Include="SeedServices.cs" />
+    <Compile Include="SeedQueue.cs" />
+    <Compile Include="Cleanup.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CROMS\CROMS.csproj">
