@@ -511,15 +511,16 @@ namespace CROMS
                 var demo = new Label
                 {
                     Text = "DEMO ENVIRONMENT  ·  " + ServerConfig.DatabaseName,
-                    AutoSize = false,
-                    Size = new Size(260, 30),
+                    AutoSize = true,                       // sizes to the text at any DPI (a fixed width clipped it)
+                    Padding = new Padding(12, 7, 12, 7),
                     TextAlign = ContentAlignment.MiddleCenter,
                     BackColor = Color.FromArgb(234, 88, 12),
                     ForeColor = Color.White,
                     Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-                    Margin = new Padding(0, 13, 10, 10),
+                    Margin = new Padding(0, 12, 12, 10),
                     Tag = "demo-badge"
                 };
+                bar.Width += 300;          // the header bar is 480px wide: the badge would be clipped off its left edge
                 bar.Controls.Add(demo);
                 Text += "  -  DEMO ENVIRONMENT (" + ServerConfig.DatabaseName + ")";
             }
