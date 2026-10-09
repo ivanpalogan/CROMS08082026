@@ -98,7 +98,7 @@ namespace CROMS.Data
                 };
 
                 // Reclaim the same service window if it is still free (or was ours). The
-                // window's transaction assignments in window_transactions survive a
+                // window's transaction assignments in window_service_assignments survive a
                 // release, so only the Online presence needs re-stamping.
                 if (windowId > 0)
                 {

@@ -642,7 +642,8 @@ namespace CROMS.MarriageTest
             DataTable ids = Db.Pull("SELECT id FROM births WHERE first_name = '" + BirthTag + "'");
             string list = string.Join(",", ids.AsEnumerable().Select(r => r[0].ToString()).DefaultIfEmpty("0"));
             Db.Push("DELETE FROM audit_log WHERE table_name = 'births' AND record_id IN (" + list + ")");
-            Db.Push("DELETE FROM marriage_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
+            Db.Push("DELETE FROM document_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
+            Db.Push("DELETE FROM marriage_case_history WHERE entity = 'Birth' AND entity_id IN (" + list + ")");   // history rows are not cascade-deleted
             Db.Push("DELETE FROM births WHERE id IN (" + list + ")");
         }
 
@@ -650,7 +651,7 @@ namespace CROMS.MarriageTest
         {
             return Convert.ToInt32(Db.Pull(
                 "SELECT (SELECT COUNT(*) FROM births WHERE first_name = '" + BirthTag + "') + " +
-                "(SELECT COUNT(*) FROM marriage_requirements WHERE owner_type = 'Birth' AND owner_id NOT IN (SELECT id FROM births))").Rows[0][0]);
+                "(SELECT COUNT(*) FROM document_requirements WHERE owner_type = 'Birth' AND owner_id NOT IN (SELECT id FROM births))").Rows[0][0]);
         }
 
         // ------------------------------------------------------------ Consent (MF-06) / Advice (MF-68)
@@ -1266,8 +1267,8 @@ namespace CROMS.MarriageTest
             Db.Push("DELETE FROM psa_transmittal_items WHERE batch_id IN (" + bl + ") OR (record_table='marriages' AND record_id IN (" + mids + "))");
             Db.Push("DELETE FROM psa_transmittal_batches WHERE id IN (" + bl + ") AND NOT EXISTS (SELECT 1 FROM psa_transmittal_items i WHERE i.batch_id = psa_transmittal_batches.id)");
             Db.Push("DELETE FROM marriage_copies WHERE marriage_id IN (" + mids + ")");
-            Db.Push("DELETE FROM marriage_requirements WHERE (owner_type='Marriage' AND owner_id IN (" + mids + ")) OR (owner_type='License' AND owner_id IN (" + lids + "))");
-            Db.Push("DELETE FROM marriage_history WHERE (entity='Marriage' AND entity_id IN (" + mids + ")) OR (entity='License' AND entity_id IN (" + lids + ")) OR (entity='Batch' AND entity_id IN (" + bl + "))");
+            Db.Push("DELETE FROM document_requirements WHERE (owner_type='Marriage' AND owner_id IN (" + mids + ")) OR (owner_type='License' AND owner_id IN (" + lids + "))");
+            Db.Push("DELETE FROM marriage_case_history WHERE (entity='Marriage' AND entity_id IN (" + mids + ")) OR (entity='License' AND entity_id IN (" + lids + ")) OR (entity='Batch' AND entity_id IN (" + bl + "))");
             Db.Push("DELETE FROM audit_log WHERE (table_name='marriages' AND record_id IN (" + mids + ")) OR (table_name='marriage_licenses' AND record_id IN (" + lids + ")) OR (table_name='psa_transmittal_batches' AND record_id IN (" + bl + "))");
             Db.Push("DELETE FROM marriages WHERE id IN (" + mids + ")");
             Db.Push("DELETE FROM marriage_licenses WHERE id IN (" + lids + ")");

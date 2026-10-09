@@ -146,7 +146,7 @@ namespace CROMS.Data
         public static void History(string entity, int id, string ev, string from, string to, string details,
                                    MySqlConnection c = null, MySqlTransaction t = null)
         {
-            const string sql = "INSERT INTO marriage_history (entity, entity_id, event, from_status, to_status, details, user_id) " +
+            const string sql = "INSERT INTO marriage_case_history (entity, entity_id, event, from_status, to_status, details, user_id) " +
                                "VALUES (@e, @id, @ev, @f, @to, @d, @u)";
             var ps = new[] { P("@e", entity), P("@id", id), P("@ev", ev), P("@f", from), P("@to", to), P("@d", details), P("@u", UserId) };
             if (c != null) Exec(c, t, sql, ps);
@@ -159,7 +159,7 @@ namespace CROMS.Data
                 "SELECT h.created_at AS `When`, h.event AS `Event`, " +
                 "CONCAT_WS(' -> ', NULLIF(h.from_status,''), NULLIF(h.to_status,'')) AS `Status`, " +
                 "h.details AS `Details`, COALESCE(u.full_name, u.username, '-') AS `By` " +
-                "FROM marriage_history h LEFT JOIN users u ON u.id = h.user_id " +
+                "FROM marriage_case_history h LEFT JOIN users u ON u.id = h.user_id " +
                 "WHERE h.entity = @e AND h.entity_id = @id ORDER BY h.id DESC",
                 P("@e", entity), P("@id", id));
         }
@@ -168,7 +168,7 @@ namespace CROMS.Data
         public static List<ReqType> Catalog()
         {
             var list = new List<ReqType>();
-            foreach (DataRow r in Db.Pull("SELECT * FROM marriage_requirement_types").Rows)
+            foreach (DataRow r in Db.Pull("SELECT * FROM document_requirement_types").Rows)
                 list.Add(new ReqType
                 {
                     Code = Str(r["code"]), Label = Str(r["label"]), AppliesTo = Str(r["applies_to"]),
@@ -190,7 +190,7 @@ namespace CROMS.Data
                 "SELECT mr.id, mr.party, mr.req_code, mr.req_label, mr.status, mr.outcome, mr.given_by, mr.reference_no, mr.doc_date, " +
                 "mr.attachment IS NOT NULL AS has_att, mr.verified_by, mr.verified_at, mr.notes, " +
                 "mr.bypassed_by, mr.bypassed_at, mr.bypass_reason, u.full_name AS bypassed_by_name " +
-                "FROM marriage_requirements mr LEFT JOIN users u ON u.id = mr.bypassed_by " +
+                "FROM document_requirements mr LEFT JOIN users u ON u.id = mr.bypassed_by " +
                 "WHERE mr.owner_type = @t AND mr.owner_id = @id ORDER BY mr.id",
                 P("@t", ownerType), P("@id", ownerId));
             foreach (DataRow r in dt.Rows) list.Add(ToReq(r));
@@ -225,29 +225,29 @@ namespace CROMS.Data
         {
             RequireBypass("bypass a requirement");
             if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A reason is required to bypass a requirement.");
-            DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM marriage_requirements WHERE id = @id", P("@id", reqId));
+            DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM document_requirements WHERE id = @id", P("@id", reqId));
             if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
-            Db.Push("UPDATE marriage_requirements SET bypassed_by=@u, bypassed_at=NOW(), bypass_reason=@r WHERE id=@id",
+            Db.Push("UPDATE document_requirements SET bypassed_by=@u, bypassed_at=NOW(), bypass_reason=@r WHERE id=@id",
                     P("@u", UserId), P("@r", reason), P("@id", reqId));
             string owner = Str(cur.Rows[0]["owner_type"]);
             int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
             string code = Str(cur.Rows[0]["req_code"]) + (Str(cur.Rows[0]["party"]) == "Both" ? "" : " (" + Str(cur.Rows[0]["party"]) + ")");
             History(owner, ownerId, "Requirement bypassed by " + ActorTag(), null, null, code + " - " + reason);
-            Audit.Write(Audit.Update, "marriage_requirements", reqId, "BYPASS by " + ActorTag() + ": " + code + " - " + reason);
+            Audit.Write(Audit.Update, "document_requirements", reqId, "BYPASS by " + ActorTag() + ": " + code + " - " + reason);
         }
 
         /// <summary>Withdraws a bypass (e.g. entered by mistake, or the document has now arrived).</summary>
         public static void ClearBypass(int reqId)
         {
             RequireBypass("withdraw a requirement bypass");
-            DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM marriage_requirements WHERE id = @id", P("@id", reqId));
+            DataTable cur = Db.Pull("SELECT owner_type, owner_id, req_code, party FROM document_requirements WHERE id = @id", P("@id", reqId));
             if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
-            Db.Push("UPDATE marriage_requirements SET bypassed_by=NULL, bypassed_at=NULL, bypass_reason=NULL WHERE id=@id", P("@id", reqId));
+            Db.Push("UPDATE document_requirements SET bypassed_by=NULL, bypassed_at=NULL, bypass_reason=NULL WHERE id=@id", P("@id", reqId));
             string owner = Str(cur.Rows[0]["owner_type"]);
             int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
             string code = Str(cur.Rows[0]["req_code"]) + (Str(cur.Rows[0]["party"]) == "Both" ? "" : " (" + Str(cur.Rows[0]["party"]) + ")");
             History(owner, ownerId, "Requirement bypass withdrawn by " + ActorTag(), null, null, code);
-            Audit.Write(Audit.Update, "marriage_requirements", reqId, "Requirement bypass withdrawn by " + ActorTag() + ": " + code);
+            Audit.Write(Audit.Update, "document_requirements", reqId, "Requirement bypass withdrawn by " + ActorTag() + ": " + code);
         }
 
         /// <summary>
@@ -258,7 +258,7 @@ namespace CROMS.Data
         public static void SaveRequirement(ReqRow r)
         {
             if (Array.IndexOf(RequirementStatuses, r.Status) < 0) throw new ArgumentException("Unknown status " + r.Status);
-            DataTable cur = Db.Pull("SELECT owner_type, owner_id, status FROM marriage_requirements WHERE id = @id", P("@id", r.Id));
+            DataTable cur = Db.Pull("SELECT owner_type, owner_id, status FROM document_requirements WHERE id = @id", P("@id", r.Id));
             if (cur.Rows.Count == 0) throw new InvalidOperationException("Requirement not found.");
             string owner = Str(cur.Rows[0]["owner_type"]);
             int ownerId = Convert.ToInt32(cur.Rows[0]["owner_id"]);
@@ -266,7 +266,7 @@ namespace CROMS.Data
 
             bool verified = r.Status == "Verified";
             Db.Push(
-                "UPDATE marriage_requirements SET status=@s, outcome=@o, given_by=@g, reference_no=@ref, doc_date=@dd, notes=@n, " +
+                "UPDATE document_requirements SET status=@s, outcome=@o, given_by=@g, reference_no=@ref, doc_date=@dd, notes=@n, " +
                 "verified_by = CASE WHEN @v = 1 THEN COALESCE(verified_by, @u) ELSE NULL END, " +
                 "verified_at = CASE WHEN @v = 1 THEN COALESCE(verified_at, NOW()) ELSE NULL END " +
                 "WHERE id = @id",
@@ -294,7 +294,7 @@ namespace CROMS.Data
             string ext = Path.GetExtension(fileName ?? "").ToLowerInvariant();
             if (!AllowedAttachmentExt.Contains(ext))
                 throw new ArgumentException("Only images (.jpg, .png, .bmp, .tif) or PDF files can be attached.");
-            Db.Push("UPDATE marriage_requirements SET attachment=@b, attachment_name=@n, " +
+            Db.Push("UPDATE document_requirements SET attachment=@b, attachment_name=@n, " +
                     "status = CASE WHEN status = 'Missing' THEN 'Submitted' ELSE status END WHERE id=@id",
                 new MySqlParameter("@b", MySqlDbType.LongBlob) { Value = bytes }, P("@n", fileName), P("@id", reqId));
         }
@@ -302,7 +302,7 @@ namespace CROMS.Data
         public static byte[] RequirementAttachment(int reqId, out string fileName)
         {
             fileName = null;
-            DataTable dt = Db.Pull("SELECT attachment, attachment_name FROM marriage_requirements WHERE id=@id", P("@id", reqId));
+            DataTable dt = Db.Pull("SELECT attachment, attachment_name FROM document_requirements WHERE id=@id", P("@id", reqId));
             if (dt.Rows.Count == 0 || dt.Rows[0]["attachment"] == DBNull.Value) return null;
             fileName = Str(dt.Rows[0]["attachment_name"]);
             return (byte[])dt.Rows[0]["attachment"];
@@ -315,7 +315,7 @@ namespace CROMS.Data
         /// </summary>
         public static void RemoveRequirementAttachment(int reqId)
         {
-            Db.Push("UPDATE marriage_requirements SET attachment=NULL, attachment_name=NULL WHERE id=@id", P("@id", reqId));
+            Db.Push("UPDATE document_requirements SET attachment=NULL, attachment_name=NULL WHERE id=@id", P("@id", reqId));
         }
 
         /// <summary>
@@ -338,7 +338,7 @@ namespace CROMS.Data
             List<ReqRow> rows = Requirements(ownerType, ownerId);
             foreach (Need n in needs)
                 if (MarriageRules.RowFor(rows, n) == null)
-                    Db.Push("INSERT IGNORE INTO marriage_requirements (owner_type, owner_id, party, req_code, req_label) " +
+                    Db.Push("INSERT IGNORE INTO document_requirements (owner_type, owner_id, party, req_code, req_label) " +
                             "VALUES (@t, @id, @p, @c, @l)",
                         P("@t", ownerType), P("@id", ownerId), P("@p", n.Party), P("@c", n.Code), P("@l", n.Label));
             foreach (ReqRow r in rows)
@@ -349,7 +349,7 @@ namespace CROMS.Data
                 if (!IsCustomCode(r.Code) &&
                     !needs.Any(n => n.Code == r.Code && n.Party == r.Party) && r.Status == "Missing" &&
                     !r.HasAttachment && string.IsNullOrWhiteSpace(r.ReferenceNo) && string.IsNullOrWhiteSpace(r.GivenBy) && !r.DocDate.HasValue)
-                    Db.Push("DELETE FROM marriage_requirements WHERE id = @id", P("@id", r.Id));
+                    Db.Push("DELETE FROM document_requirements WHERE id = @id", P("@id", r.Id));
         }
 
         private const string CustomCodePrefix = "CUSTOM-";
@@ -367,7 +367,7 @@ namespace CROMS.Data
             if (string.IsNullOrWhiteSpace(label)) throw new ArgumentException("Requirement name is required.");
             string code = CustomCodePrefix + Guid.NewGuid().ToString("N").Substring(0, 10).ToUpperInvariant();
             long id = Db.Insert(
-                "INSERT INTO marriage_requirements (owner_type, owner_id, party, req_code, req_label) VALUES (@t, @id, @p, @c, @l)",
+                "INSERT INTO document_requirements (owner_type, owner_id, party, req_code, req_label) VALUES (@t, @id, @p, @c, @l)",
                 P("@t", ownerType), P("@id", ownerId), P("@p", string.IsNullOrWhiteSpace(party) ? "Both" : party),
                 P("@c", code), P("@l", label.Trim()));
             History(ownerType, ownerId, "Requirement", null, "Missing", code + " added (custom: " + label.Trim() + ")");
@@ -480,7 +480,7 @@ namespace CROMS.Data
             var reqs = new Dictionary<int, List<ReqRow>>();
             DataTable rq = Db.Pull(
                 "SELECT id, owner_id, party, req_code, req_label, status, outcome, given_by, reference_no, doc_date, " +
-                "attachment IS NOT NULL AS has_att, verified_by, verified_at, notes FROM marriage_requirements WHERE owner_type='License'");
+                "attachment IS NOT NULL AS has_att, verified_by, verified_at, notes FROM document_requirements WHERE owner_type='License'");
             foreach (DataRow r in rq.Rows)
             {
                 int o = Convert.ToInt32(r["owner_id"]);

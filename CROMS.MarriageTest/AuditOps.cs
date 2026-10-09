@@ -751,7 +751,7 @@ namespace CROMS.MarriageTest
                 Check("Staff bypass marks the one row bypassed, status untouched", after.IsBypassed && after.Status == rows[0].Status, after.Status);
                 long aud = Count("SELECT COUNT(*) FROM audit_log WHERE details LIKE 'BYPASS by %(Staff)%ZZA client%'");
                 Check("bypass is written to audit_log naming the user AND role (Staff)", aud == 1, aud + " rows");
-                long hist = Count("SELECT COUNT(*) FROM marriage_history WHERE entity_id=" + id + " AND event LIKE 'Requirement bypassed by %(Staff)%'");
+                long hist = Count("SELECT COUNT(*) FROM marriage_case_history WHERE entity_id=" + id + " AND event LIKE 'Requirement bypassed by %(Staff)%'");
                 Check("bypass is written to the licence's own history", hist == 1, hist + " rows");
                 if (rows.Count > 1) Check("other rows stay un-bypassed", !MarriageService.Requirements("License", id).First(r => r.Id == rows[1].Id).IsBypassed);
                 MarriageService.ClearBypass(rows[0].Id);
@@ -776,7 +776,7 @@ namespace CROMS.MarriageTest
             Check("migration 48 (licence requirement override) applied", col48);
             bool col48b = Count("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='croms' AND table_name='office_profile' AND column_name='email'") > 0;
             Check("migration 48 (office e-mail) applied", col48b);
-            bool m52 = Count("SELECT COUNT(*) FROM marriage_requirement_types WHERE applies_to='Petition'") > 0;
+            bool m52 = Count("SELECT COUNT(*) FROM document_requirement_types WHERE applies_to='Petition'") > 0;
             Check("migration 52 (petition documents) applied", m52);
             bool m69 = Count("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema='croms' AND table_name='births' AND column_name='is_deleted'") > 0;
             Check("migration 69 (soft delete) applied", m69, "ReasonPrompt exists but no delete path uses it");
@@ -795,14 +795,14 @@ namespace CROMS.MarriageTest
                 steps.Add("DELETE FROM ocr_batch WHERE id > " + _ocrBatchBefore);
             }
             if (_birthsBefore > 0) steps.Add("DELETE FROM births WHERE id > " + _birthsBefore + " AND record_source='OCR-Backlog'");
-            steps.Add("DELETE FROM marriage_history WHERE entity='License' AND entity_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
-            steps.Add("DELETE FROM marriage_requirements WHERE owner_type='License' AND owner_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
+            steps.Add("DELETE FROM marriage_case_history WHERE entity='License' AND entity_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
+            steps.Add("DELETE FROM document_requirements WHERE owner_type='License' AND owner_id IN (SELECT id FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%')");
             steps.Add("DELETE FROM marriage_licenses WHERE husband_last_name LIKE 'ZZA%'");
             steps.Add("DELETE FROM users WHERE username LIKE 'zza%'");
             steps.Add("DELETE FROM client_service_slips WHERE requester_name LIKE 'ZZA%'");
-            steps.Add("DELETE FROM marriage_requirements WHERE owner_type='Petition' AND owner_id IN (SELECT id FROM petitions WHERE requester_name LIKE 'ZZA%')");
+            steps.Add("DELETE FROM document_requirements WHERE owner_type='Petition' AND owner_id IN (SELECT id FROM petitions WHERE requester_name LIKE 'ZZA%')");
             steps.Add("DELETE FROM petitions WHERE requester_name LIKE 'ZZA%'");
-            steps.Add("DELETE FROM window_transactions WHERE window_id IN (SELECT id FROM windows WHERE window_name='ZZA Win')");
+            steps.Add("DELETE FROM window_service_assignments WHERE window_id IN (SELECT id FROM windows WHERE window_name='ZZA Win')");
             steps.Add("DELETE FROM windows WHERE window_name='ZZA Win'");
             steps.Add("DELETE FROM deaths WHERE full_name LIKE '%ZZA%'");
             steps.Add("DELETE FROM religions WHERE name LIKE 'ZZA%'");

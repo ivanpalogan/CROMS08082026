@@ -184,7 +184,7 @@ namespace CROMS.MarriageTest
                              "VALUES (@n, 'ZZF test window', 'Active', 0, @u, 'ZZF tester', NOW(), @o)";
                 wa = Db.Insert(ins, new MySqlParameter("@n", "ZZF Win A"), new MySqlParameter("@u", admin), new MySqlParameter("@o", 900));
                 wb = Db.Insert(ins, new MySqlParameter("@n", "ZZF Win B"), new MySqlParameter("@u", admin), new MySqlParameter("@o", 901));
-                Db.Push("INSERT INTO window_transactions (window_id, service_code) VALUES (@w, 'CTC')", new MySqlParameter("@w", wb));
+                Db.Push("INSERT INTO window_service_assignments (window_id, service_code) VALUES (@w, 'CTC')", new MySqlParameter("@w", wb));
                 Session.WindowId = (int)wa; Session.WindowName = "ZZF Win A";
 
                 wd.Start();
@@ -411,7 +411,7 @@ namespace CROMS.MarriageTest
                 int id = Convert.ToInt32(w[0]);
                 // Audit rows written while a test window was the operator's window - exact, not by id of a record.
                 Db.Push("DELETE FROM audit_log WHERE window_id = @w", new MySqlParameter("@w", id));
-                Db.Push("DELETE FROM window_transactions WHERE window_id = @w", new MySqlParameter("@w", id));
+                Db.Push("DELETE FROM window_service_assignments WHERE window_id = @w", new MySqlParameter("@w", id));
                 Db.Push("UPDATE queue_ticket_services SET locked_by_window = NULL WHERE locked_by_window = @w", new MySqlParameter("@w", id));
                 Db.Push("DELETE FROM windows WHERE id = @w", new MySqlParameter("@w", id));
             }
@@ -422,7 +422,7 @@ namespace CROMS.MarriageTest
                 Db.Push("DELETE FROM payments WHERE transaction_id = @t", new MySqlParameter("@t", Convert.ToInt64(t[0])));
                 Db.Push("DELETE FROM releases WHERE transaction_id = @t", new MySqlParameter("@t", Convert.ToInt64(t[0])));
                 Db.Push("DELETE FROM certificate_requests WHERE transaction_id = @t", new MySqlParameter("@t", Convert.ToInt64(t[0])));
-                Db.Push("DELETE FROM claim_requests WHERE transaction_id = @t", new MySqlParameter("@t", Convert.ToInt64(t[0])));
+                Db.Push("DELETE FROM claimant_id_uploads WHERE transaction_id = @t", new MySqlParameter("@t", Convert.ToInt64(t[0])));
                 Db.Push("DELETE FROM transactions WHERE id = @t", new MySqlParameter("@t", Convert.ToInt64(t[0])));
             }
         }

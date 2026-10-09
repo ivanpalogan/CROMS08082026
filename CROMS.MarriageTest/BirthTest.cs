@@ -341,7 +341,7 @@ namespace CROMS.MarriageTest
             Db.Push("DELETE FROM payment_items WHERE payment_id IN (SELECT id FROM payments WHERE or_number LIKE @o)", new MySqlParameter("@o", Tag + "-OR%"));
             Db.Push("DELETE FROM payments WHERE or_number LIKE @o", new MySqlParameter("@o", Tag + "-OR%"));
             Db.Push("DELETE FROM audit_log WHERE table_name = 'births' AND record_id IN (" + list + ") AND details LIKE @t", new MySqlParameter("@t", "%" + Tag + "%"));
-            Db.Push("DELETE FROM marriage_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
+            Db.Push("DELETE FROM document_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
             Db.Push("DELETE FROM births WHERE id IN (" + list + ")");
         }
 

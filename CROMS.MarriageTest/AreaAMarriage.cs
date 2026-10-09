@@ -84,7 +84,7 @@ namespace CROMS.MarriageTest
         // ------------------------------------------------------------------ Form 97
         public static void Run()
         {
-            HistStart = Convert.ToInt64(Db.Pull("SELECT IFNULL(MAX(id),0) FROM marriage_history").Rows[0][0]);
+            HistStart = Convert.ToInt64(Db.Pull("SELECT IFNULL(MAX(id),0) FROM marriage_case_history").Rows[0][0]);
             try
             {
                 Cleanup();
@@ -290,10 +290,10 @@ namespace CROMS.MarriageTest
             string ml = string.Join(",", mids.DefaultIfEmpty(0)), ll = string.Join(",", lids.DefaultIfEmpty(0));
             DeleteAuditSince("marriages", mids, "%ZZT%");
             DeleteAuditSince("marriage_licenses", lids, "%ZZT%");
-            Db.Push("DELETE FROM marriage_history WHERE id > @h AND entity='Marriage' AND entity_id IN (" + ml + ")", new MySqlParameter("@h", HistStart));
-            Db.Push("DELETE FROM marriage_history WHERE id > @h AND entity='License' AND entity_id IN (" + ll + ")", new MySqlParameter("@h", HistStart));
-            Db.Push("DELETE FROM marriage_requirements WHERE owner_type='Marriage' AND owner_id IN (" + ml + ")");
-            Db.Push("DELETE FROM marriage_requirements WHERE owner_type='License' AND owner_id IN (" + ll + ")");
+            Db.Push("DELETE FROM marriage_case_history WHERE id > @h AND entity='Marriage' AND entity_id IN (" + ml + ")", new MySqlParameter("@h", HistStart));
+            Db.Push("DELETE FROM marriage_case_history WHERE id > @h AND entity='License' AND entity_id IN (" + ll + ")", new MySqlParameter("@h", HistStart));
+            Db.Push("DELETE FROM document_requirements WHERE owner_type='Marriage' AND owner_id IN (" + ml + ")");
+            Db.Push("DELETE FROM document_requirements WHERE owner_type='License' AND owner_id IN (" + ll + ")");
             Db.Push("DELETE FROM marriages WHERE id IN (" + ml + ") AND (husband_last_name LIKE 'ZZT%' OR wife_last_name LIKE 'ZZT%')");
             Db.Push("DELETE FROM marriage_licenses WHERE id IN (" + ll + ") AND (husband_last_name LIKE 'ZZT%' OR wife_last_name LIKE 'ZZT%')");
         }

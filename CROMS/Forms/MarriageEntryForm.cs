@@ -1727,7 +1727,7 @@ namespace CROMS.Forms
                     _ocrPending = false;
                     if (_status != "Registered") _currentStep = "Verify";
                 }
-                // SaveMarriage already synced marriage_requirements (it runs SyncMarriageRequirements
+                // SaveMarriage already synced document_requirements (it runs SyncMarriageRequirements
                 // internally), so the OUT_OF_PROVINCE_LICENSE row now exists if this marriage needs
                 // it - only now can the scanned image actually be attached to it.
                 if (_oopScanImage != null && _id.HasValue)
@@ -1766,7 +1766,7 @@ namespace CROMS.Forms
         /// Marriage/Death there is no DocLayouts entry to read this against) and offers a licence
         /// number and date it can find in the text; the fields stay editable either way, and a
         /// failed or absent read just leaves them for the operator to type. The image itself is
-        /// held until the next Save, because it is attached to the marriage_requirements ROW,
+        /// held until the next Save, because it is attached to the document_requirements ROW,
         /// which does not exist until the marriage record it belongs to has been saved once.
         /// </summary>
         private void ScanOopLicense()

@@ -48,7 +48,7 @@ namespace CROMS.MarriageTest
             finally
             {
                 Cleanup();
-                int left = Convert.ToInt32(Db.Pull("SELECT (SELECT COUNT(*) FROM breqs_requests WHERE requester_last LIKE 'ZZB%' OR owner_last LIKE 'ZZB%') + " +
+                int left = Convert.ToInt32(Db.Pull("SELECT (SELECT COUNT(*) FROM psa_copy_requests WHERE requester_last LIKE 'ZZB%' OR owner_last LIKE 'ZZB%') + " +
                                                    "(SELECT COUNT(*) FROM queue_tickets WHERE ticket_code LIKE 'ZZB%')").Rows[0][0]);
                 Check("zero strays after cleanup", left == 0, left + " left");
             }
@@ -136,7 +136,7 @@ namespace CROMS.MarriageTest
                 Check("received -> scan stored, OCR kind + match recorded", back.Status == BreqsService.Received && back.HasScan && back.OcrDocKind == "Birth",
                       back.OcrDocKind + " / " + back.OcrMatch + " / " + back.OcrName);
                 Check("the real scan names the requested child (Match)", back.OcrMatch == "Match", back.OcrMatch + " (" + back.OcrName + ")");
-                DataTable batch = Db.Pull("SELECT doc_kind, status FROM ocr_batch WHERE record_table = 'breqs_requests' AND record_id = @id", new MySqlParameter("@id", id));
+                DataTable batch = Db.Pull("SELECT doc_kind, status FROM ocr_batch WHERE record_table = 'psa_copy_requests' AND record_id = @id", new MySqlParameter("@id", id));
                 Check("scan logged to ocr_batch against the request", batch.Rows.Count == 1 && (string)batch.Rows[0]["status"] == "Attached");
 
                 // Same scan attached to a DEATH request must be caught as the wrong document.
@@ -160,7 +160,7 @@ namespace CROMS.MarriageTest
             Check("released -> closed, claimant recorded", back.Status == BreqsService.Released && back.ReleasedAt.HasValue && back.ClaimantName == "Sheila Articulo Talosig");
             int hist = BreqsService.History(id).Rows.Count;
             Check("history kept for every step (logged, edit, paid, submitted, received, released)", hist >= 6, hist + " rows");
-            Check("audit trail written", Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM audit_log WHERE table_name = 'breqs_requests' AND record_id = @id", new MySqlParameter("@id", id)).Rows[0][0]) >= 5);
+            Check("audit trail written", Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM audit_log WHERE table_name = 'psa_copy_requests' AND record_id = @id", new MySqlParameter("@id", id)).Rows[0][0]) >= 5);
         }
 
         private static void Exits(int uid)
@@ -316,14 +316,14 @@ namespace CROMS.MarriageTest
 
         private static void Cleanup()
         {
-            DataTable ids = Db.Pull("SELECT id FROM breqs_requests WHERE requester_last LIKE 'ZZB%' OR owner_last LIKE 'ZZB%'");
+            DataTable ids = Db.Pull("SELECT id FROM psa_copy_requests WHERE requester_last LIKE 'ZZB%' OR owner_last LIKE 'ZZB%'");
             string list = string.Join(",", ids.AsEnumerable().Select(r => r[0].ToString()).DefaultIfEmpty("0"));
             // matched on the O.R. in the details, not the bare id: payment ids are reused and older audit rows can carry one
-            Db.Push("DELETE a FROM audit_log a JOIN payments p ON a.table_name = 'payments' AND a.record_id = CAST(p.id AS CHAR) AND a.details LIKE CONCAT('%O.R. ', p.or_number, '%') WHERE p.source_table = 'breqs_requests' AND p.source_id IN (" + list + ")");
-            Db.Push("DELETE FROM payments WHERE source_table = 'breqs_requests' AND source_id IN (" + list + ")");   // items cascade
-            Db.Push("DELETE FROM ocr_batch WHERE record_table = 'breqs_requests' AND record_id IN (" + list + ")");
-            Db.Push("DELETE FROM audit_log WHERE table_name = 'breqs_requests' AND record_id IN (" + list + ")");
-            Db.Push("DELETE FROM breqs_requests WHERE id IN (" + list + ")");   // history cascades
+            Db.Push("DELETE a FROM audit_log a JOIN payments p ON a.table_name = 'payments' AND a.record_id = CAST(p.id AS CHAR) AND a.details LIKE CONCAT('%O.R. ', p.or_number, '%') WHERE p.source_table = 'psa_copy_requests' AND p.source_id IN (" + list + ")");
+            Db.Push("DELETE FROM payments WHERE source_table = 'psa_copy_requests' AND source_id IN (" + list + ")");   // items cascade
+            Db.Push("DELETE FROM ocr_batch WHERE record_table = 'psa_copy_requests' AND record_id IN (" + list + ")");
+            Db.Push("DELETE FROM audit_log WHERE table_name = 'psa_copy_requests' AND record_id IN (" + list + ")");
+            Db.Push("DELETE FROM psa_copy_requests WHERE id IN (" + list + ")");   // history cascades
             Db.Push("DELETE FROM queue_tickets WHERE ticket_code LIKE 'ZZB%'");
         }
     }

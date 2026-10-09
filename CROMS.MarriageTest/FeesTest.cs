@@ -58,7 +58,7 @@ namespace CROMS.MarriageTest
                 if (annotation != null) PaymentService.UpdateFee("ANNOTATION", annotation.Amount, annotation.Active, uid);
                 Cleanup();
                 int left = Convert.ToInt32(Db.Pull("SELECT (SELECT COUNT(*) FROM payments WHERE or_number LIKE 'ZZF%' OR payer_name LIKE 'ZZF%') + " +
-                                                   "(SELECT COUNT(*) FROM breqs_requests WHERE requester_last LIKE 'ZZF%')").Rows[0][0]);
+                                                   "(SELECT COUNT(*) FROM psa_copy_requests WHERE requester_last LIKE 'ZZF%')").Rows[0][0]);
                 Check("zero strays after cleanup", left == 0, left + " left");
             }
         }
@@ -145,17 +145,17 @@ namespace CROMS.MarriageTest
             int walk = PaymentService.Record(WalkIn(Tag + "Adopt", Or("r2"), L("BREQS", 50)), uid);
             int adopted = PaymentService.RecordForModule(new PaymentEntry
             {
-                Source = PaymentService.SourceBreqs, SourceTable = "breqs_requests", SourceId = 999999001, OrNumber = Or("r2"),
+                Source = PaymentService.SourceBreqs, SourceTable = "psa_copy_requests", SourceId = 999999001, OrNumber = Or("r2"),
                 Lines = { L("BREQS", 50) }, PaidAt = Jan2099
             }, uid);
             DataRow a = Db.Pull("SELECT source, source_table, source_id FROM payments WHERE id = " + walk).Rows[0];
             Check("unlinked walk-in O.R. adopted by the module (same row, now linked)",
                   adopted == walk && (string)a["source"] == "BREQS" && Convert.ToInt32(a["source_id"]) == 999999001);
             Check("same module + same O.R. again returns the same row",
-                  PaymentService.RecordForModule(new PaymentEntry { Source = PaymentService.SourceBreqs, SourceTable = "breqs_requests", SourceId = 999999001, OrNumber = Or("r2"), Lines = { L("BREQS", 50) } }, uid) == walk);
+                  PaymentService.RecordForModule(new PaymentEntry { Source = PaymentService.SourceBreqs, SourceTable = "psa_copy_requests", SourceId = 999999001, OrNumber = Or("r2"), Lines = { L("BREQS", 50) } }, uid) == walk);
             Check("O.R. linked to another record refused before a module moves",
-                  Throws(() => PaymentService.EnsureOrFree(Or("r2"), "breqs_requests", 999999002), "recorded once"));
-            Check("O.R. linked to this record is not refused", !Throws(() => PaymentService.EnsureOrFree(Or("r2"), "breqs_requests", 999999001)));
+                  Throws(() => PaymentService.EnsureOrFree(Or("r2"), "psa_copy_requests", 999999002), "recorded once"));
+            Check("O.R. linked to this record is not refused", !Throws(() => PaymentService.EnsureOrFree(Or("r2"), "psa_copy_requests", 999999001)));
         }
 
         // ------------------------------------------------------------ BREQS writes to the log
@@ -171,7 +171,7 @@ namespace CROMS.MarriageTest
             int id = BreqsService.Save(r, uid);
             BreqsService.RecordPayment(id, Or("b1"), Jan2099.Date, 150m, uid);
             DataTable p = Db.Pull("SELECT p.id, p.net_amount, p.source, p.payer_name, i.fee_code, i.quantity, i.unit_amount FROM payments p " +
-                                  "JOIN payment_items i ON i.payment_id = p.id WHERE p.source_table = 'breqs_requests' AND p.source_id = " + id);
+                                  "JOIN payment_items i ON i.payment_id = p.id WHERE p.source_table = 'psa_copy_requests' AND p.source_id = " + id);
             Check("BREQS payment in the log: 3 copies x 50, source BREQS, payer is the requester",
                   p.Rows.Count == 1 && Convert.ToDecimal(p.Rows[0]["net_amount"]) == 150m && (string)p.Rows[0]["source"] == "BREQS" &&
                   (string)p.Rows[0]["fee_code"] == "BREQS" && Convert.ToInt32(p.Rows[0]["quantity"]) == 3 && Convert.ToDecimal(p.Rows[0]["unit_amount"]) == 50m &&
@@ -302,13 +302,13 @@ namespace CROMS.MarriageTest
         {
             // The test's own fee-change audit rows (the fee itself is restored in Run's finally).
             Db.Push("DELETE FROM audit_log WHERE table_name = 'fees' AND id > " + _auditFloor);
-            DataTable br = Db.Pull("SELECT id FROM breqs_requests WHERE requester_last LIKE 'ZZF%'");
+            DataTable br = Db.Pull("SELECT id FROM psa_copy_requests WHERE requester_last LIKE 'ZZF%'");
             string bl = string.Join(",", br.AsEnumerable().Select(r => r[0].ToString()).DefaultIfEmpty("0"));
             // matched on the O.R. in the details, not the bare id: payment ids are reused and older audit rows can carry one
-            Db.Push("DELETE a FROM audit_log a JOIN payments p ON a.table_name = 'payments' AND a.record_id = CAST(p.id AS CHAR) AND a.details LIKE CONCAT('%O.R. ', p.or_number, '%') WHERE p.or_number LIKE 'ZZF%' OR p.payer_name LIKE 'ZZF%' OR (p.source_table = 'breqs_requests' AND p.source_id IN (" + bl + "))");
-            Db.Push("DELETE FROM payments WHERE or_number LIKE 'ZZF%' OR payer_name LIKE 'ZZF%' OR (source_table = 'breqs_requests' AND source_id IN (" + bl + "))");
-            Db.Push("DELETE FROM audit_log WHERE table_name = 'breqs_requests' AND record_id IN (" + bl + ")");
-            Db.Push("DELETE FROM breqs_requests WHERE id IN (" + bl + ")");
+            Db.Push("DELETE a FROM audit_log a JOIN payments p ON a.table_name = 'payments' AND a.record_id = CAST(p.id AS CHAR) AND a.details LIKE CONCAT('%O.R. ', p.or_number, '%') WHERE p.or_number LIKE 'ZZF%' OR p.payer_name LIKE 'ZZF%' OR (p.source_table = 'psa_copy_requests' AND p.source_id IN (" + bl + "))");
+            Db.Push("DELETE FROM payments WHERE or_number LIKE 'ZZF%' OR payer_name LIKE 'ZZF%' OR (source_table = 'psa_copy_requests' AND source_id IN (" + bl + "))");
+            Db.Push("DELETE FROM audit_log WHERE table_name = 'psa_copy_requests' AND record_id IN (" + bl + ")");
+            Db.Push("DELETE FROM psa_copy_requests WHERE id IN (" + bl + ")");
         }
     }
 }

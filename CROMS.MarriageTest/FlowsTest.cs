@@ -217,7 +217,7 @@ namespace CROMS.MarriageTest
             if (created.ContainsKey("CTC"))
             {
                 DataRow t = Ticket(created["CTC"]).Rows[0];
-                DataTable c = Db.Pull("SELECT * FROM ctc_requests WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(t["id"])));
+                DataTable c = Db.Pull("SELECT * FROM kiosk_ctc_intake WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(t["id"])));
                 Check("CTC intake row saved", c.Rows.Count == 1 && c.Rows[0]["doc_type"].ToString() == "Birth" && Convert.ToInt32(c.Rows[0]["copies"]) == 2 &&
                       c.Rows[0]["owner_last"].ToString() == Tag + "Reyes" && c.Rows[0]["event_province"].ToString() == "Cagayan");
                 Check("CTC one-line summary on the ticket", (t["purpose"] as string ?? "").Contains("Birth") && (t["purpose"] as string).Contains(Tag + "Reyes"), t["purpose"].ToString());
@@ -225,7 +225,7 @@ namespace CROMS.MarriageTest
             if (created.ContainsKey("BREQS"))
             {
                 DataRow t = Ticket(created["BREQS"]).Rows[0];
-                DataTable b = Db.Pull("SELECT * FROM breqs_requests WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(t["id"])));
+                DataTable b = Db.Pull("SELECT * FROM psa_copy_requests WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(t["id"])));
                 Check("PSA request saved Requested, source Kiosk, fee 2 x 50",
                       b.Rows.Count == 1 && b.Rows[0]["status"].ToString() == "Requested" && b.Rows[0]["source"].ToString() == "Kiosk" &&
                       Convert.ToDecimal(b.Rows[0]["fee_amount"]) == 100m, b.Rows.Count > 0 ? b.Rows[0]["fee_amount"].ToString() : "none");
@@ -346,7 +346,7 @@ namespace CROMS.MarriageTest
                 string kioskName = Convert.ToString(Db.Pull("SELECT full_name FROM queue_tickets WHERE id=@t",
                     new MySqlParameter("@t", tid)).Rows[0][0]).Trim();
 
-                // Bare pick-up ticket: no claim_requests row, no transaction.
+                // Bare pick-up ticket: no claimant_id_uploads row, no transaction.
                 object f = NewForm("ReleaseClaimForm");
                 Call(f, "PrepareFromQueueTicket", tid);
                 string status = Txt(f, "lblClaimStatus");
@@ -357,7 +357,7 @@ namespace CROMS.MarriageTest
                 Check("  worklist search pre-filled with the name", Txt(f, "txtSearch") == kioskName, Txt(f, "txtSearch"));
                 Check("  nothing auto-selected", Fld(f, "_selectedTxnId") == null && Fld(f, "_pickupClaimId") == null);
                 Check("  Release stays disabled", !((System.Windows.Forms.Control)Fld(f, "btnRelease")).Enabled);
-                Check("  claim row NOT created here", Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM claim_requests WHERE queue_ticket_id=@t",
+                Check("  claim row NOT created here", Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM claimant_id_uploads WHERE queue_ticket_id=@t",
                       new MySqlParameter("@t", tid)).Rows[0][0]) == 0);
 
                 // Same ticket linked to a ready transaction: the normal path is kept.
@@ -391,9 +391,9 @@ namespace CROMS.MarriageTest
             foreach (DataRow r in ids.Rows)
             {
                 var p = new MySqlParameter("@t", Convert.ToInt32(r[0]));
-                Db.Push("DELETE FROM breqs_history WHERE request_id IN (SELECT id FROM breqs_requests WHERE queue_ticket_id=@t)", p);
-                Db.Push("DELETE FROM breqs_requests WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
-                Db.Push("DELETE FROM ctc_requests WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
+                Db.Push("DELETE FROM psa_copy_history WHERE request_id IN (SELECT id FROM psa_copy_requests WHERE queue_ticket_id=@t)", p);
+                Db.Push("DELETE FROM psa_copy_requests WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
+                Db.Push("DELETE FROM kiosk_ctc_intake WHERE queue_ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
                 Db.Push("DELETE FROM queue_ticket_services WHERE ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
                 Db.Push("DELETE FROM queue_ticket_forwards WHERE ticket_id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
                 Db.Push("DELETE FROM queue_tickets WHERE id=@t", new MySqlParameter("@t", Convert.ToInt32(r[0])));
@@ -405,8 +405,8 @@ namespace CROMS.MarriageTest
         {
             int n = 0;
             n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM queue_tickets WHERE full_name LIKE '%ZZF%'").Rows[0][0]);
-            n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM ctc_requests WHERE owner_last LIKE '%ZZF%'").Rows[0][0]);
-            n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM breqs_requests WHERE owner_last LIKE '%ZZF%'").Rows[0][0]);
+            n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM kiosk_ctc_intake WHERE owner_last LIKE '%ZZF%'").Rows[0][0]);
+            n += Convert.ToInt32(Db.Pull("SELECT COUNT(*) FROM psa_copy_requests WHERE owner_last LIKE '%ZZF%'").Rows[0][0]);
             n += LeftoversQueue();
             return n;
         }

@@ -46,7 +46,7 @@ namespace CROMS.Forms
             public (string Column, string Label)[] Images;
             public DocKind? CertKind;
             public bool IsMf90;
-            /// <summary>owner_type value in marriage_requirements for this record's row id —
+            /// <summary>owner_type value in document_requirements for this record's row id —
             /// "License"/"Marriage"/"Birth"/"Petition" — or null when this record type has no
             /// requirements checklist. Drives the read-only requirements panel in ShowDetail.</summary>
             public string ReqOwnerType;
@@ -186,11 +186,11 @@ namespace CROMS.Forms
             {
                 Group = "Certification & PSA Copies",
                 Label = "PSA Copies (BREQS)",
-                DetailTable = "breqs_requests",
+                DetailTable = "psa_copy_requests",
                 Sql = "SELECT id, request_no AS 'Request No', doc_type AS 'Doc Type', " +
                       "TRIM(CONCAT(COALESCE(requester_last,''),', ',COALESCE(requester_first,''))) AS Requester, " +
                       "TRIM(CONCAT(COALESCE(owner_last,''),', ',COALESCE(owner_first,''))) AS 'For (Owner)', " +
-                      "status AS Status, created_at AS Recorded FROM breqs_requests ORDER BY created_at DESC",
+                      "status AS Status, created_at AS Recorded FROM psa_copy_requests ORDER BY created_at DESC",
                 Images = new[] { ("scan_image", "PSA Copy Scan") }
             });
 
@@ -198,11 +198,11 @@ namespace CROMS.Forms
             {
                 Group = "Claims & Releases",
                 Label = "Claim Requests (ID Uploads)",
-                DetailTable = "claim_requests",
+                DetailTable = "claimant_id_uploads",
                 Sql = "SELECT id, claim_ticket_no AS 'Claim No', " +
                       "TRIM(CONCAT(COALESCE(last_name,''),', ',COALESCE(first_name,''))) AS Requester, " +
                       "request_details AS Details, status AS Status, created_at AS Recorded " +
-                      "FROM claim_requests ORDER BY created_at DESC",
+                      "FROM claimant_id_uploads ORDER BY created_at DESC",
                 Images = new[] { ("id_image", "Uploaded Valid ID") }
             });
             _categories.Add(new ArchiveCategory
@@ -705,7 +705,7 @@ namespace CROMS.Forms
 
                 topSection.Controls.Add(imagesPanel, 0, 0);
 
-                // The supporting-document checklist (marriage_requirements) — reused by every
+                // The supporting-document checklist (document_requirements) — reused by every
                 // record type that has one: a marriage license application (owner_type
                 // "License"), a marriage registration ("Marriage"), a delayed birth case
                 // ("Birth" — blank/absent when the birth was never flagged/worked as delayed,

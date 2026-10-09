@@ -1471,7 +1471,7 @@ namespace CROMS.Forms
             BackColor = UiTheme.Surface;
 
             var lbl1 = new Label { Text = "What document or requirement?", Left = 16, Top = 16, Width = 340, ForeColor = UiTheme.Ink };
-            _txtLabel.MaxLength = 120;   // marriage_requirements.req_label
+            _txtLabel.MaxLength = 120;   // document_requirements.req_label
             Controls.Add(lbl1); Controls.Add(_txtLabel);
 
             bool showParty = partyOptions != null && partyOptions.Length > 1;

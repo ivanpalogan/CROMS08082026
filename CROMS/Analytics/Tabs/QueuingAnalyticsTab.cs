@@ -35,7 +35,7 @@ namespace CROMS.Analytics.Tabs
             // Stated once, on the tab, because it applies to a chart the spec named a different
             // source for and an operator comparing the two would otherwise assume a bug.
             ShowNote("Tickets handled per window is read from queue_tickets.window_no. " +
-                     "window_transactions holds which services a window may accept, not what it did.");
+                     "window_service_assignments holds which services a window may accept, not what it did.");
 
             AddReportButton("Print Assessment Report", (s, e) =>
             {

@@ -86,7 +86,7 @@ namespace CROMS.Modules
         private bool _moduleAllowed = true;
 
         // What the client asked for, per service code — read from the kiosk's own intake rows
-        // (ctc_requests / breqs_requests) so the window sees the request the client actually
+        // (kiosk_ctc_intake / psa_copy_requests) so the window sees the request the client actually
         // described instead of just a service name. Rebuilt on every reload that changes.
         private readonly System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>> _details =
             new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -279,7 +279,7 @@ namespace CROMS.Modules
 
         /// <summary>
         /// Client face photo (queue_tickets.id_image, already on the ticket row) and the ID
-        /// uploaded via the claimapp QR (claim_requests, linked by queue_ticket_id — every kiosk
+        /// uploaded via the claimapp QR (claimant_id_uploads, linked by queue_ticket_id — every kiosk
         /// visit now creates that row, not only Release &amp; Claim pickups). Requeried only when
         /// the ticket changes, not on every 3-second refresh.
         /// </summary>
@@ -300,7 +300,7 @@ namespace CROMS.Modules
             _picId.Image?.Dispose();
             _picId.Image = null;
             DataTable dt = Db.Pull(
-                "SELECT id_image FROM claim_requests WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
+                "SELECT id_image FROM claimant_id_uploads WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
                 new MySqlParameter("@id", ticketId));
             if (dt.Rows.Count > 0 && dt.Rows[0]["id_image"] != DBNull.Value)
             {
@@ -620,11 +620,11 @@ namespace CROMS.Modules
 
         /// <summary>
         /// What the client actually asked for, per service code. The kiosk writes a structured
-        /// intake row for the two services that need one (ctc_requests, breqs_requests), so the
+        /// intake row for the two services that need one (kiosk_ctc_intake, psa_copy_requests), so the
         /// window can read the request instead of asking the client to repeat it. Anything else
         /// falls back to the one line the ticket itself carries.
         /// <para/>
-        /// Every query is wrapped: an unmigrated database (no ctc_requests yet) must lose the
+        /// Every query is wrapped: an unmigrated database (no kiosk_ctc_intake yet) must lose the
         /// detail lines, not the drawer.
         /// </summary>
         private void LoadRequestDetails(DataRow ticket)
@@ -632,7 +632,7 @@ namespace CROMS.Modules
             _details.Clear();
             try
             {
-                const string tail = "father_name, mother_maiden_name, remarks FROM ctc_requests " +
+                const string tail = "father_name, mother_maiden_name, remarks FROM kiosk_ctc_intake " +
                                     "WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1";
                 const string head = "SELECT doc_type, copies, purpose, relationship, registry_no, owner_first, owner_middle, owner_last, " +
                                     "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province, ";
@@ -655,7 +655,7 @@ namespace CROMS.Modules
                 DataTable b = Db.Pull(
                     "SELECT request_no, doc_type, copies, purpose, relationship, owner_first, owner_middle, owner_last, " +
                     "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province, " +
-                    "father_name, mother_maiden_name, valid_id_type, valid_id_no FROM breqs_requests " +
+                    "father_name, mother_maiden_name, valid_id_type, valid_id_no FROM psa_copy_requests " +
                     "WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
                     new MySqlParameter("@id", _ticketId));
                 if (b.Rows.Count > 0) _details["BREQS"] = BreqsLines(b.Rows[0]);

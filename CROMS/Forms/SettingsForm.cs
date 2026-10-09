@@ -681,9 +681,9 @@ namespace CROMS.Forms
         //  it touched, and — separately flagged — any requirement that was
         //  OVERRIDDEN or WAIVED instead of actually satisfied (marriage licence
         //  requirements and delayed-birth-registration requirements share the same
-        //  marriage_requirements/marriage_history tables, so one query covers both).
+        //  document_requirements/marriage_case_history tables, so one query covers both).
         //  Source data: `audit_log` (every Create/Update/Delete/Login/Logout the app
-        //  writes — see Data/Audit.cs) plus `marriage_history` rows where a
+        //  writes — see Data/Audit.cs) plus `marriage_case_history` rows where a
         //  requirement's status was set to Waived, or an admin override was recorded
         //  (MarriageService.RecordOverride/WithdrawOverride). Nothing is aggregated
         //  or summarized away — every row is a real, individually-attributed event.
@@ -876,7 +876,7 @@ namespace CROMS.Forms
                 }
 
                 // audit_log = every create/update/delete/login/logout the app writes (Data/Audit.cs).
-                // marriage_history = requirement-level status moves; only WAIVED rows are surfaced
+                // marriage_case_history = requirement-level status moves; only WAIVED rows are surfaced
                 // here as a bypass (Verified/Submitted/Rejected/Missing are ordinary progress, not
                 // an overbypass of a requirement).
                 string sql =
@@ -899,7 +899,7 @@ namespace CROMS.Forms
                     "                ' [', COALESCE(h.from_status,'—'), ' -> Waived]') AS Details, " +
                     "         'Requirement waived' AS FlagReason, " +
                     "         '—' AS WindowName, NULL AS TableRaw, NULL AS RecordRaw " +
-                    "  FROM marriage_history h LEFT JOIN users u2 ON u2.id = h.user_id " +
+                    "  FROM marriage_case_history h LEFT JOIN users u2 ON u2.id = h.user_id " +
                     "  WHERE h.to_status = 'Waived'" +
                     ") x " +
                     "WHERE DATE(EventAt) BETWEEN @from AND @to " + userClause + " " + flagClause + " " + searchClause +
@@ -1022,8 +1022,8 @@ namespace CROMS.Forms
                 case "releases": return "Release / Claim";
                 case "payments": return "Payment";
                 case "petitions": return "Petition";
-                case "claim_requests": return "Claim Request";
-                case "breqs_requests": return "PSA Copy Request (BREQS)";
+                case "claimant_id_uploads": return "Claim Request";
+                case "psa_copy_requests": return "PSA Copy Request (BREQS)";
                 case "queue_tickets": return "Queue Ticket";
                 case "users": return "User Account";
                 case "windows": return "Service Window";
@@ -1090,10 +1090,10 @@ namespace CROMS.Forms
                             "FROM petitions p WHERE p.id=@id",
                             recordId);
                         break;
-                    case "claim_requests":
+                    case "claimant_id_uploads":
                         clientName = MonScalar(
                             "SELECT COALESCE(NULLIF(TRIM(CONCAT(COALESCE(id_first_name,''),' ',COALESCE(id_last_name,''))),''), 'Not yet identified') " +
-                            "FROM claim_requests WHERE id=@id",
+                            "FROM claimant_id_uploads WHERE id=@id",
                             recordId);
                         break;
                     case "payments":

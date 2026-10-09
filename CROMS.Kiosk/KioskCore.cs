@@ -160,7 +160,7 @@ namespace CROMS.Kiosk
 
         /// <summary>
         /// Service codes at least one ONLINE, active window is assigned to handle. A window
-        /// with no window_transactions rows (or a Priority window) handles ALL services.
+        /// with no window_service_assignments rows (or a Priority window) handles ALL services.
         /// Empty set if the DB is unreachable.
         /// </summary>
         public static HashSet<string> AvailableServiceCodes()
@@ -170,7 +170,7 @@ namespace CROMS.Kiosk
             {
                 DataTable online = Db.Pull(
                     "SELECT w.id, w.is_priority, " +
-                    "(SELECT COUNT(*) FROM window_transactions wt WHERE wt.window_id = w.id) AS assigned " +
+                    "(SELECT COUNT(*) FROM window_service_assignments wt WHERE wt.window_id = w.id) AS assigned " +
                     "FROM windows w WHERE w.status = 'Active' AND w.current_operator IS NOT NULL " +
                     "AND w.last_heartbeat > (NOW() - INTERVAL " + OfficeStaleMinutes + " MINUTE)");
 
@@ -185,7 +185,7 @@ namespace CROMS.Kiosk
                     else
                     {
                         DataTable codes = Db.Pull(
-                            "SELECT service_code FROM window_transactions WHERE window_id = " + w["id"]);
+                            "SELECT service_code FROM window_service_assignments WHERE window_id = " + w["id"]);
                         foreach (DataRow c in codes.Rows) result.Add(c["service_code"].ToString());
                     }
                 }
@@ -370,7 +370,7 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@time", DateTime.Now.ToString("HH:mm")),
                 new MySqlParameter("@doc", s.HasCtc ? (object)s.CtcDocumentType : primary),
                 // One readable line for the screens that only have room for one (the live queue
-                // grid, the Now Serving card). The full structured request is in ctc_requests.
+                // grid, the Now Serving card). The full structured request is in kiosk_ctc_intake.
                 new MySqlParameter("@purpose", NullIfBlank(
                     s.HasCtc ? CtcSummary(s)
                     : s.HasMarriageLicense ? "Has Marriage License - hand it to staff"
@@ -540,7 +540,7 @@ namespace CROMS.Kiosk
             string ownerLast = withSuffix ? s.CtcOwnerLast : Join(s.CtcOwnerLast, s.CtcOwnerSuffix);
             string spouseLast = withSuffix ? s.CtcSpouseLast : Join(s.CtcSpouseLast, s.CtcSpouseSuffix);
             Db.Push(
-                "INSERT INTO ctc_requests (source, queue_ticket_id, doc_type, copies, purpose, relationship, registry_no, " +
+                "INSERT INTO kiosk_ctc_intake (source, queue_ticket_id, doc_type, copies, purpose, relationship, registry_no, " +
                 "owner_first, owner_middle, owner_last, " + (withSuffix ? "owner_suffix, spouse_suffix, " : "") +
                 "spouse_first, spouse_middle, spouse_last, " +
                 "event_date, event_city, event_province, remarks, status) " +
@@ -622,13 +622,13 @@ namespace CROMS.Kiosk
             int copies = Math.Max(1, s.BreqsCopies);
             for (int attempt = 0; ; attempt++)
             {
-                DataTable n = Db.Pull("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(request_no, '-', -1) AS UNSIGNED)), 0) + 1 FROM breqs_requests WHERE request_no LIKE @p",
+                DataTable n = Db.Pull("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(request_no, '-', -1) AS UNSIGNED)), 0) + 1 FROM psa_copy_requests WHERE request_no LIKE @p",
                                       new MySqlParameter("@p", "BREQS-" + DateTime.Today.Year + "-%"));
                 string no = string.Format("BREQS-{0}-{1:D4}", DateTime.Today.Year, Convert.ToInt32(n.Rows[0][0]));
                 try
                 {
                     long id = Db.Insert(
-                        "INSERT INTO breqs_requests (request_no, source, queue_ticket_id, requester_first, requester_middle, requester_last, contact_no, " +
+                        "INSERT INTO psa_copy_requests (request_no, source, queue_ticket_id, requester_first, requester_middle, requester_last, contact_no, " +
                         "relationship, valid_id_type, valid_id_no, doc_type, copies, purpose, owner_first, owner_middle, owner_last, spouse_first, " +
                         "spouse_middle, spouse_last, event_date, event_city, event_province, father_name, mother_maiden_name, status, fee_amount) " +
                         "VALUES (@no, 'Kiosk', @tid, @rf, @rm, @rl, @contact, @rel, @idt, @idn, @doc, @copies, @purpose, @of, @om, @ol, @sf, @sm, @sl, " +
@@ -648,7 +648,7 @@ namespace CROMS.Kiosk
                         new MySqlParameter("@fa", birth ? NullIfBlank(s.FatherName) : DBNull.Value),
                         new MySqlParameter("@mo", birth ? NullIfBlank(s.MotherMaidenName) : DBNull.Value),
                         new MySqlParameter("@fee", fee * copies));
-                    Db.Push("INSERT INTO breqs_history (request_id, action, from_status, to_status, note) VALUES (@id, 'Request logged (kiosk)', NULL, 'Requested', @note)",
+                    Db.Push("INSERT INTO psa_copy_history (request_id, action, from_status, to_status, note) VALUES (@id, 'Request logged (kiosk)', NULL, 'Requested', @note)",
                             new MySqlParameter("@id", id),
                             new MySqlParameter("@note", s.BreqsDocType + ", " + copies + " cop" + (copies == 1 ? "y" : "ies") + ", ticket " + ticketCode));
                     return no;

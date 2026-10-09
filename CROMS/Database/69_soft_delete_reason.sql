@@ -129,22 +129,31 @@ BEGIN
     ALTER TABLE `certificate_template_images` ADD COLUMN `deleted_at` DATETIME NULL;
   END IF;
 
-  -- marriage_requirements
+  -- marriage_requirements (renamed document_requirements by migration 85;
+  -- this block works whichever name the table currently has, so it is safe
+  -- on a fresh install (before 85) and on an existing database (after 85))
+  SET @_dr = IF(EXISTS (SELECT 1 FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'document_requirements'),
+      'document_requirements', 'marriage_requirements');
   IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marriage_requirements' AND COLUMN_NAME = 'is_deleted') THEN
-    ALTER TABLE `marriage_requirements` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0;
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @_dr AND COLUMN_NAME = 'is_deleted') THEN
+    SET @_s = CONCAT('ALTER TABLE `', @_dr, '` ADD COLUMN `is_deleted` TINYINT(1) NOT NULL DEFAULT 0');
+    PREPARE _st FROM @_s; EXECUTE _st; DEALLOCATE PREPARE _st;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marriage_requirements' AND COLUMN_NAME = 'delete_reason') THEN
-    ALTER TABLE `marriage_requirements` ADD COLUMN `delete_reason` VARCHAR(255) NULL;
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @_dr AND COLUMN_NAME = 'delete_reason') THEN
+    SET @_s = CONCAT('ALTER TABLE `', @_dr, '` ADD COLUMN `delete_reason` VARCHAR(255) NULL');
+    PREPARE _st FROM @_s; EXECUTE _st; DEALLOCATE PREPARE _st;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marriage_requirements' AND COLUMN_NAME = 'deleted_by') THEN
-    ALTER TABLE `marriage_requirements` ADD COLUMN `deleted_by` INT NULL;
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @_dr AND COLUMN_NAME = 'deleted_by') THEN
+    SET @_s = CONCAT('ALTER TABLE `', @_dr, '` ADD COLUMN `deleted_by` INT NULL');
+    PREPARE _st FROM @_s; EXECUTE _st; DEALLOCATE PREPARE _st;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.COLUMNS
-      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marriage_requirements' AND COLUMN_NAME = 'deleted_at') THEN
-    ALTER TABLE `marriage_requirements` ADD COLUMN `deleted_at` DATETIME NULL;
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = @_dr AND COLUMN_NAME = 'deleted_at') THEN
+    SET @_s = CONCAT('ALTER TABLE `', @_dr, '` ADD COLUMN `deleted_at` DATETIME NULL');
+    PREPARE _st FROM @_s; EXECUTE _st; DEALLOCATE PREPARE _st;
   END IF;
 END$$
 DELIMITER ;

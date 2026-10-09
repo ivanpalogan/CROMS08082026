@@ -24,7 +24,7 @@ namespace CROMS.Forms
         {
             _r = r; _s = s;
             InitializeComponent();
-            FieldLimit.FromDb("breqs_requests", "requester_first", _rFirst, "requester_middle", _rMiddle, "requester_last", _rLast,
+            FieldLimit.FromDb("psa_copy_requests", "requester_first", _rFirst, "requester_middle", _rMiddle, "requester_last", _rLast,
                 "contact_no", _contact, "valid_id_no", _idNo, "relationship", _relationship, "valid_id_type", _idType,
                 "purpose", _purpose, "owner_first", _oFirst, "owner_middle", _oMiddle, "owner_last", _oLast,
                 "spouse_first", _sFirst, "spouse_middle", _sMiddle, "spouse_last", _sLast,
@@ -102,7 +102,7 @@ namespace CROMS.Forms
             using (Form f = Dialog("Record payment - " + r.RequestNo, 520, 330))
             {
                 TextBox or = MUi.Box(); DateTimePicker date = MUi.Date(false); TextBox amount = MUi.Box();
-                FieldLimit.Cap(40, or); FieldLimit.Cap(12, amount);   // breqs_requests.or_no
+                FieldLimit.Cap(40, or); FieldLimit.Cap(12, amount);   // psa_copy_requests.or_no
                 date.MaxDate = DateTime.Today; date.Value = DateTime.Today;
                 amount.Text = (r.FeeAmount ?? s.FeePerCopy * r.Copies).ToString("0.00", CultureInfo.InvariantCulture);
                 var g = MUi.Grid(2, 1, 56);
@@ -129,7 +129,7 @@ namespace CROMS.Forms
             using (Form f = Dialog("Submit to PSA - " + r.RequestNo, 520, 330))
             {
                 TextBox reference = MUi.Box(); DateTimePicker date = MUi.Date(false);
-                FieldLimit.Cap(60, reference);                          // breqs_requests.psa_reference_no
+                FieldLimit.Cap(60, reference);                          // psa_copy_requests.psa_reference_no
                 date.MaxDate = DateTime.Today; date.Value = DateTime.Today;
                 Label expected = MUi.Txt("", 9.5F, FontStyle.Bold, UiTheme.Accent); expected.AutoSize = false; expected.Height = 30;
                 Action upd = () => expected.Text = "Expected from PSA: " + MUi.D(date.Value.Date.AddDays(s.TurnaroundDays)) + "  (" + s.TurnaroundDays + "-day office estimate)";
@@ -161,7 +161,7 @@ namespace CROMS.Forms
             using (Form f = Dialog("Release PSA copy - " + r.RequestNo, 560, 380))
             {
                 TextBox claimant = MUi.Box(); ComboBox idType = MUi.Combo(true, GovIds.All); TextBox idNo = MUi.Box();
-                FieldLimit.Cap(180, claimant); FieldLimit.Cap(60, idType, idNo);   // breqs_requests.claimant_*
+                FieldLimit.Cap(180, claimant); FieldLimit.Cap(60, idType, idNo);   // psa_copy_requests.claimant_*
                 var rep = new CheckBox { Text = "Claimed by an authorised representative (not the requester)", AutoSize = true, Height = 30, Font = MUi.F(9.5F) };
                 claimant.Text = r.RequesterName; idType.Text = r.ValidIdType ?? ""; idNo.Text = r.ValidIdNo ?? "";
                 rep.CheckedChanged += (x, e) =>
@@ -210,7 +210,7 @@ namespace CROMS.Forms
                 Label read = MUi.Txt("", 9.5F); read.AutoSize = false; read.Height = 130;
                 Label verdict = MUi.Txt("", 10.5F, FontStyle.Bold); verdict.AutoSize = false; verdict.Height = 56;
                 TextBox security = MUi.Box();
-                FieldLimit.Cap(40, security);                           // breqs_requests.psa_security_no
+                FieldLimit.Cap(40, security);                           // psa_copy_requests.psa_security_no
                 var expect = MUi.Kv("Requested", r.DocumentLine);
                 var rows = new Control[] { MUi.Cap("This request"), expect, MUi.Cap("What OCR read"), status, read, verdict,
                                            MUi.Field("PSA security paper control no. (optional)", security) };

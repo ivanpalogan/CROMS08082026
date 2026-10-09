@@ -9,7 +9,7 @@ namespace CROMS.Analytics.Widgets
     /// How many tickets each service window actually handled.
     ///
     /// SOURCE NOTE, and it is a deliberate departure from the written spec. The spec asked for
-    /// this chart to come from `window_transactions` joined to `windows`. That table is NOT a
+    /// this chart to come from `window_service_assignments` joined to `windows`. That table is NOT a
     /// history of work done — it is the window-to-service CAPABILITY map written by the window
     /// assignment screen (which services a window is allowed to accept). Charting it would count
     /// what each window is PERMITTED to do, not what it did, and would report the same numbers

@@ -20,7 +20,7 @@ namespace CROMS.MarriageTest
             string[] codes = { "BIRTHREG", "MARRIAGE_REG", "DEATH", "MARRIAGE_APP", "LEGITIMATION", "LEGITIMATION_RA9255", "CTC", "BREQS", "CLAIM", "PETITION", "SUPPLEMENTAL_REPORT", "LEGAL_INSTRUMENTS", "COURT_ORDER" };
             long wid = Db.Insert("INSERT INTO windows (window_name, description, status, is_priority, current_operator, operator_name, last_heartbeat, display_order) VALUES ('ZZA Win', 'audit', 'Active', 0, @u, 'ZZA tester', NOW(), 950)",
                                  new MySql.Data.MySqlClient.MySqlParameter("@u", Session.User.Id));
-            foreach (string c in codes) Db.Push("INSERT INTO window_transactions (window_id, service_code) VALUES (@w, @c)", new MySql.Data.MySqlClient.MySqlParameter("@w", wid), new MySql.Data.MySqlClient.MySqlParameter("@c", c));
+            foreach (string c in codes) Db.Push("INSERT INTO window_service_assignments (window_id, service_code) VALUES (@w, @c)", new MySql.Data.MySqlClient.MySqlParameter("@w", wid), new MySql.Data.MySqlClient.MySqlParameter("@c", c));
             string kexe = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\..\..\CROMS.Kiosk\bin\Debug\CROMS.Kiosk.exe"));
             Check("kiosk build found", File.Exists(kexe), kexe);
             if (File.Exists(kexe))

@@ -222,13 +222,13 @@ namespace CROMS.Data
 
         public static BreqsRequest Load(int id)
         {
-            DataTable t = Db.Pull("SELECT " + Cols + " FROM breqs_requests WHERE id = @id", P("@id", id));
+            DataTable t = Db.Pull("SELECT " + Cols + " FROM psa_copy_requests WHERE id = @id", P("@id", id));
             return t.Rows.Count == 0 ? null : From(t.Rows[0]);
         }
 
         public static BreqsRequest LoadByTicket(int queueTicketId)
         {
-            DataTable t = Db.Pull("SELECT " + Cols + " FROM breqs_requests WHERE queue_ticket_id = @q ORDER BY id DESC LIMIT 1", P("@q", queueTicketId));
+            DataTable t = Db.Pull("SELECT " + Cols + " FROM psa_copy_requests WHERE queue_ticket_id = @q ORDER BY id DESC LIMIT 1", P("@q", queueTicketId));
             return t.Rows.Count == 0 ? null : From(t.Rows[0]);
         }
 
@@ -243,20 +243,20 @@ namespace CROMS.Data
                          "CONCAT_WS(' ', owner_first, owner_last) LIKE @q OR CONCAT_WS(' ', spouse_first, spouse_last) LIKE @q OR psa_reference_no LIKE @q)";
                 ps.Add(P("@q", "%" + search.Trim() + "%"));
             }
-            return Db.Pull("SELECT " + Cols + " FROM breqs_requests WHERE " + where + " ORDER BY id DESC LIMIT 500", ps.ToArray())
+            return Db.Pull("SELECT " + Cols + " FROM psa_copy_requests WHERE " + where + " ORDER BY id DESC LIMIT 500", ps.ToArray())
                      .AsEnumerable().Select(From).ToList();
         }
 
         public static byte[] ScanImage(int id)
         {
-            DataTable t = Db.Pull("SELECT scan_image FROM breqs_requests WHERE id = @id", P("@id", id));
+            DataTable t = Db.Pull("SELECT scan_image FROM psa_copy_requests WHERE id = @id", P("@id", id));
             return t.Rows.Count == 0 || t.Rows[0][0] == DBNull.Value ? null : (byte[])t.Rows[0][0];
         }
 
         public static DataTable History(int id)
         {
             return Db.Pull("SELECT h.created_at AS `When`, h.action AS `What`, h.to_status AS `Status`, h.note AS `Note`, " +
-                           "COALESCE(u.full_name, u.username, 'kiosk') AS `By` FROM breqs_history h LEFT JOIN users u ON u.id = h.user_id " +
+                           "COALESCE(u.full_name, u.username, 'kiosk') AS `By` FROM psa_copy_history h LEFT JOIN users u ON u.id = h.user_id " +
                            "WHERE h.request_id = @id ORDER BY h.id", P("@id", id));
         }
 
@@ -320,10 +320,10 @@ namespace CROMS.Data
                 if (cur.Status != Requested && cur.Status != Paid)
                     throw new InvalidOperationException("This request is already " + cur.Status.ToLowerInvariant() +
                         " - its details are what PSA was asked for and can no longer be edited.");
-                Db.Push("UPDATE breqs_requests SET " + string.Join(", ", cols.Keys.Select(k => k + " = @" + k)) + " WHERE id = @id",
+                Db.Push("UPDATE psa_copy_requests SET " + string.Join(", ", cols.Keys.Select(k => k + " = @" + k)) + " WHERE id = @id",
                         cols.Select(kv => P("@" + kv.Key, kv.Value)).Concat(new[] { P("@id", r.Id) }).ToArray());
                 AddHistory(r.Id, "Details updated", cur.Status, cur.Status, null, userId);
-                Audit.Write(Audit.Update, "breqs_requests", r.Id, "BREQS " + cur.RequestNo + " details");
+                Audit.Write(Audit.Update, "psa_copy_requests", r.Id, "BREQS " + cur.RequestNo + " details");
                 return r.Id;
             }
 
@@ -338,7 +338,7 @@ namespace CROMS.Data
                 cols["request_no"] = no;
                 try
                 {
-                    id = (int)Db.Insert("INSERT INTO breqs_requests (" + string.Join(", ", cols.Keys) + ") VALUES (" +
+                    id = (int)Db.Insert("INSERT INTO psa_copy_requests (" + string.Join(", ", cols.Keys) + ") VALUES (" +
                                         string.Join(", ", cols.Keys.Select(k => "@" + k)) + ")",
                                         cols.Select(kv => P("@" + kv.Key, kv.Value)).ToArray());
                     break;
@@ -349,13 +349,13 @@ namespace CROMS.Data
             r.Id = id; r.RequestNo = no; r.Status = Requested;
             AddHistory(id, "Request logged (" + (r.Source ?? SourceCounter).ToLowerInvariant() + ")", null, Requested,
                        r.DocumentLine + ", " + r.Copies + " cop" + (r.Copies == 1 ? "y" : "ies"), userId);
-            Audit.Write(Audit.Create, "breqs_requests", id, "BREQS " + no + " " + r.DocumentLine);
+            Audit.Write(Audit.Create, "psa_copy_requests", id, "BREQS " + no + " " + r.DocumentLine);
             return id;
         }
 
         public static string NextRequestNo(int year)
         {
-            DataTable t = Db.Pull("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(request_no, '-', -1) AS UNSIGNED)), 0) + 1 FROM breqs_requests " +
+            DataTable t = Db.Pull("SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(request_no, '-', -1) AS UNSIGNED)), 0) + 1 FROM psa_copy_requests " +
                                   "WHERE request_no LIKE @p", P("@p", "BREQS-" + year + "-%"));
             return string.Format("BREQS-{0}-{1:D4}", year, Convert.ToInt32(t.Rows[0][0]));
         }
@@ -365,7 +365,7 @@ namespace CROMS.Data
             if (string.IsNullOrWhiteSpace(orNo)) throw new InvalidOperationException("Enter the Treasury official receipt number.");
             // The O.R. is checked against the payment log BEFORE the status moves, so a receipt already
             // recorded for someone else refuses the payment instead of leaving a Paid request with no log row.
-            PaymentService.EnsureOrFree(orNo, "breqs_requests", id);
+            PaymentService.EnsureOrFree(orNo, "psa_copy_requests", id);
             Move(id, Paid, "Payment recorded", "O.R. " + orNo.Trim() + ", PHP " + amount.ToString("0.00", CultureInfo.InvariantCulture), userId,
                  "or_no = @or, or_date = @ord, fee_amount = @amt", P("@or", orNo.Trim()), P("@ord", orDate.Date), P("@amt", amount));
 
@@ -373,7 +373,7 @@ namespace CROMS.Data
             int copies = r == null ? 1 : Math.Max(1, r.Copies);
             PaymentService.RecordForModule(new PaymentEntry
             {
-                Source = PaymentService.SourceBreqs, SourceTable = "breqs_requests", SourceId = id,
+                Source = PaymentService.SourceBreqs, SourceTable = "psa_copy_requests", SourceId = id,
                 PayerName = r == null ? null : r.RequesterName, Purpose = "BREQS " + (r == null ? "" : r.RequestNo + " ").Trim() + " (PSA copy)",
                 OrNumber = orNo, PaidAt = orDate.Date,
                 Lines = { new PaymentLine { FeeCode = "BREQS", Description = "BREQS fee (PSA copy), per copy", Quantity = copies, UnitAmount = amount / copies } }
@@ -421,7 +421,7 @@ namespace CROMS.Data
             try
             {
                 Db.Push("INSERT INTO ocr_batch (scan_id, source_book, doc_class, doc_kind, record_table, record_id, confidence, needs_review, " +
-                        "review_reason, username, status, raw_text) VALUES (@sid, 'PSA copy (BREQS)', @class, @kind, 'breqs_requests', @rid, " +
+                        "review_reason, username, status, raw_text) VALUES (@sid, 'PSA copy (BREQS)', @class, @kind, 'psa_copy_requests', @rid, " +
                         "@conf, @need, @reason, @user, 'Attached', @raw)",
                         P("@sid", scanId), P("@class", "PSA " + r.DocType + " copy"), P("@kind", kind ?? "Unknown"), P("@rid", id), P("@conf", conf),
                         P("@need", match == "Match" ? 0 : 1), P("@reason", match == "Match" ? null : "Name on the PSA copy: " + match),
@@ -473,16 +473,16 @@ namespace CROMS.Data
             var ps = new List<MySqlParameter>(extra) { P("@to", to), P("@id", id), P("@from", cur.Status) };
             // "AND status = @from" makes a double-click or a second PC acting at the same moment a
             // no-op instead of a second history row for a move that already happened.
-            int n = Db.Push("UPDATE breqs_requests SET status = @to" + (string.IsNullOrEmpty(extraSet) ? "" : ", " + extraSet) +
+            int n = Db.Push("UPDATE psa_copy_requests SET status = @to" + (string.IsNullOrEmpty(extraSet) ? "" : ", " + extraSet) +
                             " WHERE id = @id AND status = @from", ps.ToArray());
             if (n == 0) throw new InvalidOperationException("This request was changed by someone else just now - reopen it.");
             AddHistory(id, action, cur.Status, to, note, userId);
-            Audit.Write(Audit.Update, "breqs_requests", id, "BREQS " + cur.RequestNo + ": " + cur.Status + " -> " + to);
+            Audit.Write(Audit.Update, "psa_copy_requests", id, "BREQS " + cur.RequestNo + ": " + cur.Status + " -> " + to);
         }
 
         private static void AddHistory(int id, string action, string from, string to, string note, int? userId)
         {
-            Db.Push("INSERT INTO breqs_history (request_id, action, from_status, to_status, note, user_id) VALUES (@r, @a, @f, @t, @n, @u)",
+            Db.Push("INSERT INTO psa_copy_history (request_id, action, from_status, to_status, note, user_id) VALUES (@r, @a, @f, @t, @n, @u)",
                     P("@r", id), P("@a", action), P("@f", from), P("@t", to), P("@n", note == null ? null : (note.Length > 255 ? note.Substring(0, 255) : note)), P("@u", userId));
         }
 

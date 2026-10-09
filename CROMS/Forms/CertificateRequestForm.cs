@@ -30,7 +30,7 @@ namespace CROMS.Forms
         private string _pickedStatus;   // the picked record's registry status, to warn about unfinished ones
         private string _findHint;      // the kiosk client's name, shown beside the button
         private RecordCriteria _criteria;  // everything the kiosk already captured about the record
-        private DataRow _kioskCtc;         // the kiosk intake row (ctc_requests) for the card, if any
+        private DataRow _kioskCtc;         // the kiosk intake row (kiosk_ctc_intake) for the card, if any
 
         public void RefreshData() => LoadRequests();
 
@@ -103,7 +103,7 @@ namespace CROMS.Forms
                     "SELECT doc_type, copies, purpose, registry_no, owner_first, owner_middle, owner_last, " +
                     "spouse_first, spouse_middle, spouse_last, event_date, event_city, event_province, " +
                     "relationship, father_name, mother_maiden_name, remarks " +
-                    "FROM ctc_requests WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
+                    "FROM kiosk_ctc_intake WHERE queue_ticket_id = @id ORDER BY id DESC LIMIT 1",
                     new MySqlParameter("@id", ticketId));
                 if (c.Rows.Count == 0) return;
                 System.Data.DataRow r = c.Rows[0];
@@ -142,7 +142,7 @@ namespace CROMS.Forms
                 };
                 UpdateFindState();
             }
-            catch { /* no ctc_requests table yet, or a counter-created request */ }
+            catch { /* no kiosk_ctc_intake table yet, or a counter-created request */ }
         }
 
         private static string Text2(object v) => v == null || v == System.DBNull.Value ? "" : v.ToString();

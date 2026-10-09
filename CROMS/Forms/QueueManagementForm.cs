@@ -250,7 +250,7 @@ namespace CROMS.Forms
         private static string AssignedLabel(int windowId)
         {
             DataTable dt = Db.Pull(
-                "SELECT service_code FROM window_transactions WHERE window_id = @w ORDER BY id",
+                "SELECT service_code FROM window_service_assignments WHERE window_id = @w ORDER BY id",
                 new MySqlParameter("@w", windowId));
             if (dt.Rows.Count == 0) return "All transactions";
 
@@ -1475,7 +1475,7 @@ namespace CROMS.Forms
 
         /// <summary>
         /// First ONLINE, FREE window (by display order) authorized for <paramref name="code"/>.
-        /// A window with no rows in `window_transactions` handles all transactions.
+        /// A window with no rows in `window_service_assignments` handles all transactions.
         /// Returns 0 if none is eligible.
         /// </summary>
         private static int PickWindowFor(string code)
@@ -1507,11 +1507,11 @@ namespace CROMS.Forms
         {
             // A Priority Window handles every transaction type (spec section 1).
             if (IsPriorityWindow(windowId)) return true;
-            int total = Db.GetCount("SELECT id FROM window_transactions WHERE window_id = " + windowId);
+            int total = Db.GetCount("SELECT id FROM window_service_assignments WHERE window_id = " + windowId);
             if (total == 0) return true;          // handles All Transactions
             if (code == null) return true;        // legacy ticket, unknown service → don't strand it
             DataTable dt = Db.Pull(
-                "SELECT id FROM window_transactions WHERE window_id = @w AND (service_code = @c " +
+                "SELECT id FROM window_service_assignments WHERE window_id = @w AND (service_code = @c " +
                 "OR (@c = 'BIRTHREG' AND service_code = 'NEWREG') " +
                 "OR (@c = 'NEWREG' AND service_code = 'BIRTHREG') " +
                 "OR (@c IN ('MARRIAGE_APP','MARRIAGE_REG') AND service_code = 'MARRIAGE') " +

@@ -26,7 +26,7 @@ namespace CROMS.Forms
         private int? _selectedTxnId;
         private PictureBox picClient;
         private Label lblPhotoCap;
-        private PictureBox picUploadedId;   // ID photo uploaded via claimapp (claim_requests.id_image)
+        private PictureBox picUploadedId;   // ID photo uploaded via claimapp (claimant_id_uploads.id_image)
         private Label lblUploadedIdCap;
         private Label lblPhotoState, lblIdState;   // "On file" / "Not uploaded" under each photo
         private Label _chkSelected, _chkClaimant, _chkPhoto, _chkId;   // "before releasing" list
@@ -52,7 +52,7 @@ namespace CROMS.Forms
         private const int RepRowHeight = 152;         // two ID field rows + the authorization-letter row
         private Label _lblLetterState;                // "Letter on file" / "not yet uploaded"
         private Button _btnViewLetter;
-        private byte[] _authLetter;                   // letter photo uploaded for the selected release (claim_requests.auth_letter)
+        private byte[] _authLetter;                   // letter photo uploaded for the selected release (claimant_id_uploads.auth_letter)
         private const int CamRowHeight = 290;         // BuildCameraPanel's own height
         private string _state = "";     // the status ApplyState last rendered
 
@@ -61,7 +61,7 @@ namespace CROMS.Forms
         private Button _tabPending, _tabWaiting;
 
         // Pickup claim loaded from the queue (no transaction yet). When set, Release
-        // closes the claim_requests row directly (mirrors the Claim Form).
+        // closes the claimant_id_uploads row directly (mirrors the Claim Form).
         private int? _pickupClaimId;
         private string _pickupClaimCode;
 
@@ -392,7 +392,7 @@ namespace CROMS.Forms
         /// <summary>
         /// The second QR — for a REPRESENTATIVE. Same claim row as the ID-upload QR, but the
         /// phone opens claimapp's authorization-letter page and the photo is saved to
-        /// claim_requests.auth_letter (copied onto the release record when Release is pressed).
+        /// claimant_id_uploads.auth_letter (copied onto the release record when Release is pressed).
         /// </summary>
         private void ShowLetterUploadQr()
         {
@@ -428,7 +428,7 @@ namespace CROMS.Forms
             try
             {
                 DataTable dt = Db.Pull(
-                    "SELECT cr.auth_letter FROM claim_requests cr " +
+                    "SELECT cr.auth_letter FROM claimant_id_uploads cr " +
                     "LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
                     "WHERE (cr.transaction_id = " + txnId + " OR qt.transaction_id = " + txnId + ") " +
                     "AND cr.auth_letter IS NOT NULL ORDER BY cr.id DESC LIMIT 1");
@@ -448,7 +448,7 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Finds the claim_requests row already linked to this transaction (a returning
+        /// Finds the claimant_id_uploads row already linked to this transaction (a returning
         /// pickup, or a QR shown earlier for the same release) and reuses its token, or
         /// creates a fresh one tied directly to transaction_id — no queue ticket involved,
         /// since this is generated at the release counter, not at the kiosk.
@@ -456,7 +456,7 @@ namespace CROMS.Forms
         private static void EnsureClaimForTransaction(long txnId, out string token, out string ticketNo)
         {
             DataTable dt = Db.Pull(
-                "SELECT qr_token, claim_ticket_no FROM claim_requests WHERE transaction_id = @t " +
+                "SELECT qr_token, claim_ticket_no FROM claimant_id_uploads WHERE transaction_id = @t " +
                 "ORDER BY id DESC LIMIT 1", new MySqlParameter("@t", txnId));
             if (dt.Rows.Count > 0 && dt.Rows[0]["qr_token"] != DBNull.Value)
             {
@@ -474,7 +474,7 @@ namespace CROMS.Forms
             token = Guid.NewGuid().ToString("N");
             ticketNo = NextClaimNo();
             Db.Push(
-                "INSERT INTO claim_requests (qr_token, claim_ticket_no, transaction_id, first_name, " +
+                "INSERT INTO claimant_id_uploads (qr_token, claim_ticket_no, transaction_id, first_name, " +
                 "request_details, status) VALUES (@t, @tk, @txn, @f, @d, 'Pending')",
                 new MySqlParameter("@t", token),
                 new MySqlParameter("@tk", ticketNo),
@@ -488,7 +488,7 @@ namespace CROMS.Forms
             string year = DateTime.Now.Year.ToString();
             DataTable dt = Db.Pull(
                 "SELECT COALESCE(MAX(CAST(SUBSTRING_INDEX(claim_ticket_no,'-',-1) AS UNSIGNED)),0)+1 AS n " +
-                "FROM claim_requests WHERE claim_ticket_no LIKE 'CLM-" + year + "-%'");
+                "FROM claimant_id_uploads WHERE claim_ticket_no LIKE 'CLM-" + year + "-%'");
             int n = dt.Rows.Count > 0 ? Convert.ToInt32(dt.Rows[0]["n"]) : 1;
             return "CLM-" + year + "-" + n.ToString("D4");
         }
@@ -913,7 +913,7 @@ namespace CROMS.Forms
 
             // Generated here — not at the kiosk — because uploading an ID only matters at
             // the moment a document is actually being released. Creates (or reuses) a
-            // claim_requests row tied straight to this transaction; the claimant scans it
+            // claimant_id_uploads row tied straight to this transaction; the claimant scans it
             // with their own phone to upload an ID photo into claimapp right at the counter.
             var btnIdQr = new Button
             {
@@ -1471,7 +1471,7 @@ namespace CROMS.Forms
 
         /// <summary>
         /// Loads the ID image + OCR'd name uploaded via claimapp for this transaction. Every
-        /// kiosk visit now creates a claim_requests row for its "Upload Your ID" QR (not just
+        /// kiosk visit now creates a claimant_id_uploads row for its "Upload Your ID" QR (not just
         /// Release &amp; Claim pickups), so this is looked up two ways: linked directly by
         /// transaction_id (the reclaim/pickup path), or via the queue ticket that carried this
         /// transaction (a first-time visit — the QR was created before the transaction existed,
@@ -1483,7 +1483,7 @@ namespace CROMS.Forms
             picUploadedId.Image = null;
             DataTable dt = Db.Pull(
                 "SELECT cr.id_image, cr.id_first_name, cr.id_middle_name, cr.id_last_name " +
-                "FROM claim_requests cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
+                "FROM claimant_id_uploads cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
                 "WHERE cr.transaction_id = " + txnId + " OR qt.transaction_id = " + txnId +
                 " ORDER BY cr.id DESC LIMIT 1");
             if (dt.Rows.Count == 0 || dt.Rows[0]["id_image"] == DBNull.Value)
@@ -1636,7 +1636,7 @@ namespace CROMS.Forms
         /// Management). Fills the claimant name, kiosk face photo, and the claimapp-uploaded ID,
         /// so staff verify + release on this one screen. If the linked claim already has a
         /// paid ForRelease transaction it uses the normal transaction path; otherwise it loads
-        /// the claim_requests row and Release closes the claim directly.
+        /// the claimant_id_uploads row and Release closes the claim directly.
         /// </summary>
         public void PrepareFromQueueTicket(int ticketId)
         {
@@ -1646,7 +1646,7 @@ namespace CROMS.Forms
             // Find the claim tied to this kiosk ticket (direct link, else via the ticket's txn).
             DataTable c = Db.Pull(
                 "SELECT id, claim_ticket_no, transaction_id, first_name, middle_name, last_name, status " +
-                "FROM claim_requests WHERE queue_ticket_id = @tid " +
+                "FROM claimant_id_uploads WHERE queue_ticket_id = @tid " +
                 "OR (transaction_id IS NOT NULL AND transaction_id = " +
                 "    (SELECT transaction_id FROM queue_tickets WHERE id = @tid)) " +
                 "ORDER BY id DESC LIMIT 1",
@@ -1710,7 +1710,7 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// A kiosk pick-up ticket with no claim_requests row. Pre-fills the claimant name
+        /// A kiosk pick-up ticket with no claimant_id_uploads row. Pre-fills the claimant name
         /// (joined, never split - a split guess mangles two-word surnames), shows contact,
         /// valid ID type and queue number, and keeps the kiosk photo. A linked transaction
         /// opens the normal path; otherwise the worklist is searched by the client's name and
@@ -1812,7 +1812,7 @@ namespace CROMS.Forms
 
             DataTable ct = Db.Pull(
                 "SELECT id_image, id_first_name, id_middle_name, id_last_name " +
-                "FROM claim_requests WHERE id = @id LIMIT 1", new MySqlParameter("@id", claimId.Value));
+                "FROM claimant_id_uploads WHERE id = @id LIMIT 1", new MySqlParameter("@id", claimId.Value));
             if (ct.Rows.Count == 0) { lblUploadedIdCap.Text = "Uploaded ID — none"; return; }
             DataRow cr = ct.Rows[0];
             if (cr["id_image"] == DBNull.Value) { lblUploadedIdCap.Text = "Uploaded ID — not yet uploaded"; return; }
@@ -2173,7 +2173,7 @@ namespace CROMS.Forms
                     new MySqlParameter("@txn", _selectedTxnId.Value));
                 Db.Push("UPDATE certificate_requests SET status = 'Released' WHERE transaction_id = @txn",
                     new MySqlParameter("@txn", _selectedTxnId.Value));
-                Db.Push("UPDATE claim_requests SET status = 'Released', released_by = @by, " +
+                Db.Push("UPDATE claimant_id_uploads SET status = 'Released', released_by = @by, " +
                         "released_at = NOW() WHERE transaction_id = @txn AND status <> 'Released'",
                     new MySqlParameter("@by", Session.UserIdParam),
                     new MySqlParameter("@txn", _selectedTxnId.Value));
@@ -2270,12 +2270,12 @@ namespace CROMS.Forms
                 string info = "Released to " + txtClaimant.Text.Trim() +
                     (chkRep.Checked ? " (rep: " + OthersBox.Value(txtIdType) + " " + txtIdNum.Text + ")" : "");
                 Db.Push(
-                    "UPDATE claim_requests SET status = 'Released', release_info = @ri, " +
+                    "UPDATE claimant_id_uploads SET status = 'Released', release_info = @ri, " +
                     "released_by = @by, released_at = NOW() WHERE id = @id",
                     new MySqlParameter("@ri", info),
                     new MySqlParameter("@by", Session.UserIdParam),
                     new MySqlParameter("@id", _pickupClaimId.Value));
-                Audit.Write(Audit.Update, "claim_requests", _pickupClaimId.Value,
+                Audit.Write(Audit.Update, "claimant_id_uploads", _pickupClaimId.Value,
                     "Released claim " + _pickupClaimCode + " to " + txtClaimant.Text.Trim());
 
                 MessageBox.Show(
@@ -2473,7 +2473,7 @@ namespace CROMS.Forms
                 "AND id_image IS NOT NULL ORDER BY id DESC LIMIT 1", txnId);
 
             Image uploadedId = null;
-            // Same lookup as the main screen's ShowUploadedIdFor: a claim_requests row can be
+            // Same lookup as the main screen's ShowUploadedIdFor: a claimant_id_uploads row can be
             // linked directly by transaction_id (reclaim/pickup path) or only via the queue
             // ticket that later became this transaction (first-time visit — the "Upload Your
             // ID" QR was created before the transaction existed, so only queue_ticket_id was
@@ -2481,7 +2481,7 @@ namespace CROMS.Forms
             // showed "no ID uploaded" even when the main screen had the image on file.
             DataTable c = Db.Pull(
                 "SELECT cr.id_image, cr.id_first_name, cr.id_middle_name, cr.id_last_name " +
-                "FROM claim_requests cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
+                "FROM claimant_id_uploads cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
                 "WHERE cr.transaction_id = @t OR qt.transaction_id = @t " +
                 "ORDER BY cr.id DESC LIMIT 1",
                 new MySqlParameter("@t", txnId));
@@ -2501,7 +2501,7 @@ namespace CROMS.Forms
                 try
                 {
                     DataTable lt = Db.Pull(
-                        "SELECT cr.auth_letter FROM claim_requests cr " +
+                        "SELECT cr.auth_letter FROM claimant_id_uploads cr " +
                         "LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
                         "WHERE (cr.transaction_id = @t OR qt.transaction_id = @t) AND cr.auth_letter IS NOT NULL " +
                         "ORDER BY cr.id DESC LIMIT 1",

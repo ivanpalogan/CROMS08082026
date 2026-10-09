@@ -22,7 +22,7 @@ namespace CROMS.Forms
     /// a real counter works — two staff can both accept New Registration so the queue drains
     /// faster. Call Next simply routes a ticket to any online window that handles its service.
     /// <para/>
-    /// All three exits SAVE this window's `window_transactions`/`is_priority`, because that list
+    /// All three exits SAVE this window's `window_service_assignments`/`is_priority`, because that list
     /// is office configuration rather than session state. They differ only in what happens next:
     /// Start Serving also claims the window (marks it Online) and enters the app; Skip enters the
     /// app without claiming; Log out returns to the sign-in screen. There is no X — leaving is
@@ -146,7 +146,7 @@ namespace CROMS.Forms
                 _priority[id] = w["is_priority"] != DBNull.Value && Convert.ToInt32(w["is_priority"]) == 1;
             }
 
-            DataTable rows = Db.Pull("SELECT window_id, service_code FROM window_transactions");
+            DataTable rows = Db.Pull("SELECT window_id, service_code FROM window_service_assignments");
             foreach (DataRow r in rows.Rows)
             {
                 int id = Convert.ToInt32(r["window_id"]);
@@ -591,11 +591,11 @@ namespace CROMS.Forms
                 Db.Push("UPDATE windows SET is_priority = @p WHERE id = @id",
                     new MySqlParameter("@p", _priority[windowId] ? 1 : 0),
                     new MySqlParameter("@id", windowId));
-                Db.Push("DELETE FROM window_transactions WHERE window_id = @id",
+                Db.Push("DELETE FROM window_service_assignments WHERE window_id = @id",
                     new MySqlParameter("@id", windowId));
                 if (!_priority[windowId])
                     foreach (string code in _assign[windowId])
-                        Db.Push("INSERT INTO window_transactions (window_id, service_code) VALUES (@w, @c)",
+                        Db.Push("INSERT INTO window_service_assignments (window_id, service_code) VALUES (@w, @c)",
                             new MySqlParameter("@w", windowId), new MySqlParameter("@c", code));
             }
             catch (Exception ex) { error = ex.Message; }

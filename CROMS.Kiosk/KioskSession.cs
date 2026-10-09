@@ -52,7 +52,7 @@ namespace CROMS.Kiosk
         public string SubmittedByOrg;
 
         // PSA Copy (BREQS) only - what PSA is being asked for (BreqsDetailsForm). The generic
-        // Owner/Spouse/Event fields follow the certificate type, exactly as breqs_requests does.
+        // Owner/Spouse/Event fields follow the certificate type, exactly as psa_copy_requests does.
         public string BreqsDocType, BreqsPurpose, BreqsRelationship, IdNo;
         public int BreqsCopies = 1;
         public string OwnerFirst, OwnerMiddle, OwnerLast, SpouseFirst, SpouseMiddle, SpouseLast;

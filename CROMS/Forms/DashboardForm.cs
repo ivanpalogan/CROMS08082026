@@ -962,7 +962,7 @@ namespace CROMS.Forms
                             WindowAssignmentForm.StaleMinutes + " MINUTE)) AS online, " +
                             "(SELECT COUNT(*) FROM queue_tickets q WHERE q.window_no = w.id " +
                             "   AND q.status IN ('Accepted','Serving') AND DATE(q.created_at) = CURDATE()) AS busy, " +
-                            "(SELECT GROUP_CONCAT(wt.service_code SEPARATOR ', ') FROM window_transactions wt " +
+                            "(SELECT GROUP_CONCAT(wt.service_code SEPARATOR ', ') FROM window_service_assignments wt " +
                             "   WHERE wt.window_id = w.id) AS services " +
                             "FROM windows w WHERE w.status = 'Active' ORDER BY w.display_order, w.id")
                     };
@@ -1101,7 +1101,7 @@ namespace CROMS.Forms
                 try
                 {
                     missingRequirements = Scalar(
-                        "SELECT COUNT(DISTINCT owner_id) FROM marriage_requirements " +
+                        "SELECT COUNT(DISTINCT owner_id) FROM document_requirements " +
                         "WHERE owner_type='License' AND status IN ('Missing','Rejected')");
                 }
                 catch { }

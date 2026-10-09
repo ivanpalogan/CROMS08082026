@@ -6,7 +6,7 @@ namespace CROMS.Data
 {
     /// <summary>
     /// Which supporting documents apply to a petition/case, by its petition_type - reuses the
-    /// marriage licence's requirements engine (marriage_requirement_types / marriage_requirements
+    /// marriage licence's requirements engine (document_requirement_types / document_requirements
     /// / RequirementsGrid are already generic on owner_type) with owner_type "Petition", the same
     /// way DelayedBirthRules/DelayedBirthService reused it for owner_type "Birth". Pure rules only
     /// live here; every write lives in <see cref="PetitionDocumentService"/>.

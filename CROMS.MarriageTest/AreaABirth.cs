@@ -420,7 +420,7 @@ namespace CROMS.MarriageTest
             var all = ids.AsEnumerable().Select(r => Convert.ToInt64(r[0])).Concat(Ids).Distinct().ToList();
             string list = string.Join(",", all.DefaultIfEmpty(0));
             DeleteAuditSince("births", all, "%ZZT%");
-            Db.Push("DELETE FROM marriage_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
+            Db.Push("DELETE FROM document_requirements WHERE owner_type = 'Birth' AND owner_id IN (" + list + ")");
             Db.Push("DELETE FROM births WHERE id IN (" + list + ") AND last_name LIKE 'ZZT%'");
         }
 
