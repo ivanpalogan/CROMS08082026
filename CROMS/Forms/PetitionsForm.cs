@@ -237,14 +237,14 @@ namespace CROMS.Forms
 
             txtSearch = new TextBox
             {
+                Name = "txtSearch",
                 Location = new Point(0, 104),
                 Width = 300,
                 Font = new Font("Segoe UI", 9.75F)
             };
             txtSearch.TextChanged += (s, e) => ApplyFilter();
-            var lblSearchHint = MakePlaceholder(txtSearch, "Search by name or case type...");
+            SearchHost.SetCue(txtSearch, "Search by name or case type...");   // a real cue banner, so the box can be styled like the others
             topBlock.Controls.Add(txtSearch);
-            topBlock.Controls.Add(lblSearchHint);
 
             cboFilterType = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(312, 104), Width = 200 };
             cboFilterType.Items.Add("All case types");

@@ -312,6 +312,7 @@ namespace CROMS.Forms
 
             txtSearch = new TextBox
             {
+                Name = "txtSearch",
                 Dock = DockStyle.Fill,
                 Font = new Font("Segoe UI", 11F),
                 ForeColor = Ink

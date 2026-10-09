@@ -712,6 +712,7 @@
     </Compile>
     <Compile Include="Modules\SearchCombo.cs" />
     <Compile Include="Modules\UiTheme.cs" />
+    <Compile Include="Modules\SearchHost.cs" />
     <Compile Include="Modules\AvatarPainter.cs" />
     <Compile Include="Modules\TemplateCanvas.cs">
       <SubType>Component</SubType>

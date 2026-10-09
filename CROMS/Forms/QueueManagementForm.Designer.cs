@@ -631,9 +631,12 @@ namespace CROMS.Forms
             chip.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
             chip.BackColor = UiTheme.Chrome;
             chip.ForeColor = UiTheme.Muted;
-            chip.AutoSize = false;
-            // Seven chips have to fit the filter column on a 1366px screen (about 650px): 7 x (88 + 4).
-            chip.Size = new Size(88, 30);
+            // Sized to their own text (label + count), so "New Reg.  12" and "Marriage  3" are never cut off;
+            // seven of them still fit the filter column on a 1366px screen (about 650px).
+            chip.AutoSize = true;
+            chip.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+            chip.Padding = new Padding(8, 0, 8, 0);
+            chip.MinimumSize = new Size(0, 30);
             chip.Margin = new Padding(0, 8, 4, 0);
             chip.Click += new EventHandler(this.chip_Click);
         }

@@ -45,6 +45,7 @@ namespace CROMS.Forms
             var add = MUi.Btn("+ New request", MUi.Kind.Primary, 140);
             add.Click += (s, e) => NewRequest(null);
             _search.Width = 320; _search.Font = MUi.F(10F); _search.Margin = new Padding(16, 5, 6, 0);
+            _search.Name = "_search";
             SetCue(_search, "Search request no., requester, name on the document, PSA ref...");
             _search.TextChanged += (s, e) => { _searchDelay.Stop(); _searchDelay.Start(); };
             _showClosed.Text = "Show released / closed"; _showClosed.AutoSize = true; _showClosed.Margin = new Padding(12, 9, 0, 0);

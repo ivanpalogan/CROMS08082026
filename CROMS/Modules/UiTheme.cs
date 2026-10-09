@@ -82,7 +82,8 @@ namespace CROMS.Modules
 
         public static void Polish(Control root)
         {
-            foreach (Control c in root.Controls)
+            // Snapshot: wrapping a search box replaces it in the collection while we walk it.
+            foreach (Control c in new System.Collections.Generic.List<Control>(System.Linq.Enumerable.Cast<Control>(root.Controls)))
             {
                 NormalizeFont(c);
                 // A button tagged "noskin" draws itself (e.g. a custom icon) — leave it alone.
@@ -94,6 +95,7 @@ namespace CROMS.Modules
                 else if (c is DataGridView g) StyleGrid(g);
                 else if (c is ComboBox cb) MakeSearchable(cb);
                 else if (c is Label || c is CheckBox || c is RadioButton) ClearCardBackdrop(c);
+                else if (c is TextBox stb && SearchHost.LooksLikeSearchBox(stb)) SearchHost.Wrap(stb);
                 if (c.HasChildren) Polish(c);
             }
         }
