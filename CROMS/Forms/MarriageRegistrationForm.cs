@@ -28,9 +28,20 @@ namespace CROMS.Forms
         private string _statusFilter;
         private readonly MarriageSettings _s = MarriageService.Settings;
 
+        private void FitListCount()
+        {
+            int used = 0;
+            foreach (Control c in pnlListBar.Controls)
+                if (c != lblListCount && c.Visible) used += c.Width + c.Margin.Horizontal;
+            lblListCount.Visible = pnlListBar.ClientSize.Width - used >= lblListCount.Width + 8;
+        }
+
         public MarriageRegistrationForm()
         {
             InitializeComponent();
+            // The count/search-hint label only shows when the bar has room for it; at 1366px the three
+            // tabs and the search box already fill the bar and the label ran off its right end.
+            pnlListBar.SizeChanged += (s, e) => FitListCount();
             SetupKpi(kpiPosting, "In posting", KpiCard.Icon.InboxTray, UiTheme.WarningTint, UiTheme.Warning);
             SetupKpi(kpiReady, "Ready to issue", KpiCard.Icon.DocumentTick, UiTheme.SuccessTint, UiTheme.Success);
             SetupKpi(kpiValid, "Valid licences", KpiCard.Icon.DocumentTick, UiTheme.AccentTint, UiTheme.Accent);

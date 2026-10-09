@@ -143,7 +143,7 @@ namespace CROMS.Forms
                                        new MySqlParameter("@q", "%" + term + "%")).Rows[0][0]);
 
                 dgvItems.DataSource = dt;
-                if (dgvItems.Columns.Contains("ID")) dgvItems.Columns["ID"].FillWeight = 20;
+                if (dgvItems.Columns.Contains("ID")) dgvItems.Columns["ID"].FillWeight = 38;
 
                 lblCount.Text = total > dt.Rows.Count
                     ? string.Format("Showing {0:N0} of {1:N0} — type in Search to narrow the list.", dt.Rows.Count, total)

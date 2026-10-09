@@ -170,6 +170,8 @@ namespace CROMS.MarriageTest
                         if (r.Width * r.Height < 40 || r.Width * r.Height < 0.25 * small) continue;   // a few px of caption/input slack is not a collision
                         // A transparent label sitting on a panel / picture is a design pattern, not a collision.
                         if (a is PictureBox || b is PictureBox) continue;
+                        // A disabled label laid over a text box is its placeholder / cue text, by design.
+                        if ((a is Label && !a.Enabled && b is TextBox) || (b is Label && !b.Enabled && a is TextBox)) continue;
                         if (a.GetType().Name.Contains("Glow") || b.GetType().Name.Contains("Glow")) continue;
                         hits.Add(path + ": " + Name(a) + " x " + Name(b) + " (" + r.Width + "x" + r.Height + ")");
                     }
