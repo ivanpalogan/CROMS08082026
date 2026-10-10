@@ -145,61 +145,101 @@ namespace CROMS.Kiosk
 
         // ---------------------------------------------- office availability
         /// <summary>True when ≥1 active window has an operator signed in with a fresh heartbeat.</summary>
-        public static bool OfficeOnline()
-        {
-            try
-            {
-                DataTable dt = Db.Pull(
-                    "SELECT COUNT(*) AS n FROM windows " +
-                    "WHERE status = 'Active' AND current_operator IS NOT NULL " +
-                    "AND last_heartbeat > (NOW() - INTERVAL " + OfficeStaleMinutes + " MINUTE)");
-                return dt.Rows.Count > 0 && Convert.ToInt32(dt.Rows[0]["n"]) > 0;
-            }
-            catch { return false; }   // DB unreachable → treat the office as unavailable
-        }
+        public static bool OfficeOnline() => ComputeOfficeState().Open;
 
         /// <summary>
         /// Service codes at least one ONLINE, active window is assigned to handle. A window
         /// with no window_service_assignments rows (or a Priority window) handles ALL services.
         /// Empty set if the DB is unreachable.
         /// </summary>
-        public static HashSet<string> AvailableServiceCodes()
-        {
-            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                DataTable online = Db.Pull(
-                    "SELECT w.id, w.is_priority, " +
-                    "(SELECT COUNT(*) FROM window_service_assignments wt WHERE wt.window_id = w.id) AS assigned " +
-                    "FROM windows w WHERE w.status = 'Active' AND w.current_operator IS NOT NULL " +
-                    "AND w.last_heartbeat > (NOW() - INTERVAL " + OfficeStaleMinutes + " MINUTE)");
+        public static HashSet<string> AvailableServiceCodes() => ComputeOfficeState().Codes;
 
-                foreach (DataRow w in online.Rows)
+        /// <summary>Whether the office is open and which services it can take right now.</summary>
+        public sealed class OfficeState
+        {
+            public bool Open;
+            public HashSet<string> Codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static readonly object _stateLock = new object();
+        private static OfficeState _lastState;
+        private static DateTime _lastStateAt = DateTime.MinValue;
+
+        /// <summary>Last answer the database gave, or null before the first one. Reading it never
+        /// touches the network, so a screen can paint from it the instant it opens.</summary>
+        public static OfficeState LastKnownOfficeState => _lastState;
+
+        /// <summary>
+        /// Asks the database on a background thread and hands the answer back on <paramref name="ui"/>'s
+        /// thread. The kiosk used to run these queries on the UI thread — on a Wi-Fi link to the server
+        /// laptop every poll froze the screen for as long as the round trip took, which is exactly what
+        /// a client feels as "I tapped and nothing happened".
+        /// </summary>
+        public static void RefreshOfficeStateAsync(Control ui, Action<OfficeState> done)
+        {
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                OfficeState st = ComputeOfficeState();
+                if (done == null || ui == null) return;
+                try
                 {
-                    bool priority = w["is_priority"] != DBNull.Value && Convert.ToInt32(w["is_priority"]) == 1;
-                    int assigned = Convert.ToInt32(w["assigned"]);
-                    if (priority || assigned == 0)
+                    if (ui.IsHandleCreated && !ui.IsDisposed)
+                        ui.BeginInvoke((Action)(() => { if (!ui.IsDisposed) done(st); }));
+                }
+                catch { /* form closed while the query was running */ }
+            });
+        }
+
+        private static OfficeState ComputeOfficeState()
+        {
+            lock (_stateLock)
+            {
+                // Three screens poll on their own timers; one answer is good for a moment.
+                if (_lastState != null && (DateTime.UtcNow - _lastStateAt).TotalMilliseconds < 1500)
+                    return _lastState;
+
+                var st = new OfficeState();
+                try
+                {
+                    DataTable online = Db.Pull(
+                        "SELECT w.id, w.is_priority, " +
+                        "(SELECT COUNT(*) FROM window_service_assignments wt WHERE wt.window_id = w.id) AS assigned " +
+                        "FROM windows w WHERE w.status = 'Active' AND w.current_operator IS NOT NULL " +
+                        "AND w.last_heartbeat > (NOW() - INTERVAL " + OfficeStaleMinutes + " MINUTE)");
+                    st.Open = online.Rows.Count > 0;
+
+                    DataTable assignments = null;   // fetched once, and only if some window needs it
+                    foreach (DataRow w in online.Rows)
                     {
-                        foreach (var svc in Catalogue) result.Add(svc.Code);
-                    }
-                    else
-                    {
-                        DataTable codes = Db.Pull(
-                            "SELECT service_code FROM window_service_assignments WHERE window_id = " + w["id"]);
-                        foreach (DataRow c in codes.Rows) result.Add(c["service_code"].ToString());
+                        bool priority = w["is_priority"] != DBNull.Value && Convert.ToInt32(w["is_priority"]) == 1;
+                        int assigned = Convert.ToInt32(w["assigned"]);
+                        if (priority || assigned == 0)
+                        {
+                            foreach (var svc in Catalogue) st.Codes.Add(svc.Code);
+                        }
+                        else
+                        {
+                            if (assignments == null)
+                                assignments = Db.Pull("SELECT window_id, service_code FROM window_service_assignments");
+                            foreach (DataRow c in assignments.Select("window_id = " + w["id"]))
+                                st.Codes.Add(c["service_code"].ToString());
+                        }
                     }
                 }
+                catch { st.Open = false; st.Codes.Clear(); }   // DB unreachable → closed, nothing available
+
+                // Existing counter assignments remain usable when upgrading from the old
+                // broad registration/marriage cards. New tickets retain their distinct keys.
+                if (st.Codes.Remove("NEWREG")) st.Codes.Add("BIRTHREG");
+                if (st.Codes.Remove("MARRIAGE"))
+                {
+                    st.Codes.Add("MARRIAGE_APP");
+                    st.Codes.Add("MARRIAGE_REG");
+                }
+                _lastState = st;
+                _lastStateAt = DateTime.UtcNow;
+                return st;
             }
-            catch { /* DB unreachable → nothing available */ }
-            // Existing counter assignments remain usable when upgrading from the old
-            // broad registration/marriage cards. New tickets retain their distinct keys.
-            if (result.Remove("NEWREG")) result.Add("BIRTHREG");
-            if (result.Remove("MARRIAGE"))
-            {
-                result.Add("MARRIAGE_APP");
-                result.Add("MARRIAGE_REG");
-            }
-            return result;
         }
 
         // ------------------------------------------------------- identity

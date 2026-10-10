@@ -54,6 +54,16 @@ namespace CROMS.Kiosk
             ServerConfig.StartAutoReconnect();
 
             LocalServices.Start();   // best-effort: brings up claimapp + save-API if nothing already did
+
+            // Warm what the first screens need while the client is still reading Welcome, so no
+            // tap ever waits on a database round trip: the office state (open + services) for
+            // every screen's first paint, and the province list for the certified-copy form.
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
+            {
+                try { KioskCore.AvailableServiceCodes(); } catch { }
+                try { GeoData.Provinces(); } catch { }
+            });
+
             RunFlow();
         }
 

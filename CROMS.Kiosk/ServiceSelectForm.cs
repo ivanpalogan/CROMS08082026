@@ -375,10 +375,17 @@ namespace CROMS.Kiosk
         private void LayoutSections()
         {
             if (_laying) return;
+            // The layout depends only on the panel's width. A maximised window raises Resize several
+            // times while it settles, and every call used to dispose and rebuild every section box
+            // and re-add all the cards — the bulk of the time Step 1 took to appear.
+            int w = panelStep1.ClientSize.Width;
+            if (w == _laidOutWidth && _sectionBoxes.Count > 0) return;
             _laying = true;
-            try { LayoutSectionsCore(); }
+            try { LayoutSectionsCore(); _laidOutWidth = w; }
             finally { _laying = false; }
         }
+
+        private int _laidOutWidth = -1;
 
         private void LayoutSectionsCore()
         {
@@ -487,15 +494,23 @@ namespace CROMS.Kiosk
         // ------------------------------------------------- availability
         private void UpdateAvailability()
         {
-            bool open = KioskCore.OfficeOnline();
-            _offlineOverlay.Visible = !open;
-            if (!open) _offlineOverlay.BringToFront();
-            ApplyServiceAvailability();
+            // Paint from the last answer at once; the refresh runs off the UI thread so a tap
+            // is never queued behind a database round trip.
+            var known = KioskCore.LastKnownOfficeState;
+            if (known != null) ApplyOfficeState(known);
+            KioskCore.RefreshOfficeStateAsync(this, ApplyOfficeState);
         }
 
-        private void ApplyServiceAvailability()
+        private void ApplyOfficeState(KioskCore.OfficeState st)
         {
-            HashSet<string> avail = KioskCore.AvailableServiceCodes();
+            bool open = st.Open;
+            _offlineOverlay.Visible = !open;
+            if (!open) _offlineOverlay.BringToFront();
+            ApplyServiceAvailability(st.Codes);
+        }
+
+        private void ApplyServiceAvailability(HashSet<string> avail)
+        {
             foreach (var svc in KioskCore.Catalogue)
             {
                 if (!_cards.TryGetValue(svc.Code, out Panel card)) continue;

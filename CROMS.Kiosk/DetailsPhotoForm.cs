@@ -423,7 +423,13 @@ namespace CROMS.Kiosk
         // ------------------------------------------------- availability
         private void UpdateAvailability()
         {
-            bool open = KioskCore.OfficeOnline();
+            var known = KioskCore.LastKnownOfficeState;
+            if (known != null) ApplyOpen(known.Open);
+            KioskCore.RefreshOfficeStateAsync(this, st => ApplyOpen(st.Open));
+        }
+
+        private void ApplyOpen(bool open)
+        {
             _offlineOverlay.Visible = !open;
             if (!open) _offlineOverlay.BringToFront();
         }
@@ -523,29 +529,50 @@ namespace CROMS.Kiosk
         }
 
         // --------------------------------------------------- live webcam
+        private readonly object _camLock = new object();
+        private bool _camClosed;
+
+        /// <summary>
+        /// Scanning for DirectShow devices and opening the webcam takes a noticeable fraction of a
+        /// second, and used to run inside Load — so Step 2 appeared late and the first tap on it was
+        /// swallowed. The scan now runs on a worker thread; the screen is usable immediately and the
+        /// camera state line updates when the camera answers.
+        /// </summary>
         private void StartCamera()
         {
-            try
+            _lblCamStatus.Text = "Starting camera...";
+            System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
-                var devices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
-                if (devices.Count == 0)
+                Action ui;
+                VideoCaptureDevice cam = null;
+                try
                 {
-                    SetCamState(false);
-                    _lblCamStatus.Text = "No camera found — connect a webcam.";
-                    return;
+                    var devices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
+                    if (devices.Count == 0)
+                    {
+                        ui = () => { SetCamState(false); _lblCamStatus.Text = "No camera found — connect a webcam."; };
+                    }
+                    else
+                    {
+                        cam = new VideoCaptureDevice(devices[0].MonikerString);
+                        cam.NewFrame += OnFrame;
+                        lock (_camLock)
+                        {
+                            if (_camClosed) { cam.NewFrame -= OnFrame; return; }   // left the screen meanwhile
+                            _camera = cam;
+                            cam.Start();
+                        }
+                        ui = () => { SetCamState(true); _lblCamStatus.Text = "Live camera is ready. Tap Capture Photo when ready."; };
+                    }
                 }
-                _camera = new VideoCaptureDevice(devices[0].MonikerString);
-                _camera.NewFrame += OnFrame;
-                _camera.Start();
-                SetCamState(true);
-                _lblCamStatus.Text = "Live camera is ready. Tap Capture Photo when ready.";
-            }
-            catch (Exception ex)
-            {
-                SetCamState(false);
-                KioskCore.LogError(ex);
-                _lblCamStatus.Text = "The camera could not be started. Please ask the staff for help.";
-            }
+                catch (Exception ex)
+                {
+                    KioskCore.LogError(ex);
+                    ui = () => { SetCamState(false); _lblCamStatus.Text = "The camera could not be started. Please ask the staff for help."; };
+                }
+                try { if (IsHandleCreated && !IsDisposed) BeginInvoke(ui); }
+                catch { /* form closed while the camera was starting */ }
+            });
         }
 
         private void OnFrame(object sender, NewFrameEventArgs e)
@@ -611,11 +638,15 @@ namespace CROMS.Kiosk
 
         private void StopCamera()
         {
-            if (_camera != null && _camera.IsRunning)
+            lock (_camLock)
             {
-                _camera.NewFrame -= OnFrame;
-                _camera.SignalToStop();
-                _camera.WaitForStop();
+                _camClosed = true;
+                if (_camera != null && _camera.IsRunning)
+                {
+                    _camera.NewFrame -= OnFrame;
+                    _camera.SignalToStop();
+                    _camera.WaitForStop();
+                }
             }
         }
 

@@ -23,23 +23,32 @@ namespace CROMS.Kiosk
         private static Dictionary<string, int> _provinceIds;
         private static readonly Dictionary<int, List<string>> _munis = new Dictionary<int, List<string>>();
 
+        private static readonly object _provLock = new object();
+
         public static List<string> Provinces()
         {
-            if (_provinces != null && _provinces.Count > 0) return _provinces;
-            _provinces = new List<string>();
-            _provinceIds = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            try
+            // Locked because Program warms this on a worker thread at start-up: a screen asking at
+            // the same moment must wait for the full list, not read a half-filled one.
+            lock (_provLock)
             {
-                DataTable t = Db.Pull("SELECT id, name FROM provinces ORDER BY name");
-                foreach (DataRow r in t.Rows)
+                if (_provinces != null && _provinces.Count > 0) return _provinces;
+                var list = new List<string>();
+                var ids = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                try
                 {
-                    string name = Convert.ToString(r["name"]);
-                    _provinces.Add(name);
-                    _provinceIds[name] = Convert.ToInt32(r["id"]);
+                    DataTable t = Db.Pull("SELECT id, name FROM provinces ORDER BY name");
+                    foreach (DataRow r in t.Rows)
+                    {
+                        string name = Convert.ToString(r["name"]);
+                        list.Add(name);
+                        ids[name] = Convert.ToInt32(r["id"]);
+                    }
                 }
+                catch { /* offline: empty list, caller falls back to typing */ }
+                _provinces = list;
+                _provinceIds = ids;
+                return _provinces;
             }
-            catch { /* offline: empty list, caller falls back to typing */ }
-            return _provinces;
         }
 
         /// <summary>The id of an exactly-named province (case and accent insensitive), or 0.</summary>

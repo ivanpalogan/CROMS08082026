@@ -83,7 +83,15 @@ namespace CROMS.Kiosk
 
         private void UpdateAvailability()
         {
-            bool open = KioskCore.OfficeOnline();
+            // Paint from the last answer at once, then refresh off the UI thread so a slow
+            // server link can never make a tap wait.
+            var known = KioskCore.LastKnownOfficeState;
+            if (known != null) ApplyAvailability(known.Open);
+            KioskCore.RefreshOfficeStateAsync(this, st => ApplyAvailability(st.Open));
+        }
+
+        private void ApplyAvailability(bool open)
+        {
             if (open == _open && _lblStatus.Text.Length > 0) return;
             _open = open;
             _lblStatus.Text = open
