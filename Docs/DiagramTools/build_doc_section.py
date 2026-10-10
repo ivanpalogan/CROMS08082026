@@ -127,7 +127,7 @@ def main():
     total_cols = sum(m_['columns'] for m_ in meta)
     out.append(para(run('This section shows every table that a person types into through a CROMS screen, as a hub-and-spoke diagram '
                         '(%d tables, %d columns), followed by the screen that writes it. The big ringed circle is the table; each small circle around it is '
-                        'one column, written exactly as the database column name. Column names and order are read from information_schema of the demo database; screens are the real forms '
+                        'one column, written exactly as the database column name - except that the first, middle and last name of a person are shown as one full_name circle and the province, municipality, barangay and house of an address as one address circle (the line under each diagram lists the columns inside). Column names and order are read from information_schema of the demo database; screens are the real forms '
                         'running against the demo environment (fictional sample data, orange DEMO ENVIRONMENT badge).' % (len(meta), total_cols))))
     out.append(para(run('The diagrams are full-resolution images: on a big table (births, marriages, marriage licences) zoom in to read the column names. '
                         'The same pages, one per table, are in Docs\\CROMS_Data_Entry_Table_Diagrams.drawio (open it in diagrams.net).')))
@@ -137,22 +137,25 @@ def main():
     first = True
     for mt in meta:
         t = mt['table']
-        big = mt['columns'] > 40
+        big = mt['circles'] > 40
         small = mt['page'] <= 1000
         # --- diagram section
         if big:
             out.append('<w:p><w:pPr>%s</w:pPr></w:p>' % PORTRAIT)      # close the previous portrait section
             out.append(heading(t, 2))
-            out.append(para(run('Screen: ' + mt['screen'] + '.  %d columns.' % mt['columns'], size=20), after=60, keep_next=True))
+            out.append(para(run('Screen: ' + mt['screen'] + '.  %d columns, %d circles.' % (mt['columns'], mt['circles']), size=20), after=60, keep_next=True))
             out.append(image(pkg, os.path.join(a.diagrams, t + '.png'), 6.7, 'Bubble diagram of table %s with its %d columns' % (t, mt['columns']), max_h_in=6.7))
             out.append('<w:p><w:pPr>%s</w:pPr></w:p>' % LAND)           # end of the landscape section
         else:
             out.append(heading(t, 2))
-            out.append(para(run('Screen: ' + mt['screen'] + '.  %d columns.' % mt['columns'], size=20), after=60, keep_next=True))
+            out.append(para(run('Screen: ' + mt['screen'] + '.  %d columns, %d circles.' % (mt['columns'], mt['circles']), size=20), after=60, keep_next=True))
             dp = os.path.join(a.diagrams, t + '.png')
             if mt['page'] <= 1100:
                 dp = crop_white(dp, os.path.join(a.diagrams, 'doc_' + t + '.png'))
             out.append(image(pkg, dp, 4.4 if small else 5.6, 'Bubble diagram of table %s with its %d columns' % (t, mt['columns']), max_h_in=4.4))
+        if mt.get('merged'):
+            note = '; '.join('%s = %s' % (g['circle'], ' + '.join(g['columns'])) for g in mt['merged'])
+            out.append(para(run('One circle holds several columns: ' + note + '.', italic=True, size=16, color='555555'), after=120))
         # --- screenshots
         for s in by_table.get(t, []):
             p = os.path.join(a.shots, s['file'])

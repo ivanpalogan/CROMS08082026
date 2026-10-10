@@ -128,9 +128,75 @@ def font_options(names):
                 break
 
 
+
+# ---- merging parts of one value into one circle ------------------------------------------------
+# first/middle/last (+ suffix) of one person -> "<who>_full_name"; province/municipality/barangay/house/city of one
+# address -> "<what>_address" (or the table's own joined column when it already has one, e.g. husband_residence).
+NAME_RE = re.compile(r'^(?P<pre>.*?)_?(?P<part>first|middle|last)(?:_name)?$')
+ADDR_RE = re.compile(r'^(?P<stem>.+?)_(?P<part>province|municipality|barangay|house|city|street)$')
+
+
+def group_columns(cols):
+    """Return [{'name': circle label, 'members': [column names]}] - every column in exactly one circle."""
+    names = [c['name'] for c in cols]
+    have = set(names)
+    owner = {}                                   # column -> group key
+    groups = {}                                  # key -> dict(label, members, first_index)
+    order = {n: i for i, n in enumerate(names)}
+
+    def add(key, label, col):
+        g = groups.setdefault(key, dict(label=label, members=[], at=order[col]))
+        g['members'].append(col); g['at'] = min(g['at'], order[col]); owner[col] = key
+
+    # persons
+    people = {}
+    for n in names:
+        m = NAME_RE.match(n)
+        if m and n not in ('first', 'middle', 'last'):
+            people.setdefault(m.group('pre'), []).append((n, m.group('part')))
+        elif m and n in ('first', 'middle', 'last'):
+            people.setdefault('', []).append((n, m.group('part')))
+    for pre, parts in people.items():
+        kinds = set(p for _, p in parts)
+        if 'first' in kinds and 'last' in kinds:
+            label = (pre + '_' if pre else '') + 'full_name'
+            key = 'name:' + pre
+            for n, _ in parts:
+                add(key, label, n)
+            for extra in ((pre + '_suffix') if pre else 'suffix', label, (pre + '_name') if pre else None):
+                if extra and extra in have and extra not in owner and extra != label:
+                    add(key, label, extra)
+            if label in have and label not in owner:
+                add(key, label, label)
+    # addresses
+    addrs = {}
+    for n in names:
+        m = ADDR_RE.match(n)
+        if m and n not in owner:
+            stem = re.sub(r'_res$', '', m.group('stem'))
+            addrs.setdefault(stem, []).append(n)
+    for stem, mem in addrs.items():
+        if len(mem) < 2:
+            continue
+        label = stem + '_address'
+        joined = [x for x in (stem + '_residence', stem + '_address', stem, stem + '_res') if x in have and x not in owner]
+        for n in mem + joined[:1]:
+            add('addr:' + stem, label, n)
+    # everything else: its own circle
+    for n in names:
+        if n not in owner:
+            add('col:' + n, n, n)
+    out = sorted(groups.values(), key=lambda g: g['at'])
+    # keep the original column order inside a circle
+    for g in out:
+        g['members'].sort(key=lambda x: order[x])
+        g['name'] = g.pop('label')
+    return out
+
 # ---- geometry ----------------------------------------------------------------------------------
 def build(table, cols):
-    names = [c['name'] for c in cols]
+    items = group_columns(cols)
+    names = [it['name'] for it in items]
     n = len(names)
     opts = list(font_options(names))
     fs, d = opts[0]
@@ -156,10 +222,10 @@ def build(table, cols):
     size = int(math.ceil((2 * (R + d / 2 + margin)) / 10.0) * 10)
     ox = oy = size / 2.0
     circles = []
-    for i, c in enumerate(cols):
+    for i, it in enumerate(items):
         a = -math.pi / 2 + 2 * math.pi * i / n
-        circles.append(dict(i=i, name=c['name'], x=ox + R * math.cos(a), y=oy + R * math.sin(a),
-                            lines=wrap(c['name'], f, d * 0.82), color=RING[i % len(RING)]))
+        circles.append(dict(i=i, name=it['name'], members=it['members'], x=ox + R * math.cos(a), y=oy + R * math.sin(a),
+                            lines=wrap(it['name'], f, d * 0.82), color=RING[i % len(RING)]))
     return dict(table=table, n=n, fs=fs, d=d, D0=D0, cfs=cfs, clines=clines, R=R, size=size, cx=ox, cy=oy, circles=circles)
 
 
@@ -216,9 +282,15 @@ def diagram_xml(g):
     for c in g['circles']:
         st = ('fontFamily=Arial;fontSize=%d;align=center;verticalAlign=middle;spacing=0;strokeWidth=%d;fontColor=#222222;'
               'fillColor=#FFFFFF;gradientColor=#E3E3E3;gradientDirection=radial;strokeColor=%s;' % (g['fs'], RINGW, c['color']))
-        out.append('<mxCell id="col%d" value="%s" style="ellipse;whiteSpace=nowrap;html=1;aspect=fixed;%s" vertex="1" parent="1">'
-                   '<mxGeometry x="%.1f" y="%.1f" width="%d" height="%d" as="geometry"/></mxCell>'
-                   % (c['i'], esc(c['lines']), st, c['x'] - d / 2, c['y'] - d / 2, d, d))
+        cell = ('<mxCell value="%s" style="ellipse;whiteSpace=nowrap;html=1;aspect=fixed;%s" vertex="1" parent="1">'
+                '<mxGeometry x="%.1f" y="%.1f" width="%d" height="%d" as="geometry"/></mxCell>'
+                % (esc(c['lines']), st, c['x'] - d / 2, c['y'] - d / 2, d, d))
+        if len(c['members']) > 1:               # merged circle: hover shows the real columns
+            cell = ('<object label="%s" tooltip="%s" id="col%d">' % (esc(c['lines']), html.escape(', '.join(c['members'])), c['i'])
+                    + cell.replace('<mxCell value="%s" ' % esc(c['lines']), '<mxCell ') + '</object>')
+        else:
+            cell = cell.replace('<mxCell value=', '<mxCell id="col%d" value=' % c['i'], 1)
+        out.append(cell)
     out.append('</root></mxGraphModel></diagram>')
     return ''.join(out)
 
@@ -277,11 +349,15 @@ def main():
         iss = audit(g)
         cnt = sum(iss.values())
         bad += cnt
-        total_cols += g['n']
-        print('%-28s cols=%3d d=%3d fs=%2d hub=%4d page=%4dx%-4d overlaps=%d %s' %
-              (t, g['n'], g['d'], g['fs'], g['D0'], g['size'], g['size'], cnt, '' if not cnt else iss))
+        total_cols += len(cols[t])
+        # every column must sit in exactly one circle
+        mem = [m for c in g['circles'] for m in c['members']]
+        assert sorted(mem) == sorted(x['name'] for x in cols[t]), 'column coverage mismatch in ' + t
+        print('%-28s cols=%3d circles=%3d d=%3d fs=%2d hub=%4d page=%4dx%-4d overlaps=%d %s' %
+              (t, len(cols[t]), g['n'], g['d'], g['fs'], g['D0'], g['size'], g['size'], cnt, '' if not cnt else iss))
         root.append(diagram_xml(g))
-        meta.append(dict(table=t, screen=screen, columns=g['n'], rings=1, page=g['size']))
+        meta.append(dict(table=t, screen=screen, columns=len(cols[t]), circles=g['n'], rings=1, page=g['size'],
+                         merged=[dict(circle=c['name'], columns=c['members']) for c in g['circles'] if len(c['members']) > 1]))
         if a.png:
             os.makedirs(a.png, exist_ok=True)
             render_png(g, os.path.join(a.png, t + '.png'))
@@ -294,11 +370,12 @@ def main():
     tree = ET.fromstring(xml.encode('utf-8'))
     pages = tree.findall('diagram')
     for p in pages:
-        ids = [c.get('id') for c in p.iter('mxCell')]
+        ids = [c.get('id') for c in list(p.iter('mxCell')) + list(p.iter('object')) if c.get('id')]
         assert len(ids) == len(set(ids)), 'duplicate ids in ' + p.get('name')
-        ncol = sum(1 for c in p.iter('mxCell') if (c.get('id') or '').startswith('col'))
-        assert ncol == len(cols[p.get('name')]), 'column count mismatch ' + p.get('name')
-    print('pages=%d columns=%d total_issues=%d' % (len(pages), total_cols, bad))
+        ncirc = sum(1 for i in ids if i.startswith('col'))
+        gi = next(m for m in meta if m['table'] == p.get('name'))
+        assert ncirc == gi['circles'], 'circle count mismatch ' + p.get('name')
+    print('pages=%d columns(all, each in exactly one circle)=%d total_issues=%d' % (len(pages), total_cols, bad))
     sys.exit(1 if bad else 0)
 
 
