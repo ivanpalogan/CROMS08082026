@@ -127,8 +127,7 @@ def main():
     total_cols = sum(m_['columns'] for m_ in meta)
     out.append(para(run('This section shows every table that a person types into through a CROMS screen, as a hub-and-spoke diagram '
                         '(%d tables, %d columns), followed by the screen that writes it. The big ringed circle is the table; each small circle around it is '
-                        'one column, written exactly as the database column name. A filled circle is the primary key and a dashed circle is a foreign key '
-                        '(a column ending in _id). Column names and order are read from information_schema of the demo database; screens are the real forms '
+                        'one column, written exactly as the database column name. Column names and order are read from information_schema of the demo database; screens are the real forms '
                         'running against the demo environment (fictional sample data, orange DEMO ENVIRONMENT badge).' % (len(meta), total_cols))))
     out.append(para(run('The diagrams are full-resolution images: on a big table (births, marriages, marriage licences) zoom in to read the column names. '
                         'The same pages, one per table, are in Docs\\CROMS_Data_Entry_Table_Diagrams.drawio (open it in diagrams.net).')))
