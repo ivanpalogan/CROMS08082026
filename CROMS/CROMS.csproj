@@ -968,6 +968,7 @@
     <None Include="Database\67_kiosk_submitted_by.sql" />
     <None Include="Database\68_old_records_source.sql" />
     <None Include="Database\86_deleted_records.sql" />
+    <None Include="Database\87_staff_biodata_birth_nationality.sql" />
     <None Include="Database\70_digitization_metadata.sql" />
     <None Include="Database\71_old_marriage_records_source.sql" />
     <None Include="Database\72_client_service_slip.sql" />

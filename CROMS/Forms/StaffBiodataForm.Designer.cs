@@ -51,6 +51,12 @@ namespace CROMS.Forms
             this.cboSex = new System.Windows.Forms.ComboBox();
             this.lblCivilStatus = new System.Windows.Forms.Label();
             this.txtCivilStatus = new System.Windows.Forms.TextBox();
+            this.lblAge = new System.Windows.Forms.Label();
+            this.txtAge = new System.Windows.Forms.TextBox();
+            this.lblBirthPlace = new System.Windows.Forms.Label();
+            this.txtBirthPlace = new System.Windows.Forms.TextBox();
+            this.lblNationality = new System.Windows.Forms.Label();
+            this.txtNationality = new System.Windows.Forms.TextBox();
             this.lblAddress = new System.Windows.Forms.Label();
             this.txtAddress = new System.Windows.Forms.TextBox();
             this.lblContactNo = new System.Windows.Forms.Label();
@@ -301,7 +307,7 @@ namespace CROMS.Forms
             this.pnlForm.Location = new System.Drawing.Point(24, 436);
             this.pnlForm.Name = "pnlForm";
             this.pnlForm.Padding = new System.Windows.Forms.Padding(20);
-            this.pnlForm.Size = new System.Drawing.Size(552, 520);
+            this.pnlForm.Size = new System.Drawing.Size(552, 576);
             this.pnlForm.TabIndex = 4;
             this.pnlForm.Controls.Add(this.lblEmployeeNo);
             this.pnlForm.Controls.Add(this.txtEmployeeNo);
@@ -319,6 +325,12 @@ namespace CROMS.Forms
             this.pnlForm.Controls.Add(this.cboSex);
             this.pnlForm.Controls.Add(this.lblCivilStatus);
             this.pnlForm.Controls.Add(this.txtCivilStatus);
+            this.pnlForm.Controls.Add(this.lblAge);
+            this.pnlForm.Controls.Add(this.txtAge);
+            this.pnlForm.Controls.Add(this.lblBirthPlace);
+            this.pnlForm.Controls.Add(this.txtBirthPlace);
+            this.pnlForm.Controls.Add(this.lblNationality);
+            this.pnlForm.Controls.Add(this.txtNationality);
             this.pnlForm.Controls.Add(this.lblAddress);
             this.pnlForm.Controls.Add(this.txtAddress);
             this.pnlForm.Controls.Add(this.lblContactNo);
@@ -501,91 +513,150 @@ namespace CROMS.Forms
             this.txtCivilStatus.Size = new System.Drawing.Size(220, 25);
             this.txtCivilStatus.TabIndex = 15;
             //
+            // lblAge
+            //
+            this.lblAge.AutoSize = true;
+            this.lblAge.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblAge.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblAge.Location = new System.Drawing.Point(190, 188);
+            this.lblAge.Name = "lblAge";
+            this.lblAge.Size = new System.Drawing.Size(28, 15);
+            this.lblAge.TabIndex = 30;
+            this.lblAge.Text = "Age";
+            //
+            // txtAge
+            //
+            this.txtAge.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtAge.Location = new System.Drawing.Point(190, 208);
+            this.txtAge.Name = "txtAge";
+            this.txtAge.ReadOnly = true;
+            this.txtAge.Size = new System.Drawing.Size(80, 25);
+            this.txtAge.TabIndex = 31;
+            this.txtAge.TabStop = false;
+            //
+            // lblBirthPlace
+            //
+            this.lblBirthPlace.AutoSize = true;
+            this.lblBirthPlace.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblBirthPlace.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblBirthPlace.Location = new System.Drawing.Point(24, 244);
+            this.lblBirthPlace.Name = "lblBirthPlace";
+            this.lblBirthPlace.Size = new System.Drawing.Size(80, 15);
+            this.lblBirthPlace.TabIndex = 32;
+            this.lblBirthPlace.Text = "Place of Birth";
+            //
+            // txtBirthPlace
+            //
+            this.txtBirthPlace.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtBirthPlace.Location = new System.Drawing.Point(24, 264);
+            this.txtBirthPlace.Name = "txtBirthPlace";
+            this.txtBirthPlace.Size = new System.Drawing.Size(220, 25);
+            this.txtBirthPlace.TabIndex = 33;
+            //
+            // lblNationality
+            //
+            this.lblNationality.AutoSize = true;
+            this.lblNationality.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+            this.lblNationality.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
+            this.lblNationality.Location = new System.Drawing.Point(290, 244);
+            this.lblNationality.Name = "lblNationality";
+            this.lblNationality.Size = new System.Drawing.Size(70, 15);
+            this.lblNationality.TabIndex = 34;
+            this.lblNationality.Text = "Nationality";
+            //
+            // txtNationality
+            //
+            this.txtNationality.Font = new System.Drawing.Font("Segoe UI", 10F);
+            this.txtNationality.Location = new System.Drawing.Point(290, 264);
+            this.txtNationality.Name = "txtNationality";
+            this.txtNationality.Size = new System.Drawing.Size(220, 25);
+            this.txtNationality.TabIndex = 35;
+            //
             // lblAddress
             //
             this.lblAddress.AutoSize = true;
             this.lblAddress.Font = new System.Drawing.Font("Segoe UI", 8.5F);
             this.lblAddress.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblAddress.Location = new System.Drawing.Point(24, 244);
+            this.lblAddress.Location = new System.Drawing.Point(24, 300);
             this.lblAddress.Name = "lblAddress";
             this.lblAddress.Size = new System.Drawing.Size(52, 15);
-            this.lblAddress.TabIndex = 16;
+            this.lblAddress.TabIndex = 20;
             this.lblAddress.Text = "Address";
             //
             // txtAddress
             //
             this.txtAddress.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtAddress.Location = new System.Drawing.Point(24, 264);
+            this.txtAddress.Location = new System.Drawing.Point(24, 320);
             this.txtAddress.Name = "txtAddress";
             this.txtAddress.Size = new System.Drawing.Size(486, 25);
-            this.txtAddress.TabIndex = 17;
+            this.txtAddress.TabIndex = 21;
             //
             // lblContactNo
             //
             this.lblContactNo.AutoSize = true;
             this.lblContactNo.Font = new System.Drawing.Font("Segoe UI", 8.5F);
             this.lblContactNo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblContactNo.Location = new System.Drawing.Point(24, 300);
+            this.lblContactNo.Location = new System.Drawing.Point(24, 356);
             this.lblContactNo.Name = "lblContactNo";
             this.lblContactNo.Size = new System.Drawing.Size(80, 15);
-            this.lblContactNo.TabIndex = 18;
+            this.lblContactNo.TabIndex = 22;
             this.lblContactNo.Text = "Contact No.";
             //
             // txtContactNo
             //
             this.txtContactNo.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtContactNo.Location = new System.Drawing.Point(24, 320);
+            this.txtContactNo.Location = new System.Drawing.Point(24, 376);
             this.txtContactNo.Name = "txtContactNo";
             this.txtContactNo.Size = new System.Drawing.Size(220, 25);
-            this.txtContactNo.TabIndex = 19;
+            this.txtContactNo.TabIndex = 23;
             //
             // lblEmergencyName
             //
             this.lblEmergencyName.AutoSize = true;
             this.lblEmergencyName.Font = new System.Drawing.Font("Segoe UI", 8.5F);
             this.lblEmergencyName.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblEmergencyName.Location = new System.Drawing.Point(24, 356);
+            this.lblEmergencyName.Location = new System.Drawing.Point(24, 412);
             this.lblEmergencyName.Name = "lblEmergencyName";
             this.lblEmergencyName.Size = new System.Drawing.Size(130, 15);
-            this.lblEmergencyName.TabIndex = 20;
+            this.lblEmergencyName.TabIndex = 24;
             this.lblEmergencyName.Text = "Emergency Contact Name";
             //
             // txtEmergencyName
             //
             this.txtEmergencyName.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtEmergencyName.Location = new System.Drawing.Point(24, 376);
+            this.txtEmergencyName.Location = new System.Drawing.Point(24, 432);
             this.txtEmergencyName.Name = "txtEmergencyName";
             this.txtEmergencyName.Size = new System.Drawing.Size(486, 25);
-            this.txtEmergencyName.TabIndex = 21;
+            this.txtEmergencyName.TabIndex = 25;
             //
             // lblEmergencyNo
             //
             this.lblEmergencyNo.AutoSize = true;
             this.lblEmergencyNo.Font = new System.Drawing.Font("Segoe UI", 8.5F);
             this.lblEmergencyNo.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(91)))), ((int)(((byte)(100)))), ((int)(((byte)(114)))));
-            this.lblEmergencyNo.Location = new System.Drawing.Point(24, 412);
+            this.lblEmergencyNo.Location = new System.Drawing.Point(24, 468);
             this.lblEmergencyNo.Name = "lblEmergencyNo";
             this.lblEmergencyNo.Size = new System.Drawing.Size(150, 15);
-            this.lblEmergencyNo.TabIndex = 22;
+            this.lblEmergencyNo.TabIndex = 26;
             this.lblEmergencyNo.Text = "Emergency Contact No.";
             //
             // txtEmergencyNo
             //
             this.txtEmergencyNo.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtEmergencyNo.Location = new System.Drawing.Point(24, 432);
+            this.txtEmergencyNo.Location = new System.Drawing.Point(24, 488);
             this.txtEmergencyNo.Name = "txtEmergencyNo";
             this.txtEmergencyNo.Size = new System.Drawing.Size(220, 25);
-            this.txtEmergencyNo.TabIndex = 23;
+            this.txtEmergencyNo.TabIndex = 27;
             //
             // lblUpdated
             //
             this.lblUpdated.AutoSize = true;
             this.lblUpdated.Font = new System.Drawing.Font("Segoe UI", 8.25F);
             this.lblUpdated.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(150)))), ((int)(((byte)(158)))), ((int)(((byte)(169)))));
-            this.lblUpdated.Location = new System.Drawing.Point(24, 472);
+            this.lblUpdated.Location = new System.Drawing.Point(24, 528);
             this.lblUpdated.Name = "lblUpdated";
             this.lblUpdated.Size = new System.Drawing.Size(160, 15);
-            this.lblUpdated.TabIndex = 24;
+            this.lblUpdated.TabIndex = 28;
             this.lblUpdated.Text = "Not yet saved.";
             //
             // btnSave
@@ -594,7 +665,7 @@ namespace CROMS.Forms
             this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(24, 968);
+            this.btnSave.Location = new System.Drawing.Point(24, 1024);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(160, 40);
             this.btnSave.TabIndex = 5;
@@ -608,7 +679,7 @@ namespace CROMS.Forms
             this.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnClose.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
             this.btnClose.ForeColor = System.Drawing.Color.White;
-            this.btnClose.Location = new System.Drawing.Point(194, 968);
+            this.btnClose.Location = new System.Drawing.Point(194, 1024);
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(100, 40);
             this.btnClose.TabIndex = 6;
@@ -621,7 +692,7 @@ namespace CROMS.Forms
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(244)))), ((int)(((byte)(246)))), ((int)(((byte)(249)))));
-            this.ClientSize = new System.Drawing.Size(600, 1028);
+            this.ClientSize = new System.Drawing.Size(600, 1084);
             this.Controls.Add(this.titleLabel);
             this.Controls.Add(this.subtitleLabel);
             this.Controls.Add(this.pnlPhoto);
@@ -685,6 +756,12 @@ namespace CROMS.Forms
         private System.Windows.Forms.ComboBox cboSex;
         private System.Windows.Forms.Label lblCivilStatus;
         private System.Windows.Forms.TextBox txtCivilStatus;
+        private System.Windows.Forms.Label lblAge;
+        private System.Windows.Forms.TextBox txtAge;
+        private System.Windows.Forms.Label lblBirthPlace;
+        private System.Windows.Forms.TextBox txtBirthPlace;
+        private System.Windows.Forms.Label lblNationality;
+        private System.Windows.Forms.TextBox txtNationality;
         private System.Windows.Forms.Label lblAddress;
         private System.Windows.Forms.TextBox txtAddress;
         private System.Windows.Forms.Label lblContactNo;

@@ -36,6 +36,9 @@ namespace CROMS.Forms
                 "civil_status", txtCivilStatus, "address", txtAddress, "contact_no", txtContactNo,
                 "emergency_contact_name", txtEmergencyName, "emergency_contact_no", txtEmergencyNo);
             pnlAvatar.Paint += (s, e) => AvatarPainter.Draw(e.Graphics, pnlAvatar.ClientRectangle, _photoBytes, Session.User?.FullName);
+            // The dialog is taller than a 768px screen; scroll instead of running off the bottom.
+            Rectangle wa = Screen.FromControl(this).WorkingArea;
+            if (Height > wa.Height - 20) { AutoScroll = true; Height = wa.Height - 20; }
             LockAsReadOnly();
             LoadAccount();
             LoadOwnRow();
@@ -169,6 +172,8 @@ namespace CROMS.Forms
             chkBirthdate.Enabled = false;
             cboSex.Enabled = false;
             txtCivilStatus.ReadOnly = true;
+            txtBirthPlace.ReadOnly = true;
+            txtNationality.ReadOnly = true;
             txtAddress.ReadOnly = true;
             txtContactNo.ReadOnly = true;
             txtEmergencyName.ReadOnly = true;
@@ -208,8 +213,15 @@ namespace CROMS.Forms
             if (r["birthdate"] != DBNull.Value)
             {
                 chkBirthdate.Checked = true;
-                dtpBirthdate.Value = Convert.ToDateTime(r["birthdate"]);
+                DateTime bd = Convert.ToDateTime(r["birthdate"]);
+                dtpBirthdate.Value = bd;
+                // Age is worked out from the birthdate, never stored.
+                int age = DateTime.Today.Year - bd.Year;
+                if (bd.Date > DateTime.Today.AddYears(-age)) age--;
+                txtAge.Text = age < 0 ? "" : age.ToString();
             }
+            txtBirthPlace.Text = r.Table.Columns.Contains("birth_place") ? S(r, "birth_place") : "";
+            txtNationality.Text = r.Table.Columns.Contains("nationality") ? S(r, "nationality") : "";
 
             int sexIdx = cboSex.Items.IndexOf(S(r, "sex"));
             cboSex.SelectedIndex = sexIdx;

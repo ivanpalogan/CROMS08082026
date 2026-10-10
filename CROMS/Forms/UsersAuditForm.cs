@@ -33,9 +33,13 @@ namespace CROMS.Forms
 
             // Boxes stop at the width of the column they save into (read from the database).
             FieldLimit.FromDb("users", "username", txtUsername, "full_name", txtFullName);
-            FieldLimit.FromDb("staff_biodata", "employee_no", txtBioEmployeeNo, "position", txtBioPosition,
+            FieldLimit.FromDb("staff_biodata", "employee_no", txtBioEmployeeNo, "position", cboBioPosition,
                 "civil_status", txtBioCivilStatus, "address", txtBioAddress, "contact_no", txtBioContactNo,
-                "emergency_contact_name", txtBioEmergencyName, "emergency_contact_no", txtBioEmergencyNo);
+                "emergency_contact_name", txtBioEmergencyName, "emergency_contact_no", txtBioEmergencyNo,
+                "birth_place", txtBioBirthPlace, "nationality", cboBioNationality);
+            // A staff member cannot have been born after today.
+            dtpBioBirthdate.MaxDate = DateTime.Today;
+            LoadNationalities();
             LoadUsers();
             LoadUserPicker();
             LoadBiodata();
@@ -76,6 +80,7 @@ namespace CROMS.Forms
                 gridBiodata.DataSource = Db.Pull(
                     "SELECT u.id AS id, u.full_name AS 'Full Name', u.username AS Username, u.role AS Role, " +
                     "COALESCE(b.employment_status, '—') AS 'Employment Status', b.position AS Position, " +
+                    "TIMESTAMPDIFF(YEAR, b.birthdate, CURDATE()) AS Age, " +
                     "b.date_hired AS 'Date Hired', b.contact_no AS 'Contact No.', " +
                     "b.updated_at AS 'Last Updated' " +
                     "FROM users u LEFT JOIN staff_biodata b ON b.user_id = u.id " +
@@ -88,6 +93,32 @@ namespace CROMS.Forms
                 gridBiodata.DataSource = null;
             }
         }
+
+        /// <summary>Nationality picks come from the Master Files list; any other can still be typed.</summary>
+        private void LoadNationalities()
+        {
+            try
+            {
+                foreach (DataRow r in Db.Pull("SELECT name FROM nationalities ORDER BY name").Rows)
+                    cboBioNationality.Items.Add(r["name"].ToString());
+            }
+            catch { /* list is a convenience; typing still works without it */ }
+        }
+
+        /// <summary>
+        /// Age is worked out from the birthdate, never typed or stored - a stored age goes stale
+        /// the day after it is saved. Blank when no birthdate is set.
+        /// </summary>
+        private void UpdateBioAge()
+        {
+            if (!chkBioBirthdate.Checked) { txtBioAge.Text = ""; return; }
+            DateTime b = dtpBioBirthdate.Value.Date, today = DateTime.Today;
+            int age = today.Year - b.Year;
+            if (b > today.AddYears(-age)) age--;
+            txtBioAge.Text = age < 0 ? "" : age.ToString();
+        }
+
+        private void dtpBioBirthdate_ValueChanged(object sender, EventArgs e) => UpdateBioAge();
 
         /// <summary>Fills the "Staff Member" picker the admin uses to add/edit a specific person's biodata.</summary>
         private void LoadUserPicker()
@@ -141,7 +172,7 @@ namespace CROMS.Forms
             txtBioEmployeeNo.Text = BioStr(r, "employee_no");
             int idx = cboBioStatus.Items.IndexOf(BioStr(r, "employment_status"));
             cboBioStatus.SelectedIndex = idx >= 0 ? idx : -1;
-            txtBioPosition.Text = BioStr(r, "position");
+            cboBioPosition.Text = BioStr(r, "position");
 
             if (r["date_hired"] != DBNull.Value)
             {
@@ -151,8 +182,13 @@ namespace CROMS.Forms
             if (r["birthdate"] != DBNull.Value)
             {
                 chkBioBirthdate.Checked = true;
-                dtpBioBirthdate.Value = Convert.ToDateTime(r["birthdate"]);
+                // A saved date later than today cannot be shown (the picker stops at today).
+                DateTime bd = Convert.ToDateTime(r["birthdate"]);
+                dtpBioBirthdate.Value = bd > dtpBioBirthdate.MaxDate ? dtpBioBirthdate.MaxDate : bd;
             }
+            UpdateBioAge();
+            txtBioBirthPlace.Text = r.Table.Columns.Contains("birth_place") ? BioStr(r, "birth_place") : "";
+            cboBioNationality.Text = r.Table.Columns.Contains("nationality") ? BioStr(r, "nationality") : "";
 
             cboBioSex.SelectedIndex = cboBioSex.Items.IndexOf(BioStr(r, "sex"));
             txtBioCivilStatus.Text = BioStr(r, "civil_status");
@@ -171,16 +207,22 @@ namespace CROMS.Forms
         private void chkBioDateHired_CheckedChanged(object sender, EventArgs e) =>
             dtpBioDateHired.Enabled = chkBioDateHired.Checked;
 
-        private void chkBioBirthdate_CheckedChanged(object sender, EventArgs e) =>
+        private void chkBioBirthdate_CheckedChanged(object sender, EventArgs e)
+        {
             dtpBioBirthdate.Enabled = chkBioBirthdate.Checked;
+            UpdateBioAge();
+        }
 
         private void ClearBioFields()
         {
             txtBioEmployeeNo.Clear();
             cboBioStatus.SelectedIndex = -1;
-            txtBioPosition.Clear();
+            cboBioPosition.Text = "";
             chkBioDateHired.Checked = false;
             chkBioBirthdate.Checked = false;
+            txtBioBirthPlace.Clear();
+            cboBioNationality.Text = "";
+            txtBioAge.Clear();
             cboBioSex.SelectedIndex = -1;
             txtBioCivilStatus.Clear();
             txtBioAddress.Clear();
@@ -219,17 +261,19 @@ namespace CROMS.Forms
             {
                 Db.Push(
                     "INSERT INTO staff_biodata " +
-                    "(user_id, employee_no, employment_status, position, date_hired, birthdate, sex, " +
-                    " civil_status, address, contact_no, emergency_contact_name, emergency_contact_no) " +
-                    "VALUES (@id, @eno, @status, @pos, @hired, @bday, @sex, @civ, @addr, @cno, @en, @eno2) " +
+                    "(user_id, employee_no, employment_status, position, date_hired, birthdate, birth_place, " +
+                    " nationality, sex, civil_status, address, contact_no, emergency_contact_name, emergency_contact_no) " +
+                    "VALUES (@id, @eno, @status, @pos, @hired, @bday, @bplace, @nat, @sex, @civ, @addr, @cno, @en, @eno2) " +
                     "ON DUPLICATE KEY UPDATE " +
                     "employee_no=@eno, employment_status=@status, position=@pos, date_hired=@hired, " +
-                    "birthdate=@bday, sex=@sex, civil_status=@civ, address=@addr, contact_no=@cno, " +
-                    "emergency_contact_name=@en, emergency_contact_no=@eno2",
+                    "birthdate=@bday, birth_place=@bplace, nationality=@nat, sex=@sex, civil_status=@civ, " +
+                    "address=@addr, contact_no=@cno, emergency_contact_name=@en, emergency_contact_no=@eno2",
                     new MySqlParameter("@id", userId),
                     new MySqlParameter("@eno", BioN(txtBioEmployeeNo.Text)),
                     new MySqlParameter("@status", cboBioStatus.SelectedItem.ToString()),
-                    new MySqlParameter("@pos", BioN(txtBioPosition.Text)),
+                    new MySqlParameter("@pos", BioN(cboBioPosition.Text)),
+                    new MySqlParameter("@bplace", BioN(txtBioBirthPlace.Text)),
+                    new MySqlParameter("@nat", BioN(cboBioNationality.Text)),
                     new MySqlParameter("@hired", chkBioDateHired.Checked ? (object)dtpBioDateHired.Value.Date : DBNull.Value),
                     new MySqlParameter("@bday", chkBioBirthdate.Checked ? (object)dtpBioBirthdate.Value.Date : DBNull.Value),
                     new MySqlParameter("@sex", cboBioSex.SelectedItem?.ToString() ?? (object)DBNull.Value),
