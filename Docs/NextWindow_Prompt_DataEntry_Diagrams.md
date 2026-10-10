@@ -68,8 +68,20 @@ do not hand back a plan. Reply in short caveman style if the caveman plugin is a
     Add a small legend box in a corner of every page (solid = normal, filled = primary key, dashed = foreign key).
   - Groups of related columns (names / dates / address / signature block ...) may share a ring colour, but every
     column still gets its own circle.
-- Validate: the file parses as XML, every `id` is unique, no two circles overlap (check rectangles in code), every
-  column of every table appears exactly once (compare counts against `information_schema.columns`).
+- **Page order and content:** exactly ONE table per page, never two tables on one page. Page 1 = `births`, then
+  `deaths`, `marriage_licenses`, `marriages`, `petitions`, `certificate_requests`, `transactions`, and so on in the
+  order of the screen map above. Each page has only that table's centre circle, its column circles, the connector
+  lines and the legend - nothing else.
+- **No overlapping, anywhere (hard rule, check it in code, not by eye only):**
+  - no two circles overlap (including circles on different rings) - keep at least 12 px of clear space between any two;
+  - no text runs outside its circle (measure the text width; shrink to 9 pt, then enlarge the circle);
+  - no connector line passes through another circle (lines go straight from a ring circle to the centre ring; inner-ring
+    circles must be placed so outer-ring lines pass between them, not through them);
+  - the legend box and page border do not touch any circle;
+  - if the check finds any overlap, increase the ring radii or add another ring and re-run until it finds zero.
+  Print the overlap count per page; it must be 0 for every page before you continue.
+- Validate: the file parses as XML, every `id` is unique, every column of every table appears exactly once (compare
+  counts against `information_schema.columns`).
 - Look at it: draw.io is not installed, so render each page to PNG yourself (PIL, as `gen_integrated_diagram.py` does)
   into `Docs\DiagramTools\out\<table>.png`, open at least `births`, `marriage_licenses`, `queue_tickets` and one
   small lookup table with the Read tool, and fix whatever looks wrong (overlaps, clipped text, crossed lines).
