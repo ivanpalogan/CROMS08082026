@@ -34,6 +34,8 @@ namespace CROMS.MarriageTest
 
         public readonly List<string> Log = new List<string>();
         public readonly HashSet<IntPtr> Ignore = new HashSet<IntPtr>();
+        /// <summary>When false, a visible form nobody registered is left alone (screenshot runs drive their own windows).</summary>
+        public bool CloseUnexpected = true;
         public readonly Dictionary<string, Action<Form>> Rules = new Dictionary<string, Action<Form>>();
 
         private readonly HashSet<IntPtr> _handled = new HashSet<IntPtr>();
@@ -88,7 +90,7 @@ namespace CROMS.MarriageTest
                 Add("FORM|" + f.GetType().Name + "|" + f.Text);
                 f.BeginInvoke(new Action(() => rule(f)));
             }
-            else
+            else if (CloseUnexpected)
             {
                 Add("UNEXPECTED|" + f.GetType().Name + "|" + f.Text);
                 f.BeginInvoke(new Action(f.Close));

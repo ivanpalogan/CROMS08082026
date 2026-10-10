@@ -59,6 +59,7 @@
     <Compile Include="AreaADeath.cs" />
     <Compile Include="AreaAMarriage.cs" />
     <Compile Include="AreaAStubs.cs" />
+    <Compile Include="ShotsCapture.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CROMS\CROMS.csproj">

@@ -83,6 +83,7 @@ namespace CROMS.MarriageTest
                 return RecycleTest.Fail;
             }
             if (args.Length > 1 && args[0] == "--areaA") { int ra = AreaA.Run(args[1]); Environment.Exit(ra); return ra; }
+            if (args.Length > 1 && args[0] == "--shots") { LoginAs("Admin"); int rs = ShotsCapture.Run(args[1], args.Length > 2 ? args[2] : null); Environment.Exit(rs); return rs; }
             if (args.Length > 1 && args[0] == "--audit") { int ar = AuditTest.Run(args[1]); Environment.Exit(ar); return ar; }   // kiosk screens leave foreground threads alive
             if (args.Length > 0 && args[0] == "--flows") { LoginAs("Admin"); return FlowsTest.Run(); }
             if (args.Length > 0 && args[0] == "--flowsclean") return FlowsTest.CleanOnly();

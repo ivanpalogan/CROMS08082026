@@ -1,0 +1,1241 @@
+_env_migrations	1	file_name	varchar(120)	PRI
+_env_migrations	2	applied_at	datetime	
+_env_migrations	3	note	varchar(40)	
+app_settings	1	setting_key	varchar(60)	PRI
+app_settings	2	setting_value	varchar(255)	
+app_settings	3	description	varchar(255)	
+app_settings	4	updated_at	datetime	
+audit_log	1	id	bigint	PRI
+audit_log	2	user_id	int	MUL
+audit_log	3	window_id	int	MUL
+audit_log	4	action	enum('Create','Update','Delete','Login','Logout')	
+audit_log	5	table_name	varchar(60)	
+audit_log	6	record_id	varchar(60)	
+audit_log	7	details	text	
+audit_log	8	created_at	datetime	
+barangays	1	id	int	PRI
+barangays	2	municipality_id	int	MUL
+barangays	3	name	varchar(100)	
+barangays	4	psgc_code	varchar(12)	UNI
+birth_orders	1	id	int	PRI
+birth_orders	2	name	varchar(50)	
+births	1	id	int	PRI
+births	2	is_delayed	tinyint(1)	
+births	3	delayed_posting_start	date	
+births	4	delayed_posting_end	date	
+births	5	delayed_registrant_deceased	tinyint(1)	
+births	6	delayed_mother_unavailable	tinyint(1)	
+births	7	delayed_parent_deceased	tinyint(1)	
+births	8	delayed_evaluation	varchar(500)	
+births	9	delayed_evaluation_by	int	
+births	10	delayed_evaluation_at	datetime	
+births	11	date_registered	date	MUL
+births	12	registry_no	varchar(30)	UNI
+births	13	book_volume	varchar(30)	
+births	14	book_page	varchar(20)	
+births	15	status	varchar(30)	
+births	16	record_source	varchar(20)	
+births	17	first_name	varchar(50)	
+births	18	middle_name	varchar(50)	
+births	19	last_name	varchar(50)	
+births	20	sex	enum('Male','Female')	
+births	21	date_of_birth	date	
+births	22	time_of_birth	varchar(20)	
+births	23	place_of_birth	varchar(255)	
+births	24	birth_country	varchar(80)	
+births	25	type_of_birth	varchar(30)	
+births	26	birth_order	varchar(30)	
+births	27	weight_grams	int	
+births	28	mother_first_name	varchar(50)	
+births	29	mother_middle_name	varchar(50)	
+births	30	mother_last_name	varchar(50)	
+births	31	father_first_name	varchar(50)	
+births	32	father_middle_name	varchar(50)	
+births	33	father_last_name	varchar(50)	
+births	34	birth_image	longblob	
+births	35	created_at	datetime	
+births	36	updated_at	datetime	
+births	37	mother_citizenship	varchar(50)	
+births	38	mother_religion	varchar(50)	
+births	39	mother_occupation	varchar(80)	
+births	40	mother_age	int	
+births	41	mother_children_born_alive	int	
+births	42	mother_children_living	int	
+births	43	mother_children_dead	int	
+births	44	mother_residence	varchar(400)	
+births	45	father_citizenship	varchar(50)	
+births	46	father_religion	varchar(50)	
+births	47	father_occupation	varchar(80)	
+births	48	father_age	int	
+births	49	father_residence	varchar(400)	
+births	50	parents_marriage_date	date	
+births	51	parents_marriage_place	varchar(400)	
+births	52	parents_married	tinyint(1)	
+births	53	attendant_type	varchar(40)	
+births	54	attendant_name	varchar(120)	
+births	55	attendant_title	varchar(80)	
+births	56	attendant_address	varchar(400)	
+births	57	attendant_date	date	
+births	58	informant_name	varchar(120)	
+births	59	informant_relationship	varchar(60)	
+births	60	informant_address	varchar(400)	
+births	61	informant_date	date	
+births	62	prepared_by	varchar(120)	
+births	63	prepared_by_title	varchar(80)	
+births	64	prepared_by_date	date	
+births	65	received_by	varchar(120)	
+births	66	received_by_title	varchar(80)	
+births	67	received_by_date	date	
+births	68	registered_by	varchar(120)	
+births	69	registered_by_title	varchar(80)	
+births	70	registered_by_date	date	
+births	71	remarks	varchar(255)	
+births	72	scan_image	longblob	
+births	73	ocr_scan_id	varchar(30)	
+births	74	form_code	varchar(30)	MUL
+births	75	form_name	varchar(120)	
+births	76	digitized_by	varchar(80)	
+births	77	date_digitized	datetime	
+births	78	encoding_method	varchar(40)	
+births	79	source_reference	varchar(255)	
+births	80	place_of_birth_house	varchar(100)	
+births	81	place_of_birth_barangay	varchar(80)	
+births	82	multiple_birth_order	varchar(20)	
+causes_of_death	1	id	int	PRI
+causes_of_death	2	name	varchar(150)	
+certificate_requests	1	id	int	PRI
+certificate_requests	2	transaction_id	int	MUL
+certificate_requests	3	record_type	enum('Birth','Marriage','Death')	
+certificate_requests	4	record_id	int	
+certificate_requests	5	cert_type	enum('CTC','Negative')	
+certificate_requests	6	copies	int	
+certificate_requests	7	purpose	varchar(150)	
+certificate_requests	8	status	enum('Requested','Processing','Ready','Released')	
+certificate_requests	9	created_at	datetime	
+certificate_template_images	1	id	int	PRI
+certificate_template_images	2	template_id	int	MUL
+certificate_template_images	3	label	varchar(80)	
+certificate_template_images	4	content_type	varchar(50)	
+certificate_template_images	5	image_data	longblob	
+certificate_template_images	6	created_at	datetime	
+certificate_templates	1	id	int	PRI
+certificate_templates	2	form_code	varchar(60)	MUL
+certificate_templates	3	name	varchar(120)	
+certificate_templates	4	page_width	float	
+certificate_templates	5	page_height	float	
+certificate_templates	6	orientation	varchar(10)	
+certificate_templates	7	elements_json	longtext	
+certificate_templates	8	is_default	tinyint(1)	
+certificate_templates	9	is_active	tinyint(1)	
+certificate_templates	10	updated_by	int	
+certificate_templates	11	created_at	datetime	
+certificate_templates	12	updated_at	datetime	
+churches	1	id	int	PRI
+churches	2	name	varchar(150)	
+civil_statuses	1	id	int	PRI
+civil_statuses	2	name	varchar(50)	
+claimant_id_uploads	1	id	int	PRI
+claimant_id_uploads	2	qr_token	varchar(64)	UNI
+claimant_id_uploads	3	claim_ticket_no	varchar(30)	
+claimant_id_uploads	4	transaction_id	int	MUL
+claimant_id_uploads	5	queue_ticket_id	int	
+claimant_id_uploads	6	first_name	varchar(80)	
+claimant_id_uploads	7	middle_name	varchar(80)	
+claimant_id_uploads	8	last_name	varchar(80)	
+claimant_id_uploads	9	request_details	varchar(255)	
+claimant_id_uploads	10	status	varchar(20)	
+claimant_id_uploads	11	id_image	longblob	
+claimant_id_uploads	12	id_first_name	varchar(80)	
+claimant_id_uploads	13	id_middle_name	varchar(80)	
+claimant_id_uploads	14	id_last_name	varchar(80)	
+claimant_id_uploads	15	id_uploaded_at	datetime	
+claimant_id_uploads	16	release_info	varchar(255)	
+claimant_id_uploads	17	released_by	int	
+claimant_id_uploads	18	released_at	datetime	
+claimant_id_uploads	19	created_at	datetime	
+claimant_id_uploads	20	updated_at	datetime	
+claimant_id_uploads	21	auth_letter	longblob	
+claimant_id_uploads	22	auth_letter_at	datetime	
+client_service_slips	1	id	int	PRI
+client_service_slips	2	control_no	varchar(20)	UNI
+client_service_slips	3	slip_year	smallint	MUL
+client_service_slips	4	slip_seq	int	
+client_service_slips	5	source_table	varchar(30)	MUL
+client_service_slips	6	source_id	int	
+client_service_slips	7	requester_name	varchar(150)	
+client_service_slips	8	relationship	varchar(80)	
+client_service_slips	9	document_owner	varchar(200)	
+client_service_slips	10	doc_type	varchar(20)	
+client_service_slips	11	doc_type_other	varchar(80)	
+client_service_slips	12	txn_date	date	
+client_service_slips	13	attending_staff	varchar(120)	
+client_service_slips	14	remarks	text	
+client_service_slips	15	created_by	int	
+client_service_slips	16	created_at	datetime	
+client_service_slips	17	updated_at	datetime	
+countries	1	id	int	PRI
+countries	2	name	varchar(80)	UNI
+deaths	1	id	int	PRI
+deaths	2	registry_no	varchar(30)	UNI
+deaths	3	book_volume	varchar(30)	
+deaths	4	book_page	varchar(20)	
+deaths	5	status	varchar(30)	
+deaths	6	record_source	varchar(20)	
+deaths	7	full_name	varchar(150)	
+deaths	8	first_name	varchar(50)	
+deaths	9	middle_name	varchar(50)	
+deaths	10	last_name	varchar(50)	
+deaths	11	sex	enum('Male','Female')	
+deaths	12	date_of_death	date	
+deaths	13	date_of_birth	date	
+deaths	14	age	int	
+deaths	15	hospital_id	int	MUL
+deaths	16	municipality_id	int	MUL
+deaths	17	province_id	int	MUL
+deaths	18	civil_status	varchar(30)	
+deaths	19	religion_id	int	MUL
+deaths	20	residence_id	int	MUL
+deaths	21	occupation_id	int	MUL
+deaths	22	father_name	varchar(80)	
+deaths	23	mother_name	varchar(80)	
+deaths	24	cause_of_death_id	int	MUL
+deaths	25	death_image	longblob	
+deaths	26	created_at	datetime	
+deaths	27	updated_at	datetime	
+deaths	28	citizenship	varchar(50)	
+deaths	29	time_of_death	varchar(20)	
+deaths	30	place_of_death	varchar(255)	
+deaths	31	religion_name	varchar(80)	
+deaths	32	immediate_cause	varchar(200)	
+deaths	33	antecedent_cause	varchar(200)	
+deaths	34	underlying_cause	varchar(200)	
+deaths	35	medical_certifier	varchar(120)	
+deaths	36	certifier_license_no	varchar(50)	
+deaths	37	disposal_method	varchar(30)	
+deaths	38	place_of_disposal	varchar(200)	
+deaths	39	date_of_disposal	date	
+deaths	40	permit_type	varchar(30)	
+deaths	41	scan_image	longblob	
+deaths	42	ocr_scan_id	varchar(30)	
+deaths	43	form_code	varchar(30)	MUL
+deaths	44	form_name	varchar(120)	
+deaths	45	informant_name	varchar(120)	
+deaths	46	informant_relationship	varchar(60)	
+deaths	47	informant_address	varchar(200)	
+deaths	48	informant_date	date	
+deaths	49	prepared_by	varchar(120)	
+deaths	50	prepared_by_title	varchar(80)	
+deaths	51	prepared_by_date	date	
+deaths	52	received_by	varchar(120)	
+deaths	53	received_by_title	varchar(80)	
+deaths	54	received_by_date	date	
+deaths	55	registered_by	varchar(120)	
+deaths	56	registered_by_title	varchar(80)	
+deaths	57	registered_by_date	date	
+deaths	58	remarks	varchar(255)	
+deaths	59	interval_immediate	varchar(40)	
+deaths	60	interval_antecedent	varchar(40)	
+deaths	61	interval_underlying	varchar(40)	
+deaths	62	other_conditions	varchar(255)	
+deaths	63	maternal_condition	varchar(60)	
+deaths	64	external_manner	varchar(120)	
+deaths	65	external_place	varchar(120)	
+deaths	66	autopsy	enum('Yes','No')	
+deaths	67	attendant_type	varchar(80)	
+deaths	68	attendance_from	date	
+deaths	69	attendance_to	date	
+deaths	70	certifier_attended	tinyint(1)	
+deaths	71	certifier_title	varchar(80)	
+deaths	72	certifier_address	varchar(200)	
+deaths	73	burial_permit_no	varchar(40)	
+deaths	74	burial_permit_date	date	
+deaths	75	transfer_permit_no	varchar(40)	
+deaths	76	transfer_permit_date	date	
+deaths	77	reviewed_by	varchar(120)	
+deaths	78	reviewed_by_date	date	
+deaths	79	digitized_by	varchar(80)	
+deaths	80	date_digitized	datetime	
+deaths	81	encoding_method	varchar(40)	
+deaths	82	source_reference	varchar(255)	
+deleted_records	1	id	int	PRI
+deleted_records	2	source_table	varchar(40)	MUL
+deleted_records	3	record_id	int	
+deleted_records	4	registry_no	varchar(30)	
+deleted_records	5	record_label	varchar(200)	
+deleted_records	6	reason	varchar(255)	
+deleted_records	7	deleted_by	int	
+deleted_records	8	deleted_by_name	varchar(120)	
+deleted_records	9	deleted_at	datetime	MUL
+deleted_records	10	row_json	longtext	
+deleted_records	11	children_json	longtext	
+deleted_records	12	restored_at	datetime	
+deleted_records	13	restored_by	int	
+document_requirement_types	1	code	varchar(30)	PRI
+document_requirement_types	2	label	varchar(120)	
+document_requirement_types	3	applies_to	varchar(10)	PRI
+document_requirement_types	4	rule_key	varchar(30)	
+document_requirement_types	5	per_party	tinyint(1)	
+document_requirement_types	6	blocking	tinyint(1)	
+document_requirement_types	7	group_code	varchar(30)	
+document_requirement_types	8	group_min	int	
+document_requirement_types	9	legal_basis	varchar(120)	
+document_requirement_types	10	is_active	tinyint(1)	
+document_requirement_types	11	sort_order	int	
+document_requirements	1	id	int	PRI
+document_requirements	2	owner_type	varchar(10)	MUL
+document_requirements	3	owner_id	int	
+document_requirements	4	party	varchar(10)	
+document_requirements	5	req_code	varchar(30)	
+document_requirements	6	req_label	varchar(120)	
+document_requirements	7	status	varchar(20)	
+document_requirements	8	outcome	varchar(20)	
+document_requirements	9	given_by	varchar(120)	
+document_requirements	10	reference_no	varchar(80)	
+document_requirements	11	doc_date	date	
+document_requirements	12	attachment	longblob	
+document_requirements	13	attachment_name	varchar(160)	
+document_requirements	14	verified_by	int	
+document_requirements	15	verified_at	datetime	
+document_requirements	16	notes	varchar(255)	
+document_requirements	17	created_at	datetime	
+document_requirements	18	updated_at	datetime	
+document_requirements	19	bypassed_by	int	
+document_requirements	20	bypassed_at	datetime	
+document_requirements	21	bypass_reason	varchar(255)	
+document_routing	1	id	int	PRI
+document_routing	2	direction	enum('Incoming','Outgoing')	
+document_routing	3	title	varchar(150)	
+document_routing	4	from_office	varchar(120)	
+document_routing	5	to_office	varchar(120)	
+document_routing	6	received_by	varchar(120)	
+document_routing	7	transaction_id	int	MUL
+document_routing	8	routed_at	datetime	
+fees	1	id	int	PRI
+fees	2	code	varchar(30)	UNI
+fees	3	description	varchar(150)	
+fees	4	category	varchar(30)	
+fees	5	amount	decimal(10,2)	
+fees	6	card_note	varchar(120)	
+fees	7	sort_order	int	
+fees	8	is_active	tinyint(1)	
+form97_capture_images	1	id	int	PRI
+form97_capture_images	2	token_id	int	MUL
+form97_capture_images	3	page_no	int	
+form97_capture_images	4	image	longblob	
+form97_capture_images	5	image_label	varchar(40)	
+form97_capture_images	6	doc_role	varchar(20)	
+form97_capture_images	7	uploaded_at	datetime	
+form97_capture_tokens	1	id	int	PRI
+form97_capture_tokens	2	token	char(32)	UNI
+form97_capture_tokens	3	marriage_id	int	MUL
+form97_capture_tokens	4	transaction_id	int	MUL
+form97_capture_tokens	5	husband_name	varchar(150)	
+form97_capture_tokens	6	wife_name	varchar(150)	
+form97_capture_tokens	7	txn_code	varchar(40)	
+form97_capture_tokens	8	purpose	varchar(40)	
+form97_capture_tokens	9	status	enum('Pending','Uploaded','Completed','Expired')	
+form97_capture_tokens	10	expires_at	datetime	
+form97_capture_tokens	11	completed_at	datetime	
+form97_capture_tokens	12	created_by	int	
+form97_capture_tokens	13	created_at	datetime	
+hospitals	1	id	int	PRI
+hospitals	2	name	varchar(150)	UNI
+kiosk_ctc_intake	1	id	int	PRI
+kiosk_ctc_intake	2	source	varchar(10)	
+kiosk_ctc_intake	3	queue_ticket_id	int	MUL
+kiosk_ctc_intake	4	transaction_id	int	MUL
+kiosk_ctc_intake	5	doc_type	varchar(10)	
+kiosk_ctc_intake	6	copies	int	
+kiosk_ctc_intake	7	purpose	varchar(80)	
+kiosk_ctc_intake	8	relationship	varchar(80)	
+kiosk_ctc_intake	9	registry_no	varchar(40)	
+kiosk_ctc_intake	10	owner_first	varchar(60)	
+kiosk_ctc_intake	11	owner_middle	varchar(60)	
+kiosk_ctc_intake	12	owner_last	varchar(60)	MUL
+kiosk_ctc_intake	13	owner_suffix	varchar(20)	
+kiosk_ctc_intake	14	spouse_first	varchar(60)	
+kiosk_ctc_intake	15	spouse_middle	varchar(60)	
+kiosk_ctc_intake	16	spouse_last	varchar(60)	
+kiosk_ctc_intake	17	spouse_suffix	varchar(20)	
+kiosk_ctc_intake	18	event_date	date	
+kiosk_ctc_intake	19	event_city	varchar(80)	
+kiosk_ctc_intake	20	event_province	varchar(60)	
+kiosk_ctc_intake	21	father_name	varchar(150)	
+kiosk_ctc_intake	22	mother_maiden_name	varchar(150)	
+kiosk_ctc_intake	23	remarks	varchar(255)	
+kiosk_ctc_intake	24	status	varchar(30)	
+kiosk_ctc_intake	25	created_at	datetime	
+kiosk_ctc_intake	26	updated_at	datetime	
+marriage_case_history	1	id	bigint	PRI
+marriage_case_history	2	entity	varchar(20)	MUL
+marriage_case_history	3	entity_id	int	
+marriage_case_history	4	event	varchar(60)	
+marriage_case_history	5	from_status	varchar(40)	
+marriage_case_history	6	to_status	varchar(40)	
+marriage_case_history	7	details	text	
+marriage_case_history	8	user_id	int	
+marriage_case_history	9	created_at	datetime	
+marriage_copies	1	id	int	PRI
+marriage_copies	2	marriage_id	int	MUL
+marriage_copies	3	copy_type	varchar(20)	
+marriage_copies	4	intended_for	varchar(120)	
+marriage_copies	5	status	varchar(20)	
+marriage_copies	6	recipient	varchar(120)	
+marriage_copies	7	disposition_date	date	
+marriage_copies	8	reference_no	varchar(80)	
+marriage_copies	9	remarks	varchar(255)	
+marriage_copies	10	staff_id	int	
+marriage_copies	11	updated_at	datetime	
+marriage_final_documents	1	id	int	PRI
+marriage_final_documents	2	marriage_id	int	MUL
+marriage_final_documents	3	page_no	int	
+marriage_final_documents	4	image	longblob	
+marriage_final_documents	5	uploaded_by	int	
+marriage_final_documents	6	uploaded_at	datetime	
+marriage_licenses	1	id	int	PRI
+marriage_licenses	2	application_no	varchar(30)	UNI
+marriage_licenses	3	license_no	varchar(30)	UNI
+marriage_licenses	4	husband_name	varchar(120)	
+marriage_licenses	5	wife_name	varchar(120)	
+marriage_licenses	6	filed_date	date	
+marriage_licenses	7	posting_ends	date	
+marriage_licenses	8	status	varchar(30)	
+marriage_licenses	9	created_at	datetime	
+marriage_licenses	10	husband_first_name	varchar(60)	
+marriage_licenses	11	husband_middle_name	varchar(60)	
+marriage_licenses	12	husband_last_name	varchar(60)	
+marriage_licenses	13	husband_date_of_birth	date	
+marriage_licenses	14	husband_place_of_birth	varchar(150)	
+marriage_licenses	15	husband_birth_country	varchar(80)	
+marriage_licenses	16	husband_sex	varchar(10)	
+marriage_licenses	17	husband_citizenship	varchar(60)	
+marriage_licenses	18	husband_civil_status	varchar(30)	
+marriage_licenses	19	husband_religion	varchar(60)	
+marriage_licenses	20	husband_residence	varchar(400)	
+marriage_licenses	21	husband_father_name	varchar(120)	
+marriage_licenses	22	husband_mother_name	varchar(120)	
+marriage_licenses	23	wife_first_name	varchar(60)	
+marriage_licenses	24	wife_middle_name	varchar(60)	
+marriage_licenses	25	wife_last_name	varchar(60)	
+marriage_licenses	26	wife_date_of_birth	date	
+marriage_licenses	27	wife_place_of_birth	varchar(150)	
+marriage_licenses	28	wife_birth_country	varchar(80)	
+marriage_licenses	29	wife_sex	varchar(10)	
+marriage_licenses	30	wife_citizenship	varchar(60)	
+marriage_licenses	31	wife_civil_status	varchar(30)	
+marriage_licenses	32	wife_religion	varchar(60)	
+marriage_licenses	33	wife_residence	varchar(400)	
+marriage_licenses	34	wife_father_name	varchar(120)	
+marriage_licenses	35	wife_mother_name	varchar(120)	
+marriage_licenses	36	posting_start	date	
+marriage_licenses	37	earliest_issue_date	date	
+marriage_licenses	38	deferral_reason	varchar(255)	
+marriage_licenses	39	issue_date	date	
+marriage_licenses	40	expiry_date	date	
+marriage_licenses	41	issued_by	int	
+marriage_licenses	42	issued_at	datetime	
+marriage_licenses	43	payment_or_no	varchar(40)	
+marriage_licenses	44	payment_amount	decimal(10,2)	
+marriage_licenses	45	payment_date	date	
+marriage_licenses	46	impediment_note	varchar(255)	
+marriage_licenses	47	registrar_override_by	int	
+marriage_licenses	48	registrar_override_at	datetime	
+marriage_licenses	49	hold_reason	varchar(255)	
+marriage_licenses	50	cancel_reason	varchar(255)	
+marriage_licenses	51	remarks	varchar(255)	
+marriage_licenses	52	created_by	int	
+marriage_licenses	53	updated_at	datetime	
+marriage_licenses	54	husband_father_first_name	varchar(60)	
+marriage_licenses	55	husband_father_middle_name	varchar(60)	
+marriage_licenses	56	husband_father_last_name	varchar(60)	
+marriage_licenses	57	husband_father_citizenship	varchar(60)	
+marriage_licenses	58	husband_father_residence	varchar(400)	
+marriage_licenses	59	husband_mother_first_name	varchar(60)	
+marriage_licenses	60	husband_mother_middle_name	varchar(60)	
+marriage_licenses	61	husband_mother_last_name	varchar(60)	
+marriage_licenses	62	husband_mother_citizenship	varchar(60)	
+marriage_licenses	63	husband_mother_residence	varchar(400)	
+marriage_licenses	64	husband_consent_first_name	varchar(60)	
+marriage_licenses	65	husband_consent_middle_name	varchar(60)	
+marriage_licenses	66	husband_consent_last_name	varchar(60)	
+marriage_licenses	67	husband_consent_relationship	varchar(60)	
+marriage_licenses	68	husband_consent_citizenship	varchar(60)	
+marriage_licenses	69	husband_consent_residence	varchar(400)	
+marriage_licenses	70	husband_prev_dissolution	varchar(120)	
+marriage_licenses	71	husband_prev_dissolved_municipality	varchar(80)	
+marriage_licenses	72	husband_prev_dissolved_province	varchar(60)	
+marriage_licenses	73	husband_prev_dissolved_date	date	
+marriage_licenses	74	wife_father_first_name	varchar(60)	
+marriage_licenses	75	wife_father_middle_name	varchar(60)	
+marriage_licenses	76	wife_father_last_name	varchar(60)	
+marriage_licenses	77	wife_father_citizenship	varchar(60)	
+marriage_licenses	78	wife_father_residence	varchar(400)	
+marriage_licenses	79	wife_mother_first_name	varchar(60)	
+marriage_licenses	80	wife_mother_middle_name	varchar(60)	
+marriage_licenses	81	wife_mother_last_name	varchar(60)	
+marriage_licenses	82	wife_mother_citizenship	varchar(60)	
+marriage_licenses	83	wife_mother_residence	varchar(400)	
+marriage_licenses	84	wife_consent_first_name	varchar(60)	
+marriage_licenses	85	wife_consent_middle_name	varchar(60)	
+marriage_licenses	86	wife_consent_last_name	varchar(60)	
+marriage_licenses	87	wife_consent_relationship	varchar(60)	
+marriage_licenses	88	wife_consent_citizenship	varchar(60)	
+marriage_licenses	89	wife_consent_residence	varchar(400)	
+marriage_licenses	90	wife_prev_dissolution	varchar(120)	
+marriage_licenses	91	wife_prev_dissolved_municipality	varchar(80)	
+marriage_licenses	92	wife_prev_dissolved_province	varchar(60)	
+marriage_licenses	93	wife_prev_dissolved_date	date	
+marriage_licenses	94	husband_res_province	varchar(60)	
+marriage_licenses	95	husband_res_municipality	varchar(80)	
+marriage_licenses	96	husband_res_barangay	varchar(80)	
+marriage_licenses	97	husband_res_house	varchar(100)	
+marriage_licenses	98	wife_res_province	varchar(60)	
+marriage_licenses	99	wife_res_municipality	varchar(80)	
+marriage_licenses	100	wife_res_barangay	varchar(80)	
+marriage_licenses	101	wife_res_house	varchar(100)	
+marriage_licenses	102	husband_father_res_province	varchar(60)	
+marriage_licenses	103	husband_father_res_municipality	varchar(80)	
+marriage_licenses	104	husband_father_res_barangay	varchar(80)	
+marriage_licenses	105	husband_father_res_house	varchar(100)	
+marriage_licenses	106	husband_mother_res_province	varchar(60)	
+marriage_licenses	107	husband_mother_res_municipality	varchar(80)	
+marriage_licenses	108	husband_mother_res_barangay	varchar(80)	
+marriage_licenses	109	husband_mother_res_house	varchar(100)	
+marriage_licenses	110	husband_consent_res_province	varchar(60)	
+marriage_licenses	111	husband_consent_res_municipality	varchar(80)	
+marriage_licenses	112	husband_consent_res_barangay	varchar(80)	
+marriage_licenses	113	husband_consent_res_house	varchar(100)	
+marriage_licenses	114	wife_father_res_province	varchar(60)	
+marriage_licenses	115	wife_father_res_municipality	varchar(80)	
+marriage_licenses	116	wife_father_res_barangay	varchar(80)	
+marriage_licenses	117	wife_father_res_house	varchar(100)	
+marriage_licenses	118	wife_mother_res_province	varchar(60)	
+marriage_licenses	119	wife_mother_res_municipality	varchar(80)	
+marriage_licenses	120	wife_mother_res_barangay	varchar(80)	
+marriage_licenses	121	wife_mother_res_house	varchar(100)	
+marriage_licenses	122	wife_consent_res_province	varchar(60)	
+marriage_licenses	123	wife_consent_res_municipality	varchar(80)	
+marriage_licenses	124	wife_consent_res_barangay	varchar(80)	
+marriage_licenses	125	wife_consent_res_house	varchar(100)	
+marriage_licenses	126	requirements_override_by	int	
+marriage_licenses	127	requirements_override_at	datetime	
+marriage_licenses	128	requirements_override_reason	varchar(255)	
+marriages	1	id	int	PRI
+marriages	2	registry_no	varchar(30)	UNI
+marriages	3	book_volume	varchar(30)	
+marriages	4	book_page	varchar(20)	
+marriages	5	status	varchar(30)	
+marriages	6	record_source	varchar(20)	
+marriages	7	solemnizer	varchar(120)	
+marriages	8	husband_first_name	varchar(50)	
+marriages	9	husband_middle_name	varchar(50)	
+marriages	10	husband_last_name	varchar(50)	
+marriages	11	wife_first_name	varchar(50)	
+marriages	12	wife_middle_name	varchar(50)	
+marriages	13	wife_last_name	varchar(50)	
+marriages	14	husband_age	int	
+marriages	15	husband_date_of_birth	date	
+marriages	16	wife_age	int	
+marriages	17	wife_date_of_birth	date	
+marriages	18	husband_birth_place_id	int	MUL
+marriages	19	husband_place_of_birth	varchar(150)	
+marriages	20	husband_birth_country	varchar(80)	
+marriages	21	wife_birth_place_id	int	MUL
+marriages	22	wife_place_of_birth	varchar(150)	
+marriages	23	wife_birth_country	varchar(80)	
+marriages	24	husband_citizenship_id	int	MUL
+marriages	25	wife_citizenship_id	int	MUL
+marriages	26	husband_religion_id	int	MUL
+marriages	27	wife_religion_id	int	MUL
+marriages	28	husband_civil_status	varchar(30)	
+marriages	29	wife_civil_status	varchar(30)	
+marriages	30	husband_residence_id	int	MUL
+marriages	31	wife_residence_id	int	MUL
+marriages	32	church_id	int	MUL
+marriages	33	place_municipality_id	int	MUL
+marriages	34	place_province_id	int	MUL
+marriages	35	date_of_marriage	date	
+marriages	36	time_of_marriage	varchar(30)	
+marriages	37	marriage_image	longblob	
+marriages	38	created_at	datetime	
+marriages	39	updated_at	datetime	
+marriages	40	scan_image	longblob	
+marriages	41	form_code	varchar(30)	MUL
+marriages	42	form_name	varchar(120)	
+marriages	43	husband_father_name	varchar(120)	
+marriages	44	husband_mother_name	varchar(120)	
+marriages	45	wife_father_name	varchar(120)	
+marriages	46	wife_mother_name	varchar(120)	
+marriages	47	solemnizer_position	varchar(80)	
+marriages	48	witness1_name	varchar(120)	
+marriages	49	witness2_name	varchar(120)	
+marriages	50	license_no	varchar(40)	
+marriages	51	license_date	date	
+marriages	52	license_place	varchar(150)	
+marriages	53	license_image	longblob	
+marriages	54	received_by	varchar(120)	
+marriages	55	received_by_title	varchar(80)	
+marriages	56	received_by_date	date	
+marriages	57	remarks	varchar(255)	
+marriages	58	submitted_by	varchar(20)	
+marriages	59	submitted_by_rep_name	varchar(150)	
+marriages	60	submitted_by_rep_org	varchar(150)	
+marriages	61	license_id	int	UNI
+marriages	62	license_basis	varchar(12)	
+marriages	63	exemption_basis	varchar(20)	
+marriages	64	exemption_notes	varchar(255)	
+marriages	65	registration_type	varchar(10)	
+marriages	66	delay_reason	varchar(255)	
+marriages	67	case_posting_start	date	
+marriages	68	registrar_review_status	varchar(20)	
+marriages	69	registrar_review_by	int	
+marriages	70	registrar_review_at	datetime	
+marriages	71	registrar_review_notes	varchar(255)	
+marriages	72	return_reason	varchar(255)	
+marriages	73	date_registered	date	
+marriages	74	registered_by	int	
+marriages	75	registered_at	datetime	
+marriages	76	registered_by_name	varchar(120)	
+marriages	77	ocr_scan_id	varchar(30)	
+marriages	78	ocr_confidence	int	
+marriages	79	ocr_weak_fields	int	
+marriages	80	ocr_review_status	varchar(20)	
+marriages	81	ocr_reviewed_by	int	
+marriages	82	ocr_reviewed_at	datetime	
+marriages	83	psa_available_date	date	
+marriages	84	psa_available_reference	varchar(80)	
+marriages	85	created_by	int	
+marriages	86	license_out_of_province	tinyint(1)	
+marriages	87	husband_sex	enum('Male','Female')	
+marriages	88	wife_sex	enum('Male','Female')	
+marriages	89	husband_father_citizenship	varchar(50)	
+marriages	90	husband_mother_citizenship	varchar(50)	
+marriages	91	wife_father_citizenship	varchar(50)	
+marriages	92	wife_mother_citizenship	varchar(50)	
+marriages	93	husband_consent_name	varchar(150)	
+marriages	94	husband_consent_relationship	varchar(60)	
+marriages	95	husband_consent_residence	varchar(400)	
+marriages	96	wife_consent_name	varchar(150)	
+marriages	97	wife_consent_relationship	varchar(60)	
+marriages	98	wife_consent_residence	varchar(400)	
+marriages	99	marriage_settlement	varchar(20)	
+marriages	100	final_confirmed	tinyint(1)	
+marriages	101	final_confirmed_by	int	
+marriages	102	final_confirmed_at	datetime	
+marriages	103	current_step	varchar(40)	
+marriages	104	transaction_id	int	MUL
+marriages	105	queue_ticket_id	int	MUL
+marriages	106	place_of_marriage	varchar(200)	
+marriages	107	digitized_by	varchar(80)	
+marriages	108	date_digitized	datetime	
+marriages	109	encoding_method	varchar(40)	
+marriages	110	source_reference	varchar(255)	
+marriages	111	husband_res_province	varchar(60)	
+marriages	112	husband_res_municipality	varchar(80)	
+marriages	113	husband_res_barangay	varchar(80)	
+marriages	114	husband_res_house	varchar(100)	
+marriages	115	wife_res_province	varchar(60)	
+marriages	116	wife_res_municipality	varchar(80)	
+marriages	117	wife_res_barangay	varchar(80)	
+marriages	118	wife_res_house	varchar(100)	
+marriages	119	husband_consent_res_province	varchar(60)	
+marriages	120	husband_consent_res_municipality	varchar(80)	
+marriages	121	husband_consent_res_barangay	varchar(80)	
+marriages	122	husband_consent_res_house	varchar(100)	
+marriages	123	wife_consent_res_province	varchar(60)	
+marriages	124	wife_consent_res_municipality	varchar(80)	
+marriages	125	wife_consent_res_barangay	varchar(80)	
+marriages	126	wife_consent_res_house	varchar(100)	
+municipalities	1	id	int	PRI
+municipalities	2	province_id	int	MUL
+municipalities	3	name	varchar(100)	
+municipalities	4	psgc_code	varchar(12)	UNI
+nationalities	1	id	int	PRI
+nationalities	2	name	varchar(100)	
+occupations	1	id	int	PRI
+occupations	2	name	varchar(100)	
+ocr_batch	1	id	int	PRI
+ocr_batch	2	scan_id	varchar(30)	
+ocr_batch	3	source_book	varchar(120)	
+ocr_batch	4	doc_class	varchar(60)	
+ocr_batch	5	doc_kind	varchar(20)	
+ocr_batch	6	record_table	varchar(30)	
+ocr_batch	7	record_id	int	
+ocr_batch	8	confidence	int	
+ocr_batch	9	overall_confidence	int	
+ocr_batch	10	needs_review	tinyint(1)	
+ocr_batch	11	review_reason	varchar(255)	
+ocr_batch	12	rotation_applied	int	
+ocr_batch	13	username	varchar(60)	
+ocr_batch	14	source	varchar(20)	
+ocr_batch	15	source_image	longblob	
+ocr_batch	16	client_name	varchar(150)	
+ocr_batch	17	requested_type	varchar(20)	
+ocr_batch	18	final_registry_no	varchar(30)	
+ocr_batch	19	status	varchar(30)	
+ocr_batch	20	raw_text	mediumtext	
+ocr_batch	21	created_at	datetime	
+ocr_batch	22	form_code	varchar(30)	MUL
+ocr_batch	23	form_name	varchar(120)	
+ocr_field_audit	1	id	int	PRI
+ocr_field_audit	2	scan_id	varchar(30)	MUL
+ocr_field_audit	3	field_key	varchar(40)	
+ocr_field_audit	4	field_label	varchar(80)	
+ocr_field_audit	5	ocr_value	text	
+ocr_field_audit	6	final_value	text	
+ocr_field_audit	7	confidence	int	
+ocr_field_audit	8	status	varchar(20)	
+ocr_field_audit	9	issue	varchar(255)	
+ocr_field_audit	10	auto_corrected	tinyint(1)	
+ocr_field_audit	11	edited_by_user	tinyint(1)	
+ocr_field_audit	12	action	varchar(20)	MUL
+ocr_field_audit	13	username	varchar(60)	
+ocr_field_audit	14	created_at	datetime	
+office_assets	1	id	int	PRI
+office_assets	2	asset_kind	enum('Logo','Stamp','HeaderLogoLeft','HeaderLogoRight1','HeaderLogoRight2','FooterBanner')	MUL
+office_assets	3	name	varchar(80)	
+office_assets	4	form_code	varchar(30)	MUL
+office_assets	5	image	longblob	
+office_assets	6	mime_type	varchar(40)	
+office_assets	7	is_active	tinyint(1)	
+office_assets	8	source	varchar(20)	
+office_assets	9	scan_id	varchar(30)	
+office_assets	10	uploaded_by	varchar(60)	
+office_assets	11	created_at	datetime	
+office_profile	1	id	int	PRI
+office_profile	2	office_name	varchar(120)	
+office_profile	3	municipality	varchar(80)	
+office_profile	4	province	varchar(80)	
+office_profile	5	region	varchar(80)	
+office_profile	6	registrar_name	varchar(120)	
+office_profile	7	registrar_title	varchar(80)	
+office_profile	8	address	varchar(200)	
+office_profile	9	contact	varchar(120)	
+office_profile	10	updated_at	datetime	
+office_profile	11	verifying_officer_name	varchar(120)	
+office_profile	12	verifying_officer_title	varchar(80)	
+office_profile	13	email	varchar(120)	
+payment_items	1	id	int	PRI
+payment_items	2	payment_id	int	MUL
+payment_items	3	fee_id	int	MUL
+payment_items	4	fee_code	varchar(30)	MUL
+payment_items	5	description	varchar(150)	
+payment_items	6	quantity	int	
+payment_items	7	unit_amount	decimal(10,2)	
+payment_items	8	line_amount	decimal(10,2)	
+payments	1	id	int	PRI
+payments	2	transaction_id	int	MUL
+payments	3	payer_name	varchar(150)	
+payments	4	purpose	varchar(150)	
+payments	5	source	varchar(20)	
+payments	6	source_table	varchar(30)	MUL
+payments	7	source_id	int	
+payments	8	or_number	varchar(50)	MUL
+payments	9	payment_method	varchar(20)	
+payments	10	reference_no	varchar(50)	
+payments	11	gross_amount	decimal(10,2)	
+payments	12	additional_fee	decimal(10,2)	
+payments	13	net_amount	decimal(10,2)	
+payments	14	amount_tendered	decimal(10,2)	
+payments	15	change_amount	decimal(10,2)	
+payments	16	remarks	varchar(255)	
+payments	17	cashier_id	int	MUL
+payments	18	paid_at	datetime	MUL
+petitions	1	id	int	PRI
+petitions	2	transaction_id	int	MUL
+petitions	3	petition_type	enum('RA9048','RA10172','Legitimation','SupplementalReport','LegalInstrument','CourtOrder')	
+petitions	4	record_type	enum('Birth','Marriage','Death')	
+petitions	5	record_id	int	
+petitions	6	stage	enum('Filed','Posted','UnderReview','Decision','PSA_Endorsement')	
+petitions	7	filed_date	date	
+petitions	8	remarks	varchar(255)	
+petitions	9	created_at	datetime	
+petitions	10	updated_at	datetime	
+petitions	11	requester_name	varchar(150)	
+petitions	12	requester_relationship	varchar(80)	
+provinces	1	id	int	PRI
+provinces	2	name	varchar(100)	UNI
+provinces	3	psgc_code	varchar(12)	UNI
+psa_copy_history	1	id	int	PRI
+psa_copy_history	2	request_id	int	MUL
+psa_copy_history	3	action	varchar(60)	
+psa_copy_history	4	from_status	varchar(30)	
+psa_copy_history	5	to_status	varchar(30)	
+psa_copy_history	6	note	varchar(255)	
+psa_copy_history	7	user_id	int	
+psa_copy_history	8	created_at	datetime	
+psa_copy_requests	1	id	int	PRI
+psa_copy_requests	2	request_no	varchar(30)	UNI
+psa_copy_requests	3	source	varchar(10)	
+psa_copy_requests	4	queue_ticket_id	int	MUL
+psa_copy_requests	5	requester_first	varchar(60)	
+psa_copy_requests	6	requester_middle	varchar(60)	
+psa_copy_requests	7	requester_last	varchar(60)	
+psa_copy_requests	8	contact_no	varchar(30)	
+psa_copy_requests	9	relationship	varchar(40)	
+psa_copy_requests	10	valid_id_type	varchar(60)	
+psa_copy_requests	11	valid_id_no	varchar(60)	
+psa_copy_requests	12	doc_type	varchar(10)	
+psa_copy_requests	13	copies	int	
+psa_copy_requests	14	purpose	varchar(80)	
+psa_copy_requests	15	owner_first	varchar(60)	
+psa_copy_requests	16	owner_middle	varchar(60)	
+psa_copy_requests	17	owner_last	varchar(60)	MUL
+psa_copy_requests	18	spouse_first	varchar(60)	
+psa_copy_requests	19	spouse_middle	varchar(60)	
+psa_copy_requests	20	spouse_last	varchar(60)	
+psa_copy_requests	21	event_date	date	
+psa_copy_requests	22	event_city	varchar(80)	
+psa_copy_requests	23	event_province	varchar(60)	
+psa_copy_requests	24	father_name	varchar(150)	
+psa_copy_requests	25	mother_maiden_name	varchar(150)	
+psa_copy_requests	26	status	varchar(30)	MUL
+psa_copy_requests	27	fee_amount	decimal(10,2)	
+psa_copy_requests	28	or_no	varchar(40)	
+psa_copy_requests	29	or_date	date	
+psa_copy_requests	30	psa_reference_no	varchar(60)	
+psa_copy_requests	31	submitted_at	datetime	
+psa_copy_requests	32	expected_date	date	
+psa_copy_requests	33	received_at	datetime	
+psa_copy_requests	34	received_by	int	
+psa_copy_requests	35	scan_image	longblob	
+psa_copy_requests	36	scan_id	varchar(30)	
+psa_copy_requests	37	ocr_doc_kind	varchar(20)	
+psa_copy_requests	38	ocr_confidence	int	
+psa_copy_requests	39	ocr_name	varchar(180)	
+psa_copy_requests	40	ocr_match	varchar(20)	
+psa_copy_requests	41	psa_security_no	varchar(40)	
+psa_copy_requests	42	released_at	datetime	
+psa_copy_requests	43	released_by	int	
+psa_copy_requests	44	claimant_name	varchar(180)	
+psa_copy_requests	45	claimant_id_type	varchar(60)	
+psa_copy_requests	46	claimant_id_no	varchar(60)	
+psa_copy_requests	47	claimant_is_rep	tinyint(1)	
+psa_copy_requests	48	outcome_reason	varchar(255)	
+psa_copy_requests	49	remarks	varchar(255)	
+psa_copy_requests	50	created_by	int	
+psa_copy_requests	51	created_at	datetime	
+psa_copy_requests	52	updated_at	datetime	
+psa_transmittal_batches	1	id	int	PRI
+psa_transmittal_batches	2	batch_no	varchar(40)	UNI
+psa_transmittal_batches	3	record_kind	varchar(20)	
+psa_transmittal_batches	4	period_year	int	
+psa_transmittal_batches	5	period_month	int	
+psa_transmittal_batches	6	date_prepared	date	
+psa_transmittal_batches	7	date_sent	date	
+psa_transmittal_batches	8	method	varchar(40)	
+psa_transmittal_batches	9	receiving_office	varchar(150)	
+psa_transmittal_batches	10	reference_no	varchar(80)	
+psa_transmittal_batches	11	ack_date	date	
+psa_transmittal_batches	12	ack_reference	varchar(80)	
+psa_transmittal_batches	13	status	varchar(20)	
+psa_transmittal_batches	14	remarks	varchar(255)	
+psa_transmittal_batches	15	prepared_by	int	
+psa_transmittal_batches	16	sent_by	int	
+psa_transmittal_batches	17	created_at	datetime	
+psa_transmittal_items	1	id	int	PRI
+psa_transmittal_items	2	batch_id	int	MUL
+psa_transmittal_items	3	record_table	varchar(20)	MUL
+psa_transmittal_items	4	record_id	int	
+psa_transmittal_items	5	status	varchar(20)	
+psa_transmittal_items	6	return_reason	varchar(255)	
+psa_transmittal_items	7	returned_at	datetime	
+psa_transmittal_items	8	created_at	datetime	
+queue_ticket_forwards	1	id	int	PRI
+queue_ticket_forwards	2	ticket_id	int	MUL
+queue_ticket_forwards	3	from_window	int	
+queue_ticket_forwards	4	to_window	int	
+queue_ticket_forwards	5	service_code	varchar(20)	
+queue_ticket_forwards	6	service_label	varchar(80)	
+queue_ticket_forwards	7	forwarded_by	int	
+queue_ticket_forwards	8	note	varchar(255)	
+queue_ticket_forwards	9	forwarded_at	datetime	
+queue_ticket_services	1	id	int	PRI
+queue_ticket_services	2	ticket_id	int	MUL
+queue_ticket_services	3	service_code	varchar(20)	
+queue_ticket_services	4	service_label	varchar(80)	
+queue_ticket_services	5	status	varchar(20)	
+queue_ticket_services	6	locked_by_window	int	
+queue_ticket_services	7	created_at	datetime	
+queue_ticket_services	8	abandoned_at	datetime	
+queue_ticket_services	9	abandon_reason	varchar(255)	
+queue_ticket_services	10	abandoned_by	int	
+queue_tickets	1	id	int	PRI
+queue_tickets	2	ticket_code	varchar(30)	
+queue_tickets	3	full_name	varchar(120)	
+queue_tickets	4	spouse_full_name	varchar(150)	
+queue_tickets	5	purpose	varchar(255)	
+queue_tickets	6	contact_no	varchar(30)	
+queue_tickets	7	id_image	longblob	
+queue_tickets	8	spouse_image	longblob	
+queue_tickets	9	marriage_license_image	longblob	
+queue_tickets	10	submitted_by	varchar(20)	
+queue_tickets	11	submitted_by_org	varchar(150)	
+queue_tickets	12	valid_id_type	varchar(60)	
+queue_tickets	13	number_queue	int	
+queue_tickets	14	date	date	
+queue_tickets	15	time	varchar(30)	
+queue_tickets	16	status	varchar(30)	
+queue_tickets	17	name_reviewer	varchar(80)	
+queue_tickets	18	document_type	varchar(50)	
+queue_tickets	19	type_label	varchar(255)	
+queue_tickets	20	priority	varchar(20)	
+queue_tickets	21	window_no	int	
+queue_tickets	22	served_by	varchar(80)	
+queue_tickets	23	transaction_id	int	MUL
+queue_tickets	24	birth_id	int	MUL
+queue_tickets	25	death_id	int	MUL
+queue_tickets	26	marriage_id	int	MUL
+queue_tickets	27	created_at	datetime	
+queue_tickets	28	accepted_at	datetime	
+queue_tickets	29	accepted_window	int	
+queue_tickets	30	called_at	datetime	
+queue_tickets	31	started_at	datetime	
+queue_tickets	32	completed_at	datetime	
+queue_tickets	33	recall_count	int	
+queue_tickets	34	is_priority_ticket	tinyint(1)	
+queue_tickets	35	final_status	varchar(30)	
+queue_tickets	36	app_h_first	varchar(80)	
+queue_tickets	37	app_h_middle	varchar(80)	
+queue_tickets	38	app_h_last	varchar(80)	
+queue_tickets	39	app_w_first	varchar(80)	
+queue_tickets	40	app_w_middle	varchar(80)	
+queue_tickets	41	app_w_last	varchar(80)	
+reference_library	1	id	int	PRI
+reference_library	2	category	varchar(40)	MUL
+reference_library	3	value	varchar(255)	
+reference_library	4	normalized	varchar(255)	
+reference_library	5	usage_count	int	
+reference_library	6	created_at	datetime	
+reference_library	7	updated_at	datetime	
+registry_books	1	id	int	PRI
+registry_books	2	book_type	enum('Birth','Marriage','Death')	MUL
+registry_books	3	year	int	
+registry_books	4	volume	varchar(20)	
+registry_books	5	page	varchar(20)	
+registry_books	6	record_type	enum('Birth','Marriage','Death')	
+registry_books	7	record_id	int	
+registry_books	8	created_at	datetime	
+relationships	1	id	int	PRI
+relationships	2	name	varchar(50)	
+relationships	3	applies_to	varchar(10)	
+releases	1	id	int	PRI
+releases	2	transaction_id	int	MUL
+releases	3	claimant_name	varchar(120)	
+releases	4	is_representative	tinyint(1)	
+releases	5	representative_id_type	varchar(50)	
+releases	6	representative_id_number	varchar(50)	
+releases	7	signature_image	longblob	
+releases	8	claimant_photo	longblob	
+releases	9	released_by	int	MUL
+releases	10	released_at	datetime	
+releases	11	authorization_letter	longblob	
+religions	1	id	int	PRI
+religions	2	name	varchar(100)	
+residences	1	id	int	PRI
+residences	2	name	varchar(150)	
+server_beacon	1	id	tinyint	PRI
+server_beacon	2	machine_name	varchar(80)	
+server_beacon	3	ip_list	varchar(255)	
+server_beacon	4	app_version	varchar(40)	
+server_beacon	5	updated_at	datetime	
+staff_biodata	1	user_id	int	PRI
+staff_biodata	2	employee_no	varchar(30)	
+staff_biodata	3	employment_status	enum('Permanent','Casual','Job Order','Contractual','Probationary')	
+staff_biodata	4	position	varchar(100)	
+staff_biodata	5	date_hired	date	
+staff_biodata	6	birthdate	date	
+staff_biodata	7	sex	enum('Male','Female')	
+staff_biodata	8	civil_status	varchar(30)	
+staff_biodata	9	address	varchar(255)	
+staff_biodata	10	contact_no	varchar(30)	
+staff_biodata	11	emergency_contact_name	varchar(120)	
+staff_biodata	12	emergency_contact_no	varchar(30)	
+staff_biodata	13	profile_photo	longblob	
+staff_biodata	14	profile_photo_name	varchar(255)	
+staff_biodata	15	updated_at	datetime	
+transactions	1	id	int	PRI
+transactions	2	txn_code	varchar(30)	UNI
+transactions	3	client_name	varchar(120)	
+transactions	4	type	enum('Birth','Marriage','Death','Certification','Petition','Other')	
+transactions	5	status	enum('Queued','Processing','ForPrint','ForPayment','ForRelease','WaitingToRelease','Released','Cancelled')	
+transactions	6	created_by	int	MUL
+transactions	7	created_at	datetime	
+transactions	8	updated_at	datetime	
+transactions	9	parked_at	datetime	
+transactions	10	parked_reason	varchar(160)	
+transactions	11	parked_ticket	varchar(30)	
+type_of_births	1	id	int	PRI
+type_of_births	2	name	varchar(50)	
+users	1	id	int	PRI
+users	2	username	varchar(50)	UNI
+users	3	password_hash	varchar(255)	
+users	4	full_name	varchar(120)	
+users	5	role	enum('Admin','Staff')	
+users	6	is_active	tinyint(1)	
+users	7	must_change_password	tinyint(1)	
+users	8	created_at	datetime	
+users	9	updated_at	datetime	
+v_birth_certificate	1	record_id	int	
+v_birth_certificate	2	record_table	varchar(6)	
+v_birth_certificate	3	form_code	varchar(30)	
+v_birth_certificate	4	form_name	varchar(120)	
+v_birth_certificate	5	municipal_form_no	varchar(3)	
+v_birth_certificate	6	registry_no	varchar(30)	
+v_birth_certificate	7	book_volume	varchar(30)	
+v_birth_certificate	8	book_page	varchar(20)	
+v_birth_certificate	9	status	varchar(30)	
+v_birth_certificate	10	is_delayed	tinyint(1)	
+v_birth_certificate	11	date_registered	date	
+v_birth_certificate	12	child_first_name	varchar(50)	
+v_birth_certificate	13	child_middle_name	varchar(50)	
+v_birth_certificate	14	child_last_name	varchar(50)	
+v_birth_certificate	15	child_full_name	varchar(152)	
+v_birth_certificate	16	sex	enum('Male','Female')	
+v_birth_certificate	17	date_of_birth	date	
+v_birth_certificate	18	time_of_birth	varchar(20)	
+v_birth_certificate	19	place_of_birth	varchar(255)	
+v_birth_certificate	20	birth_country	varchar(80)	
+v_birth_certificate	21	type_of_birth	varchar(30)	
+v_birth_certificate	22	birth_order	varchar(30)	
+v_birth_certificate	23	weight_grams	int	
+v_birth_certificate	24	mother_first_name	varchar(50)	
+v_birth_certificate	25	mother_middle_name	varchar(50)	
+v_birth_certificate	26	mother_last_name	varchar(50)	
+v_birth_certificate	27	mother_maiden_name	varchar(152)	
+v_birth_certificate	28	mother_citizenship	varchar(50)	
+v_birth_certificate	29	mother_religion	varchar(50)	
+v_birth_certificate	30	mother_occupation	varchar(80)	
+v_birth_certificate	31	mother_age	int	
+v_birth_certificate	32	mother_children_born_alive	int	
+v_birth_certificate	33	mother_children_living	int	
+v_birth_certificate	34	mother_children_dead	int	
+v_birth_certificate	35	mother_residence	varchar(400)	
+v_birth_certificate	36	father_first_name	varchar(50)	
+v_birth_certificate	37	father_middle_name	varchar(50)	
+v_birth_certificate	38	father_last_name	varchar(50)	
+v_birth_certificate	39	father_full_name	varchar(152)	
+v_birth_certificate	40	father_citizenship	varchar(50)	
+v_birth_certificate	41	father_religion	varchar(50)	
+v_birth_certificate	42	father_occupation	varchar(80)	
+v_birth_certificate	43	father_age	int	
+v_birth_certificate	44	father_residence	varchar(400)	
+v_birth_certificate	45	parents_marriage_date	date	
+v_birth_certificate	46	parents_marriage_place	varchar(400)	
+v_birth_certificate	47	parents_married	tinyint(1)	
+v_birth_certificate	48	attendant_type	varchar(40)	
+v_birth_certificate	49	attendant_name	varchar(120)	
+v_birth_certificate	50	attendant_title	varchar(80)	
+v_birth_certificate	51	attendant_address	varchar(400)	
+v_birth_certificate	52	attendant_date	date	
+v_birth_certificate	53	informant_name	varchar(120)	
+v_birth_certificate	54	informant_relationship	varchar(60)	
+v_birth_certificate	55	informant_address	varchar(400)	
+v_birth_certificate	56	informant_date	date	
+v_birth_certificate	57	prepared_by	varchar(120)	
+v_birth_certificate	58	prepared_by_title	varchar(80)	
+v_birth_certificate	59	prepared_by_date	date	
+v_birth_certificate	60	received_by	varchar(120)	
+v_birth_certificate	61	received_by_title	varchar(80)	
+v_birth_certificate	62	received_by_date	date	
+v_birth_certificate	63	registered_by	varchar(120)	
+v_birth_certificate	64	registered_by_title	varchar(80)	
+v_birth_certificate	65	registered_by_date	date	
+v_birth_certificate	66	place_of_birth_house	varchar(100)	
+v_birth_certificate	67	place_of_birth_barangay	varchar(80)	
+v_birth_certificate	68	multiple_birth_order	varchar(20)	
+v_birth_certificate	69	remarks	varchar(255)	
+v_birth_certificate	70	created_at	datetime	
+v_birth_certificate	71	updated_at	datetime	
+v_birth_certificate	72	office_name	varchar(120)	
+v_birth_certificate	73	office_municipality	varchar(80)	
+v_birth_certificate	74	office_province	varchar(80)	
+v_birth_certificate	75	registrar_name	varchar(120)	
+v_birth_certificate	76	registrar_title	varchar(80)	
+v_certificate_index	1	record_table	varchar(9)	
+v_certificate_index	2	record_id	int	
+v_certificate_index	3	form_code	varchar(30)	
+v_certificate_index	4	form_name	varchar(120)	
+v_certificate_index	5	municipal_form_no	varchar(3)	
+v_certificate_index	6	registry_no	varchar(30)	
+v_certificate_index	7	book_volume	varchar(30)	
+v_certificate_index	8	book_page	varchar(20)	
+v_certificate_index	9	status	varchar(30)	
+v_certificate_index	10	subject_name	varchar(307)	
+v_certificate_index	11	event_date	date	
+v_certificate_index	12	created_at	datetime	
+v_death_certificate	1	record_id	int	
+v_death_certificate	2	record_table	varchar(6)	
+v_death_certificate	3	form_code	varchar(30)	
+v_death_certificate	4	form_name	varchar(120)	
+v_death_certificate	5	municipal_form_no	varchar(3)	
+v_death_certificate	6	registry_no	varchar(30)	
+v_death_certificate	7	book_volume	varchar(30)	
+v_death_certificate	8	book_page	varchar(20)	
+v_death_certificate	9	status	varchar(30)	
+v_death_certificate	10	deceased_first_name	varchar(50)	
+v_death_certificate	11	deceased_middle_name	varchar(50)	
+v_death_certificate	12	deceased_last_name	varchar(50)	
+v_death_certificate	13	deceased_full_name	varchar(152)	
+v_death_certificate	14	sex	enum('Male','Female')	
+v_death_certificate	15	date_of_death	date	
+v_death_certificate	16	time_of_death	varchar(20)	
+v_death_certificate	17	date_of_birth	date	
+v_death_certificate	18	age	int	
+v_death_certificate	19	civil_status	varchar(30)	
+v_death_certificate	20	citizenship	varchar(50)	
+v_death_certificate	21	place_of_death	varchar(354)	
+v_death_certificate	22	religion	varchar(100)	
+v_death_certificate	23	residence	varchar(150)	
+v_death_certificate	24	occupation	varchar(100)	
+v_death_certificate	25	father_name	varchar(80)	
+v_death_certificate	26	mother_name	varchar(80)	
+v_death_certificate	27	immediate_cause	varchar(200)	
+v_death_certificate	28	antecedent_cause	varchar(200)	
+v_death_certificate	29	underlying_cause	varchar(200)	
+v_death_certificate	30	interval_immediate	varchar(40)	
+v_death_certificate	31	interval_antecedent	varchar(40)	
+v_death_certificate	32	interval_underlying	varchar(40)	
+v_death_certificate	33	other_conditions	varchar(255)	
+v_death_certificate	34	maternal_condition	varchar(60)	
+v_death_certificate	35	external_manner	varchar(120)	
+v_death_certificate	36	external_place	varchar(120)	
+v_death_certificate	37	autopsy	enum('Yes','No')	
+v_death_certificate	38	attendant_type	varchar(80)	
+v_death_certificate	39	attendance_from	date	
+v_death_certificate	40	attendance_to	date	
+v_death_certificate	41	certifier_attended	tinyint(1)	
+v_death_certificate	42	medical_certifier	varchar(120)	
+v_death_certificate	43	certifier_license_no	varchar(50)	
+v_death_certificate	44	certifier_title	varchar(80)	
+v_death_certificate	45	certifier_address	varchar(200)	
+v_death_certificate	46	disposal_method	varchar(30)	
+v_death_certificate	47	place_of_disposal	varchar(200)	
+v_death_certificate	48	date_of_disposal	date	
+v_death_certificate	49	permit_type	varchar(30)	
+v_death_certificate	50	burial_permit_no	varchar(40)	
+v_death_certificate	51	burial_permit_date	date	
+v_death_certificate	52	transfer_permit_no	varchar(40)	
+v_death_certificate	53	transfer_permit_date	date	
+v_death_certificate	54	informant_name	varchar(120)	
+v_death_certificate	55	informant_relationship	varchar(60)	
+v_death_certificate	56	informant_address	varchar(200)	
+v_death_certificate	57	informant_date	date	
+v_death_certificate	58	prepared_by	varchar(120)	
+v_death_certificate	59	prepared_by_title	varchar(80)	
+v_death_certificate	60	prepared_by_date	date	
+v_death_certificate	61	received_by	varchar(120)	
+v_death_certificate	62	received_by_title	varchar(80)	
+v_death_certificate	63	received_by_date	date	
+v_death_certificate	64	registered_by	varchar(120)	
+v_death_certificate	65	registered_by_title	varchar(80)	
+v_death_certificate	66	registered_by_date	date	
+v_death_certificate	67	reviewed_by	varchar(120)	
+v_death_certificate	68	reviewed_by_date	date	
+v_death_certificate	69	remarks	varchar(255)	
+v_death_certificate	70	created_at	datetime	
+v_death_certificate	71	updated_at	datetime	
+v_death_certificate	72	office_name	varchar(120)	
+v_death_certificate	73	office_municipality	varchar(80)	
+v_death_certificate	74	office_province	varchar(80)	
+v_death_certificate	75	registrar_name	varchar(120)	
+v_death_certificate	76	registrar_title	varchar(80)	
+v_marriage_certificate	1	record_id	int	
+v_marriage_certificate	2	record_table	varchar(9)	
+v_marriage_certificate	3	form_code	varchar(30)	
+v_marriage_certificate	4	form_name	varchar(120)	
+v_marriage_certificate	5	municipal_form_no	varchar(2)	
+v_marriage_certificate	6	registry_no	varchar(30)	
+v_marriage_certificate	7	book_volume	varchar(30)	
+v_marriage_certificate	8	book_page	varchar(20)	
+v_marriage_certificate	9	status	varchar(30)	
+v_marriage_certificate	10	husband_first_name	varchar(50)	
+v_marriage_certificate	11	husband_middle_name	varchar(50)	
+v_marriage_certificate	12	husband_last_name	varchar(50)	
+v_marriage_certificate	13	husband_full_name	varchar(152)	
+v_marriage_certificate	14	husband_age	int	
+v_marriage_certificate	15	husband_date_of_birth	date	
+v_marriage_certificate	16	husband_civil_status	varchar(30)	
+v_marriage_certificate	17	husband_sex	enum('Male','Female')	
+v_marriage_certificate	18	husband_place_of_birth	varchar(150)	
+v_marriage_certificate	19	husband_birth_country	varchar(80)	
+v_marriage_certificate	20	husband_citizenship	varchar(100)	
+v_marriage_certificate	21	husband_religion	varchar(100)	
+v_marriage_certificate	22	husband_residence	varchar(326)	
+v_marriage_certificate	23	husband_res_province	varchar(60)	
+v_marriage_certificate	24	husband_res_municipality	varchar(80)	
+v_marriage_certificate	25	husband_res_barangay	varchar(80)	
+v_marriage_certificate	26	husband_res_house	varchar(100)	
+v_marriage_certificate	27	husband_father_name	varchar(120)	
+v_marriage_certificate	28	husband_father_citizenship	varchar(50)	
+v_marriage_certificate	29	husband_mother_name	varchar(120)	
+v_marriage_certificate	30	husband_mother_citizenship	varchar(50)	
+v_marriage_certificate	31	husband_consent_name	varchar(150)	
+v_marriage_certificate	32	husband_consent_relationship	varchar(60)	
+v_marriage_certificate	33	husband_consent_residence	varchar(400)	
+v_marriage_certificate	34	wife_first_name	varchar(50)	
+v_marriage_certificate	35	wife_middle_name	varchar(50)	
+v_marriage_certificate	36	wife_last_name	varchar(50)	
+v_marriage_certificate	37	wife_full_name	varchar(152)	
+v_marriage_certificate	38	wife_age	int	
+v_marriage_certificate	39	wife_date_of_birth	date	
+v_marriage_certificate	40	wife_civil_status	varchar(30)	
+v_marriage_certificate	41	wife_sex	enum('Male','Female')	
+v_marriage_certificate	42	wife_place_of_birth	varchar(150)	
+v_marriage_certificate	43	wife_birth_country	varchar(80)	
+v_marriage_certificate	44	wife_citizenship	varchar(100)	
+v_marriage_certificate	45	wife_religion	varchar(100)	
+v_marriage_certificate	46	wife_residence	varchar(326)	
+v_marriage_certificate	47	wife_res_province	varchar(60)	
+v_marriage_certificate	48	wife_res_municipality	varchar(80)	
+v_marriage_certificate	49	wife_res_barangay	varchar(80)	
+v_marriage_certificate	50	wife_res_house	varchar(100)	
+v_marriage_certificate	51	wife_father_name	varchar(120)	
+v_marriage_certificate	52	wife_father_citizenship	varchar(50)	
+v_marriage_certificate	53	wife_mother_name	varchar(120)	
+v_marriage_certificate	54	wife_mother_citizenship	varchar(50)	
+v_marriage_certificate	55	wife_consent_name	varchar(150)	
+v_marriage_certificate	56	wife_consent_relationship	varchar(60)	
+v_marriage_certificate	57	wife_consent_residence	varchar(400)	
+v_marriage_certificate	58	church_name	varchar(150)	
+v_marriage_certificate	59	place_municipality	varchar(100)	
+v_marriage_certificate	60	place_province	varchar(100)	
+v_marriage_certificate	61	place_of_marriage	varchar(354)	
+v_marriage_certificate	62	date_of_marriage	date	
+v_marriage_certificate	63	time_of_marriage	varchar(30)	
+v_marriage_certificate	64	solemnizer	varchar(120)	
+v_marriage_certificate	65	solemnizer_position	varchar(80)	
+v_marriage_certificate	66	witness1_name	varchar(120)	
+v_marriage_certificate	67	witness2_name	varchar(120)	
+v_marriage_certificate	68	license_no	varchar(40)	
+v_marriage_certificate	69	license_date	date	
+v_marriage_certificate	70	license_place	varchar(150)	
+v_marriage_certificate	71	license_basis	varchar(12)	
+v_marriage_certificate	72	exemption_basis	varchar(20)	
+v_marriage_certificate	73	marriage_settlement	varchar(20)	
+v_marriage_certificate	74	received_by	varchar(120)	
+v_marriage_certificate	75	received_by_title	varchar(80)	
+v_marriage_certificate	76	received_by_date	date	
+v_marriage_certificate	77	registration_type	varchar(10)	
+v_marriage_certificate	78	date_registered	date	
+v_marriage_certificate	79	remarks	varchar(255)	
+v_marriage_certificate	80	created_at	datetime	
+v_marriage_certificate	81	updated_at	datetime	
+v_marriage_certificate	82	office_name	varchar(120)	
+v_marriage_certificate	83	office_municipality	varchar(80)	
+v_marriage_certificate	84	office_province	varchar(80)	
+v_marriage_certificate	85	registrar_name	varchar(120)	
+v_marriage_certificate	86	registrar_title	varchar(80)	
+window_service_assignments	1	id	int	PRI
+window_service_assignments	2	window_id	int	MUL
+window_service_assignments	3	service_code	varchar(20)	
+windows	1	id	int	PRI
+windows	2	window_name	varchar(50)	
+windows	3	description	varchar(255)	
+windows	4	status	varchar(10)	
+windows	5	is_priority	tinyint(1)	
+windows	6	current_operator	int	
+windows	7	operator_name	varchar(80)	
+windows	8	last_heartbeat	datetime	
+windows	9	display_order	int	
+windows	10	created_at	datetime	
