@@ -66,6 +66,28 @@ TABLES = [
     ('type_of_births', 'System > Settings > Master Files'),
     ('civil_statuses', 'System > Settings > Master Files'),
     ('residences', 'System > Settings > Master Files'),
+    # ---- the rest of the database: written by the system, no data-entry screen ----
+    ('audit_log', 'System-written: audit trail of every create / update / delete'),
+    ('app_settings', 'System-written: statutory numbers and office settings (posting days, fees, turnaround)'),
+    ('certificate_templates', 'System-written: editable certificate print layouts (Template Designer)'),
+    ('certificate_template_images', 'System-written: images used by the certificate layouts'),
+    ('office_assets', 'System-written: logo, stamp and header / footer images'),
+    ('client_service_slips', 'System-written: Client Service Slip control numbers'),
+    ('deleted_records', 'System-written: recoverable snapshots of deleted births, deaths and marriages'),
+    ('document_requirement_types', 'System-written: catalogue of required documents'),
+    ('document_requirements', 'System-written: requirement checklist rows of a licence, marriage, birth or case'),
+    ('document_routing', 'System-written: incoming / outgoing document log (module not in the menu)'),
+    ('registry_books', 'System-written: registry books by year and volume (module not in the menu)'),
+    ('form97_capture_tokens', 'System-written: phone Mobile Capture sessions'),
+    ('form97_capture_images', 'System-written: pages photographed by phone Mobile Capture'),
+    ('marriage_case_history', 'System-written: timeline of marriage licence and registration actions'),
+    ('marriage_final_documents', 'System-written: pages of the final registered Form 97'),
+    ('ocr_field_audit', 'System-written: per-field OCR audit (what was read, changed, accepted)'),
+    ('psa_copy_history', 'System-written: history of each PSA copy request'),
+    ('psa_transmittal_items', 'System-written: records inside a PSA transmittal batch'),
+    ('queue_ticket_forwards', 'System-written: tickets forwarded between windows'),
+    ('reference_library', 'System-written: learned spellings (Learning Library)'),
+    ('server_beacon', 'System-written: server discovery beacon'),
 ]
 
 
@@ -338,6 +360,10 @@ def main():
     a = ap.parse_args()
     cols = load_columns(a.columns)
     only = set(x for x in a.only.split(',') if x)
+    listed = set(t for t, _ in TABLES)
+    missing = sorted(t for t in cols if not t.startswith('v_') and t != '_env_migrations' and t not in listed)
+    if missing:
+        print('TABLES NOT IN THE DIAGRAM LIST:', missing); sys.exit(2)
     root = ['<?xml version="1.0" encoding="UTF-8"?><mxfile host="app.diagrams.net" agent="gen_table_bubbles.py" version="22.0.0">']
     total_cols, bad, meta = 0, 0, []
     for t, screen in TABLES:

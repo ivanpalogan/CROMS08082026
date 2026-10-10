@@ -60,7 +60,7 @@ def heading(text, level):
     return para(run(text, size=32 if level == 1 else 26, color='2E74B5'), style='Heading%d' % level, after=120, keep_next=True)
 
 
-def image(pkg, path, width_in, alt, max_h_in=None):
+def image(pkg, path, width_in, alt, max_h_in=None, keep=True):
     w, h = png_size(path)
     cx = width_in * EMU
     cy = cx * h / w
@@ -68,7 +68,8 @@ def image(pkg, path, width_in, alt, max_h_in=None):
         cy = max_h_in * EMU; cx = cy * w / h
     rid = pkg.rid_for(path)
     pkg.docpr += 1
-    return ('<w:p><w:pPr><w:keepNext/><w:spacing w:after="60"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing>'
+    kn = '<w:keepNext/>' if keep else ''
+    return ('<w:p><w:pPr>' + kn + '<w:spacing w:after="60"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing>'
             '<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="%d" cy="%d"/>'
             '<wp:docPr id="%d" name="Picture %d" descr="%s"/>'
             '<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>'
@@ -123,17 +124,14 @@ def main():
     out = []
     # the original content ends here, in its own (portrait) section
     out.append('<w:p><w:pPr>%s</w:pPr></w:p>' % old_sect)
-    out.append(heading('Data-entry tables and screens', 1))
+    out.append(heading('Database tables and the screens that fill them', 1))
     total_cols = sum(m_['columns'] for m_ in meta)
-    out.append(para(run('This section shows every table that a person types into through a CROMS screen, as a hub-and-spoke diagram '
-                        '(%d tables, %d columns), followed by the screen that writes it. The big ringed circle is the table; each small circle around it is '
+    out.append(para(run('This section shows every table of the CROMS database (the 59 tables of the live database plus deleted_records, added by the soft-delete migration), as a hub-and-spoke diagram '
+                        '(%d tables, %d columns), followed by the screen that writes it. The tables a person types into come first, each with its screen; the tables the system fills by itself come last, with no screen. The big ringed circle is the table; each small circle around it is '
                         'one column, written exactly as the database column name - except that the first, middle and last name of a person are shown as one full_name circle and the province, municipality, barangay and house of an address as one address circle (the line under each diagram lists the columns inside). Column names and order are read from information_schema of the demo database; screens are the real forms '
                         'running against the demo environment (fictional sample data, orange DEMO ENVIRONMENT badge).' % (len(meta), total_cols))))
     out.append(para(run('The diagrams are full-resolution images: on a big table (births, marriages, marriage licences) zoom in to read the column names. '
                         'The same pages, one per table, are in Docs\\CROMS_Data_Entry_Table_Diagrams.drawio (open it in diagrams.net).')))
-    out.append(para(run('Tables that CROMS writes by itself (audit trail, histories, generated requirement rows, deleted-record snapshots, capture tokens, '
-                        'OCR audit, templates, settings and similar) are not diagrammed here: ' + ', '.join(system_tables) + '.', italic=True, size=20)))
-
     first = True
     for mt in meta:
         t = mt['table']
@@ -143,16 +141,16 @@ def main():
         if big:
             out.append('<w:p><w:pPr>%s</w:pPr></w:p>' % PORTRAIT)      # close the previous portrait section
             out.append(heading(t, 2))
-            out.append(para(run('Screen: ' + mt['screen'] + '.  %d columns, %d circles.' % (mt['columns'], mt['circles']), size=20), after=60, keep_next=True))
-            out.append(image(pkg, os.path.join(a.diagrams, t + '.png'), 6.7, 'Bubble diagram of table %s with its %d columns' % (t, mt['columns']), max_h_in=6.7))
+            out.append(para(run(('Screen: ' if not mt['screen'].startswith('System-written') else '') + mt['screen'] + '.  %d columns, %d circles.' % (mt['columns'], mt['circles']), size=20), after=60, keep_next=True))
+            out.append(image(pkg, os.path.join(a.diagrams, t + '.png'), 6.7, 'Bubble diagram of table %s with its %d columns' % (t, mt['columns']), max_h_in=6.7, keep=False))
             out.append('<w:p><w:pPr>%s</w:pPr></w:p>' % LAND)           # end of the landscape section
         else:
             out.append(heading(t, 2))
-            out.append(para(run('Screen: ' + mt['screen'] + '.  %d columns, %d circles.' % (mt['columns'], mt['circles']), size=20), after=60, keep_next=True))
+            out.append(para(run(('Screen: ' if not mt['screen'].startswith('System-written') else '') + mt['screen'] + '.  %d columns, %d circles.' % (mt['columns'], mt['circles']), size=20), after=60, keep_next=True))
             dp = os.path.join(a.diagrams, t + '.png')
             if mt['page'] <= 1100:
                 dp = crop_white(dp, os.path.join(a.diagrams, 'doc_' + t + '.png'))
-            out.append(image(pkg, dp, 4.4 if small else 5.6, 'Bubble diagram of table %s with its %d columns' % (t, mt['columns']), max_h_in=4.4))
+            out.append(image(pkg, dp, 4.4 if small else 5.6, 'Bubble diagram of table %s with its %d columns' % (t, mt['columns']), max_h_in=4.4, keep=False))
         if mt.get('merged'):
             note = '; '.join('%s = %s' % (g['circle'], ' + '.join(g['columns'])) for g in mt['merged'])
             out.append(para(run('One circle holds several columns: ' + note + '.', italic=True, size=16, color='555555'), after=120))
@@ -163,7 +161,7 @@ def main():
                 continue
             out.append(image(pkg, p, 6.5, 'Screenshot: ' + s['caption'], max_h_in=4.6))
             out.append(para(run(s['caption'], italic=True, size=18, color='555555'), after=160, jc='center'))
-        if not by_table.get(t):
+        if not by_table.get(t) and not mt['screen'].startswith('System-written'):
             out.append(para(run('(no screenshot captured for this table)', italic=True, size=18)))
     tail = ''.join(out)
     new_body = head + tail + PORTRAIT + '</w:body>'
