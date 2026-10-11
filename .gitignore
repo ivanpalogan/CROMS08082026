@@ -373,3 +373,4 @@ CROMS.OwnOcr/data/
 CROMS.OwnOcr/**/bin/
 CROMS.OwnOcr/**/obj/
 Docs/DiagramTools/shots/
+Docs/DiagramTools/kshots/

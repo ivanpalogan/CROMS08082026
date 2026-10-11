@@ -63,6 +63,7 @@ namespace CROMS.MarriageTest
                 if (Want("settings")) Guard("settings", SettingsScreens);
                 if (Want("ocr")) Guard("ocr", Ocr);
                 if (Want("kiosk")) Guard("kiosk", Kiosk);
+                if (Want("kioskdoc")) Guard("kioskdoc", KioskDoc);
             }
             catch (Exception ex) { Console.WriteLine("CRASH: " + ex); Bad++; }
             finally
@@ -393,6 +394,118 @@ namespace CROMS.MarriageTest
             {
                 Set(s, "First", "Maria"); Set(s, "Last", "Santos"); Set(s, "Contact", "09170001111");
             }, "Kiosk - review before the ticket is issued", "queue_tickets", "queue_ticket_services");
+        }
+
+        // ------------------------------------------------------------------ kiosk, user's-view document
+        // Same screens as Kiosk() but at a normal kiosk size, with no text selected and one file per view.
+        private static void KioskDoc()
+        {
+            string[] codes = { "BIRTHREG", "MARRIAGE_REG", "DEATH", "MARRIAGE_APP", "LEGITIMATION", "LEGITIMATION_RA9255", "CTC", "BREQS", "CLAIM", "PETITION", "SUPPLEMENTAL_REPORT", "LEGAL_INSTRUMENTS", "COURT_ORDER" };
+            _tmpWindow = Db.Insert("INSERT INTO windows (window_name, description, status, is_priority, current_operator, operator_name, last_heartbeat, display_order) VALUES ('ZZS Window', 'screenshots', 'Active', 0, @u, 'ZZS operator', NOW(), 951)",
+                                   new MySql.Data.MySqlClient.MySqlParameter("@u", Session.User.Id));
+            foreach (string c in codes) Db.Push("INSERT INTO window_service_assignments (window_id, service_code) VALUES (@w, @c)",
+                                                new MySql.Data.MySqlClient.MySqlParameter("@w", _tmpWindow), new MySql.Data.MySqlClient.MySqlParameter("@c", c));
+            string kexe = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CROMS.Kiosk.exe");
+            if (!File.Exists(kexe)) throw new FileNotFoundException("CROMS.Kiosk.exe not found", kexe);
+            Assembly k = Assembly.LoadFrom(kexe);
+            k.GetType("CROMS.Kiosk.KioskCore", true).GetField("TestMode").SetValue(null, true);
+            int w = 1600, h = 900;
+            KioskDocSnap(k, "WelcomeForm", "k1_welcome", new string[0], null, w, h);
+            KioskDocSnap(k, "ServiceSelectForm", "k2_services", new string[0], null, w, 1150);
+            _kioskPost = f => ScrollToBottom(f);
+            KioskDocSnap(k, "ServiceSelectForm", "k2b_services_bottom", new string[0], null, w, 1150);
+            _kioskPost = null;
+            KioskDocSnap(k, "CtcDetailsForm", "k3_ctc", new[] { "CTC" }, s =>
+            {
+                Set(s, "CtcDocumentType", "Birth"); Set(s, "CtcCopies", 2); Set(s, "CtcPurpose", "Employment");
+                Set(s, "CtcRelationship", "Self"); Set(s, "CtcOwnerFirst", "Maria"); Set(s, "CtcOwnerMiddle", "Reyes"); Set(s, "CtcOwnerLast", "Santos");
+                Set(s, "CtcEventProvince", "Cagayan"); Set(s, "CtcEventCity", "Penablanca");
+            }, w, h);
+            KioskDocSnap(k, "BreqsDetailsForm", "k4_psa", new[] { "BREQS" }, s =>
+            {
+                Set(s, "First", "Maria"); Set(s, "Last", "Santos"); Set(s, "Contact", "09170001111");
+                Set(s, "BreqsDocType", "Birth"); Set(s, "BreqsCopies", 1); Set(s, "BreqsPurpose", "Passport");
+                Set(s, "BreqsRelationship", "Self"); Set(s, "IdType", "UMID"); Set(s, "IdNo", "0028 1234567 8");
+                Set(s, "OwnerFirst", "Maria"); Set(s, "OwnerMiddle", "Reyes"); Set(s, "OwnerLast", "Santos");
+                Set(s, "EventProvince", "Cagayan"); Set(s, "EventCity", "Penablanca");
+                Set(s, "FatherName", "Jose Santos"); Set(s, "MotherMaidenName", "Ana Reyes");
+            }, w, h);
+            KioskDocSnap(k, "DetailsPhotoForm", "k5_personal", new[] { "BIRTHREG" }, s =>
+            {
+                Set(s, "First", "Maria"); Set(s, "Middle", "Reyes"); Set(s, "Last", "Santos"); Set(s, "Contact", "09170001111");
+            }, w, h);
+            KioskDocSnap(k, "DetailsPhotoForm", "k6_personal_marriage_reg", new[] { "MARRIAGE_REG" }, s =>
+            {
+                Set(s, "First", "Maria"); Set(s, "Middle", "Reyes"); Set(s, "Last", "Santos"); Set(s, "Contact", "09170001111");
+                Set(s, "SubmittedBy", "Representative"); Set(s, "SubmittedByOrg", "Office of the Mayor");
+            }, w, h);
+            KioskDocSnap(k, "DetailsPhotoForm", "k7_personal_marriage_app", new[] { "MARRIAGE_APP" }, s =>
+            {
+                Set(s, "First", "Juan"); Set(s, "Middle", "Dela"); Set(s, "Last", "Cruz"); Set(s, "Contact", "09170001111");
+                Set(s, "First2", "Maria"); Set(s, "Middle2", "Reyes"); Set(s, "Last2", "Santos");
+            }, w, h);
+            KioskDocSnap(k, "ReviewRequestForm", "k8_review", new[] { "BIRTHREG", "CTC" }, s =>
+            {
+                Set(s, "First", "Maria"); Set(s, "Middle", "Reyes"); Set(s, "Last", "Santos"); Set(s, "Contact", "09170001111");
+                Set(s, "CtcDocumentType", "Birth"); Set(s, "CtcCopies", 2); Set(s, "CtcPurpose", "Employment");
+            }, w, h);
+        }
+
+        private static Action<Form> _kioskPost;
+        private static void ScrollToBottom(Control c)
+        {
+            var sc = c as ScrollableControl;
+            if (sc != null && sc.VerticalScroll.Visible) { sc.AutoScrollPosition = new Point(0, sc.VerticalScroll.Maximum); }
+            foreach (Control x in c.Controls) ScrollToBottom(x);
+        }
+
+        private static void ClearSelection(Control c)
+        {
+            foreach (Control x in c.Controls)
+            {
+                var tb = x as TextBoxBase; if (tb != null) { try { tb.SelectionStart = 0; tb.SelectionLength = 0; } catch { } }
+                var cb = x as ComboBox; if (cb != null) { try { cb.SelectionLength = 0; } catch { } }
+                ClearSelection(x);
+            }
+        }
+
+        private static void KioskDocSnap(Assembly k, string type, string name, string[] selected, Action<object> fill, int w, int h)
+        {
+            Form f = null;
+            try
+            {
+                Type sessT = k.GetType("CROMS.Kiosk.KioskSession", true);
+                object sess = Activator.CreateInstance(sessT);
+                var sel = (List<string>)sessT.GetField("Selected").GetValue(sess);
+                foreach (string c in selected) sel.Add(c);
+                if (fill != null) fill(sess);
+                Type ft = k.GetType("CROMS.Kiosk." + type, true);
+                ConstructorInfo ci = ft.GetConstructors(NF).OrderBy(c => c.GetParameters().Length).First();
+                f = (Form)ci.Invoke(ci.GetParameters().Length == 0 ? new object[0] : new object[] { sess });
+                f.StartPosition = FormStartPosition.Manual; f.Location = new Point(0, 0);
+                f.FormBorderStyle = FormBorderStyle.None; f.ShowInTaskbar = false; f.Opacity = 0;
+                f.ClientSize = new Size(w, h);
+                f.Show(); Wd.Ignore.Add(f.Handle);
+                f.ClientSize = new Size(w, h); AuditTest.Pump(24);
+                ClearSelection(f); f.ActiveControl = null; AuditTest.Pump(6);
+                if (_kioskPost != null) { _kioskPost(f); AuditTest.Pump(10); }
+                SavePng(f, name);
+                Add(name + ".png", name);
+            }
+            catch (Exception ex) { Bad++; var e = ex.InnerException ?? ex; Console.WriteLine("  FAIL " + name + ": " + e.GetType().Name + ": " + e.Message); }
+            finally
+            {
+                try
+                {
+                    if (f != null)
+                    {
+                        FieldInfo nav = f.GetType().GetField("_navigating", NF); if (nav != null) nav.SetValue(f, true);
+                        f.Hide(); f.Dispose();
+                    }
+                }
+                catch { }
+                AuditTest.Pump(2);
+            }
         }
 
         private static void Set(object o, string field, object value)
