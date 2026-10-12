@@ -24,6 +24,7 @@ namespace CROMS.Forms
     public partial class ReleaseClaimForm : Form, IRefreshable
     {
         private int? _selectedTxnId;
+        private string _clientName;   // client on the selected release; the default claimant
         private PictureBox picClient;
         private Label lblPhotoCap;
         private PictureBox picUploadedId;   // ID photo uploaded via claimapp (claimant_id_uploads.id_image)
@@ -106,7 +107,7 @@ namespace CROMS.Forms
             ApplyCameraOption();             // hide the camera panel to match the Off state
 
             SetFaceState(lblPhotoState, false, null, "No kiosk photo");
-            SetFaceState(lblIdState, false, null, "No uploaded ID");
+            SetFaceState(lblIdState, false, null, "Nothing uploaded");
             LoadPending();
             LoadReleased();
             UpdateChecklist();
@@ -446,6 +447,33 @@ namespace CROMS.Forms
                 _lblLetterState.ForeColor = _authLetter != null ? UiTheme.Ink : UiTheme.Faint;
             }
             if (_btnViewLetter != null) _btnViewLetter.Enabled = _authLetter != null;
+            ShowLetterAsEvidence();
+        }
+
+        private const string EvidenceCaption = "Valid ID or authorization letter";
+        private bool _idOnFile;   // a valid-ID photo (not the letter) is showing in the pane
+
+        /// <summary>
+        /// A valid ID or an authorization letter both count as identity evidence. The pane
+        /// shows the ID when one is on file; with no ID it shows the letter instead, and
+        /// says which of the two it is. Call after the ID lookup.
+        /// </summary>
+        private void ShowLetterAsEvidence()
+        {
+            if (picUploadedId == null || lblIdState == null) return;
+            if (_authLetter == null) return;
+            if (_idOnFile)
+            {
+                if (!lblIdState.Text.EndsWith("Letter also on file"))
+                    lblIdState.Text += "  ·  Letter also on file";
+                return;
+            }
+            picUploadedId.Image?.Dispose();
+            picUploadedId.Image = null;
+            try { picUploadedId.Image = BytesToImage(_authLetter); }
+            catch { /* stored value wasn't a readable image */ }
+            if (lblUploadedIdCap != null) lblUploadedIdCap.Text = "Authorization letter";
+            SetFaceState(lblIdState, true, "Letter on file - no valid ID uploaded", null);
         }
 
         /// <summary>
@@ -565,16 +593,19 @@ namespace CROMS.Forms
                 refresh.Click += (s, e) =>
                 {
                     bool uploaded;
+                    // Always both, in this order: the pane shows the ID, or the letter when
+                    // there is no ID, so one lookup alone would leave it out of date.
+                    ShowUploadedIdFor((int)txnId);
+                    ShowAuthLetterFor((int)txnId);
+                    UpdateChecklist();
                     if (letter)
                     {
-                        ShowAuthLetterFor((int)txnId);
                         uploaded = _authLetter != null;
-                        status.Text = uploaded ? "✔ Letter uploaded — use View behind this window." : "Waiting for the letter…";
+                        status.Text = uploaded ? "✔ Letter uploaded — check the panel behind this window." : "Waiting for the letter…";
                     }
                     else
                     {
-                        ShowUploadedIdFor((int)txnId);
-                        uploaded = picUploadedId.Image != null;
+                        uploaded = _idOnFile;
                         status.Text = uploaded ? "✔ ID uploaded — check the panel behind this window." : "Waiting for upload…";
                     }
                     status.ForeColor = uploaded ? Green : UiTheme.Warning;
@@ -908,7 +939,11 @@ namespace CROMS.Forms
             AddRowSpan(_repBlock, letterRow, 44);
             _repRow = t.RowCount;
             AddStack(t, _repBlock, 0);   // 0 until the box is ticked (see ShowRepFields)
-            chkRep.CheckedChanged += (s, e) => ShowRepFields(chkRep.Checked);
+            chkRep.CheckedChanged += (s, e) =>
+            {
+                ShowRepFields(chkRep.Checked);
+                SyncClaimantWithRep();
+            };
 
             AddStack(t, Section("IDENTITY EVIDENCE"), 24);
 
@@ -926,7 +961,32 @@ namespace CROMS.Forms
             btnIdQr.FlatAppearance.BorderSize = 1;
             btnIdQr.FlatAppearance.BorderColor = UiTheme.CardLine;
             btnIdQr.Click += (s, e) => ShowIdUploadQr();
-            AddStack(t, btnIdQr, 38);
+            btnIdQr.Text = "📱  Valid ID QR";
+            btnIdQr.Margin = new Padding(0, 0, 4, 0);
+
+            // Either one is accepted as identity evidence: a valid ID, or an authorization
+            // letter. Same claim row, the phone just opens the letter page instead.
+            var btnLetterQr2 = new Button
+            {
+                Text = "📱  Authorization Letter QR", Dock = DockStyle.Fill,
+                FlatStyle = FlatStyle.Flat, BackColor = Chip, ForeColor = Accent,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold), Cursor = Cursors.Hand,
+                UseVisualStyleBackColor = false, Margin = new Padding(4, 0, 0, 0)
+            };
+            btnLetterQr2.FlatAppearance.BorderSize = 1;
+            btnLetterQr2.FlatAppearance.BorderColor = UiTheme.CardLine;
+            btnLetterQr2.Click += (s, e) => ShowLetterUploadQr();
+
+            var qrRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1, BackColor = CardBg
+            };
+            qrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            qrRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+            qrRow.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            qrRow.Controls.Add(btnIdQr, 0, 0);
+            qrRow.Controls.Add(btnLetterQr2, 1, 0);
+            AddStack(t, qrRow, 38);
 
             // The two faces sit SIDE BY SIDE because that is the officer's actual task —
             // compare the ID the claimant uploaded against the photo the kiosk took.
@@ -947,7 +1007,7 @@ namespace CROMS.Forms
             };
             lblUploadedIdCap = new Label
             {
-                Text = "Uploaded ID", Dock = DockStyle.Top, Height = 20, AutoSize = false,
+                Text = EvidenceCaption, Dock = DockStyle.Top, Height = 20, AutoSize = false,
                 Font = new Font("Segoe UI", 9F, FontStyle.Bold), ForeColor = Ink
             };
             picUploadedId = new PictureBox
@@ -1006,6 +1066,29 @@ namespace CROMS.Forms
             _claimStack.RowStyles[_repRow].Height = on ? RepRowHeight : 0;
             SizeClaimBlock();
             UpdateChecklist();
+        }
+
+        /// <summary>
+        /// Keeps the claimant name in step with the representative box. Ticked: the client's
+        /// own name is removed so the representative's is typed (a name the officer typed is
+        /// kept). Unticked: an empty box gets the client's name back.
+        /// </summary>
+        private void SyncClaimantWithRep()
+        {
+            if (txtClaimant == null || string.IsNullOrEmpty(_clientName)) return;
+            string typed = txtClaimant.Text.Trim();
+            if (chkRep.Checked)
+            {
+                if (string.Equals(typed, _clientName, StringComparison.OrdinalIgnoreCase))
+                {
+                    txtClaimant.Clear();
+                    txtClaimant.Focus();
+                }
+            }
+            else if (typed.Length == 0)
+            {
+                txtClaimant.Text = _clientName;
+            }
         }
 
         /// <summary>Opens / closes the camera preview row and re-measures the block.</summary>
@@ -1230,7 +1313,9 @@ namespace CROMS.Forms
             Mark(_chkSelected, picked,   "Release selected",        "Select a release on the left");
             Mark(_chkClaimant, named,    "Claimant name entered",   "Enter who is claiming");
             Mark(_chkPhoto,    hasPhoto, "Kiosk photo on file",     "No kiosk photo on file");
-            Mark(_chkId,       hasId,    "Uploaded ID on file",     "No uploaded ID on file");
+            // The pane holds the ID, or the authorization letter when no ID was uploaded.
+            Mark(_chkId,       hasId,    "Valid ID or authorization letter on file",
+                                         "No valid ID or authorization letter on file");
 
             // Nothing to release until something is picked. Leaving it live meant a click
             // that could only ever answer with a message box. Only the RELEASE state is
@@ -1482,6 +1567,8 @@ namespace CROMS.Forms
         {
             picUploadedId.Image?.Dispose();
             picUploadedId.Image = null;
+            _idOnFile = false;
+            if (lblUploadedIdCap != null) lblUploadedIdCap.Text = EvidenceCaption;
             DataTable dt = Db.Pull(
                 "SELECT cr.id_image, cr.id_first_name, cr.id_middle_name, cr.id_last_name " +
                 "FROM claimant_id_uploads cr LEFT JOIN queue_tickets qt ON qt.id = cr.queue_ticket_id " +
@@ -1497,6 +1584,8 @@ namespace CROMS.Forms
             string idName = JoinName(r["id_first_name"], r["id_middle_name"], r["id_last_name"]);
             try { picUploadedId.Image = BytesToImage((byte[])r["id_image"]); }
             catch { /* stored value wasn't a readable image */ }
+            _idOnFile = picUploadedId.Image != null;
+            if (lblUploadedIdCap != null) lblUploadedIdCap.Text = "Valid ID";
             // The name the claimant's ID was read as — the officer checks it against
             // the claimant name on the left. Shown, never auto-matched.
             SetFaceState(lblIdState, true,
@@ -1562,9 +1651,22 @@ namespace CROMS.Forms
         private void SelectRow(DataGridViewRow row)
         {
             _pickupClaimId = null;
-            _selectedTxnId = Convert.ToInt32(row.Cells["id"].Value);
+            int picked = Convert.ToInt32(row.Cells["id"].Value);
+            bool newPick = _selectedTxnId != picked;
+            _selectedTxnId = picked;
             string code = Convert.ToString(row.Cells["Txn Code"].Value);
             string client = Convert.ToString(row.Cells["Client"].Value);
+
+            // The client usually claims their own document, so their name is the claimant
+            // until the representative box is ticked. Only on a NEW pick: re-selecting the
+            // same row must not overwrite what the officer typed, and a different row must
+            // not keep the previous client's name or representative details.
+            if (newPick)
+            {
+                _clientName = (client ?? "").Trim();
+                chkRep.Checked = false;
+                txtClaimant.Text = _clientName;
+            }
             if (lblValidation != null) lblValidation.Text = "";
 
             DataTable stt = Db.Pull("SELECT status FROM transactions WHERE id = @t LIMIT 1",
@@ -1692,6 +1794,7 @@ namespace CROMS.Forms
             _pickupClaimId = claimId;
             _pickupClaimCode = claimNo;
             _selectedTxnId = null;
+            _clientName = (name ?? "").Trim();
             if (!string.IsNullOrWhiteSpace(name)) txtClaimant.Text = name;
             lblSelected.Text = string.IsNullOrWhiteSpace(name) ? claimNo : name;
             _wMeta.Text = Join(" · ", "Kiosk pickup claim", claimNo, queueCode);
@@ -2131,8 +2234,9 @@ namespace CROMS.Forms
                 {
                     Value = (object)_photoBytes ?? DBNull.Value
                 };
-                // Only a representative's release carries a letter; a self-claim never does.
-                byte[] letterToSave = chkRep.Checked ? _authLetter : null;
+                // A letter on file is evidence the officer relied on, so it is kept with the
+                // release whoever claims (it may stand in for a valid ID).
+                byte[] letterToSave = _authLetter;
                 var letterParam = new MySqlParameter("@letter", MySqlDbType.LongBlob)
                 {
                     Value = (object)letterToSave ?? DBNull.Value
@@ -2308,6 +2412,7 @@ namespace CROMS.Forms
             SetSummary();
             SetNote("", UiTheme.AccentTint, Accent);
             if (lblValidation != null) lblValidation.Text = "";
+            _clientName = null;   // before unticking the box, or it would refill the name
             txtClaimant.Clear();
             chkRep.Checked = false;
             txtIdType.SelectedIndex = -1;
@@ -2322,11 +2427,12 @@ namespace CROMS.Forms
                 _lblLetterState.ForeColor = UiTheme.Faint;
             }
             if (_btnViewLetter != null) _btnViewLetter.Enabled = false;
-            if (lblUploadedIdCap != null) lblUploadedIdCap.Text = "Uploaded ID (from claimapp)";
+            if (lblUploadedIdCap != null) lblUploadedIdCap.Text = EvidenceCaption;
+            _idOnFile = false;
             tglUseCam.Checked = false;   // fires ApplyCameraOption → hides + releases the camera
             ResetCamera();
             SetFaceState(lblPhotoState, false, null, "No kiosk photo");
-            SetFaceState(lblIdState, false, null, "No uploaded ID");
+            SetFaceState(lblIdState, false, null, "Nothing uploaded");
             UpdateChecklist();
             ApplyState(null);   // back to the empty state, not a live form for no request
         }
