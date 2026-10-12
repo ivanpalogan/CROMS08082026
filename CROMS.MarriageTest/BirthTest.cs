@@ -135,6 +135,18 @@ namespace CROMS.MarriageTest
             Check("5b greyed for a single birth", !multi.Enabled);
             type.Text = "Twin"; Application.DoEvents();
             Check("5b opens for a twin", multi.Enabled);
+            Func<string> places = () => string.Join(",", multi.Items.Cast<object>().Select(o => o.ToString()).Where(s => s.Length > 0));
+            Check("twin offers only 1st, 2nd", places() == "1st,2nd", places());
+            type.Text = "Triplet"; Application.DoEvents();
+            Check("triplet offers 1st..3rd", places() == "1st,2nd,3rd", places());
+            type.Text = "Quadruplet"; Application.DoEvents();
+            Check("quadruplet offers 1st..4th", places() == "1st,2nd,3rd,4th", places());
+            multi.SelectedItem = "4th";
+            type.Text = "Twin"; Application.DoEvents();
+            Check("a place the new type does not have is cleared (4th on a twin)", multi.SelectedIndex <= 0 && places() == "1st,2nd", multi.Text);
+            multi.SelectedItem = "2nd";
+            type.Text = "Triplet"; Application.DoEvents();
+            Check("a place the new type still has is kept (2nd)", multi.Text == "2nd", multi.Text);
             type.Text = "Single"; Application.DoEvents();
             Check("5b greys and clears again for Single", !multi.Enabled && multi.SelectedIndex == -1);
 

@@ -341,13 +341,43 @@ namespace CROMS.Forms
         }
 
         // ------------------------------------------------------------------ multiple birth (5b)
+        private int _multipleCount = -1;
+
+        /// <summary>
+        /// How many children the type of birth means: Twin 2, Triplet 3, Quadruplet 4 ...
+        /// A multiple birth typed in some other word keeps the full 1st..5th list.
+        /// </summary>
+        private static int ChildrenIn(string type)
+        {
+            switch ((type ?? "").Trim().ToLowerInvariant())
+            {
+                case "twin": case "twins": return 2;
+                case "triplet": case "triplets": return 3;
+                case "quadruplet": case "quadruplets": return 4;
+                case "quintuplet": case "quintuplets": return 5;
+                case "sextuplet": case "sextuplets": return 6;
+                default: return 5;
+            }
+        }
+
         private void ApplyMultipleBirth()
         {
             string type = (cboTypeOfBirth.Text ?? "").Trim();
             bool multiple = type.Length > 0 && !string.Equals(type, "Single", StringComparison.OrdinalIgnoreCase);
             lblMultiple.Enabled = multiple;
             cboMultiple.Enabled = multiple;
-            if (!multiple) cboMultiple.SelectedIndex = -1;   // a single birth cannot be the 2nd of a set
+            if (!multiple) { cboMultiple.SelectedIndex = -1; return; }   // a single birth cannot be the 2nd of a set
+
+            // 5b offers only as many places as the birth has children: a twin is 1st or 2nd.
+            int count = ChildrenIn(type);
+            if (count == _multipleCount) return;
+            _multipleCount = count;
+            string keep = (cboMultiple.Text ?? "").Trim();
+            cboMultiple.Items.Clear();
+            cboMultiple.Items.Add("");
+            for (int i = 1; i <= count; i++) cboMultiple.Items.Add(BirthOrderText.Ordinal(i));
+            int idx = keep.Length == 0 ? -1 : cboMultiple.Items.IndexOf(keep);
+            cboMultiple.SelectedIndex = idx;   // a place the new type does not have is cleared
         }
 
         private object MultipleBirthParam()
@@ -358,6 +388,7 @@ namespace CROMS.Forms
 
         private void SetMultipleBirth(string stored)
         {
+            _multipleCount = -1;   // rebuild: drop an out-of-range value kept for the previous record
             ApplyMultipleBirth();
             string v = BirthOrderText.Normalize(stored);
             if (v.Length == 0) { cboMultiple.SelectedIndex = -1; return; }
