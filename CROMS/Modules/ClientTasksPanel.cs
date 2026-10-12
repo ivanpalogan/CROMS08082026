@@ -1101,8 +1101,39 @@ namespace CROMS.Modules
             if (QueueTaskContext.TaskId == taskId) QueueTaskContext.Clear();
             Audit.Write("Update", "queue_ticket_services", taskId,
                 "Abandoned " + label + " on " + _ticketCode + " — " + reason);
+
+            // That was the last open task and nothing on the ticket was finished: there is
+            // nothing left to serve, so the visit ends here. Leaving it open put the ticket in
+            // a state with no way out — both abandon buttons need an open task, and Complete
+            // Client Visit refuses while the request is unreleased.
+            int open = Db.GetCount(
+                "SELECT id FROM queue_ticket_services WHERE ticket_id = " + _ticketId +
+                " AND status NOT IN ('Completed','Abandoned')");
+            int finished = Db.GetCount(
+                "SELECT id FROM queue_ticket_services WHERE ticket_id = " + _ticketId +
+                " AND status = 'Completed'");
+            if (open == 0 && finished == 0)
+            {
+                CloseVisitAbandoned("Abandoned " + _ticketCode + " (last task) — " + reason);
+                MessageBox.Show(_ticketCode + " was closed as abandoned. Your window is ready for the next client.",
+                    "Visit abandoned", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
             Reload();
             _shell.RefreshQueueHeader();
+        }
+
+        /// <summary>
+        /// Closes the ticket as abandoned and frees the window. The linked request is NOT
+        /// touched: one already paid stays For Release so the client can still claim it, and
+        /// cancelling it here would hide a payment that was really collected.
+        /// </summary>
+        private void CloseVisitAbandoned(string auditNote)
+        {
+            Db.Push("UPDATE queue_tickets SET status = 'Completed', final_status = 'Abandoned', " +
+                    "completed_at = NOW(), window_no = NULL WHERE id = @id",
+                new MySqlParameter("@id", _ticketId));
+            Audit.Write("Update", "queue_tickets", _ticketId, auditNote);
+            QueueTaskContext.Clear();
         }
 
         /// <summary>
@@ -1193,6 +1224,31 @@ namespace CROMS.Modules
             string pendingStatus = pending.Rows.Count > 0 ? Convert.ToString(pending.Rows[0]["status"]) : null;
             if (!string.IsNullOrEmpty(pendingStatus))
             {
+                // Every task is closed and at least one was abandoned: the operator has already
+                // recorded that the client is not being served, so the visit may end without a
+                // release. The request keeps its status and waits in Release & Claim.
+                int abandoned = Db.GetCount(
+                    "SELECT id FROM queue_ticket_services WHERE ticket_id = " + _ticketId +
+                    " AND status = 'Abandoned'");
+                if (abandoned > 0)
+                {
+                    if (MessageBox.Show("The request on this ticket was not released (currently: " +
+                            pendingStatus + ") and its task was abandoned.\n\n" +
+                            "End the visit anyway? The request stays as it is, so the client can " +
+                            "still claim it later in Release & Claim. Your window will be freed.",
+                            "End visit without release", MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                        return;
+
+                    CloseVisitAbandoned("Ended " + _ticketCode + " without release (request " +
+                        pendingStatus + ", task abandoned)");
+                    _shell.RefreshQueueHeader();
+                    MessageBox.Show(_ticketCode + " was closed as abandoned. Your window is ready for the next client.",
+                        "Visit abandoned", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    Reload();
+                    return;
+                }
+
                 MessageBox.Show("This client's request has not actually been released yet " +
                     "(currently: " + pendingStatus + "). Complete the release in Release & Claim " +
                     "before closing this visit.",
