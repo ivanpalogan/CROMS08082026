@@ -118,6 +118,7 @@ namespace CROMS.Forms
             SearchHost.SetCue(txtQuery, "Search by name");
             new ToolTip().SetToolTip(chkFuzzy, "Also finds names that sound the same but are spelled differently.");
             grid.DataBindingComplete += (s, e) => MarkQueryOrder();
+            grid.CellPainting += grid_CellPainting;
             cboSearchType.SelectedIndex = 0;
             _ready = true;
             BuildTree();
@@ -1308,6 +1309,44 @@ namespace CROMS.Forms
                 e.CellStyle.ForeColor = UiTheme.Faint;
                 e.FormattingApplied = true;
             }
+        }
+
+        /// <summary>
+        /// Status as a coloured pill WITH its text (never colour alone), so a record that
+        /// still needs action stands out from the registered ones around it.
+        /// </summary>
+        private void grid_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (_current == null || !_current.IsSearch || e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (grid.Columns[e.ColumnIndex].Name != "Status") return;
+            string text = e.Value == null || e.Value == DBNull.Value ? "" : e.Value.ToString().Trim();
+            if (text.Length == 0) return;
+
+            e.Paint(e.CellBounds, DataGridViewPaintParts.All & ~DataGridViewPaintParts.ContentForeground);
+
+            Color tint, ink;
+            MUi.ToneOf(text, out tint, out ink);
+            const TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine |
+                                          TextFormatFlags.VerticalCenter | TextFormatFlags.HorizontalCenter |
+                                          TextFormatFlags.EndEllipsis;
+            using (var font = new Font(e.CellStyle.Font.FontFamily, 8.5F, FontStyle.Bold))
+            {
+                int height = Math.Min(22, e.CellBounds.Height - 8);
+                int width = Math.Min(e.CellBounds.Width - 14,
+                    // Measured WITHOUT the ellipsis flag: with it, an unbounded measure comes back already cut.
+                    TextRenderer.MeasureText(e.Graphics, text, font, new Size(int.MaxValue, int.MaxValue),
+                        TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine).Width + 16);
+                if (height < 12 || width < 24) { e.Handled = true; return; }
+                var pill = new Rectangle(e.CellBounds.X + 7, e.CellBounds.Y + (e.CellBounds.Height - height) / 2, width, height);
+
+                var old = e.Graphics.SmoothingMode;
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var path = RoundedRow(pill, height / 2 - 1))
+                using (var b = new SolidBrush(tint)) e.Graphics.FillPath(b, path);
+                e.Graphics.SmoothingMode = old;
+                TextRenderer.DrawText(e.Graphics, text, font, pill, ink, tint, flags);
+            }
+            e.Handled = true;
         }
 
         // ----------------------------------------------------- search detail rail

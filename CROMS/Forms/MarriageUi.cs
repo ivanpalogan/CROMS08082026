@@ -35,6 +35,7 @@ namespace CROMS.Forms
                 case "Posting": case "Posting Complete": case "Expiring": case "Requirements Incomplete": case "Delayed":
                 case "In Batch": case "Required": case "Submitted": case "On Hold": case "Pending": case "For Review":
                 case "Pending Transmittal": case "Waived": case "Prepared":
+                case "Pending Approval": case "Pending Verification":
                     tint = UiTheme.WarningTint; ink = UiTheme.Warning; return;
                 case "Expired": case "Returned": case "Rejected": case "Cancelled": case "Missing":
                 case "Returned - Needs Correction": case "Hard stop":
