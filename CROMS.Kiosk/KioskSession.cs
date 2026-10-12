@@ -75,6 +75,17 @@ namespace CROMS.Kiosk
         public System.DateTime? CtcEventDate;
         public string CtcEventCity, CtcEventProvince;
 
+        // "Skip - tell the staff at the counter": the client kept the service but chose not to fill
+        // in its detail form at the kiosk (cannot type well, or a line is forming behind them).
+        // The ticket is issued with no intake row and staff ask for the details at the window.
+        public bool CtcAtCounter, BreqsAtCounter;
+        public bool CtcSkipped => HasCtc && CtcAtCounter;
+        public bool BreqsSkipped => HasBreqs && BreqsAtCounter;
+
+        /// <summary>First words of the ticket's one-line note when a detail form was skipped. The staff
+        /// Client Tasks panel matches on it (CROMS.exe has no reference to the kiosk) - keep both in step.</summary>
+        public const string CounterNote = "Details at the counter";
+
         public bool HasClaim => Selected.Contains("CLAIM");
         public bool HasBreqs => Selected.Contains("BREQS");
         // Couple-info UI (both names, both photos) — Application only. See the comment on
@@ -106,6 +117,7 @@ namespace CROMS.Kiosk
         public void Reset()
         {
             Selected.Clear();
+            CtcAtCounter = BreqsAtCounter = false;
             First = Middle = Last = Contact = null;
             Senior = Pwd = Pregnant = false;
             Photo = null;

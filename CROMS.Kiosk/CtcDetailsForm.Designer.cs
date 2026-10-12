@@ -12,7 +12,7 @@ namespace CROMS.Kiosk
         private TableLayoutPanel _root, _bar;
         private TableLayoutPanel _grid;
         private Label _title, _subtitle;
-        private Button _back, _next;
+        private Button _back, _next, _skip;
 
         // Request
         private readonly ComboBox _document = new ComboBox();
@@ -112,7 +112,7 @@ namespace CROMS.Kiosk
             var head = new Panel { Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.Transparent };
             _subtitle = new Label
             {
-                Text = "Tell the records staff which entry to pull from the registry books. Only the document and the name are required.",
+                Text = "Tell the records staff which entry to pull from the registry books. Need help? Press Skip and tell the staff at the counter.",
                 Dock = DockStyle.Top,
                 Height = SubtitleH,
                 ForeColor = KioskCore.Muted,
@@ -225,7 +225,17 @@ namespace CROMS.Kiosk
             _next.Margin = new Padding(3, 3, 35, 3);   // line up with the fields' right edge (they keep a 16px gutter)
             _next.Click += new EventHandler(Continue_Click);
 
+            // For a client who cannot fill this in (or with a line forming behind them): keep the
+            // service, skip the typing, and tell the staff at the window instead.
+            _skip = ActionButton("Skip - tell the staff at the counter", KioskCore.CardSelBg, KioskCore.Accent);
+            _skip.Font = Px(20, FontStyle.Bold);
+            _skip.Size = new Size(430, 68);
+            _skip.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _skip.Margin = new Padding(3, 3, 16, 3);
+            _skip.Click += new EventHandler(Skip_Click);
+
             bar.Controls.Add(_back, 0, 0);
+            bar.Controls.Add(_skip, 1, 0);
             bar.Controls.Add(_next, 2, 0);
             root.Controls.Add(bar, 0, 2);
 

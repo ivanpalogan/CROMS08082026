@@ -408,11 +408,13 @@ namespace CROMS.Kiosk
                 new MySqlParameter("@num", num),
                 new MySqlParameter("@date", DateTime.Today),
                 new MySqlParameter("@time", DateTime.Now.ToString("HH:mm")),
-                new MySqlParameter("@doc", s.HasCtc ? (object)s.CtcDocumentType : primary),
+                new MySqlParameter("@doc", s.HasCtc && !string.IsNullOrWhiteSpace(s.CtcDocumentType)
+                    ? (object)s.CtcDocumentType : primary),
                 // One readable line for the screens that only have room for one (the live queue
                 // grid, the Now Serving card). The full structured request is in kiosk_ctc_intake.
                 new MySqlParameter("@purpose", NullIfBlank(
-                    s.HasCtc ? CtcSummary(s)
+                    s.HasCtc && !s.CtcAtCounter ? CtcSummary(s)
+                    : s.CtcSkipped || s.BreqsSkipped ? CounterNoteLine(s)
                     : s.HasMarriageLicense ? "Has Marriage License - hand it to staff"
                     : null)),
                 new MySqlParameter("@label", joined),
@@ -453,8 +455,9 @@ namespace CROMS.Kiosk
                     new MySqlParameter("@txn", returnTxnId),
                     new MySqlParameter("@tid", ticketId));
 
-            if (s.HasBreqs) SaveBreqsRequest(s, ticketId, code);
-            if (s.HasCtc) SaveCtcRequest(s, ticketId);
+            // A skipped detail form leaves no intake row: staff take the details at the window.
+            if (s.HasBreqs && !s.BreqsAtCounter) SaveBreqsRequest(s, ticketId, code);
+            if (s.HasCtc && !s.CtcAtCounter) SaveCtcRequest(s, ticketId);
 
             var services = s.Selected.Select(c => Find(c).Label).ToList();
             int ahead = AheadCount(ticketId, priority, num);
@@ -478,19 +481,21 @@ namespace CROMS.Kiosk
             { error = "You chose Others - please specify who you are (for example: relative, wedding coordinator)."; return false; }
             // Checked BEFORE the ticket exists, so a half-filled PSA request never leaves a
             // ticket behind with no request for staff to find.
-            if (s.HasBreqs && (error = BreqsProblem(s)) != null) return false;
-            if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcDocumentType))
+            // A detail form the client chose to skip ("tell the staff at the counter") is not checked.
+            bool ctc = s.HasCtc && !s.CtcAtCounter;
+            if (s.HasBreqs && !s.BreqsAtCounter && (error = BreqsProblem(s)) != null) return false;
+            if (ctc && string.IsNullOrWhiteSpace(s.CtcDocumentType))
             { error = "Please choose the civil registry document for the Certified True Copy request."; return false; }
-            if (s.HasCtc && (string.IsNullOrWhiteSpace(s.CtcOwnerFirst) || string.IsNullOrWhiteSpace(s.CtcOwnerLast)))
+            if (ctc && (string.IsNullOrWhiteSpace(s.CtcOwnerFirst) || string.IsNullOrWhiteSpace(s.CtcOwnerLast)))
             { error = s.CtcDocumentType == "Marriage"
                   ? "Please enter the husband's first and last name."
                   : "Please enter the first and last name on the record you need a certified true copy of."; return false; }
-            if (s.HasCtc && s.CtcDocumentType == "Marriage"
+            if (ctc && s.CtcDocumentType == "Marriage"
                 && (string.IsNullOrWhiteSpace(s.CtcSpouseFirst) || string.IsNullOrWhiteSpace(s.CtcSpouseLast)))
             { error = "Please enter the wife's first and last name."; return false; }
-            if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcEventProvince))
+            if (ctc && string.IsNullOrWhiteSpace(s.CtcEventProvince))
             { error = "Please select a province."; return false; }
-            if (s.HasCtc && string.IsNullOrWhiteSpace(s.CtcEventCity))
+            if (ctc && string.IsNullOrWhiteSpace(s.CtcEventCity))
             { error = "Please select a city or municipality."; return false; }
 
             // Returning-client pickup: a typed queue number that maps to a parked request is
@@ -528,6 +533,16 @@ namespace CROMS.Kiosk
                     DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  " + ex + Environment.NewLine + Environment.NewLine);
             }
             catch { }
+        }
+
+        /// <summary>The ticket's one-line note when a detail form was skipped: "Details at the counter:
+        /// Certified True Copy (CTC), PSA Copy (BREQS)". Starts with <see cref="KioskSession.CounterNote"/>.</summary>
+        public static string CounterNoteLine(KioskSession s)
+        {
+            var which = new List<string>();
+            if (s.CtcSkipped) which.Add(Find("CTC").Label);
+            if (s.BreqsSkipped) which.Add(Find("BREQS").Label);
+            return KioskSession.CounterNote + ": " + string.Join(", ", which);
         }
 
         public static string CtcSummary(KioskSession s)

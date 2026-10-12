@@ -24,6 +24,7 @@ namespace CROMS.Kiosk
         private float _scale = 1f;      // cumulative scale factor applied, relative to _designSize
         private Size _designSize;        // _box's designed size, cached before any Scale() ever runs
         private int _appliedShift;       // the wife-block gap currently applied, in design pixels
+        private Button _btnSkip;
 
         public BreqsDetailsForm(KioskSession session)
         {
@@ -39,6 +40,23 @@ namespace CROMS.Kiosk
             PlaceStars();
             KioskButtons.Style(_btnBack, KioskButtonKind.Secondary, KioskCore.IconArrowLeft, backdrop: footer.BackColor);
             KioskButtons.Style(_btnNext, KioskButtonKind.Primary, KioskCore.IconArrowRight, iconRight: true, backdrop: footer.BackColor);
+
+            // "Skip - tell the staff at the counter": keeps PSA Copy on the ticket without filling
+            // this form in. Built here, not in the Designer (VS regenerates that file).
+            _btnSkip = new Button
+            {
+                Text = "Skip - tell the staff at the counter",
+                Font = _btnBack.Font,
+                Size = new Size(430, _btnNext.Height),
+                Location = new Point(_btnNext.Left - 430 - 16, _btnNext.Top),
+                Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+            };
+            _btnSkip.Click += BtnSkip_Click;
+            Controls.Add(_btnSkip);
+            _btnSkip.BringToFront();
+            KioskButtons.Style(_btnSkip, KioskButtonKind.Secondary, backdrop: footer.BackColor);
 
             for (int i = 1; i <= 10; i++) _cboCopies.Items.Add(i.ToString());
             _cboPurpose.Items.AddRange(KioskCore.BreqsPurposes);
@@ -184,6 +202,18 @@ namespace CROMS.Kiosk
                 MessageBox.Show(problem, "Please check", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
+            _session.BreqsAtCounter = false;
+            _navigating = true;
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+
+        /// <summary>Keeps PSA Copy on the ticket but skips this form: no request row is written and the
+        /// staff take the details at the window (the PSA desk opens a new request from the ticket).</summary>
+        private void BtnSkip_Click(object sender, EventArgs e)
+        {
+            SaveToSession();
+            _session.BreqsAtCounter = true;
             _navigating = true;
             DialogResult = DialogResult.OK;
             Close();

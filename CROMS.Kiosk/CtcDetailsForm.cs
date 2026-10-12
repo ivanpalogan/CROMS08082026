@@ -244,6 +244,21 @@ namespace CROMS.Kiosk
             }
 
             SaveToSession();
+            _session.CtcAtCounter = false;
+            _navigating = true;
+            DialogResult = DialogResult.OK;
+            Close();
+        }
+
+        /// <summary>
+        /// Keeps the service on the ticket but skips this form: nothing here is checked, no intake
+        /// row is written, and the staff ask for the details at the window. Whatever was already
+        /// typed stays in the session, so coming Back shows it again.
+        /// </summary>
+        private void Skip_Click(object sender, EventArgs e)
+        {
+            SaveToSession();
+            _session.CtcAtCounter = true;
             _navigating = true;
             DialogResult = DialogResult.OK;
             Close();

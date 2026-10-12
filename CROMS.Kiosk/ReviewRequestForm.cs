@@ -133,7 +133,12 @@ namespace CROMS.Kiosk
             foreach (string code in _session.Selected)
                 Row((i++).ToString(), KioskCore.Find(code).Label);
 
-            if (_session.HasCtc)
+            if (_session.CtcSkipped)
+            {
+                Section("CERTIFIED TRUE COPY");
+                Row("Details", "You will tell the staff at the counter", KioskCore.Accent);
+            }
+            else if (_session.HasCtc)
             {
                 Section("CERTIFIED TRUE COPY");
                 Row("Document", _session.CtcDocumentType + "  ·  Copies: " + Math.Max(1, _session.CtcCopies));
@@ -150,7 +155,12 @@ namespace CROMS.Kiosk
                 if (!string.IsNullOrWhiteSpace(_session.CtcRelationship)) Row("Requester is the", _session.CtcRelationship);
                 if (!string.IsNullOrWhiteSpace(_session.CtcDetails)) Row("Notes", _session.CtcDetails);
             }
-            if (_session.HasBreqs)
+            if (_session.BreqsSkipped)
+            {
+                Section("PSA COPY (BREQS)");
+                Row("Details", "You will tell the staff at the counter", KioskCore.Accent);
+            }
+            else if (_session.HasBreqs)
             {
                 Section("PSA COPY (BREQS)");
                 Row("Document", _session.BreqsDocType + "  ·  Copies: " + _session.BreqsCopies);

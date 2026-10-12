@@ -52,6 +52,9 @@ namespace CROMS.Modules
     /// </summary>
     public sealed class ClientTasksPanel : Panel
     {
+        // First words of queue_tickets.purpose when the client skipped a kiosk detail form
+        // (KioskSession.CounterNote in CROMS.Kiosk - keep the two in step).
+        private const string CounterNote = "Details at the counter";
         private const int TabWidth = 30;
         private const int BodyWidth = 340;
 
@@ -664,7 +667,16 @@ namespace CROMS.Modules
 
             // Fallback for every other service: the kiosk's own one-line note on the ticket.
             string note = Cell(ticket, "purpose");
-            if (note != null && !_details.ContainsKey("CTC"))
+            if (note != null && note.StartsWith(CounterNote, StringComparison.OrdinalIgnoreCase))
+            {
+                // The client pressed "Skip - tell the staff at the counter" on the kiosk's detail
+                // form. Said on that service's own card only, never on the other tasks.
+                var ask = new System.Collections.Generic.List<string>
+                    { "No details entered at the kiosk - ask the client what they need." };
+                if (note.IndexOf("CTC", StringComparison.OrdinalIgnoreCase) >= 0 && !_details.ContainsKey("CTC")) _details["CTC"] = ask;
+                if (note.IndexOf("BREQS", StringComparison.OrdinalIgnoreCase) >= 0 && !_details.ContainsKey("BREQS")) _details["BREQS"] = ask;
+            }
+            else if (note != null && !_details.ContainsKey("CTC"))
                 _details["*"] = new System.Collections.Generic.List<string> { note };
         }
 
