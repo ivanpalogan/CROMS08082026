@@ -514,10 +514,7 @@ namespace CROMS.Data
             if (c.IsTime)
             {
                 // Stored as HH:mm; the paper says "born alive at ___ a.m./p.m.".
-                DateTime t;
-                if (DateTime.TryParseExact(text.Trim(), new[] { "HH:mm", "H:mm", "HH:mm:ss" },
-                        CultureInfo.InvariantCulture, DateTimeStyles.None, out t))
-                    return t.ToString("h:mm tt", CultureInfo.InvariantCulture);
+                return ClockTime.Display(text);
             }
             if (c.Extra != null)
             {

@@ -280,6 +280,7 @@ namespace CROMS.Forms
             }
             if (dt == null) dt = new DataTable();
 
+            ClockTime.DisplayColumn(dt, "Time of Birth");
             dgv.DataSource = dt;
             if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
             string summary = _criteria.Summary(PickType);
@@ -441,6 +442,7 @@ namespace CROMS.Forms
                     col.FillWeight = 130;
                     col.DefaultCellStyle.Format = "dd MMM yyyy";
                 }
+                if (col.Name == "Time of Birth") { col.MinimumWidth = 130; col.FillWeight = 110; }
             }
         }
         private void LoadGrid()
@@ -449,7 +451,8 @@ namespace CROMS.Forms
             string sql =
                 "SELECT id, registry_no AS 'Registry No.', " +
                 "CONCAT_WS(' ', first_name, middle_name, last_name) AS 'Child Name', " +
-                "sex AS Sex, date_of_birth AS 'Date of Birth', book_volume AS 'Book', book_page AS 'Page', " +
+                "sex AS Sex, date_of_birth AS 'Date of Birth', time_of_birth AS 'Time of Birth', " +
+                "book_volume AS 'Book', book_page AS 'Page', " +
                 "status AS Status, " +
                 "CASE WHEN record_source = '" + BacklogSource + "' THEN 'Digitized' ELSE 'Registered' END AS Source " +
                 "FROM births WHERE 1 = 1";
@@ -472,6 +475,7 @@ namespace CROMS.Forms
             sql += _allBooks ? " ORDER BY id DESC LIMIT 300" : " ORDER BY book_page, id DESC";
 
             DataTable dt = ps.Count > 0 ? Db.Pull(sql, ps.ToArray()) : Db.Pull(sql);
+            ClockTime.DisplayColumn(dt, "Time of Birth");   // stored 15:15, shown 3:15 PM
             dgv.DataSource = dt;
             if (dgv.Columns.Contains("id")) dgv.Columns["id"].Visible = false;
             lblListHeader.Text = (_allBooks ? PickHeader() : "Book " + (_bookVolDisplay ?? "(no volume recorded)"))
@@ -498,7 +502,7 @@ namespace CROMS.Forms
             txtLast.Text = Str(r, "last_name");
             SetCombo(cboSex, Str(r, "sex"));
             SetDate(dtpDob, r["date_of_birth"]);
-            txtTob.Text = Str(r, "time_of_birth");
+            txtTob.Text = ClockTime.Display(Str(r, "time_of_birth"));
             txtPlace.Text = Str(r, "place_of_birth");
             txtTypeOfBirth.Text = Str(r, "type_of_birth");
             txtWeight.Text = Str(r, "weight_grams");
@@ -571,7 +575,7 @@ namespace CROMS.Forms
                 new MySqlParameter("@ln", txtLast.Text.Trim()),
                 new MySqlParameter("@sex", (object)cboSex.SelectedItem ?? DBNull.Value),
                 new MySqlParameter("@dob", dtpDob.Checked ? (object)dtpDob.Value.Date : DBNull.Value),
-                new MySqlParameter("@tob", NullIfEmpty(txtTob.Text)),
+                new MySqlParameter("@tob", NullIfEmpty(ClockTime.Normalize(txtTob.Text))),
                 new MySqlParameter("@place", NullIfEmpty(txtPlace.Text)),
                 new MySqlParameter("@btype", NullIfEmpty(txtTypeOfBirth.Text)),
                 new MySqlParameter("@weight", int.TryParse(txtWeight.Text, out int w) ? (object)w : DBNull.Value),

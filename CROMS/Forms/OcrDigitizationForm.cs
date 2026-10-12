@@ -2698,7 +2698,7 @@ namespace CROMS.Forms
                 new MySqlParameter("@ln", V("ChildLast")),
                 new MySqlParameter("@sex", sex),
                 new MySqlParameter("@dob", dob),
-                new MySqlParameter("@tob", NullIfEmpty(V("TimeOfBirth"))),
+                new MySqlParameter("@tob", NullIfEmpty(ClockTime.Normalize(V("TimeOfBirth")))),
                 new MySqlParameter("@place", NullIfEmpty(V("PlaceOfBirth"))),
                 new MySqlParameter("@btype", NullIfEmpty(V("TypeOfBirth"))),
                 new MySqlParameter("@weight", weight),

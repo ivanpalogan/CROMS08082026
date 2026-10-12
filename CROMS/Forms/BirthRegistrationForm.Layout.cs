@@ -535,16 +535,25 @@ namespace CROMS.Forms
         {
             StyleListGrid(dgvBirths, new Dictionary<string, float>
             {
-                { "Registry No", 16 }, { "Child", 34 }, { "Sex", 9 }, { "DOB", 14 }, { "Book", 9 }, { "Page", 8 }, { "Status", 14 }
+                { "Registry No", 16 }, { "Child", 31 }, { "Sex", 9 }, { "DOB", 14 }, { "Time", 12 }, { "Book", 9 }, { "Page", 8 }, { "Status", 14 }
             });
-            if (dgvBirths.Width < 800)
+            // The app-wide grid padding; the narrow branch below tightens it.
+            dgvBirths.DefaultCellStyle.Padding = new Padding(8, 4, 8, 4);
+            dgvBirths.ColumnHeadersDefaultCellStyle.Padding = new Padding(8, 0, 8, 0);
+            bool narrow = dgvBirths.Width < 800;
+            if (narrow)
             {
-                // A 1366px screen leaves the list under 750px: one size down so the headings and the
-                // Sex / Book / Page values are not cut to "S..." and "B...".
-                dgvBirths.DefaultCellStyle.Font = Px(16f);
-                dgvBirths.ColumnHeadersDefaultCellStyle.Font = Px(16f, FontStyle.Bold);
-                dgvBirths.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
+                // A 1366px screen leaves the list under 750px: a smaller size and tighter cells so
+                // all eight columns show their whole value without a sideways scrollbar.
+                dgvBirths.DefaultCellStyle.Font = Px(15f);
+                dgvBirths.ColumnHeadersDefaultCellStyle.Font = Px(15f, FontStyle.Bold);
+                dgvBirths.ColumnHeadersDefaultCellStyle.Padding = new Padding(3, 0, 3, 0);
+                dgvBirths.DefaultCellStyle.Padding = new Padding(3, 0, 3, 0);
             }
+            // Same date wording as the Records Archive list, and no value cut to "21/09/20..." or
+            // "11:26 P...": the short columns take the width they need, the name takes the rest.
+            if (dgvBirths.Columns.Contains("DOB")) dgvBirths.Columns["DOB"].DefaultCellStyle.Format = "dd MMM yyyy";
+            FitListColumns(dgvBirths, "Child", narrow ? 120 : 170);
             if (_dgvPending != null)
             {
                 StyleListGrid(_dgvPending, new Dictionary<string, float>
@@ -555,6 +564,29 @@ namespace CROMS.Forms
                 _dgvPending.DefaultCellStyle.Font = Px(16f);
                 _dgvPending.ColumnHeadersDefaultCellStyle.Font = Px(16f, FontStyle.Bold);
                 _dgvPending.ColumnHeadersDefaultCellStyle.Padding = new Padding(4, 0, 4, 0);
+            }
+        }
+
+        /// <summary>Every column but the name is sized to its own values; the name column fills
+        /// what is left (its full text is in the tooltip when it is cut).</summary>
+        private static void FitListColumns(DataGridView g, string fillColumn, int fillMinimum)
+        {
+            Font head = g.ColumnHeadersDefaultCellStyle.Font ?? g.Font;
+            int pad = g.ColumnHeadersDefaultCellStyle.Padding.Horizontal + 8;
+            foreach (DataGridViewColumn col in g.Columns)
+            {
+                if (!col.Visible) continue;
+                if (col.Name == fillColumn)
+                {
+                    col.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+                    col.MinimumWidth = fillMinimum;
+                    continue;
+                }
+                // Sized to the values, never narrower than the heading itself. (Sizing to the
+                // heading as well reserves room for a sort arrow on every column, which is what
+                // squeezed the name.)
+                col.MinimumWidth = TextRenderer.MeasureText(col.HeaderText, head).Width + pad;
+                col.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCellsExceptHeader;
             }
         }
 

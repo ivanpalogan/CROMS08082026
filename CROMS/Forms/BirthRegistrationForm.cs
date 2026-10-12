@@ -1086,8 +1086,10 @@ namespace CROMS.Forms
             DataTable dt = Db.Pull(
                 "SELECT id, registry_no AS 'Registry No', " +
                 "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS Child, " +
-                "sex AS Sex, date_of_birth AS DOB, book_volume AS Book, book_page AS Page, status AS Status " +
+                "sex AS Sex, date_of_birth AS DOB, time_of_birth AS 'Time', " +
+                "book_volume AS Book, book_page AS Page, status AS Status " +
                 "FROM births WHERE status <> 'Pending Approval' ORDER BY id DESC");
+            ClockTime.DisplayColumn(dt, "Time");   // stored 15:15, shown 3:15 PM
             dgvBirths.DataSource = dt;
             if (dgvBirths.Columns.Contains("id")) dgvBirths.Columns["id"].Visible = false;
             if (_listStyled) ReapplyListGrids();

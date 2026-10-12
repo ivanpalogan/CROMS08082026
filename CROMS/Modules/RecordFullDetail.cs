@@ -70,6 +70,9 @@ namespace CROMS.Modules
                     if (v == null || v == DBNull.Value || v is byte[]) continue;
                     string text = Format(v);
                     if (text.Length == 0) continue;
+                    // A time kept as text ("15:15") reads the way the lists and the certificate show it.
+                    if (v is string && c.ColumnName.StartsWith("time_of_", StringComparison.Ordinal))
+                        text = ClockTime.Display(text);
                     if (c.ColumnName == "record_id" || c.ColumnName.EndsWith("_asset")) continue;
                     int i = grid.Rows.Add(Pretty(c.ColumnName), text);
                     grid.Rows[i].Cells[0].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
