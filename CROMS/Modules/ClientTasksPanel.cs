@@ -1068,8 +1068,10 @@ namespace CROMS.Modules
                     "WHERE id = @id AND status = 'Serving'",
                 new MySqlParameter("@id", taskId));
             if (QueueTaskContext.TaskId == taskId) QueueTaskContext.Clear();
-            Reload();
             _shell.RefreshQueueHeader();
+            // Keep the drawer open after a task is done, so the next task (or Complete
+            // Client Visit) is the next thing the operator sees.
+            Expand();
         }
 
         /// <summary>

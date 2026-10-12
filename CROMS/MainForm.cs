@@ -1160,6 +1160,11 @@ namespace CROMS
                     }
                 }
                 marriageDesk.RefreshData();
+                // The entry window is closed, so that task's work is over: show the drawer
+                // again instead of hiding it, so the operator sees what is left.
+                RefreshQueueHeader();
+                _clientTasks.Expand();
+                return;
             }
             RefreshQueueHeader();
             // The processing window the operator asked for is now open — put the drawer body

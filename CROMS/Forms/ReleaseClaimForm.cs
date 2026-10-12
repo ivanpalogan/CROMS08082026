@@ -2298,15 +2298,15 @@ namespace CROMS.Forms
                     "Released " + releasedCode + " (" + releasedClient + ") to " + txtClaimant.Text.Trim() + ".",
                     "Released", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                // Transaction is saved. Print the certificate itself (the .rpt / form replica)
-                // for the copy being handed over — not only the payment slip.
-                PrintReleasedCertificate(_selectedTxnId.Value);
+                // No print preview here: the certificate was already printed at the Find/Print
+                // step, before payment.
 
                 // wipe the form for the next client.
                 ClearClaimForm();
                 LoadPending();
                 LoadReleased();
                 UpdateSummary();
+                ShowClientTasks();
             }
             catch (Exception ex)
             {
@@ -2316,37 +2316,14 @@ namespace CROMS.Forms
         }
 
         /// <summary>
-        /// Opens the certificate print preview (Crystal .rpt or the blank-form replica, via
-        /// <see cref="CertificateReport"/>) for the record this transaction's CTC request
-        /// points at. Birth / Marriage / Death only; a Negative Certification or a request
-        /// with no linked record has no registry certificate to print. Never throws —
-        /// the release is already saved, so a print problem must not undo or hide it.
+        /// After a release, opens the Client Tasks drawer so the officer sees what is left
+        /// for this client (Finish this task, the next task, or Complete Client Visit).
+        /// Does nothing when no queue client is at this window.
         /// </summary>
-        private void PrintReleasedCertificate(int txnId)
+        private void ShowClientTasks()
         {
-            try
-            {
-                DataTable dt = Db.Pull(
-                    "SELECT record_type, record_id FROM certificate_requests " +
-                    "WHERE transaction_id = @t AND cert_type = 'CTC' AND record_id IS NOT NULL " +
-                    "ORDER BY id DESC LIMIT 1",
-                    new MySqlParameter("@t", txnId));
-                if (dt.Rows.Count == 0) return;
-
-                DocKind kind;
-                if (!Enum.TryParse(Convert.ToString(dt.Rows[0]["record_type"]), out kind)
-                    || kind == DocKind.Unknown) return;
-
-                long recordId = Convert.ToInt64(dt.Rows[0]["record_id"]);
-                CertificateReport.ShowFor(kind, recordId, this);
-                Audit.Write(Audit.Update, "transactions", txnId, "Certificate printed at release");
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Released, but the certificate could not be opened for printing: " +
-                    CROMS.Data.ErrorLog.Reason(ex) + "\n\nPrint it from the registration screen.",
-                    "Print", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
+            MainForm shell = Shell();
+            if (shell != null) shell.ShowClientTasksPanel();
         }
 
         /// <summary>Releases a kiosk pickup claim that has no transaction (mirrors the Claim Form).</summary>
@@ -2390,6 +2367,7 @@ namespace CROMS.Forms
                 LoadPending();
                 LoadReleased();
                 UpdateSummary();
+                ShowClientTasks();
             }
             catch (Exception ex)
             {
