@@ -112,7 +112,7 @@ namespace CROMS.Kiosk
             var head = new Panel { Dock = DockStyle.Fill, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, BackColor = Color.Transparent };
             _subtitle = new Label
             {
-                Text = "Tell the records staff which entry to pull from the registry books. Need help? Press Skip and tell the staff at the counter.",
+                Text = "Tell the records staff which entry to pull from the registry books. Need help? Choose the document, copies and purpose, then press Skip and tell the staff the rest.",
                 Dock = DockStyle.Top,
                 Height = SubtitleH,
                 ForeColor = KioskCore.Muted,
@@ -158,6 +158,7 @@ namespace CROMS.Kiosk
             for (int i = 1; i <= 10; i++) _copies.Items.Add(i.ToString());
             Cell(Field("Number of Copies", _copies), 3, 3);
 
+            _purpose.DropDownStyle = ComboBoxStyle.DropDownList;   // pick one; "Others" opens a specify box
             _purpose.Items.AddRange(KioskCore.CtcPurposes);
             Cell(Field("Purpose of Request", _purpose), 6, 6);
 

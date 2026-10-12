@@ -673,7 +673,20 @@ namespace CROMS.Modules
                 // form. Said on that service's own card only, never on the other tasks.
                 var ask = new System.Collections.Generic.List<string>
                     { "No details entered at the kiosk - ask the client what they need." };
-                if (note.IndexOf("CTC", StringComparison.OrdinalIgnoreCase) >= 0 && !_details.ContainsKey("CTC")) _details["CTC"] = ask;
+                if (note.IndexOf("CTC", StringComparison.OrdinalIgnoreCase) >= 0 && !_details.ContainsKey("CTC"))
+                {
+                    // The kiosk lets a client skip the CTC form only after choosing the document,
+                    // the copies and the purpose; they ride in the note as "(CTC) [Birth · 2 copies · ...]".
+                    var m = System.Text.RegularExpressions.Regex.Match(note, @"\(CTC\)\s*\[([^\]]*)\]?");
+                    var ctcAsk = new System.Collections.Generic.List<string>();
+                    if (m.Success && m.Groups[1].Value.Trim().Length > 0)
+                    {
+                        ctcAsk.Add("Chosen at the kiosk: " + m.Groups[1].Value.Trim());
+                        ctcAsk.Add("No record details entered - ask the client whose record it is.");
+                    }
+                    else ctcAsk.AddRange(ask);
+                    _details["CTC"] = ctcAsk;
+                }
                 if (note.IndexOf("BREQS", StringComparison.OrdinalIgnoreCase) >= 0 && !_details.ContainsKey("BREQS")) _details["BREQS"] = ask;
             }
             else if (note != null && !_details.ContainsKey("CTC"))

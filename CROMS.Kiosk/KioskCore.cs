@@ -540,9 +540,20 @@ namespace CROMS.Kiosk
         public static string CounterNoteLine(KioskSession s)
         {
             var which = new List<string>();
-            if (s.CtcSkipped) which.Add(Find("CTC").Label);
+            if (s.CtcSkipped)
+            {
+                // What the client did choose before skipping - "[Birth · 2 copies · Employment]".
+                // Square brackets: the staff Client Tasks panel reads the text between them.
+                var chosen = new List<string>();
+                if (!string.IsNullOrWhiteSpace(s.CtcDocumentType)) chosen.Add(s.CtcDocumentType.Trim());
+                chosen.Add(s.CtcCopies > 1 ? s.CtcCopies + " copies" : "1 copy");
+                if (!string.IsNullOrWhiteSpace(s.CtcPurpose))
+                    chosen.Add(s.CtcPurpose.Trim().Replace("[", "(").Replace("]", ")"));
+                which.Add(Find("CTC").Label + (string.IsNullOrWhiteSpace(s.CtcDocumentType) ? "" : " [" + string.Join(" · ", chosen) + "]"));
+            }
             if (s.BreqsSkipped) which.Add(Find("BREQS").Label);
-            return KioskSession.CounterNote + ": " + string.Join(", ", which);
+            string line = KioskSession.CounterNote + ": " + string.Join(", ", which);
+            return line.Length > 150 ? line.Substring(0, 150) : line;
         }
 
         public static string CtcSummary(KioskSession s)

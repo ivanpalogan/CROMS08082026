@@ -194,6 +194,9 @@ namespace CROMS.Kiosk
                 field.TextChanged += (s, e) => ClearError(field);
             }
             _document.SelectedIndexChanged += (s, e) => ClearError(_document);
+            // Pick-only lists do not raise TextChanged reliably when a choice is made.
+            _copies.SelectedIndexChanged += (s, e) => ClearError(_copies);
+            _purpose.SelectedIndexChanged += (s, e) => ClearError(_purpose);
         }
 
         private void Continue_Click(object sender, EventArgs e)
@@ -251,12 +254,40 @@ namespace CROMS.Kiosk
         }
 
         /// <summary>
-        /// Keeps the service on the ticket but skips this form: nothing here is checked, no intake
-        /// row is written, and the staff ask for the details at the window. Whatever was already
+        /// Keeps the service on the ticket but skips the rest of this form: no intake row is
+        /// written, and the staff ask for the record's details at the window. Whatever was already
         /// typed stays in the session, so coming Back shows it again.
+        /// <para/>
+        /// Skip is allowed only once the three things a client can always answer are chosen -
+        /// the document, the number of copies and the purpose. They go on the ticket's note, so
+        /// the window knows what is being asked for before the client says a word.
         /// </summary>
         private void Skip_Click(object sender, EventArgs e)
         {
+            ClearAllErrors();
+            Control first = null;
+            Action<Control, string[]> need = (c, wordings) =>
+            {
+                SetError(c, wordings);
+                if (first == null) first = c;
+            };
+            if (_document.SelectedItem == null)
+                need(_document, new[] { "Please choose a document type first.", "Please choose a document." });
+            if (_copies.SelectedItem == null)
+                need(_copies, new[] { "Please choose the number of copies.", "Choose the copies." });
+            if (string.IsNullOrWhiteSpace(_purpose.Text))
+                need(_purpose, new[] { "Please choose the purpose of your request.", "Please choose the purpose." });
+            else if (OthersBox.IsOthers(_purpose.Text) && string.IsNullOrWhiteSpace(_purposeSpecify.Text))
+                need(_purposeSpecify, new[] { "Please specify the purpose of your request.", "Please specify the purpose." });
+            if (first != null)
+            {
+                SizeCard();
+                Panel p = PanelOf(first);
+                if (p != null) _body.ScrollControlIntoView(p);
+                first.Focus();
+                return;
+            }
+
             SaveToSession();
             _session.CtcAtCounter = true;
             _navigating = true;
