@@ -91,14 +91,34 @@ namespace CROMS.Forms
         private int _bottomReserve;
         private int _rightReserve;
 
+        // Search mode: the grid runs to this far above the bottom edge, and the two record
+        // buttons sit at the foot of the detail rail, beside the record they act on. In every
+        // other category they go back under the grid (home bounds captured at design size).
+        private const int SearchBottomMargin = 16;
+        private Rectangle _recordButtonHome;
+        private Rectangle _certButtonHome;
+        private int _buttonBottomOffset;
+        private Panel _railBody;
+        private Panel _railActions;
+        private Panel _railGap;
+
         public RecordsArchiveForm()
         {
             InitializeComponent();
+            BuildCategories();
+            SetupTreeStyle();
+            WidenTreeToFit();   // before the grid bounds are captured: it moves the grid's left edge
             _gridFullBounds = grid.Bounds;
             _bottomReserve = ClientSize.Height - _gridFullBounds.Bottom;
             _rightReserve = ClientSize.Width - _gridFullBounds.Right;
+            _recordButtonHome = btnViewRecord.Bounds;
+            _certButtonHome = btnViewCertificate.Bounds;
+            _buttonBottomOffset = ClientSize.Height - btnViewRecord.Top;
+            SetupRail();
+            SearchHost.SetCue(txtQuery, "Search by name");
+            new ToolTip().SetToolTip(chkFuzzy, "Also finds names that sound the same but are spelled differently.");
+            grid.DataBindingComplete += (s, e) => MarkQueryOrder();
             cboSearchType.SelectedIndex = 0;
-            BuildCategories();
             _ready = true;
             BuildTree();
             Resize += (s, e) => ApplyBounds();
@@ -112,11 +132,17 @@ namespace CROMS.Forms
         {
             if (_current == null) return;
             int bottom = ClientSize.Height - _bottomReserve;
+            // The tree runs to the same bottom edge as the search grid and the rail.
+            treeCategories.Height = Math.Max(120, ClientSize.Height - SearchBottomMargin - treeCategories.Top);
 
             if (_current.IsSearch)
             {
+                // The two record buttons live in the rail in this mode, so the strip that
+                // is reserved for them under the grid goes back to the grid.
+                bottom = ClientSize.Height - SearchBottomMargin;
                 int top = pnlSearchBar.Bottom + 12;
-                const int detailWidth = 330;
+                // On a narrow window the rail gives some width back to the list.
+                int detailWidth = ClientSize.Width < 1300 ? 280 : 330;
                 const int gap = 12;
                 int height = Math.Max(120, bottom - top);
                 int rightEdge = ClientSize.Width - _rightReserve;
@@ -252,11 +278,129 @@ namespace CROMS.Forms
         }
 
         // ------------------------------------------------------------ tree
+        private const int TreeGroupIndent = 26;   // text start of a group / the search row
+        private const int TreeChildIndent = 34;   // text start of a category under a group
+        private Font _treeBold;
+
+        /// <summary>
+        /// Draws the category tree flat: no dotted lines or plus/minus boxes, a chevron on each
+        /// group, and the chosen category as a soft tinted row. A solid-blue selected node made
+        /// the tree and the selected grid row both look like "the selection".
+        /// </summary>
+        private void SetupTreeStyle()
+        {
+            _treeBold = new Font(treeCategories.Font, FontStyle.Bold);
+            treeCategories.ShowLines = false;
+            treeCategories.ShowPlusMinus = false;
+            treeCategories.ShowRootLines = false;
+            treeCategories.BorderStyle = BorderStyle.None;
+            treeCategories.BackColor = UiTheme.Surface;
+            treeCategories.ItemHeight = 30;
+            treeCategories.DrawMode = TreeViewDrawMode.OwnerDrawAll;
+            treeCategories.DrawNode += treeCategories_DrawNode;
+            treeCategories.BeforeSelect += treeCategories_BeforeSelect;
+            treeCategories.NodeMouseClick += treeCategories_NodeMouseClick;
+            Disposed += (s, e) => _treeBold.Dispose();
+        }
+
+        /// <summary>Makes the tree as wide as its longest caption and moves everything beside it over.</summary>
+        private void WidenTreeToFit()
+        {
+            const TextFormatFlags flags = TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine;
+            int need = TreeGroupIndent + TextRenderer.MeasureText(_searchCategory.Label, _treeBold, Size.Empty, flags).Width;
+            foreach (ArchiveCategory cat in _categories)
+            {
+                need = Math.Max(need, TreeGroupIndent + TextRenderer.MeasureText(cat.Group, _treeBold, Size.Empty, flags).Width);
+                need = Math.Max(need, TreeChildIndent + TextRenderer.MeasureText(cat.Label, treeCategories.Font, Size.Empty, flags).Width);
+            }
+            need += 16 + SystemInformation.VerticalScrollBarWidth;
+
+            int delta = Math.Min(need, 380) - treeCategories.Width;
+            if (delta <= 0) return;
+            treeCategories.Width += delta;
+            foreach (Control c in new Control[] { lblCategoryTitle, pnlSearchBar, btnViewRecord, btnViewCertificate })
+                c.Left += delta;
+            grid.SetBounds(grid.Left + delta, grid.Top, grid.Width - delta, grid.Height);
+            pnlWorkbench.SetBounds(pnlWorkbench.Left + delta, pnlWorkbench.Top, pnlWorkbench.Width - delta, pnlWorkbench.Height);
+        }
+
+        private void treeCategories_DrawNode(object sender, DrawTreeNodeEventArgs e)
+        {
+            if (e.Bounds.Height <= 0) return;
+            Graphics g = e.Graphics;
+            var row = new Rectangle(0, e.Bounds.Y, treeCategories.ClientSize.Width, e.Bounds.Height);
+            using (var back = new SolidBrush(treeCategories.BackColor)) g.FillRectangle(back, row);
+
+            bool isGroup = e.Node.Tag == null;
+            bool isSearch = ReferenceEquals(e.Node.Tag, _searchCategory);
+            bool selected = !isGroup && e.Node == treeCategories.SelectedNode;
+            Color fill = treeCategories.BackColor;
+
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            if (selected)
+            {
+                fill = UiTheme.AccentTint;
+                var pill = new Rectangle(row.X + 6, row.Y + 2, row.Width - 12, row.Height - 4);
+                using (var path = RoundedRow(pill, 6))
+                using (var b = new SolidBrush(fill)) g.FillPath(b, path);
+            }
+
+            int cy = row.Y + row.Height / 2;
+            Color ink = selected || isSearch ? UiTheme.Accent : isGroup ? UiTheme.Ink : UiTheme.Muted;
+            if (isGroup)
+            {
+                using (var pen = new Pen(UiTheme.Muted, 1.6F))
+                {
+                    if (e.Node.IsExpanded) g.DrawLines(pen, new[] { new Point(10, cy - 2), new Point(14, cy + 2), new Point(18, cy - 2) });
+                    else g.DrawLines(pen, new[] { new Point(12, cy - 4), new Point(16, cy), new Point(12, cy + 4) });
+                }
+            }
+            else if (isSearch)
+            {
+                using (var pen = new Pen(UiTheme.Accent, 1.7F))
+                {
+                    g.DrawEllipse(pen, 12, cy - 6, 8, 8);
+                    g.DrawLine(pen, 19, cy + 2, 22, cy + 5);
+                }
+            }
+
+            int x = isGroup ? TreeGroupIndent : isSearch ? TreeGroupIndent + 4 : TreeChildIndent;
+            // NoPrefix: two group names carry an ampersand, which would otherwise be eaten as a mnemonic.
+            TextRenderer.DrawText(g, e.Node.Text, isGroup || isSearch ? _treeBold : treeCategories.Font,
+                new Rectangle(x, row.Y, Math.Max(0, row.Width - x - 8), row.Height), ink, fill,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix |
+                TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis);
+        }
+
+        private static System.Drawing.Drawing2D.GraphicsPath RoundedRow(Rectangle r, int radius)
+        {
+            int d = radius * 2;
+            var p = new System.Drawing.Drawing2D.GraphicsPath();
+            p.AddArc(r.X, r.Y, d, d, 180, 90);
+            p.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            p.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            p.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            p.CloseFigure();
+            return p;
+        }
+
+        /// <summary>A group heading opens and closes; it is never the selected category.</summary>
+        private void treeCategories_BeforeSelect(object sender, TreeViewCancelEventArgs e)
+        {
+            if (e.Node != null && e.Node.Tag == null && e.Action == TreeViewAction.ByMouse) e.Cancel = true;
+        }
+
+        private void treeCategories_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
+        {
+            if (e.Node == null || e.Node.Tag != null || e.Button != MouseButtons.Left) return;
+            if (e.Node.IsExpanded) e.Node.Collapse(); else e.Node.Expand();
+        }
+
         private void BuildTree()
         {
             treeCategories.Nodes.Clear();
             _categoryNodes.Clear();
-            var searchNode = new TreeNode("🔎  " + _searchCategory.Label)
+            var searchNode = new TreeNode(_searchCategory.Label)
             {
                 Tag = _searchCategory,
                 ForeColor = UiTheme.Accent,
@@ -313,9 +457,15 @@ namespace CROMS.Forms
             try
             {
                 DataTable dt = Db.Pull(cat.Sql);
+                // Unbind first: the grid keeps a column whose name it already has (Name, Status,
+                // Type) in its old place, which shuffled the column order between categories.
+                grid.DataSource = null;
                 grid.DataSource = dt;
                 if (grid.Columns.Contains("id")) grid.Columns["id"].Visible = false;
-                lblCount.Text = dt.Rows.Count + " record(s)";
+                // The search list sets its own column weights; a column of the same name here
+                // (Name, Status) kept them and came out too narrow to read.
+                foreach (DataGridViewColumn col in grid.Columns) col.FillWeight = 100;
+                lblCount.Text = CountText(dt.Rows.Count);
             }
             catch (Exception ex)
             {
@@ -861,6 +1011,7 @@ namespace CROMS.Forms
             cardDetail.Visible = true;
             btnViewRecord.Text = "View Record Details";
             btnViewCertificate.Visible = true;
+            DockButtonsInRail(true);
             ApplyBounds();
             txtQuery.Focus();
         }
@@ -871,8 +1022,59 @@ namespace CROMS.Forms
             cardDetail.Visible = false;
             btnViewRecord.Text = "View Full Record";
             btnViewCertificate.Visible = false;
+            btnViewRecord.Enabled = btnViewCertificate.Enabled = true;
+            DockButtonsInRail(false);
             ApplyBounds();
         }
+
+        /// <summary>
+        /// Splits the rail into a scrolling body (the record's facts, rebuilt on every
+        /// selection) and a fixed foot that holds the two record buttons.
+        /// </summary>
+        private void SetupRail()
+        {
+            cardDetail.AutoScroll = false;
+            cardDetail.Padding = Padding.Empty;
+            _railBody = new Panel { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White, Padding = new Padding(14) };
+            _railActions = new Panel { Dock = DockStyle.Bottom, BackColor = Color.White, Padding = new Padding(14, 12, 14, 14) };
+            _railActions.Height = _railActions.Padding.Vertical + btnViewRecord.Height + 8 + btnViewCertificate.Height;
+            _railActions.Paint += (s, e) =>
+            {
+                using (var p = new Pen(UiTheme.RowLine)) e.Graphics.DrawLine(p, 0, 0, _railActions.Width, 0);
+            };
+            _railGap = new Panel { Dock = DockStyle.Top, Height = 8, BackColor = Color.White };
+            // Fill first, Bottom after: a docked child added later is laid out first.
+            cardDetail.Controls.Add(_railBody);
+            cardDetail.Controls.Add(_railActions);
+        }
+
+        private void DockButtonsInRail(bool inRail)
+        {
+            if (inRail)
+            {
+                if (btnViewRecord.Parent == _railActions) return;
+                _railActions.SuspendLayout();
+                btnViewRecord.Anchor = btnViewCertificate.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                // Added bottom-up: the last one added docks at the top.
+                _railActions.Controls.Add(btnViewCertificate);
+                _railActions.Controls.Add(_railGap);
+                _railActions.Controls.Add(btnViewRecord);
+                btnViewCertificate.Dock = btnViewRecord.Dock = DockStyle.Top;
+                _railActions.ResumeLayout(true);
+                return;
+            }
+
+            if (btnViewRecord.Parent == this) return;
+            btnViewRecord.Dock = btnViewCertificate.Dock = DockStyle.None;
+            Controls.Add(btnViewRecord);
+            Controls.Add(btnViewCertificate);
+            int top = ClientSize.Height - _buttonBottomOffset;
+            btnViewRecord.SetBounds(_recordButtonHome.X, top, _recordButtonHome.Width, _recordButtonHome.Height);
+            btnViewCertificate.SetBounds(_certButtonHome.X, top, _certButtonHome.Width, _certButtonHome.Height);
+            btnViewRecord.Anchor = btnViewCertificate.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        }
+
+        private static string CountText(int n) => n == 1 ? "1 record" : n + " records";
 
         private void txtQuery_TextChanged(object sender, EventArgs e) => DoSearch();
         private void cboSearchType_SelectedIndexChanged(object sender, EventArgs e) => DoSearch();
@@ -890,7 +1092,9 @@ namespace CROMS.Forms
             if (type == "All Records" || type == "Marriage") parts.Add(SearchMarriageQuery(term, fuzzy));
             if (type == "All Records" || type == "Death") parts.Add(SearchDeathQuery(term, fuzzy));
 
-            string sql = string.Join(" UNION ALL ", parts) + " ORDER BY Name LIMIT 300";
+            // A record with no name on it sorts LAST: sorted first, the screen opened on a blank row.
+            string sql = "SELECT * FROM (" + string.Join(" UNION ALL ", parts) + ") r " +
+                         "ORDER BY (r.Name = ''), r.Name LIMIT " + SearchLimit;
 
             var ps = new List<MySqlParameter>();
             if (term.Length > 0)
@@ -899,15 +1103,29 @@ namespace CROMS.Forms
                 ps.Add(new MySqlParameter("@q", term));
             }
 
+            // A column the operator sorted by stays sorted while they keep typing.
+            string sortColumn = null;
+            var sortDirection = System.ComponentModel.ListSortDirection.Ascending;
+            if (grid.SortedColumn != null && grid.Columns.Contains("RegYear"))
+            {
+                sortColumn = grid.SortedColumn.Name;
+                if (grid.SortOrder == SortOrder.Descending) sortDirection = System.ComponentModel.ListSortDirection.Descending;
+            }
+
             try
             {
                 DataTable dt = ps.Count == 0 ? Db.Pull(sql) : Db.Pull(sql, ps.ToArray());
+                // Coming from another category: drop its columns so these come out in query order.
+                if (!grid.Columns.Contains("RegYear")) grid.DataSource = null;
                 grid.DataSource = dt;
                 HideSearchWorkingColumns();
-                lblCount.Text = dt.Rows.Count + " record(s) found" +
-                    (type == "All Records" ? "" : "  ·  " + type + " only") +
-                    (term.Length == 0 ? "  ·  showing all — type a name to search" :
-                     fuzzy ? "  ·  name + sound-alike match" : "  ·  exact name match");
+                if (sortColumn != null && grid.Columns.Contains(sortColumn))
+                    grid.Sort(grid.Columns[sortColumn], sortDirection);
+                else
+                    MarkQueryOrder();
+                lblCount.Text = dt.Rows.Count >= SearchLimit
+                    ? "First " + SearchLimit + " shown, type a name to narrow"
+                    : CountText(dt.Rows.Count);
                 ShowSearchDetail();
             }
             catch (Exception ex)
@@ -934,13 +1152,53 @@ namespace CROMS.Forms
             SetWeight("Page", 7);
             SetWeight("Status", 15);
 
+            // Same date wording as the rail: 08/10/2026 can be read as two different days.
+            if (grid.Columns.Contains("Event Date"))
+            {
+                DataGridViewCellStyle st = grid.Columns["Event Date"].DefaultCellStyle;
+                st.Format = SearchDateFormat;
+                st.FormatProvider = CultureInfo.InvariantCulture;
+            }
+
             foreach (DataGridViewRow row in grid.Rows)
                 foreach (DataGridViewCell cell in row.Cells)
                     if (cell.OwningColumn.Visible)
                     {
                         object v = cell.Value;
-                        cell.ToolTipText = v == null || v == DBNull.Value ? "" : v.ToString();
+                        cell.ToolTipText = v == null || v == DBNull.Value ? ""
+                            : v is DateTime ? ((DateTime)v).ToString(SearchDateFormat, CultureInfo.InvariantCulture)
+                            : v.ToString();
                     }
+        }
+
+        /// <summary>
+        /// Shows the sort arrow on Name while the list is still in the order the query
+        /// returned (by name, blanks last). Also run when binding completes: the grid rebuilds
+        /// its columns then and drops an arrow set earlier.
+        /// </summary>
+        private void MarkQueryOrder()
+        {
+            if (_current == null || !_current.IsSearch) return;
+            if (grid.SortedColumn != null || !grid.Columns.Contains("Name")) return;
+            grid.Columns["Name"].HeaderCell.SortGlyphDirection = SortOrder.Ascending;
+        }
+
+        private const int SearchLimit = 300;
+        private const string SearchDateFormat = "dd MMM yyyy";
+        private const string SearchNoName = "(no name recorded)";
+
+        /// <summary>
+        /// SQL for "Last, First Middle" out of three columns, '' when all of them are blank.
+        /// A plain CONCAT printed a lone comma for a record with no name, and NULL when only
+        /// one part was missing.
+        /// </summary>
+        private static string SqlName(string last, string first, string middle)
+        {
+            string l = "COALESCE(" + last + ",'')";
+            string f = "COALESCE(" + first + ",'')";
+            string m = middle == null ? "''" : "COALESCE(" + middle + ",'')";
+            return "TRIM(CONCAT(" + l + ", CASE WHEN " + l + " <> '' AND " + f + " <> '' THEN ', ' ELSE '' END, " +
+                   f + ", ' ', " + m + "))";
         }
 
         private void SetWeight(string column, int weight)
@@ -958,7 +1216,7 @@ namespace CROMS.Forms
                 "CONCAT(first_name,' ',last_name) LIKE @like)",
                 "SOUNDEX(last_name) = SOUNDEX(@q) OR SOUNDEX(first_name) = SOUNDEX(@q)");
             return "SELECT 'Birth' AS Type, id, registry_no AS 'Registry No', " +
-                   "TRIM(CONCAT(last_name, ', ', first_name, ' ', COALESCE(middle_name,''))) AS Name, " +
+                   SqlName("last_name", "first_name", "middle_name") + " AS Name, " +
                    "date_of_birth AS 'Event Date', " +
                    "book_volume AS Book, book_page AS Page, status AS Status, " +
                    SearchRegistryYear + ", date_registered AS DateReg, " +
@@ -973,8 +1231,11 @@ namespace CROMS.Forms
             // `deaths` has no date_registered column — reported as NOT RECORDED rather than
             // substituted with created_at, which for a digitized backlog record is the
             // SCANNING date, not the date the office registered the death.
+            // Last name first, like births and marriages, so sorting by Name is one alphabet.
+            // A record that only has the joined full_name keeps it as stored: it is not split by guess.
             return "SELECT 'Death' AS Type, id, registry_no AS 'Registry No', " +
-                   "full_name AS Name, date_of_death AS 'Event Date', " +
+                   "CASE WHEN COALESCE(last_name,'') <> '' THEN " + SqlName("last_name", "first_name", "middle_name") +
+                   " ELSE COALESCE(full_name,'') END AS Name, date_of_death AS 'Event Date', " +
                    "book_volume AS Book, book_page AS Page, status AS Status, " +
                    SearchRegistryYear + ", CAST(NULL AS DATE) AS DateReg, " +
                    "form_name AS FormName, form_code AS FormCode FROM deaths" + where;
@@ -986,9 +1247,11 @@ namespace CROMS.Forms
                 "(husband_first_name LIKE @like OR husband_last_name LIKE @like OR " +
                 "wife_first_name LIKE @like OR wife_last_name LIKE @like)",
                 "SOUNDEX(husband_last_name) = SOUNDEX(@q) OR SOUNDEX(wife_last_name) = SOUNDEX(@q)");
+            string h = SqlName("husband_last_name", "husband_first_name", null);
+            string w = SqlName("wife_last_name", "wife_first_name", null);
             return "SELECT 'Marriage' AS Type, id, registry_no AS 'Registry No', " +
-                   "TRIM(CONCAT(husband_last_name, ', ', husband_first_name, '  &  ', " +
-                   "wife_last_name, ', ', wife_first_name)) AS Name, " +
+                   "CASE WHEN " + h + " <> '' AND " + w + " <> '' THEN CONCAT(" + h + ", '  &  ', " + w + ") " +
+                   "ELSE CONCAT(" + h + ", " + w + ") END AS Name, " +
                    "date_of_marriage AS 'Event Date', " +
                    "book_volume AS Book, book_page AS Page, status AS Status, " +
                    SearchRegistryYear + ", date_registered AS DateReg, " +
@@ -1038,6 +1301,13 @@ namespace CROMS.Forms
                 e.CellStyle.ForeColor = UiTheme.Faint;
                 e.FormattingApplied = true;
             }
+            else if (column == "Name" &&
+                     (e.Value == null || e.Value == DBNull.Value || e.Value.ToString().Trim().Length == 0))
+            {
+                e.Value = SearchNoName;
+                e.CellStyle.ForeColor = UiTheme.Faint;
+                e.FormattingApplied = true;
+            }
         }
 
         // ----------------------------------------------------- search detail rail
@@ -1048,20 +1318,22 @@ namespace CROMS.Forms
 
         private void ShowSearchDetail()
         {
-            cardDetail.SuspendLayout();
-            foreach (Control c in ToArray(cardDetail.Controls))
+            _railBody.SuspendLayout();
+            foreach (Control c in ToArray(_railBody.Controls))
             {
-                cardDetail.Controls.Remove(c);
+                _railBody.Controls.Remove(c);
                 c.Dispose();
             }
 
             DataGridViewRow row = SearchSelectedRow();
+            // Both buttons act on the selected record, so with none selected they have nothing to do.
+            btnViewRecord.Enabled = btnViewCertificate.Enabled = row != null;
             if (row == null)
             {
-                SearchStack(cardDetail,
+                SearchStack(_railBody,
                     MUi.SectionHeader("No record selected",
                         "Click a result on the left to see its registry book details here."));
-                cardDetail.ResumeLayout(true);
+                _railBody.ResumeLayout(true);
                 return;
             }
 
@@ -1077,9 +1349,10 @@ namespace CROMS.Forms
 
             var nameLabel = new Label
             {
-                Text = name.Length == 0 ? "(unnamed record)" : name,
+                Text = name.Length == 0 ? SearchNoName : name,
                 Dock = DockStyle.Top, Height = 46, AutoSize = false, UseMnemonic = false,
-                Font = new Font("Segoe UI", 12F, FontStyle.Bold), ForeColor = UiTheme.Ink,
+                Font = new Font("Segoe UI", 12F, FontStyle.Bold),
+                ForeColor = name.Length == 0 ? UiTheme.Faint : UiTheme.Ink,
                 BackColor = Color.Transparent, Margin = new Padding(0, 6, 0, 4)
             };
 
@@ -1087,6 +1360,7 @@ namespace CROMS.Forms
             {
                 badgeHost,
                 nameLabel,
+                SearchGap(6),
                 MUi.Cap("Registry entry"),
                 MUi.Kv("Register", type.Length == 0 ? SearchNotRecorded : type + " register"),
                 MUi.Kv("Registry no.", SearchOr(SearchCell(row, "Registry No"))),
@@ -1094,12 +1368,10 @@ namespace CROMS.Forms
                 MUi.Kv("Date registered", SearchDateOr(row, "DateReg", type)),
                 MUi.Kv(SearchEventLabel(type), SearchDateOr(row, "Event Date", null)),
                 MUi.Kv("Status", SearchOr(SearchCell(row, "Status")), MUi.InkOf(SearchCell(row, "Status"))),
+                SearchGap(14),
                 MUi.Cap("Registry book"),
                 MUi.Kv("Book / volume", SearchOr(book)),
-                MUi.Kv("Page", SearchOr(page)),
-                MUi.Cap("Source form"),
-                MUi.Kv("Form", SearchOr(SearchCell(row, "FormName"))),
-                MUi.Kv("Form code", SearchOr(SearchCell(row, "FormCode")))
+                MUi.Kv("Page", SearchOr(page))
             };
 
             if (book.Length == 0 || page.Length == 0)
@@ -1107,10 +1379,124 @@ namespace CROMS.Forms
                               "record itself — they are blank here because the paper book entry " +
                               "has not been recorded for this record yet."));
 
-            // The one record-opening control is the toolbar's btnViewRecord ("View Record Details").
-            // A second button here did the identical thing, so none is added to the rail.
-            SearchStack(cardDetail, rows.ToArray());
-            cardDetail.ResumeLayout(true);
+            List<Control> facts = SearchRecordFacts(type, SearchCell(row, "id"));
+            if (facts.Count > 0)
+            {
+                rows.Add(SearchGap(14));
+                rows.Add(MUi.Cap("On the record"));
+                rows.AddRange(facts);
+            }
+
+            rows.Add(SearchGap(14));
+            rows.Add(MUi.Cap("Source form"));
+            rows.Add(MUi.Kv("Form", SearchOr(SearchCell(row, "FormName"))));
+            rows.Add(MUi.Kv("Form code", SearchOr(SearchCell(row, "FormCode"))));
+
+            // The two record buttons sit in the rail's fixed foot (see SetupRail), not in this list.
+            SearchStack(_railBody, rows.ToArray());
+            _railBody.ResumeLayout(true);
+        }
+
+        private static Control SearchGap(int height)
+        {
+            return new Panel { Height = height, BackColor = Color.Transparent, Margin = Padding.Empty };
+        }
+
+        /// <summary>
+        /// A few more facts off the selected record, read from its certificate view (lookups
+        /// already resolved to names). One small query per selection; a failure just leaves
+        /// the section out, it never blocks the rail.
+        /// </summary>
+        private List<Control> SearchRecordFacts(string type, string idText)
+        {
+            var list = new List<Control>();
+            long id;
+            if (!long.TryParse(idText, out id)) return list;
+
+            string sql;
+            switch (type)
+            {
+                case "Birth":
+                    sql = "SELECT sex, place_of_birth AS place, " +
+                          "CONCAT_WS(' ', NULLIF(mother_first_name,''), NULLIF(mother_middle_name,''), NULLIF(mother_last_name,'')) AS mother, " +
+                          "father_full_name AS father FROM v_birth_certificate WHERE record_id = @id";
+                    break;
+                case "Marriage":
+                    sql = "SELECT COALESCE(NULLIF(place_of_marriage,''), CONCAT_WS(', ', NULLIF(church_name,''), " +
+                          "NULLIF(place_municipality,''), NULLIF(place_province,''))) AS place, solemnizer " +
+                          "FROM v_marriage_certificate WHERE record_id = @id";
+                    break;
+                case "Death":
+                    sql = "SELECT sex, age, place_of_death AS place FROM v_death_certificate WHERE record_id = @id";
+                    break;
+                default:
+                    return list;
+            }
+
+            try
+            {
+                DataTable dt = Db.Pull(sql, new MySqlParameter("@id", id));
+                if (dt.Rows.Count == 0) return list;
+                DataRow r = dt.Rows[0];
+                Func<string, string> val = c =>
+                    dt.Columns.Contains(c) && r[c] != DBNull.Value ? r[c].ToString().Trim() : "";
+
+                if (type == "Birth")
+                {
+                    list.Add(MUi.Kv("Sex", SearchOr(val("sex"))));
+                    list.Add(SearchFact("Place of birth", val("place")));
+                    list.Add(SearchFact("Mother (maiden name)", val("mother")));
+                    list.Add(SearchFact("Father", val("father")));
+                }
+                else if (type == "Marriage")
+                {
+                    list.Add(SearchFact("Place of marriage", val("place")));
+                    list.Add(SearchFact("Solemnizing officer", val("solemnizer")));
+                }
+                else
+                {
+                    list.Add(MUi.Kv("Sex", SearchOr(val("sex"))));
+                    list.Add(MUi.Kv("Age at death", SearchOr(val("age"))));
+                    list.Add(SearchFact("Place of death", val("place")));
+                }
+            }
+            catch
+            {
+                list.Clear();
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// A caption with its value on the line(s) below. Places and names are too long for
+        /// the two-column row, which cuts them with "...".
+        /// </summary>
+        private Control SearchFact(string key, string value)
+        {
+            bool blank = value.Length == 0;
+            var font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            int width = Math.Max(120, cardDetail.ClientSize.Width - _railBody.Padding.Horizontal -
+                                      SystemInformation.VerticalScrollBarWidth);
+            int textHeight = TextRenderer.MeasureText(blank ? SearchNotRecorded : value, font, new Size(width, 0),
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix).Height;
+
+            var host = new Panel { Height = 24 + textHeight + 8, BackColor = Color.Transparent, Margin = Padding.Empty };
+            host.Controls.Add(new Label
+            {
+                Text = blank ? SearchNotRecorded : value, Dock = DockStyle.Fill, AutoSize = false, UseMnemonic = false,
+                Font = font, ForeColor = blank ? UiTheme.Faint : UiTheme.Ink, BackColor = Color.Transparent
+            });
+            host.Controls.Add(new Label
+            {
+                Text = key, Dock = DockStyle.Top, Height = 24, AutoSize = false, UseMnemonic = false,
+                TextAlign = ContentAlignment.BottomLeft,
+                Font = new Font("Segoe UI", 9F), ForeColor = UiTheme.Muted, BackColor = Color.Transparent
+            });
+            host.Paint += (s, e) =>
+            {
+                using (var p = new Pen(UiTheme.RowLine)) e.Graphics.DrawLine(p, 0, host.Height - 1, host.Width, host.Height - 1);
+            };
+            return host;
         }
 
         /// <summary>

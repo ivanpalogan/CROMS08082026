@@ -64,8 +64,7 @@ namespace CROMS.Forms
             this.lblSubtitle.Name = "lblSubtitle";
             this.lblSubtitle.Size = new System.Drawing.Size(560, 15);
             this.lblSubtitle.TabIndex = 1;
-            this.lblSubtitle.Text = "Every saved record, form and image in the system, grouped by type, plus a name" +
-    "/SOUNDEX search across births, marriages and deaths. Read-only.";
+            this.lblSubtitle.Text = "Search births, marriages and deaths by name, or browse saved records by type.";
             //
             // treeCategories
             //
@@ -103,7 +102,7 @@ namespace CROMS.Forms
             this.lblCount.Name = "lblCount";
             this.lblCount.Size = new System.Drawing.Size(460, 20);
             this.lblCount.TabIndex = 4;
-            this.lblCount.Text = "0 record(s)";
+            this.lblCount.Text = "0 records";
             //
             // btnRefresh
             //
@@ -203,7 +202,7 @@ namespace CROMS.Forms
             this.chkFuzzy.Name = "chkFuzzy";
             this.chkFuzzy.Size = new System.Drawing.Size(160, 19);
             this.chkFuzzy.TabIndex = 2;
-            this.chkFuzzy.Text = "Sound-alike match (SOUNDEX)";
+            this.chkFuzzy.Text = "Sound-alike match";
             this.chkFuzzy.UseVisualStyleBackColor = true;
             this.chkFuzzy.CheckedChanged += new System.EventHandler(this.chkFuzzy_CheckedChanged);
             //
