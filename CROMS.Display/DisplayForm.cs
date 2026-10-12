@@ -270,7 +270,9 @@ namespace CROMS.Display
                 {
                     Text = "—",
                     ForeColor = Color.FromArgb(96, 165, 250),
-                    Font = new Font("Consolas", codeSize, FontStyle.Bold),
+                    Font = new Font("Consolas", 16F * sc, FontStyle.Bold),   // family + style only; size is fitted at paint
+                    MaxPt = codeSize,
+                    MinPt = 16F * sc,
                     Dock = DockStyle.Fill,
                     TextAlign = ContentAlignment.MiddleCenter
                 };
@@ -298,10 +300,6 @@ namespace CROMS.Display
                 card.Controls.Add(sub);
                 card.Controls.Add(title);
 
-                // Ticket code shrinks to fit its card so a long queue number stays
-                // readable on the public board — never clipped or cut in half.
-                AttachAutoFit(code, codeSize, 16F * sc);
-
                 _codeLabels[id] = code;
                 _subLabels[id] = sub;
                 _grid.Controls.Add(card, i % cols, i / cols);
@@ -312,66 +310,64 @@ namespace CROMS.Display
         }
 
         /// <summary>
-        /// Keeps a single-line Label's text fitted to its box: the font never grows past
-        /// <paramref name="maxPt"/> (so normal codes keep a consistent size) and shrinks
-        /// down to <paramref name="minPt"/> when the text would otherwise overflow.
-        /// Re-fits on resize and on text change, so it adapts to card size / screen size.
-        /// </summary>
-        private static void AttachAutoFit(Label lbl, float maxPt, float minPt)
-        {
-            if (lbl == null) return;
-            EventHandler fit = (s, e) => FitFont(lbl, maxPt, minPt);
-            lbl.Resize += fit;
-            lbl.TextChanged += fit;
-            FitFont(lbl, maxPt, minPt);
-        }
-
-        private static void FitFont(Label lbl, float maxPt, float minPt)
-        {
-            if (lbl == null || lbl.IsDisposed || !lbl.IsHandleCreated) return;
-            // Small safety margin so the biggest fitted size doesn't kiss the card edges.
-            int w = (int)((lbl.ClientSize.Width - lbl.Padding.Horizontal) * 0.85f);
-            int h = (int)((lbl.ClientSize.Height - lbl.Padding.Vertical) * 0.90f);
-            if (w <= 2 || h <= 2) return;
-
-            string text = string.IsNullOrEmpty(lbl.Text) ? " " : lbl.Text;
-            FontStyle style = lbl.Font.Style;
-            FontFamily family = lbl.Font.FontFamily;
-
-            float best = minPt;
-            // Measure with TextRenderer (what Label paints with) on a single line; GDI+
-            // MeasureString reads narrower, so a fitted code still wrapped ("Q-" / "04").
-            const TextFormatFlags flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
-            for (float size = maxPt; size >= minPt; size -= 1f)
-            {
-                using (var f = new Font(family, size, style))
-                {
-                    Size sz = TextRenderer.MeasureText(text, f, new Size(int.MaxValue, int.MaxValue), flags);
-                    if (sz.Width <= w && sz.Height <= h) { best = size; break; }
-                }
-            }
-
-            if (Math.Abs(lbl.Font.Size - best) > 0.5f)
-            {
-                Font old = lbl.Font;
-                lbl.Font = new Font(family, best, style);
-                old.Dispose();
-            }
-        }
-
-        /// <summary>
-        /// Label that always paints on ONE line, centred, using the same TextRenderer flags
-        /// FitFont measures with. A stock Label word-wraps at the hyphen ("Q-04" / "3") when
-        /// its own rendering comes out a few pixels wider than the measurement.
+        /// Ticket-code label: always ONE line, centred, drawn in the biggest font between
+        /// MinPt and MaxPt that fits the label's own box.
+        /// The fitted font is kept HERE and never assigned to Label.Font. Assigning Font on
+        /// a docked, non-AutoSize Label makes WinForms put the label back to its default
+        /// 100x23 size (Label.AdjustSize); the fit then ran against that tiny box and the
+        /// queue number came out at the minimum size in the card's top-left corner. A dash
+        /// never showed it because one character fits at MaxPt, so its font never changed.
         /// </summary>
         private sealed class SingleLineLabel : Label
         {
+            public float MaxPt = 130F, MinPt = 16F;
+
+            private Font _fit;
+            private string _fitText;
+            private Size _fitBox;
+
+            private const TextFormatFlags Measure = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+
+            private Font Fitted()
+            {
+                string text = string.IsNullOrEmpty(Text) ? " " : Text;
+                Size box = ClientSize;
+                if (_fit != null && _fitText == text && _fitBox == box) return _fit;
+
+                // Small safety margin so the biggest fitted size doesn't kiss the card edges.
+                int w = (int)(box.Width * 0.85f);
+                int h = (int)(box.Height * 0.90f);
+                float best = MinPt;
+                // TextRenderer is what OnPaint draws with; GDI+ MeasureString reads narrower.
+                for (float size = MaxPt; size >= MinPt; size -= 1f)
+                {
+                    using (var f = new Font(Font.FontFamily, size, Font.Style))
+                    {
+                        Size sz = TextRenderer.MeasureText(text, f, new Size(int.MaxValue, int.MaxValue), Measure);
+                        if (sz.Width <= w && sz.Height <= h) { best = size; break; }
+                    }
+                }
+
+                _fit?.Dispose();
+                _fit = new Font(Font.FontFamily, best, Font.Style);
+                _fitText = text;
+                _fitBox = box;
+                return _fit;
+            }
+
+            protected override void OnResize(EventArgs e) { base.OnResize(e); Invalidate(); }
+
             protected override void OnPaint(PaintEventArgs e)
             {
-                TextRenderer.DrawText(e.Graphics, Text, Font, ClientRectangle, ForeColor,
-                    TextFormatFlags.NoPadding | TextFormatFlags.SingleLine |
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
+                TextRenderer.DrawText(e.Graphics, Text, Fitted(), ClientRectangle, ForeColor,
+                    Measure | TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter |
                     TextFormatFlags.NoClipping);
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing) { _fit?.Dispose(); _fit = null; }
+                base.Dispose(disposing);
             }
         }
 
