@@ -85,7 +85,7 @@ namespace CROMS.Forms
 
         // ---- Informant tab: pre-filled from the father
         private Label lblInformantHint;
-        private bool _informantAutoFilled, _suppressInformantFill;
+        private bool _informantAutoFilled, _informantFromMother, _suppressInformantFill;
         private string _informantFilledName = "";
 
         // ------------------------------------------------------------------ small helpers
@@ -293,7 +293,7 @@ namespace CROMS.Forms
             // Informant pre-fill triggers.
             tabControl.SelectedIndexChanged += delegate
             {
-                if (tabControl.SelectedTab == tabInformant && CanPrefillInformant()) FillInformantFromFather(false);
+                if (tabControl.SelectedTab == tabInformant && CanPrefillInformant()) FillInformantOnOpen();
             };
             txtInfName.TextChanged += delegate
             {
@@ -465,10 +465,38 @@ namespace CROMS.Forms
         /// </summary>
         private void FillInformantFromFather(bool relationshipJustChosen)
         {
+            FillInformantFromParent(false, relationshipJustChosen);
+        }
+
+        private static string ParentName(params TextBox[] cells)
+        {
+            return string.Join(" ", cells.Select(c => (c.Text ?? "").Trim()).Where(s => s.Length > 0));
+        }
+
+        /// <summary>
+        /// Opening the Informant tab: the father is the usual informant; when no father is
+        /// entered (or the informant was already filled from the mother) the mother is used.
+        /// </summary>
+        private void FillInformantOnOpen()
+        {
+            bool mother = _informantAutoFilled
+                ? _informantFromMother
+                : ParentName(txtFFirst, txtFMiddle, txtFLast).Length == 0;
+            FillInformantFromParent(mother, false);
+        }
+
+        /// <summary>
+        /// Same rules for either parent. The mother's name on this form is her MAIDEN name
+        /// (items 6-7), so the line under it says so - a married mother signs differently.
+        /// </summary>
+        private void FillInformantFromParent(bool mother, bool relationshipJustChosen)
+        {
             if (_suppressInformantFill) return;
-            string name = string.Join(" ", new[] { txtFFirst.Text, txtFMiddle.Text, txtFLast.Text }
-                .Select(s => (s ?? "").Trim()).Where(s => s.Length > 0));
+            string name = mother
+                ? ParentName(txtMFirst, txtMMiddle, txtMLast)
+                : ParentName(txtFFirst, txtFMiddle, txtFLast);
             if (name.Length == 0) return;
+            ComboBox[] res = mother ? _mres : _fres;
 
             bool relBlank = string.IsNullOrWhiteSpace(_cboInfRel.Text);
             bool blank = txtInfName.Text.Trim().Length == 0 && AllBlank(_infAddr) && (relationshipJustChosen || relBlank);
@@ -478,11 +506,15 @@ namespace CROMS.Forms
             try
             {
                 txtInfName.Text = name;
-                OthersBox.Apply(_cboInfRel, txtInfRelOther, lblInfRelOther, "Father", SetLookup);
+                OthersBox.Apply(_cboInfRel, txtInfRelOther, lblInfRelOther, mother ? "Mother" : "Father", SetLookup);
                 GeoLookup.SetAddress(_infAddr[0], _infAddr[1], _infAddr[2],
-                    _fres[1].Text, _fres[2].Text, _fres[3].Text);
+                    res[1].Text, res[2].Text, res[3].Text);
                 _informantAutoFilled = true;
+                _informantFromMother = mother;
                 _informantFilledName = name;
+                lblInformantHint.Text = mother
+                    ? "Filled from the mother's particulars (maiden name) - change it if she uses another name or someone else reported the birth."
+                    : "Filled from the father's particulars - change it if someone else reported the birth.";
                 lblInformantHint.Visible = true;
             }
             finally { _suppressInformantFill = false; }
@@ -491,13 +523,17 @@ namespace CROMS.Forms
         private void cboInfRel_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (_suppressInformantFill) return;
-            if (string.Equals((_cboInfRel.Text ?? "").Trim(), "Father", StringComparison.OrdinalIgnoreCase))
+            string rel = (_cboInfRel.Text ?? "").Trim();
+            if (string.Equals(rel, "Father", StringComparison.OrdinalIgnoreCase))
                 FillInformantFromFather(true);
+            else if (string.Equals(rel, "Mother", StringComparison.OrdinalIgnoreCase))
+                FillInformantFromParent(true, true);
         }
 
         private void ResetInformantPrefill()
         {
             _informantAutoFilled = false;
+            _informantFromMother = false;
             _informantFilledName = "";
             if (lblInformantHint != null) lblInformantHint.Visible = false;
         }

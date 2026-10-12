@@ -322,6 +322,38 @@ namespace CROMS.MarriageTest
             int idx = rel.Items.IndexOf("Father");
             if (idx >= 0) rel.SelectedIndex = idx;
             Check("picking Father as the relationship fills the name", G<TextBox>("txtInfName").Text == "Jose Dela Cruz", G<TextBox>("txtInfName").Text);
+
+            // switching the pre-filled informant to Mother swaps in the mother's particulars
+            G<TextBox>("txtMFirst").Text = "Sheila"; G<TextBox>("txtMMiddle").Text = "Articulo"; G<TextBox>("txtMLast").Text = "Baloso";
+            var mres = G<ComboBox[]>("_mres");
+            GeoLookup.Select(mres[1], "Cagayan");
+            string mMuni = (string)mres[2].Items[1];
+            GeoLookup.Select(mres[2], mMuni);
+            idx = rel.Items.IndexOf("Mother");
+            if (idx >= 0) rel.SelectedIndex = idx;
+            Check("picking Mother fills the name from the mother", G<TextBox>("txtInfName").Text == "Sheila Articulo Baloso", G<TextBox>("txtInfName").Text);
+            var infM = G<ComboBox[]>("_infAddr");
+            Check("address copied from the mother's residence", infM[0].Text == "Cagayan" && infM[1].Text == mMuni, infM[0].Text + "/" + infM[1].Text);
+            Check("the line names the mother", G<Label>("lblInformantHint").Visible && G<Label>("lblInformantHint").Text.Contains("mother"));
+            tabs.SelectedTab = G<TabPage>("tabChild"); tabs.SelectedTab = G<TabPage>("tabInformant");
+            Application.DoEvents();
+            Check("reopening the tab keeps the mother", G<TextBox>("txtInfName").Text == "Sheila Articulo Baloso", G<TextBox>("txtInfName").Text);
+            idx = rel.Items.IndexOf("Father");
+            if (idx >= 0) rel.SelectedIndex = idx;
+            Check("switching back to Father restores the father", G<TextBox>("txtInfName").Text == "Jose Dela Cruz", G<TextBox>("txtInfName").Text);
+
+            // typed informant is not replaced when Mother is picked
+            G<TextBox>("txtInfName").Text = "Lola Remedios";
+            idx = rel.Items.IndexOf("Mother");
+            if (idx >= 0) rel.SelectedIndex = idx;
+            Check("a typed informant is kept when Mother is picked", G<TextBox>("txtInfName").Text == "Lola Remedios", G<TextBox>("txtInfName").Text);
+
+            // no father entered: opening the tab uses the mother
+            Call("ClearForm");
+            G<TextBox>("txtMFirst").Text = "Ana"; G<TextBox>("txtMLast").Text = "Reyes";
+            tabs.SelectedTab = G<TabPage>("tabChild"); tabs.SelectedTab = G<TabPage>("tabInformant");
+            Application.DoEvents();
+            Check("no father entered -> informant filled from the mother", G<TextBox>("txtInfName").Text == "Ana Reyes" && rel.Text == "Mother", G<TextBox>("txtInfName").Text + " / " + rel.Text);
         }
 
         private static void AttendantOthers()
