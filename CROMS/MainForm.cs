@@ -39,6 +39,7 @@ namespace CROMS
             RegisterNavButtons();
             SetupNavIcons();
             BuildUserBar();
+            SetupBackButton();
             SetupClientTasks();
             ApplyRoleAccess();   // also fills _navAllowed
             GroupNavSections();
@@ -560,6 +561,98 @@ namespace CROMS
             });
         }
 
+        // ================================================================
+        //  Back — returns to the screen the operator was on before the last jump
+        //  (a Client Tasks "Process", a hand-off between modules, or a sidebar click).
+        // ================================================================
+
+        private readonly List<string> _history = new List<string>();
+        private const int HistoryLimit = 30;
+        private bool _goingBack;
+        private Button _btnBack;
+        private ToolTip _backTip;
+
+        private void SetupBackButton()
+        {
+            _btnBack = new Button
+            {
+                Text = "Back",
+                Size = new Size(84, 34),
+                Location = new Point(16, 11),
+                Font = new Font("Segoe UI", 9.75F, FontStyle.Bold),
+                TextAlign = ContentAlignment.MiddleLeft,
+                TabStop = false,
+                Enabled = false
+            };
+            UiTheme.SetIcon(_btnBack, DrawBackArrow);
+            _btnBack.Click += (s, e) => GoBack();
+            _backTip = new ToolTip();
+            headerPanel.Controls.Add(_btnBack);
+            headerLabel.Left = _btnBack.Right + 12;
+        }
+
+        private static void DrawBackArrow(Graphics g, RectangleF r, Color color)
+        {
+            float midY = r.Top + r.Height / 2f, head = r.Height * 0.3f;
+            using (var pen = new Pen(color, 2f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+            {
+                g.DrawLine(pen, r.Left + 2, midY, r.Right - 2, midY);
+                g.DrawLines(pen, new[]
+                {
+                    new PointF(r.Left + 2 + head, midY - head),
+                    new PointF(r.Left + 2, midY),
+                    new PointF(r.Left + 2 + head, midY + head)
+                });
+            }
+        }
+
+        /// <summary>Remembers the screen being left, so Back can return to it.</summary>
+        private void RememberScreen(string leavingKey)
+        {
+            if (!_goingBack && leavingKey != null)
+            {
+                if (_history.Count == 0 || _history[_history.Count - 1] != leavingKey) _history.Add(leavingKey);
+                if (_history.Count > HistoryLimit) _history.RemoveAt(0);
+            }
+            UpdateBackButton();
+        }
+
+        private void UpdateBackButton()
+        {
+            if (_btnBack == null) return;
+            _btnBack.Enabled = _history.Count > 0;
+            _backTip.SetToolTip(_btnBack, _history.Count > 0
+                ? "Back to " + ModuleTitle(_history[_history.Count - 1]) + "  (Alt + Left)"
+                : "No previous screen");
+        }
+
+        /// <summary>
+        /// Goes back to the previous screen. The queue task in progress stays linked: going back
+        /// is not abandoning it, and Client Tasks still shows it as the current task.
+        /// </summary>
+        private bool GoBack()
+        {
+            while (_history.Count > 0)
+            {
+                string key = _history[_history.Count - 1];
+                _history.RemoveAt(_history.Count - 1);
+                if (key == _activeKey) continue;
+                _goingBack = true;
+                try { ShowModule(key, deferRefresh: true); }
+                finally { _goingBack = false; }
+                UpdateBackButton();
+                return true;
+            }
+            UpdateBackButton();
+            return false;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Alt | Keys.Left) && GoBack()) return true;
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void RefreshUserChipText()
         {
             try { _userPhotoBytes = Session.User != null ? Data.ProfilePhoto.Load(Session.User.Id) : null; }
@@ -850,6 +943,7 @@ namespace CROMS
             {
                 form = EnsureModule(module);
                 form.BringToFront();
+                RememberScreen(_activeKey);
                 _activeKey = key;
                 headerLabel.Text = module.Title;
                 RefreshQueueHeader();
